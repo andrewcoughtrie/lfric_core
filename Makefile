@@ -13,7 +13,7 @@ run: test
 
 .PHONY: doc docs
 doc docs:
-	$(MAKE) -C Docs docs
+	$(MAKE) -C Docs
 
 .PHONY: clean
 clean:
