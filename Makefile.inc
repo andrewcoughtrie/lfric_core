@@ -51,7 +51,7 @@ else ifeq '$(COMPILER)' 'gfortran'
   $(info ** Chosen GNU Fortran compiler)
   FC     = gfortran
   FFLAGS += -g -O0
-  FWARNINGFLAGS = -Wall -Werror
+  FWARNINGFLAGS = -Wall 
   F_MOD_DESTINATION_ARG = -J $(OBJ_DIR)
   GFORTRAN_VERSION = $(shell gfortran --version 2>&1 \
                        | sed -n 's/.*[[:space:]]\{1,\}\([[:digit:]]\{1,\}\.[[:digit:]]\{1,\}\.[[:digit:]]\{1,\}\)[[:space:]]\{,\}.*/\1/p' \

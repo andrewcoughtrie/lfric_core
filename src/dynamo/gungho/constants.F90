@@ -19,5 +19,7 @@ integer,       parameter :: dp=8              !< working precision
 real(kind=dp), parameter :: pi=3.141592654    !< pi value
 real(kind=dp), parameter :: eps=3.0E-15_dp    !< relative precision
 
+integer,       parameter :: max_iter = 10 ! maximum iteration number for solver
+
 end module constants_mod
 

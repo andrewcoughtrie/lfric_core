@@ -4,22 +4,18 @@
 ! However, it has been created with the help of the GungHo Consortium, 
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
-!
-!-------------------------------------------------------------------------------
 
 !> @brief Kernel which operates on v3 field. Determines the RHS of Galerkin projection
 
 !> @detail The kernel computes the integral of rho_df * P 
 !! with P_analytic over a single column
 
-
 module v3_rhs_kernel_mod
 use kernel_mod, only : kernel_type
 use constants_mod, only : dp
 use gaussian_quadrature_mod, only : ngp_h, ngp_v, gaussian_quadrature_type
 use argument_mod,            only: arg_type, &          ! the type
-                                   gh_rw, v3, fe, cells ! the enums
-
+                                   gh_write, v3, fe, cells ! the enums
 
 implicit none
 
@@ -29,9 +25,9 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: v3_rhs_kernel_type
   private
-  type(arg_type) :: meta_args(1) = [ &
-       arg_type(gh_rw,v3,fe,.true.,.false.,.false.,.true.) &
-       ]
+  type(arg_type) :: meta_args(1) = (/ &
+       arg_type(gh_write,v3,fe,.true.,.false.,.false.,.true.) &
+       /)
   integer :: iterates_over = cells
 
 contains
@@ -88,7 +84,7 @@ subroutine rhs_v3_code(nlayers,ndf,map,v3_basis,x,gq)
              f(qp1,qp2) = v3_basis(1,df,qp1,qp2) * real(k+1)
           end do
        end do
-       x(map(df) + k) = gq%integrate(f)
+       x(map(df)+k) = gq%integrate(f)
     end do
  end do
   

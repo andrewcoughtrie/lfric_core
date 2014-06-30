@@ -127,27 +127,27 @@ subroutine reference_cube()
   face_on_edge(12,:) = (/ 4, 6 /)
   
 ! outward unit normal vector to each face  
-  normal_to_face(1,:) = (/  0.0_dp, -1.0_dp,  0.0_dp /)
+  normal_to_face(1,:) = (/  0.0_dp,  1.0_dp,  0.0_dp /)
   normal_to_face(2,:) = (/  1.0_dp,  0.0_dp,  0.0_dp /)
   normal_to_face(3,:) = (/  0.0_dp,  1.0_dp,  0.0_dp /)
-  normal_to_face(4,:) = (/ -1.0_dp,  0.0_dp,  0.0_dp /)
-  normal_to_face(5,:) = (/  0.0_dp,  0.0_dp, -1.0_dp /)
+  normal_to_face(4,:) = (/  1.0_dp,  0.0_dp,  0.0_dp /)
+  normal_to_face(5,:) = (/  0.0_dp,  0.0_dp,  1.0_dp /)
   normal_to_face(6,:) = (/  0.0_dp,  0.0_dp,  1.0_dp /)
   
 ! tangent vectors to each edge 
 ! convention is that vector points from vert_on_edge(i,1) > vert_on_edge(i,2)
   tangent_to_edge(1 ,:) = (/  1.0_dp,  0.0_dp,  0.0_dp /)
   tangent_to_edge(2 ,:) = (/  0.0_dp,  1.0_dp,  0.0_dp /)
-  tangent_to_edge(3 ,:) = (/ -1.0_dp,  0.0_dp,  0.0_dp /)
-  tangent_to_edge(4 ,:) = (/  0.0_dp, -1.0_dp,  0.0_dp /)
+  tangent_to_edge(3 ,:) = (/  1.0_dp,  0.0_dp,  0.0_dp /)
+  tangent_to_edge(4 ,:) = (/  0.0_dp,  1.0_dp,  0.0_dp /)
   tangent_to_edge(5 ,:) = (/  0.0_dp,  0.0_dp,  1.0_dp /)
   tangent_to_edge(6 ,:) = (/  0.0_dp,  0.0_dp,  1.0_dp /)
   tangent_to_edge(7 ,:) = (/  0.0_dp,  0.0_dp,  1.0_dp /)
   tangent_to_edge(8 ,:) = (/  0.0_dp,  0.0_dp,  1.0_dp /)
   tangent_to_edge(9 ,:) = (/  1.0_dp,  0.0_dp,  0.0_dp /)
   tangent_to_edge(10,:) = (/  0.0_dp,  1.0_dp,  0.0_dp /)
-  tangent_to_edge(11,:) = (/ -1.0_dp,  0.0_dp,  0.0_dp /)
-  tangent_to_edge(12,:) = (/  0.0_dp, -1.0_dp,  0.0_dp /)
+  tangent_to_edge(11,:) = (/  1.0_dp,  0.0_dp,  0.0_dp /)
+  tangent_to_edge(12,:) = (/  0.0_dp,  1.0_dp,  0.0_dp /)
   
 end subroutine reference_cube
 

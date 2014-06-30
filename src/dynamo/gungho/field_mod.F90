@@ -51,7 +51,7 @@ module field_mod
   contains
 
     !> Function to get a proxy with public pointers to the data in a
-    !! field_type.
+    !! field_type. 
     procedure, public :: get_proxy
 
     !> Sends the field contents to the log
@@ -59,11 +59,16 @@ module field_mod
     !>
     procedure, public :: print_field
 
+    procedure         :: minus_field_data
+    procedure         :: copy_field_data
+    procedure         :: set_field_scalar
+    procedure         :: axpy
+
   end type field_type
 
   interface field_type
 
-    module procedure field_constructor
+    module procedure field_constructor, field_data_copy_constructor
 
   end interface
 
@@ -141,6 +146,19 @@ contains
 
   end function field_constructor
 
+  function field_data_copy_constructor( field ) result (self)
+    class( field_type ), intent(in) :: field
+    type(  field_type )             :: self
+	
+    self%vspace => field%vspace
+    self%gaussian_quadrature => field%gaussian_quadrature
+    self%nlayers = field%nlayers
+    self%undf = field%vspace%get_undf()
+    self%ncell = field%ncell
+    allocate( self%data(self%undf) )
+    
+  end function field_data_copy_constructor
+
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
@@ -150,7 +168,7 @@ contains
   !>
   subroutine print_field( self, title )
 
-    use log_mod, only : log_event, log_scratch_space, LOG_LEVEL_INFO
+    use log_mod, only : log_event, log_scratch_space, LOG_LEVEL_DEBUG
 
     implicit none
 
@@ -163,7 +181,7 @@ contains
     integer                   :: df
     integer,          pointer :: map( : )
 
-    call log_event( title, LOG_LEVEL_INFO )
+    call log_event( title, LOG_LEVEL_DEBUG )
 
     do cell=1,self%ncell
      map => self%vspace%get_cell_dofmap( cell )
@@ -171,10 +189,46 @@ contains
         do layer=0,self%nlayers-1
           write( log_scratch_space, '( I4, I4, I4, F8.2 )' ) &
               cell, df, layer+1, self%data( map( df ) + layer )
-          call log_event( log_scratch_space, LOG_LEVEL_INFO )
+          call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
         end do
       end do
     end do
 
   end subroutine print_field
+
+  subroutine minus_field_data(self, a, b)
+    implicit none
+    class(field_type), intent(inout) :: self
+    class(field_type), intent(in)    :: a
+    class(field_type), intent(in)    :: b
+
+    self%data(:) = a%data(:) - b%data(:)
+  end subroutine minus_field_data
+
+  subroutine copy_field_data(self, fdata)
+    implicit none
+    class(field_type), intent(inout) :: self
+    class(field_type), intent(in)    :: fdata
+    
+    self%data(:) = fdata%data(:)
+  end subroutine copy_field_data
+
+  subroutine set_field_scalar(self, scalar)
+    implicit none
+    class(field_type), intent(inout) :: self
+    real(kind=dp)                    :: scalar
+    
+    self%data(:) = scalar
+  end subroutine set_field_scalar
+
+  subroutine axpy(self, a,x,y)
+    implicit none
+    class(field_type), intent(inout):: self
+    real(kind=dp),     intent(in)   :: a
+    class(field_type), intent(in)   :: x
+    class(field_type), intent(in)   :: y
+    
+    self%data(:) = a*x%data(:) + y%data(:)
+  end subroutine axpy
+
 end module field_mod

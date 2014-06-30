@@ -16,7 +16,7 @@
 
 module psy
 
-  use field_mod, only : field_type, field_proxy_type 
+  use field_mod, only : field_type, field_proxy_type
   use lfric
 
   implicit none
@@ -29,30 +29,28 @@ contains
 
     implicit none
 
-    type( field_type ), intent( in ) :: right_hand_side
+    type( field_type ),  intent( in ) :: right_hand_side
 
-    type( field_proxy_type ) :: right_hand_side_proxy
+    type( field_proxy_type)           :: right_hand_side_proxy
     integer :: cell
     integer, pointer :: map(:)
     integer :: ndf
-    real(kind=dp), pointer  :: v3_basis(:,:,:,:)
+    real(kind=dp), pointer  :: basis(:,:,:,:)
 
-    right_hand_side_proxy = right_hand_side % get_proxy( )
-
+    right_hand_side_proxy = right_hand_side%get_proxy()
     ! Unpack data
-    ndf = right_hand_side_proxy%vspace%get_ndf( )
 
-    v3_basis => right_hand_side_proxy%vspace%get_basis( )
+    ndf = right_hand_side_proxy%vspace%get_ndf()
+    basis => right_hand_side_proxy%vspace%get_basis()
     do cell = 1, right_hand_side_proxy%ncell
        map => right_hand_side_proxy%vspace%get_cell_dofmap( cell )
-       call rhs_v3_code( right_hand_side_proxy % nlayers, &
+       call rhs_v3_code( right_hand_side_proxy%nlayers, &
                          ndf, &
                          map, &
-                         v3_basis, &
+                         basis, &
                          right_hand_side_proxy%data, &
                          right_hand_side_proxy%gaussian_quadrature )
     end do
-
   end subroutine invoke_rhs_v3
 
   subroutine invoke_v3_solver_kernel( pdfield, rhs )
@@ -65,23 +63,23 @@ contains
     integer                 :: cell
     integer, pointer        :: map(:)
     integer                 :: ndf
-    real(kind=dp), pointer  :: v3_basis(:,:,:,:)
+    real(kind=dp), pointer  :: basis(:,:,:,:)
 
-    type( field_proxy_type  ) :: pd_proxy
-    type( field_proxy_type  ) :: rhs_proxy
+    type( field_proxy_type )        :: pd_proxy
+    type( field_proxy_type )        :: rhs_proxy 
 
-    pd_proxy  = pdfield % get_proxy ( )
-    rhs_proxy = rhs % get_proxy( )
+    pd_proxy  = pdfield%get_proxy()
+    rhs_proxy = rhs%get_proxy()
 
-    ndf     = pd_proxy%vspace%get_ndf( )
-    v3_basis => pd_proxy%vspace%get_basis( )
+    ndf    = pd_proxy%vspace%get_ndf( )
+    basis => pd_proxy%vspace%get_basis()
 
     do cell = 1, pd_proxy%ncell
-       map => pd_proxy%vspace%get_cell_dofmap( cell )
+       map=>pd_proxy%vspace%get_cell_dofmap(cell)
        call solver_v3_code( pd_proxy%nlayers, &
                             ndf, &
                             map, &
-                            v3_basis, &
+                            basis, &
                             pd_proxy%data, &
                             rhs_proxy%data, &
                             pd_proxy%gaussian_quadrature )
@@ -89,4 +87,121 @@ contains
 
   end subroutine invoke_v3_solver_kernel
 
+  subroutine invoke_rhs_v2( right_hand_side )
+
+    use v2_kernel_mod, only : rhs_v2_code
+
+    implicit none
+
+    type( field_type ), intent( inout ) :: right_hand_side
+
+    type( field_proxy_type)             :: rhs_proxy
+    integer :: cell
+    integer, pointer :: map(:)
+    integer :: ndf
+    real(kind=dp), pointer  :: basis(:,:,:,:)
+
+    rhs_proxy = right_hand_side%get_proxy()
+    ! Unpack data
+    ndf = rhs_proxy%vspace%get_ndf()
+    basis => rhs_proxy%vspace%get_basis()
+    do cell = 1, rhs_proxy%ncell
+       map=> rhs_proxy%vspace%get_cell_dofmap(cell)
+       call rhs_v2_code( rhs_proxy%nlayers, &
+                         ndf, &
+                         map, &
+                         basis, &
+                         rhs_proxy%data, &
+                         rhs_proxy%gaussian_quadrature )
+    end do
+  end subroutine invoke_rhs_v2
+
+  subroutine invoke_rhs_v1( rhs )
+
+    use v1_kernel_mod, only : rhs_v1_code
+
+    implicit none
+
+    type( field_type ), intent( inout ) :: rhs
+
+    type( field_proxy_type) :: rhs_p
+    integer :: cell
+    integer, pointer :: map(:)
+    integer :: ndf
+    real(kind=dp), pointer  :: basis(:,:,:,:)
+
+    rhs_p = rhs%get_proxy()
+    ! Unpack data
+    ndf = rhs_p%vspace%get_ndf()
+    basis=>rhs_p%vspace%get_basis()
+    do cell = 1, rhs_p%ncell
+       map=> rhs_p%vspace%get_cell_dofmap(cell)
+       call rhs_v1_code( rhs_p%nlayers, &
+                         ndf, &
+                         map, &
+                         basis, &
+                         rhs_p%data, &
+                         rhs_p%gaussian_quadrature )
+    end do
+  end subroutine invoke_rhs_v1
+
+  subroutine invoke_matrix_vector(x,Ax)
+    use matrix_vector_mod, only : matrix_vector_code
+    type(field_type), intent(inout) :: x
+    type(field_type), intent(inout) :: Ax
+
+    integer                 :: cell
+    integer, pointer        :: map(:)
+    integer                 :: ndf
+    real(kind=dp), pointer  :: basis(:,:,:,:)
+
+    type( field_proxy_type )        :: x_p
+    type( field_proxy_type )        :: Ax_p
+
+    x_p = x%get_proxy()
+    Ax_p = Ax%get_proxy()
+
+    ndf     = x_p%vspace%get_ndf( )
+    basis  => x_p%vspace%get_basis()
+    
+    do cell = 1, x_p%ncell
+       map=>x_p%vspace%get_cell_dofmap(cell)
+       call matrix_vector_code( x_p%nlayers, &
+                                ndf, &
+                                map, &
+                                basis, &
+                                x_p%data, &
+                                Ax_p%data, &
+                                x_p%gaussian_quadrature )
+    end do
+
+  end subroutine invoke_matrix_vector
+
+  real(kind=dp) function inner_prod(x,y)
+    use log_mod, only : log_event, LOG_LEVEL_ERROR
+    implicit none
+    type( field_type ), intent( in ) :: x,y
+    type( field_proxy_type)             ::  x_p,y_p
+
+    integer                          :: i
+
+    x_p = x%get_proxy()
+    y_p = y%get_proxy()
+
+
+    !sanity check
+    if(x_p%undf .ne. y_p%undf ) then
+       ! they are not on the same function space
+       call log_event("Psy:inner_prod:x and y live on different w-spaces",LOG_LEVEL_ERROR)
+       !abort
+       stop
+    endif
+
+    inner_prod = 0.0_dp
+    do i = 1,x_p%undf
+       inner_prod = inner_prod + ( x_p%data(i) * y_p%data(i) )
+    end do
+
+  end function inner_prod
+    
 end module psy
