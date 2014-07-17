@@ -30,7 +30,7 @@ contains
                                  v2_func_space, v3_func_space
 
     integer :: num_dofs, num_unique_dofs
-    integer :: testncell, testundf
+    integer :: testncell, testundf, test_fs
     real(kind=dp), pointer, dimension(:,:,:,:) :: test_basis
     integer :: i,j
     integer, pointer :: testmap(:)
@@ -199,6 +199,9 @@ contains
     @assertEqual( test_v0_nodal_coords_2, test_nodes(2,1), epsilon )
     @assertEqual( test_v0_nodal_coords_3, test_nodes(3,1), epsilon )
 
+    test_fs = v0_func_space%which()
+    @assertEqual(test_fs,V0)
+
 !v1
     v1_func_space = v1_func_space%get_instance(V1)
 
@@ -227,6 +230,9 @@ contains
     @assertEqual( test_v1_nodal_coords_1, test_nodes(1,1), epsilon )
     @assertEqual( test_v1_nodal_coords_2, test_nodes(2,1), epsilon )
     @assertEqual( test_v1_nodal_coords_3, test_nodes(3,1), epsilon )
+
+    test_fs = v1_func_space%which()
+    @assertEqual(test_fs,V1)
 
 !v2
     v2_func_space = v2_func_space%get_instance(V2)
@@ -257,6 +263,9 @@ contains
     @assertEqual( test_v2_nodal_coords_2, test_nodes(2,1), epsilon )
     @assertEqual( test_v2_nodal_coords_3, test_nodes(3,1), epsilon )
 
+    test_fs = v2_func_space%which()
+    @assertEqual(test_fs,V2)
+
 !v3
     v3_func_space = v3_func_space%get_instance(V3)
 
@@ -285,6 +294,10 @@ contains
     @assertEqual( test_v3_nodal_coords_1, test_nodes(1,1), epsilon )
     @assertEqual( test_v3_nodal_coords_2, test_nodes(2,1), epsilon )
     @assertEqual( test_v3_nodal_coords_3, test_nodes(3,1), epsilon )
+
+    test_fs = v3_func_space%which()
+    @assertEqual(test_fs,V3)
+
 
   end subroutine test_func_space
 

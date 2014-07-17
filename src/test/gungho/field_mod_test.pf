@@ -40,7 +40,7 @@ contains
     integer                          :: num_layers,num_dofs,num_unique_dofs
     integer                          :: testncell,       &
                                         testnlayers
-    integer :: i,j
+    integer :: i,j, fs
 
     num_layers=50
     num_cells = 35
@@ -75,6 +75,9 @@ contains
 
     testnlayers = f_field_proxy%nlayers
     @assertEqual( num_layers, testnlayers )
+
+    fs = f_field%which_function_space()
+    @assertEqual(fs,V0)
 
     deallocate(v0_basis)
     deallocate(v0_diff_basis)

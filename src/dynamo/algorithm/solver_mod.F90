@@ -16,7 +16,10 @@ module solver_mod
   use constants_mod,   only : dp, max_iter
   use log_mod,         only : log_event, LOG_LEVEL_INFO, LOG_LEVEL_ERROR, &
                               LOG_LEVEL_DEBUG
-  use field_mod,       only : field_type, field_proxy_type                 
+  use field_mod,       only : field_type
+  use function_space_mod, only : function_space_type
+  use mesh_mod, only : num_layers
+  use gaussian_quadrature_mod, only : gaussian_quadrature_type
                                    
   use psy,             only : inner_prod, invoke_matrix_vector
 
@@ -38,7 +41,7 @@ contains
 
     character(len=80)                  :: cmessage
     ! The temporary fields
-    type(field_type)                   :: Ax, res, cr, p, v, s, t
+    type(field_type)                   :: res, cr, p, v, s, t
 
     ! the scalars 
     ! the greeks - standard BiCGStab
@@ -47,6 +50,10 @@ contains
     ! others
     real(kind=dp)                      :: err,sc_err, tol, init_err
     integer                            :: iter
+    integer                            :: rhs_fs
+    type(function_space_type)          :: fs
+    type( gaussian_quadrature_type )   :: gq 
+    type( gaussian_quadrature_type ), pointer :: null_gq => null()
 
     tol = 1.0e-8
     ! compute the residual this is a global sum to the PSy ---
@@ -56,17 +63,18 @@ contains
     call log_event(trim(cmessage), LOG_LEVEL_INFO)
     call lhs%set_field_scalar(0.0_dp)
     
-    ! call the copy constructor on the field_type    
-    Ax = field_type(rhs)
-    call Ax%set_field_scalar(0.0_dp)
+    rhs_fs = rhs%which_function_space()
+    v = field_type(fs%get_instance(rhs_fs),                                &
+         gq%get_instance(), num_layers = num_layers)
+    call v%set_field_scalar(0.0_dp)
+
+    call invoke_matrix_vector(v,lhs)
+    err = inner_prod(v,v)
     
-    ! call into the psy layer with the new_proxy method
-    call invoke_matrix_vector(Ax,lhs)
-    err = inner_prod(Ax,Ax)
+    res = field_type(fs%get_instance(rhs_fs),                              &
+         null_gq, num_layers=num_layers)   ! don't need a gq here
     
-    res = field_type(rhs)
-    
-    call res%minus_field_data(rhs,Ax)
+    call res%minus_field_data(rhs,v)
     
     err = inner_prod(res,res)
     err = sqrt(err)/sc_err
@@ -76,17 +84,19 @@ contains
     omega  = 1.0
     norm   = 1.0
     
-    cr = field_type(rhs)
+    cr = field_type(fs%get_instance(rhs_fs),                               &
+         null_gq, num_layers = num_layers)
     call cr%copy_field_data(res)
     
-    p = field_type(rhs)
+    p = field_type(fs%get_instance(rhs_fs),                                &
+         null_gq, num_layers = num_layers)
     call p%set_field_scalar(0.0_dp)
     
-    v = field_type(rhs)
+    t = field_type(fs%get_instance(rhs_fs),                                &
+         gq%get_instance(), num_layers = num_layers)
+    s = field_type(fs%get_instance(rhs_fs),                                &
+         null_gq, num_layers = num_layers)
     call v%set_field_scalar(0.0_dp)
-    
-    t = field_type(rhs)
-    s = field_type(rhs)
     
     do iter = 1, max_iter
        

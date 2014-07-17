@@ -28,7 +28,7 @@ private
   
 type, public :: function_space_type
   private
-  integer              :: ndf, ncell, undf, ngp_h, ngp_v
+  integer              :: ndf, ncell, undf, ngp_h, ngp_v, fs
   integer              :: dim_space, dim_space_diff
   !> A two dimensional, allocatable array which holds the indirection map 
   !! or dofmap for the whole function space over the bottom level of the domain.
@@ -87,6 +87,9 @@ contains
 !! @return A pointer to the two dimensional array, (xyz,ndf)
   procedure :: get_nodes
   
+  !> function returns the enumerated integer for the functions_space which
+  !! is this function_space
+  procedure :: which
 
 end type function_space_type
 
@@ -108,7 +111,7 @@ type(function_space_type), target, allocatable, save :: v3_function_space
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public get_ncell, get_cell_dofmap
+public get_ncell, get_cell_dofmap, which
 contains
 
 function get_instance(function_space) result(instance)
@@ -138,7 +141,7 @@ function get_instance(function_space) result(instance)
          ngp_h = ngp_h, ngp_v = ngp_v, &
          dofmap=v0_dofmap, &
          basis=v0_basis, diff_basis=v0_diff_basis, &
-         nodal_coords=v0_nodal_coords ) 
+         nodal_coords=v0_nodal_coords, fs=V0) 
     end if
     instance => v0_function_space
   case (V1)
@@ -151,7 +154,7 @@ function get_instance(function_space) result(instance)
          ngp_h = ngp_h, ngp_v = ngp_v, &
          dofmap=v1_dofmap, &
          basis=v1_basis, diff_basis=v1_diff_basis, &
-         nodal_coords=v1_nodal_coords )
+         nodal_coords=v1_nodal_coords,fs=V1 )
     end if
     instance => v1_function_space
   case (V2)
@@ -164,7 +167,7 @@ function get_instance(function_space) result(instance)
          ngp_h = ngp_h, ngp_v = ngp_v, &
          dofmap=v2_dofmap, &
          basis=v2_basis, diff_basis=v2_diff_basis, &
-         nodal_coords=v2_nodal_coords )
+         nodal_coords=v2_nodal_coords,fs=V2 )
     end if
     instance => v2_function_space
   case (V3)
@@ -177,7 +180,7 @@ function get_instance(function_space) result(instance)
          ngp_h = ngp_h, ngp_v = ngp_v, &
          dofmap=v3_dofmap, &
          basis=v3_basis, diff_basis=v3_diff_basis, &
-         nodal_coords=v3_nodal_coords )
+         nodal_coords=v3_nodal_coords, fs=V3 )
     end if
     instance => v3_function_space
   case default
@@ -204,7 +207,7 @@ subroutine init_function_space(self, &
                                ngp_h,ngp_v, &
                                dofmap, &
                                basis, diff_basis, &
-                               nodal_coords )
+                               nodal_coords, fs)
   implicit none
 
   class(function_space_type) :: self
@@ -217,6 +220,7 @@ subroutine init_function_space(self, &
   real(kind=dp), intent(inout), allocatable  :: basis(:,:,:,:)
   real(kind=dp), intent(inout), allocatable  :: diff_basis(:,:,:,:)
   real(kind=dp), intent(inout), allocatable  :: nodal_coords(:,:)
+  integer, intent(in) :: fs
 
   self%ncell           =  num_cells
   self%ndf             =  num_dofs
@@ -229,6 +233,7 @@ subroutine init_function_space(self, &
   call move_alloc(basis , self%basis)
   call move_alloc(diff_basis , self%diff_basis)
   call move_alloc(nodal_coords , self%nodal_coords) 
+  self%fs              = fs
   return
 end subroutine init_function_space
 
@@ -331,5 +336,14 @@ function get_nodes(self) result(nodal_coords)
   
   return
 end function get_nodes
+
+function which(self) result(V)
+  implicit none
+  class(function_space_type),  intent(in) :: self
+  integer :: V
+  
+  V = self%fs
+  return
+end function which
 
 end module function_space_mod

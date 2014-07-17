@@ -61,18 +61,27 @@ module field_mod
     !>
     procedure, public :: print_field
 
+    !> function which subtracts one field from another
     procedure         :: minus_field_data
+    !> function which copies one field to another
     procedure         :: copy_field_data
+    !> function which sets the values of the field to a scalar
     procedure         :: set_field_scalar
+    !> function which computes a*x +y where x and y are fields and a is  scalar
     procedure         :: axpy
+    !> function returns the enumerated integer for the functions_space on which
+    !! the field lives
+    procedure         :: which_function_space
 
   end type field_type
 
   interface field_type
 
-    module procedure field_constructor, field_data_copy_constructor
+    module procedure field_constructor
 
   end interface
+
+  public :: which_function_space
 
   !> Psy layer representation of a field.
   !>
@@ -148,19 +157,6 @@ contains
 
   end function field_constructor
 
-  function field_data_copy_constructor( field ) result (self)
-    class( field_type ), intent(in) :: field
-    type(  field_type )             :: self
-	
-    self%vspace => field%vspace
-    self%gaussian_quadrature => field%gaussian_quadrature
-    self%nlayers = field%nlayers
-    self%undf = field%vspace%get_undf()
-    self%ncell = field%ncell
-    allocate( self%data(self%undf) )
-    
-  end function field_data_copy_constructor
-
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
@@ -232,5 +228,14 @@ contains
     
     self%data(:) = a*x%data(:) + y%data(:)
   end subroutine axpy
+
+  function which_function_space(self) result(fs)
+    implicit none
+    class(field_type), intent(in) :: self
+    integer :: fs
+    
+    fs = self%vspace%which()
+    return
+  end function which_function_space
 
 end module field_mod
