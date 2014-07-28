@@ -8,16 +8,17 @@
 REPOSITORY_URL = https://puma.nerc.ac.uk/svn/GungHo_svn/Dynamo
 
 .PHONY: gource
-gource: gource/head.txt dynamo-gource.mp4
+gource: gource/head.txt dynamo-gource.avi
 
-dynamo-gource.mp4: gource/log.xml gource/captions.txt
+dynamo-gource.avi: gource/log.xml gource/captions.txt
 	$(info *** The 'gource' visualisation tool takes frames straight from rendered output.)
 	$(info *** If you obscure the window during rendering frames will be incomplete.)
 	gource -1280x720 -r 30 --multi-sampling --title Dynamo \
 	    --user-image-dir avatars --caption-file gource/captions.txt \
-	    --hide mouse,progress,usernames,filenames,dirnames -o - \
+	    --hide mouse,progress,usernames,filenames,dirnames \
+	    --file-idle-time 30 -o - \
 	    gource/log.xml \
-	| ffmpeg -y -r 30 -f image2pipe -vcodec ppm -i - -c:v mpeg4 \
+	| ffmpeg -y -r 30 -f image2pipe -vcodec ppm -i - \
 	    -s 1280x720 -r 30 -pix_fmt yuv420p -g 15 -b:v 2000k \
 	    -maxrate 4000k -minrate 1000k -bufsize 5000k -packetsize 4k \
 	    -muxrate 5000k $@
