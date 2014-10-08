@@ -26,6 +26,7 @@ OBJ_SUBDIRS = $(patsubst %,$(OBJ_DIR)/%,$(SUBDIRS))
 all: $(OBJ_DIR)/$(DEP_FILE)
 	$(MAKE) -f dynamo.mk EXE=dynamo all
 	$(MAKE) -f dynamo.mk EXE=generate_cubedsphere all
+	$(MAKE) -f dynamo.mk EXE=cubedsphere all
 
 $(OBJ_DIR)/$(DEP_FILE): $(SRC) | $(OBJ_DIR) $(OBJ_SUBDIRS)
 	@$(TOOL_DIR)/DependencyAnalyser $(IGNORE_DEPENDENCIES) \
