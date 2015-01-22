@@ -39,27 +39,27 @@ $(OBJ_DIR)/%.F90: %.pf | $(OBJ_DIR) $(OBJ_SUBDIRS)
 
 $(OBJ_DIR)/%.o: $(OBJ_DIR)/%.F90
 	@echo Compiling $<
-	$(Q)$(FCOM) $(FPPFLAGS) $(SPECIAL_FFLAGS) $(FFLAGS_TESTS) \
-	            $(F_MOD_DESTINATION_ARG)$(OBJ_DIR)/$(dir $@) \
-	            $(SUBJECT_MODINC) -I$(PFUNIT_INSTALL)/mod \
-	            -c -o $@ $<
+	$(Q)$(FC) $(FPPFLAGS) $(SPECIAL_FFLAGS) $(FFLAGS_TESTS) \
+	          $(F_MOD_DESTINATION_ARG)$(OBJ_DIR)/$(dir $@) \
+	          $(SUBJECT_MODINC) -I$(PFUNIT_INSTALL)/mod \
+	          -c -o $@ $<
 
 $(OBJ_DIR)/test: $(DRIVER_OBJ) $(SUPPORT_OBJECTS) $(TEST_OBJECTS)
 	@echo Linking $@
-	$(Q)$(FCOM) $(LDFLAGS) -o $@ \
-	            $^ \
-	            $(SUBJECT_DIR)/modules.a \
-	            $(PFUNIT_INSTALL)/lib/libpfunit.a \
-	            $(patsubst %,-l%,$(EXTERNAL_LIBRARIES))
+	$(Q)$(FLINK) $(FLDFLAGS) -o $@ \
+	             $^ \
+	             $(SUBJECT_DIR)/modules.a \
+	             $(PFUNIT_INSTALL)/lib/libpfunit.a \
+	             $(patsubst %,-l%,$(EXTERNAL_LIBRARIES))
 
 # Replace OBJ_SUBDIR with mangling of % ?
 $(OBJ_DIR)/%.o: %.F90 | $(OBJ_SUBDIRS)
-	$(FCOM) $(FPPFLAGS) $(F_MOD_DESTINATION_ARG)$(OBJ_DIR)/$(dir $@) \
-	        $(SUBJECT_MODINC) -c -o $@ $<
+	$(FC) $(FPPFLAGS) $(F_MOD_DESTINATION_ARG)$(OBJ_DIR)/$(dir $@) \
+	      $(SUBJECT_MODINC) -c -o $@ $<
 
 $(OBJ_DIR)/%.o: %.f90 | $(OBJ_SUBDIRS)
-	$(FCOM) $(FPPFLAGS) $(F_MOD_DESTINATION_ARG)$(OBJ_DIR)/$(dir $@) \
-	        $(SUBJECT_MODINC) -c -o $@ $<
+	$(FC) $(FPPFLAGS) $(F_MOD_DESTINATION_ARG)$(OBJ_DIR)/$(dir $@) \
+	      $(SUBJECT_MODINC) -c -o $@ $<
 
 $(DRIVER_OBJ):
 	$(MAKE) -f pfunit.mk $(DRIVER_OBJ)

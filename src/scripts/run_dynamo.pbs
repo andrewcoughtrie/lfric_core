@@ -1,0 +1,23 @@
+#!/bin/bash --login
+##############################################################################
+# (c) The copyright relating to this work is owned jointly by the Crown,
+# Met Office and NERC 2014. However, it has been created with the help of the
+# GungHo Consortium, whose members are identified at
+# https://puma.nerc.ac.uk/trac/GungHo/wiki
+##############################################################################
+
+# Define a name for the job
+#PBS -N dynamo
+# Select the number of nodes on which to run
+#PBS -l select=1
+# Select the length of time for which you want to run the job hh:mm:ss
+#PBS -l walltime=00:01:00
+
+#
+# Submission script for submitting to a Dynamo job to machines that use the
+# Portable Batch System (PBS). For example Archer or the Met Office Cray systems
+#
+
+NPES=1
+
+aprun -n $NPES ./dynamo

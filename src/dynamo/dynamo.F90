@@ -20,6 +20,7 @@
 
 program dynamo
 
+  use ESMF
   use constants_mod,           only : i_def, str_max_filename
   use dynamo_algorithm_rk_timestep_mod, &
                                only : dynamo_algorithm_rk_timestep
@@ -48,13 +49,15 @@ program dynamo
   type( field_type ) :: u, rho, theta, exner, xi
 
   integer                          :: coord
+  TYPE( field_type ), allocatable  :: state(:)
+  integer                          :: n_fields
+  type(ESMF_VM) :: vm
+  integer :: rc
+  INTEGER :: petCount, localPET  
   integer( i_def )                 :: argument_index,  &
                                       argument_length, &
                                       argument_status
   character( 6 )                   :: argument
-
-  type( field_type ), allocatable  :: state(:)
-  integer                          :: n_fields
 
   call log_event( 'Dynamo running...', LOG_LEVEL_INFO )
 
@@ -91,6 +94,20 @@ program dynamo
     end if
 
   end do cli_argument_loop
+
+! Initialise ESMF
+  CALL ESMF_Initialize(vm=vm, defaultlogfilename="dynamo.Log", &
+                  logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+  call ESMF_VMGet(vm, localPet=localPET, petCount=petCount, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+  if (petCount /= 1 .OR. localPet /= 0)then
+    call log_event( 'Currently, Dynamo can only run on a single process.', LOG_LEVEL_ERROR )
+  endif
+ 
+  call log_event( 'Dynamo running...', LOG_LEVEL_INFO )
 
   call set_up( )
 
@@ -135,5 +152,8 @@ program dynamo
   deallocate(state)
 
   call log_event( 'Dynamo completed', LOG_LEVEL_INFO )
+
+  ! Close down ESMF
+  call ESMF_Finalize(rc=rc)
 
 end program dynamo

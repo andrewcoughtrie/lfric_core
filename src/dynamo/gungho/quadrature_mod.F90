@@ -56,7 +56,7 @@ contains
 
   !> function returns the 2-d array of horizontal quadrature points
   procedure :: get_xqp_h
-  
+
   !> function returns the 1-d array of vertical quadrature points
   procedure :: get_xqp_v
 
@@ -66,10 +66,10 @@ contains
 
   !> function returns the 1-d array of horizontal quadrature weights
   procedure :: get_wqp_h
-  
+
   !> function returns the 1-d array of vertical quadrature weights
   procedure :: get_wqp_v
-  
+
   procedure :: get_nqp_v
   procedure :: get_nqp_h
 
@@ -131,7 +131,7 @@ subroutine init_quadrature(self, qr, nqp_h, nqp_v)
 
   self%nqp_h = nqp_h
   self%nqp_v = nqp_v
-  
+
   allocate( self%xqp(nqp_v) )
   allocate( self%wqp(nqp_v) ) 
   allocate( self%xqp_h(nqp_h,2) ) 
@@ -142,18 +142,18 @@ subroutine init_quadrature(self, qr, nqp_h, nqp_v)
 
   !Roots are symmetric in the interval - so only need to find half of them  
 
-  do i = 1, m ! Loop over the desired roots 
+  do i = 1, m ! Loop over the desired roots
 
     z = cos( pi * (i - 0.25_r_def) / (nqp_v + 0.5_r_def) )
 
     !Starting with the above approximation to the ith root, we enter the main
-    !loop of refinement by NEWTON'S method   
+    !loop of refinement by NEWTON'S method
     do while ( abs(z-z1) > eps )
       p1 = 1.0_r_def
       p2 = 0.0_r_def
 
       !Loop up the recurrence relation to get the Legendre polynomial evaluated
-      !at z                 
+      !at z
       do j = 1, nqp_v
         p3 = p2
         p2 = p1
@@ -162,19 +162,19 @@ subroutine init_quadrature(self, qr, nqp_h, nqp_v)
 
       !p1 is now the desired Legendre polynomial. We next compute pp, its
       !derivative, by a standard relation involving also p2, the polynomial of one
-      !lower order.      
+      !lower order.
       pp = nqp_v * (z * p1 - p2)/(z*z - 1.0_r_def)
       z1 = z
       z = z1 - p1/pp             ! Newton's Method  
     end do
 
-    self%xqp(i) =  - z                                  ! Roots will be bewteen -1.0 & 1.0 
-    self%xqp(nqp_v+1-i) =  + z                          ! and symmetric about the origin  
-    self%wqp(i) = 2.0_r_def/((1.0_r_def - z*z) * pp*pp) ! Compute the wgpht and its       
-    self%wqp(nqp_v+1-i) = self%wqp(i)                   ! symmetric counterpart         
+    self%xqp(i) =  - z                                  ! Roots will be bewteen -1.0 & 1.0
+    self%xqp(nqp_v+1-i) =  + z                          ! and symmetric about the origin
+    self%wqp(i) = 2.0_r_def/((1.0_r_def - z*z) * pp*pp) ! Compute the wgpht and its
+    self%wqp(nqp_v+1-i) = self%wqp(i)                   ! symmetric counterpart
 
   end do     ! i loop
-      
+
   !Shift quad points from [-1,1] to [0,1]
   do i=1,nqp_v
     self%xqp(i) = 0.5_r_def*(self%xqp(i) + 1.0_r_def)
@@ -187,7 +187,7 @@ subroutine init_quadrature(self, qr, nqp_h, nqp_v)
       self%xqp_h(m,1) = self%xqp(i)
       self%xqp_h(m,2) = self%xqp(j)
       self%wqp_h(m) = self%wqp(i)*self%wqp(j)
-      
+
       m = m + 1
     end do
   end do
@@ -263,11 +263,11 @@ end function integrate
 function get_xqp_h(self) result(xqp_h)
   implicit none
   class(quadrature_type), target, intent(in) :: self
-  real(kind=r_def), pointer :: xqp_h(:,:) 
+  real(kind=r_def), pointer :: xqp_h(:,:)
 
-  xqp_h => self%xqp_h(:,:)
+  xqp_h => self%xqp_h
   return
-end function get_xqp_h 
+end function get_xqp_h
 
 !> Function to return the quadrature points in the vertical
 !> @param[in] self the calling quadrature rule
@@ -275,9 +275,9 @@ end function get_xqp_h
 function get_xqp_v(self) result(xqp_v)
   implicit none
   class(quadrature_type), target, intent(in) :: self
-  real(kind=r_def), pointer :: xqp_v(:) 
+  real(kind=r_def), pointer :: xqp_v(:)
 
-  xqp_v => self%xqp(:)
+  xqp_v => self%xqp
   return
 end function get_xqp_v
 
@@ -285,7 +285,7 @@ function which(self) result(qr)
   implicit none
   class(quadrature_type),  intent(in) :: self
   integer :: qr
-  
+
   qr = self%qr
   return
 end function which
@@ -294,7 +294,7 @@ function get_nqp_v(self) result(nqp_v)
   implicit none
   class(quadrature_type), intent(in) :: self
   integer :: nqp_v
-  
+
   nqp_v = self%nqp_v
   return
 end function get_nqp_v
@@ -303,7 +303,7 @@ function get_nqp_h(self) result(nqp_h)
   implicit none
   class(quadrature_type), intent(in) :: self
   integer :: nqp_h
-  
+
   nqp_h = self%nqp_h
   return
 end function get_nqp_h
@@ -320,7 +320,7 @@ function get_wqp_h(self) result(wqp_h)
   class(quadrature_type), target, intent(in) :: self
   real(kind=r_def), pointer :: wqp_h(:) 
 
-  wqp_h => self%wqp_h(:)
+  wqp_h => self%wqp_h
   return
 end function get_wqp_h 
 
@@ -335,7 +335,7 @@ function get_wqp_v(self) result(wqp_v)
   class(quadrature_type), target, intent(in) :: self
   real(kind=r_def), pointer :: wqp_v(:) 
 
-  wqp_v => self%wqp(:)
+  wqp_v => self%wqp
   return
 end function get_wqp_v 
 

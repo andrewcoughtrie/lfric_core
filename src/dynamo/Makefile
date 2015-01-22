@@ -5,8 +5,8 @@
 # https://puma.nerc.ac.uk/trac/GungHo/wiki
 ##############################################################################
 
-export IGNORE_DEPENDENCIES = netcdf
-export EXTERNAL_DYNAMIC_LIBRARIES = netcdff
+export IGNORE_DEPENDENCIES = netcdf MPI ESMF
+export EXTERNAL_DYNAMIC_LIBRARIES = netcdf netcdff netcdf_c++ esmf
 export EXTERNAL_STATIC_LIBRARIES = 
 
 export ROOT = ../..

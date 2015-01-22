@@ -33,7 +33,7 @@ contains
     type( field_type ), intent( in ) :: rhs
     type( field_type ), intent( in ) :: chi(3)
     type( quadrature_type), intent(in) :: qr
-    
+
     integer                    :: cell, nlayers, nqp_h, nqp_v
     integer                    :: ndf_w3, undf_w3, ndf_w0, undf_w0
     integer                    :: dim_w3, diff_dim_w0
@@ -47,7 +47,8 @@ contains
 
     real(kind=r_def), pointer :: xp(:,:) => null()
     real(kind=r_def), pointer :: zp(:)   => null()
-    real(kind=r_def), pointer :: wh(:), wv(:) => null()
+    real(kind=r_def), pointer :: wh(:)   => null(), &
+                                 wv(:)   => null()
 
     lhs_proxy = lhs%get_proxy()
     rhs_proxy = rhs%get_proxy()
@@ -101,10 +102,7 @@ contains
 
     deallocate(w3_basis, w0_diff_basis)
   end subroutine invoke_w3_solver_kernel
-  
-  
 
-  
 !-------------------------------------------------------------------------------  
   subroutine invoke_matrix_vector_mm(Ax,x, mm)
     use matrix_vector_mm_mod, only : matrix_vector_mm_code
@@ -310,9 +308,9 @@ contains
                              ndf_w0, &
                              undf_w0, &
                              map_w0, &
-                             basis_f_w0, &                             
+                             basis_f_w0, &
                              theta_proxy%data, &
-                             dbasis_w0, &   
+                             dbasis_w0, &
                              chi_proxy(1)%data, &
                              chi_proxy(2)%data, &
                              chi_proxy(3)%data,  &
@@ -321,13 +319,15 @@ contains
                              wh, wv )
     end do 
     deallocate(basis_func,basis_f_w0,dbasis_w0)
-  end subroutine invoke_calc_exner_kernel  
-  
+  end subroutine invoke_calc_exner_kernel
+
 !-------------------------------------------------------------------------------  
 !> Invoke_rtheta_kernel: Invoke the RHS of the theta equation
   subroutine invoke_rtheta_kernel( r_theta, u,  chi, qr )
 
     use rtheta_kernel_mod, only : rtheta_code
+
+    implicit none
 
     type( field_type ), intent( in ) :: r_theta, u
     type( field_type ), intent( in ) :: chi(3)
@@ -340,14 +340,15 @@ contains
 
     type( field_proxy_type )        :: r_theta_proxy, u_proxy 
     type( field_proxy_type )        :: chi_proxy(3)
-    
+
     real(kind=r_def), allocatable  :: basis_w2(:,:,:,:), &
                                       basis_w0(:,:,:,:), &
-                                      diff_basis_w0(:,:,:,:) 
+                                      diff_basis_w0(:,:,:,:)
 
     real(kind=r_def), pointer :: xp(:,:) => null()
-    real(kind=r_def), pointer :: zp(:) => null()
-    real(kind=r_def), pointer :: wh(:), wv(:) => null()
+    real(kind=r_def), pointer :: zp(:)   => null()
+    real(kind=r_def), pointer :: wh(:)   => null(), &
+                                 wv(:)   => null()
 
     r_theta_proxy   = r_theta%get_proxy()
     u_proxy         = u%get_proxy()
@@ -380,12 +381,11 @@ contains
         basis_w2, ndf_w2, nqp_h, nqp_v, xp, zp)    
 
     call r_theta_proxy%vspace%compute_basis_function(basis_w0, ndf_w0,      & 
-         nqp_h, nqp_v, xp, zp)    
+         nqp_h, nqp_v, xp, zp)
 
     call r_theta_proxy%vspace%compute_diff_basis_function(                  &
          diff_basis_w0, ndf_w0, nqp_h, nqp_v, xp, zp)
 
-    
     do cell = 1, r_theta_proxy%vspace%get_ncell()
        map_w0 => r_theta_proxy%vspace%get_cell_dofmap( cell )
        map_w2 => u_proxy%vspace%get_cell_dofmap( cell )
@@ -401,8 +401,8 @@ contains
                          map_w2, &
                          basis_w2, &
                          orientation_w2, &
-                         u_proxy%data, &                        
-                         diff_basis_w0, &   
+                         u_proxy%data, &
+                         diff_basis_w0, &
                          chi_proxy(1)%data, &
                          chi_proxy(2)%data, &
                          chi_proxy(3)%data,  &

@@ -74,25 +74,25 @@ IGNORE_DEPENDENCIES := $(patsubst %,-ignore %,$(IGNORE_DEPENDENCIES))
 
 $(OBJ_DIR)/%.o $(OBJ_DIR)/%.mod: %.F90 | $(OBJ_DIR)
 	@echo "Compile $<"
-	$(Q)$(FCOM) $(CPPFLAGS) $(FFLAGS) \
-	            $(F_MOD_DESTINATION_ARG)$(OBJ_DIR)/$(dir $@) \
-	            $(INCLUDE_ARGS) -c -o $(basename $@).o $<
+	$(Q)$(FC) $(CPPFLAGS) $(FFLAGS) \
+	          $(F_MOD_DESTINATION_ARG)$(OBJ_DIR)/$(dir $@) \
+	          $(INCLUDE_ARGS) -c -o $(basename $@).o $<
 
 $(OBJ_DIR)/%.o $(OBJ_DIR)/%.mod: %.f90 | $(OBJ_DIR)
 	@echo "Compile $<"
-	$(Q)$(FCOM) $(CPPFLAGS) $(FFLAGS) \
-	            $(F_MOD_DESTINATION_ARG)$(OBJ_DIR)/$(dir $@) \
-	            $(INCLUDE_ARGS) -c -o $(basename $@).o $<
+	$(Q)$(FC) $(CPPFLAGS) $(FFLAGS) \
+	          $(F_MOD_DESTINATION_ARG)$(OBJ_DIR)/$(dir $@) \
+	          $(INCLUDE_ARGS) -c -o $(basename $@).o $<
 
 $(OBJ_DIR)/modules.a: $(ALL_OBJS)
 	$(Q)$(AR) -r $@ $^
 
 $(OBJ_DIR)/%.x: $$($$(shell echo $$* | tr a-z A-Z)_OBJS)
 	@echo "Linking $@"
-	$(Q)$(FCOM) $(FFLAGS) $(LDFLAGS) -o $@ \
-	            $(patsubst %,-l%,$(EXTERNAL_DYNAMIC_LIBRARIES)) \
-	            $^ \
-	            $(patsubst %,-l%,$(EXTERNAL_STATIC_LIBRARIES))
+	$(Q)$(FLINK) $(FLDFLAGS) -o $@ \
+	             $(patsubst %,-l%,$(EXTERNAL_DYNAMIC_LIBRARIES)) \
+	             $^ \
+	             $(patsubst %,-l%,$(EXTERNAL_STATIC_LIBRARIES))
 
 # Dependencies
 

@@ -64,22 +64,15 @@ else
 	Q = @
 endif
 
-# Since mpif90 uses $FC there will likely be nasty interactions between the
-# default FC logic above and MPI builds.
-# When MPI becomes the natural way of building dynamo this logic (and the macro
-# name) will have to be inverted. i.e. ifdef NOMPI
-ifdef MPI
-  $(info Building with MPI)
-  FCOM = mpif90
-else
-  FCOM = $(FC)
-endif
+-include $(ESMFMKFILE)
+
+FLDFLAGS = $(LDFLAGS)
 
 COMPILER_NAME = $(shell basename $(FC))
 ifeq '$(COMPILER_NAME)' 'ifort'
   $(info ** Chosen Intel Fortran compiler)
 
-  FFLAGS_COMPILER       = -xhost
+  FFLAGS_COMPILER       = -xhost $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS)
   FFLAGS_OPTIMISATION   = -O0
   FFLAGS_DEBUG          = -g -traceback
   FFLAGS_WARNINGS       = -warn all  -warn errors
@@ -87,6 +80,10 @@ ifeq '$(COMPILER_NAME)' 'ifort'
   FFLAGS_RUNTIME        = -check all -fpe0
   FFLAGS_TESTS          = -assume realloc_lhs
   F_MOD_DESTINATION_ARG = -module$(SPACE)
+
+  FLINK = mpif90
+  FLDFLAGS += $(FFLAGS_COMPILER) $(FFLAGS_DEBUG)
+
   IFORT_VERSION        := $(shell ifort -v 2>&1 \
                           | awk -F "[. ]" '/[0-9]\.[0-9]\.[0-9]/ { printf "%03i%02i%02i", $$(NF-2),$$(NF-1),$$NF}' )
   $(info ** Version $(IFORT_VERSION))
@@ -104,6 +101,7 @@ else ifeq ($(findstring xlf,$(COMPILER_NAME) ), xlf)
 else ifeq '$(COMPILER_NAME)' 'gfortran'
   $(info ** Chosen GNU Fortran compiler)
 
+  FFLAGS_COMPILER       = $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS)
   FFLAGS_OPTIMISATION   = -O0 
   FFLAGS_DEBUG          = -g
   FFLAGS_WARNINGS       = -Wall  -Werror
@@ -111,6 +109,10 @@ else ifeq '$(COMPILER_NAME)' 'gfortran'
                           -finit-logical=true -finit-character=85
   FFLAGS_RUNTIME        = -fcheck=all -ffpe-trap=invalid,zero,overflow,underflow
   F_MOD_DESTINATION_ARG = -J
+
+  FLINK = mpif90
+  FLDFLAGS += $(FFLAGS_DEBUG)
+
   GFORTRAN_VERSION     := $(shell gfortran -dumpversion 2>&1 \
                           | awk -F . '{ printf "%02i%02i%02i", $$1, $$2, $$3 }')
   $(info ** Version $(GFORTRAN_VERSION))
@@ -135,11 +137,14 @@ else ifeq '$(COMPILER_NAME)' 'pgfortran'
 else ifeq '$(COMPILER_NAME)' 'crayftn'
   $(info ** Chosen Cray Fortran compiler)
 
-  FFLAGS_COMPILER       = -em
+  FFLAGS_COMPILER       = -em $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS)
   FFLAGS_OPTIMISATION   = -O0
   FFLAGS_DEBUG          = -g
   FFLAGS_WARNINGS       = -m 0
   F_MOD_DESTINATION_ARG = -J$(SPACE)
+
+  FLINK = CC
+  FLDFLAGS += $(FFLAGS_DEBUG)
 
 else
   $(error Unrecognised Fortran compiler $(FC))
