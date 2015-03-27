@@ -26,10 +26,11 @@ TEST_OBJECTS = $(patsubst %.pf,$(OBJ_DIR)/%.o,$(TEST_SOURCES))
 
 SUPPORT_SOURCE  = $(shell find -name "*.[Ff]90")
 SUPPORT_OBJECTS = $(addprefix $(OBJ_DIR)/,$(addsuffix .o,$(basename $(SUPPORT_SOURCE))))
+SUPPORT_MODINC  = $(patsubst %,-I%,$(dir $(SUPPORT_OBJECTS)))
 
 SUBJECT_DIR     = $(BUILD_DIR)/dynamo
 SUBJECT_SUBDIRS = $(shell find $(SUBJECT_DIR) -type d)
-SUBJECT_MODINC  = $(patsubst %,-I %,$(SUBJECT_SUBDIRS))
+SUBJECT_MODINC  = $(patsubst %,-I%,$(SUBJECT_SUBDIRS))
 
 .PHONY: test
 test: $(OBJ_DIR)/test
@@ -40,12 +41,12 @@ $(OBJ_DIR)/%.F90: %.pf | $(OBJ_DIR) $(OBJ_SUBDIRS) $(DRIVER_OBJ)
 	@echo Generating $@
 	$(Q)$(PFUNIT_INSTALL_DIR)/bin/pFUnitParser.py $< $@
 
-$(OBJ_DIR)/%.o: $(OBJ_DIR)/%.F90
+$(OBJ_DIR)/%.o: $(OBJ_DIR)/%.F90 $(SUPPORT_OBJECTS)
 	@echo Compiling $<
 	$(Q)$(FC) $(FPPFLAGS) $(SPECIAL_FFLAGS) $(FFLAGS_TESTS) \
 	          $(F_MOD_DESTINATION_ARG)$(OBJ_DIR)/$(dir $@) \
-	          $(SUBJECT_MODINC) -I$(PFUNIT_INSTALL_DIR)/mod \
-	          -c -o $@ $<
+	          $(SUBJECT_MODINC) $(SUPPORT_MODINC) \
+	          -I$(PFUNIT_INSTALL_DIR)/mod -c -o $@ $<
 
 $(OBJ_DIR)/test: $(DRIVER_OBJ) $(SUPPORT_OBJECTS) $(TEST_OBJECTS)
 	@echo Linking $@
@@ -58,11 +59,11 @@ $(OBJ_DIR)/test: $(DRIVER_OBJ) $(SUPPORT_OBJECTS) $(TEST_OBJECTS)
 # Replace OBJ_SUBDIR with mangling of % ?
 $(OBJ_DIR)/%.o: %.F90 | $(OBJ_DIR)/data $(OBJ_SUBDIRS)
 	$(Q)$(FC) $(FPPFLAGS) $(F_MOD_DESTINATION_ARG)$(OBJ_DIR)/$(dir $@) \
-	      $(SUBJECT_MODINC) -c -o $@ $<
+	      $(SUBJECT_MODINC) $(SUPPORT_MODINC) -c -o $@ $<
 
-$(OBJ_DIR)/%.o: %.f90 | $(OBJ_SUBDIRS)
+$(OBJ_DIR)/%.o: %.f90 | $(OBJ_DIR)/data $(OBJ_SUBDIRS)
 	$(Q)$(FC) $(FPPFLAGS) $(F_MOD_DESTINATION_ARG)$(OBJ_DIR)/$(dir $@) \
-	      $(SUBJECT_MODINC) -c -o $@ $<
+	      $(SUBJECT_MODINC) $(SUPPORT_MODINC) -c -o $@ $<
 
 $(DRIVER_OBJ): | $(dir $(DRIVER_OBJ))
 	$(MAKE) -f pfunit.mk PFUNIT_INSTALL_DIR=$(PFUNIT_INSTALL_DIR) \
