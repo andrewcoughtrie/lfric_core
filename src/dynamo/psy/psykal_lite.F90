@@ -364,11 +364,11 @@ contains
   
 !-------------------------------------------------------------------------------  
 !> Invoke_ru_kernel: Invoke the RHS of the u equation
-  subroutine invoke_ru_kernel( r_u, rho, theta, chi, qr )
+  subroutine invoke_ru_kernel( r_u, u, rho, theta, chi, qr )
 
     use ru_kernel_mod, only : ru_code
 
-    type( field_type ), intent( in ) :: r_u, rho, theta
+    type( field_type ), intent( in ) :: r_u, u, rho, theta
     type( field_type ), intent( in ) :: chi(3) 
     type( quadrature_type), intent( in ) :: qr
 
@@ -378,8 +378,9 @@ contains
     integer                 :: dim_w0, diff_dim_w0, dim_w2, diff_dim_w2,dim_w3
     integer, pointer        :: map_w3(:), map_w2(:), map_w0(:) => null()
     integer, pointer        :: boundary_dofs(:,:) => null()
+    integer, pointer        :: orientation_w2(:)  => null()
 
-    type( field_proxy_type )        :: r_u_proxy, rho_proxy, theta_proxy
+    type( field_proxy_type )        :: r_u_proxy, u_proxy, rho_proxy, theta_proxy
     type( field_proxy_type )        :: chi_proxy(3) 
     
     real(kind=r_def), allocatable  :: basis_w3(:,:,:,:), &
@@ -393,6 +394,7 @@ contains
     real(kind=r_def), pointer :: wh(:), wv(:) => null()
 
     r_u_proxy  = r_u%get_proxy()
+    u_proxy    = u%get_proxy()
     rho_proxy  = rho%get_proxy()
     theta_proxy = theta%get_proxy()
     chi_proxy(1) = chi(1)%get_proxy()
@@ -428,6 +430,7 @@ contains
     allocate(basis_w0(dim_w0,ndf_w0,nqp_h,nqp_v))
     allocate(diff_basis_w0(diff_dim_w0,ndf_w0,nqp_h,nqp_v))
 
+
     call rho_proxy%vspace%compute_basis_function(basis_w3, ndf_w3,         & 
                                                    nqp_h, nqp_v, xp, zp)    
 
@@ -441,8 +444,7 @@ contains
                                                    nqp_h, nqp_v, xp, zp)    
 
     call theta_proxy%vspace%compute_diff_basis_function(                  &
-         diff_basis_w0, ndf_w0, nqp_h, nqp_v, xp, zp)
-
+         diff_basis_w0, ndf_w0, nqp_h, nqp_v, xp, zp)   
 
     
     do cell = 1, r_u_proxy%vspace%get_ncell()
@@ -451,10 +453,14 @@ contains
        map_w2 => r_u_proxy%vspace%get_cell_dofmap( cell )
        map_w0 => theta_proxy%vspace%get_cell_dofmap( cell )
 
+       orientation_w2 => r_u_proxy%vspace%get_cell_orientation ( cell )
+
        call ru_code( nlayers,                                              &
                      ndf_w2, undf_w2,                                      &
                      map_w2, basis_w2, diff_basis_w2,                      &
                      boundary_dofs,                                        &
+                     orientation_w2,                                       &
+                     u_proxy%data,                                         &
                      r_u_proxy%data,                                       &
                      ndf_w3, undf_w3,                                      &
                      map_w3, basis_w3,                                     &
@@ -587,7 +593,9 @@ contains
     deallocate(basis_w3, basis_w2, diff_basis_w2, basis_w0, diff_basis_w0)
 
   end subroutine invoke_rrho_kernel
-  
+
+!-------------------------------------------------------------------------------    
+!> invoke_compute_mass_matrix_w0: Calculate mass matrix for W0 space
   subroutine invoke_compute_mass_matrix_w0(mm, chi, qr)
     use compute_mass_matrix_kernel_w0_mod, only :  compute_mass_matrix_w0_code
     implicit none
@@ -664,6 +672,9 @@ contains
     
   end subroutine invoke_compute_mass_matrix_w0
 
+
+!-------------------------------------------------------------------------------    
+!> invoke_compute_mass_matrix_w2: Calculate mass matrix for W2 space
  subroutine invoke_compute_mass_matrix_w2(mm, chi, qr)
     use compute_mass_matrix_kernel_w2_mod, only :  compute_mass_matrix_w2_code
     implicit none
@@ -677,6 +688,7 @@ contains
     integer :: nqp_h, nqp_v
 
     integer, pointer        ::  map_chi(:)  => null()
+    integer, pointer        :: orientation_w2(:) => null() 
     real ( kind=r_def ), allocatable :: diff_basis(:,:,:,:), &
                                         basis(:,:,:,:)
 
@@ -716,13 +728,16 @@ contains
          basis, ndf, nqp_h, nqp_v, xp, zp ) 
 
     do cell = 1, chi_proxy(1)%vspace%get_ncell()                                
-       map_chi => chi_proxy(1)%vspace%get_cell_dofmap(cell)                     
+       map_chi => chi_proxy(1)%vspace%get_cell_dofmap(cell)    
+
+       orientation_w2 => mm_proxy%fs_from%get_cell_orientation( cell )                  
 
        call compute_mass_matrix_w2_code( cell,                              &
                                          nlayers,                           &
                                          ndf,                               &
                                          mm_proxy%ncell_3d,                 &
                                          basis,                             &
+                                         orientation_w2,                    &
                                          mm_proxy%local_stencil,            &
                                          ndf_chi,                           &
                                          undf_chi,                          &
@@ -742,7 +757,7 @@ contains
     
   end subroutine invoke_compute_mass_matrix_w2
 
-!-------------------------------------------------------------------------------   
+!-------------------------------------------------------------------------------    
 !> invoke_inner_prod: Calculate inner product of x and y
   subroutine invoke_inner_prod(x,y,inner_prod)
     use log_mod, only : log_event, LOG_LEVEL_ERROR

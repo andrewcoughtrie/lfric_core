@@ -25,7 +25,8 @@ module dynamo_algorithm_rk_timestep_mod
                            invoke_compute_mass_matrix_w2,                    &
                            invoke_copy_field_data,                           &
                            invoke_set_field_scalar,                          &
-                           invoke_axpy
+                           invoke_axpy,                                      &                                     
+                           invoke_matrix_vector_mm
   use field_mod,     only: field_type
   use function_space_mod, &
                      only: function_space_type, W0, W1, W2, W3
@@ -168,7 +169,7 @@ contains
         call invoke_rtheta_kernel( rt_prediction(stage), u, chi, qr)
         !PSY call invoke ( set_field_scalar(0.0_r_def, ru_prediction(stage)))
         call invoke_set_field_scalar(0.0_r_def, ru_prediction(stage))
-        call invoke_ru_kernel    ( ru_prediction(stage), rho, theta, chi, qr )
+        call invoke_ru_kernel    ( ru_prediction(stage), u, rho, theta, chi, qr )
         call invoke_rrho_kernel  ( rr_prediction(stage), u, chi, qr )
         !PSY call invoke ( set_field_scalar(0.0_r_def, r_theta))
         call invoke_set_field_scalar(0.0_r_def, r_theta)

@@ -25,6 +25,7 @@ integer :: num_layers
 integer :: element_order
 !> Flag for whether mesh is on a sphere or not
 logical :: l_spherical
+logical :: l_fplane                   ! Flag for whether a plane is with constant f (omega)
 
 !> Number of unique dofs in a particular function space (4,:), either globally (:,1) or per cell (:,2)
 integer :: w_unique_dofs(4,2)
@@ -37,6 +38,7 @@ real(kind=r_def)  :: dx
 real(kind=r_def)  :: dy
 !> Grid spacing in the z-direction
 real(kind=r_def)  :: dz
+real(kind=r_def)  :: f_lat            ! Latitude for f-plane tests
 
 !> Total number of MPI ranks available
 integer :: total_ranks

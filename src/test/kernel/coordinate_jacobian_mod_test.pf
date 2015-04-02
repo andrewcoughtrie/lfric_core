@@ -75,8 +75,6 @@ contains
     @assertEqual( 1000.0_r_def, jac(2,2), tol )
     @assertEqual( 2000.0_r_def, jac(3,3), tol )
     @assertEqual( 6000.0_r_def*1000.0_r_def*2000.0_r_def, dj(1,1), tol )
-    
-
 
 
   end subroutine test_of_jacobian

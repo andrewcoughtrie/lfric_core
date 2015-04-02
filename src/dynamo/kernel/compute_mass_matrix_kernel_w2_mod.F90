@@ -64,7 +64,7 @@ type(compute_mass_matrix_kernel_w2_type) function compute_mass_matrix_constructo
 end function compute_mass_matrix_constructor
   
 subroutine compute_mass_matrix_w2_code(cell, nlayers, ndf, ncell_3d,          &
-                               basis,  mm,                                    &
+                               basis,  orientation, mm,                       &
                                ndf_chi, undf_chi,                             &
                                map_chi, diff_basis_chi, &   ! arrays
                                chi1, chi2, chi3,                & ! dof vectors
@@ -76,6 +76,7 @@ subroutine compute_mass_matrix_w2_code(cell, nlayers, ndf, ncell_3d,          &
 !! @param[in] ndf Integer: The number of degrees of freedom per cell.
 !! @param[in] ncell_3d Integer: ncell*ndf
 !! @param[in] basis Real: 4-dim array holding VECTOR basis functions evaluated at quadrature points.
+!! @param[in] orientation, the cell orientation array for a w2 field
 !! @param[in] mm Real array, the local stencil or mass matrix
 !! @param[in] ndf_chi Integer: number of degrees of freedum per cell for chi field
 !! @param[in] undf_chi Integer: number of unique degrees of freedum  for chi field
@@ -96,6 +97,7 @@ subroutine compute_mass_matrix_w2_code(cell, nlayers, ndf, ncell_3d,          &
   integer,   intent(in)     :: ndf_chi
   integer,   intent(in)     :: undf_chi
   integer, dimension(ndf_chi), intent(in)     :: map_chi
+  integer, dimension(ndf),     intent(in)     :: orientation 
   real(kind=r_def), dimension(ndf,ndf,ncell_3d),  intent(inout)  :: mm
   real(kind=r_def), dimension(3,ndf_chi,nqp_h,nqp_v), intent(in) :: diff_basis_chi
   real(kind=r_def), dimension(3,ndf,nqp_h,nqp_v), intent(in)     :: basis
@@ -135,8 +137,8 @@ subroutine compute_mass_matrix_w2_code(cell, nlayers, ndf, ncell_3d,          &
              do qp1 = 1, nqp_h
                 integrand = wqp_h(qp1) * wqp_v(qp2) *                 & 
                      dot_product(                                     &
-                     matmul(jac(:,:,qp1,qp2), basis(:,df,qp1,qp2)),   &
-                     matmul(jac(:,:,qp1,qp2), basis(:,df2,qp1,qp2)) ) &
+                     matmul(jac(:,:,qp1,qp2), real(orientation(df),r_def)*basis(:,df,qp1,qp2)),   & 
+                     matmul(jac(:,:,qp1,qp2), real(orientation(df2),r_def)*basis(:,df2,qp1,qp2)) ) & 
                      /dj(qp1,qp2) 
                 mm(df,df2,ik) = mm(df,df2,ik) + integrand
              end do

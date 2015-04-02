@@ -87,7 +87,6 @@ contains
                      ndf_w0,undf_w0,map_w0,diff_basis,chi(:,1),chi(:,2),chi(:,3), &
                      nqp_h, nqp_v, wh, wv )
     
-
     answer = 1.0_r_def / ( 6000.0_r_def * 1000.0_r_def * 2000.0_r_def )
     tol    = 1.0e-14_r_def
     @assertEqual( answer, xdata(1), tol )

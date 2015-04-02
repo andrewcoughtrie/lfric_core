@@ -1,0 +1,47 @@
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown, 
+! Met Office and NERC 2014. 
+! However, it has been created with the help of the GungHo Consortium, 
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+!
+!-------------------------------------------------------------------------------
+module rotation_vector_mod_test
+  implicit none 
+
+contains
+
+  @test
+  subroutine test_of_rotationvector_fplane()
+! 16/09/2014, IK: This version of rotation vector test is suitable only for the f-plane for now.
+    use pFUnit_Mod
+    use rotation_vector_mod, only : rotation_vector_fplane
+    use constants_mod, only : r_def, PI, OMEGA_UNSCALED
+    implicit none
+
+    integer :: ngp = 1  
+    real(kind=r_def) :: tol, zero, rot_y, rot_z
+    real(kind=r_def) :: rotation_vec(3,1,1), err
+    real(kind=r_def) :: latitude, earthscaling, omega
+
+
+    earthscaling = 1.0_r_def
+    omega = OMEGA_UNSCALED*earthscaling
+    latitude = PI/3.0_r_def
+    rot_y = omega
+    rot_z = omega*sqrt(3.0_r_def)
+
+    tol = 1.0e-13   
+    zero = 0.0_r_def
+    rotation_vec = 0.0_r_def 
+
+    call rotation_vector_fplane(ngp, ngp, omega, latitude, rotation_vec)
+
+    @assertEqual( OMEGA_UNSCALED, omega, tol )
+    @assertEqual( zero, rotation_vec(1,1,1), tol )
+    @assertEqual( rot_y, rotation_vec(2,1,1), tol )
+    @assertEqual( rot_z, rotation_vec(3,1,1), tol )
+    
+  end subroutine test_of_rotationvector_fplane
+
+end module rotation_vector_mod_test

@@ -95,6 +95,7 @@ contains
                      chi(:,1), chi(:,2), chi(:,3),        &
                      nqp_h, nqp_v, wh, wv )
 
+
     answer = ( 6000.0_r_def * 1000.0_r_def * 2000.0_r_def )*0.125_r_def*f_data(1)
     tol    = 1.0e-2_r_def
     do df = 1, ndf_w0

@@ -15,7 +15,7 @@
 
 module set_up_mod
 
-  use constants_mod,              only : r_def, str_def
+  use constants_mod,              only : r_def, str_def, PI
   use function_space_mod,         only : function_space_type
   use reference_element_mod,      only : reference_cube
 
@@ -42,7 +42,8 @@ contains
                                 w_unique_dofs, w_dof_entity, dx, dy, dz,           &
                                 num_cells_x, num_cells_y, &
                                 xproc, yproc, &
-                                local_rank, total_ranks
+                                local_rank, total_ranks, &
+                                l_fplane, f_lat
     use partition_mod,   only : partition_type, &
                                 partitioner_interface, &
                                 partitioner_cubedsphere_serial, &
@@ -70,6 +71,7 @@ contains
 !>       and num_cells_y 
 
     ! hard-coded these numbers are
+    l_fplane = .true.
     num_cells_x = 50
     num_cells_y = 4
     num_layers = 5
@@ -80,6 +82,7 @@ contains
     dy = 1000.0_r_def
 ! Vertical spacing for all grids    
     dz = 2000.0_r_def
+
     filename = 'ugrid_quads_2d.nc' 
     call log_event( "set_up: generating/reading the mesh", LOG_LEVEL_INFO )
 
@@ -94,6 +97,7 @@ contains
     else
       global_mesh=global_mesh_type( num_cells_x ,num_cells_y )
       partitioner_ptr => partitioner_biperiodic
+      if ( l_fplane ) f_lat = PI/4.0_r_def
     end if
 
     ! Generate the partition object

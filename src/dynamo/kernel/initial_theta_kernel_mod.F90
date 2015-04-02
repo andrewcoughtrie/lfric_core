@@ -83,7 +83,10 @@ subroutine initial_theta_code(nlayers,ndf,undf,map,theta,chi_1,chi_2,chi_3)
   real(kind=r_def), parameter :: theta0 = 0.01_r_def
   real(kind=r_def), parameter :: xc     = 0.0_r_def
   real(kind=r_def), parameter :: yc     = 0.0_r_def
+! Non-Hydrostatic Gravity Wave test
   real(kind=r_def), parameter :: a      = 5000.0_r_def
+! Hydrostatic Inertial Gravity Wave test
+!  real(kind=r_def), parameter :: a      = 100000.0_r_def  
   real(kind=r_def), parameter :: h      = 10000.0_r_def
   real(kind=r_def)            :: x, y, z
 

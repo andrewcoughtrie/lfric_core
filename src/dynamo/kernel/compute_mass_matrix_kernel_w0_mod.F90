@@ -7,11 +7,11 @@
 !
 !-------------------------------------------------------------------------------
 
-!> @brief Provides access to the members of the w2_kernel class.
+!> @brief Provides access to the members of the w0_kernel class.
 
-!> @details Accessor functions for the w2_kernel class are defined in this module.
+!> @details Accessor functions for the w0_kernel class are defined in this module.
 
-!> @param RHS_w2_code              Code to implement the RHS for a w2 field
+!> @param RHS_w0_code              Code to implement the RHS for a w0 field
 !> @param gaussian_quadrature      Contains result of gaussian quadrature
 
 module compute_mass_matrix_kernel_w0_mod

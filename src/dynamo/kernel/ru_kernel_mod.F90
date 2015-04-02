@@ -17,9 +17,9 @@ use argument_mod,            only : arg_type, func_type,                 &
                                     GH_FIELD, GH_READ, GH_INC,           &
                                     W0, W2, W3, GH_BASIS, GH_DIFF_BASIS, &
                                     CELLS 
-use constants_mod,           only : N_SQ, GRAVITY, Cp, r_def
+use constants_mod,           only : N_SQ, GRAVITY, Cp, omega, r_def
 use mesh_generator_mod,      only : xyz2llr, sphere2cart_vector
-use mesh_mod,                only : l_spherical
+use mesh_mod,                only : l_spherical, f_lat
 
 implicit none
 
@@ -29,8 +29,9 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: ru_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                                  &
+  type(arg_type) :: meta_args(5) = (/                                  &
        arg_type(GH_FIELD,   GH_INC,  W2),                              &
+       arg_type(GH_FIELD,   GH_READ, W2),                              &
        arg_type(GH_FIELD,   GH_READ, W3),                              &
        arg_type(GH_FIELD,   GH_READ, W0),                              &
        arg_type(GH_FIELD*3, GH_READ, W0)                               &
@@ -73,6 +74,8 @@ end function ru_kernel_constructor
 !! @param[in] w2_diff_basis Real 4-dim array holding differntial of the basis functions evaluated at  quadrature points
 !! @param[in] boundary_value array of flags (= 0) for dofs that live on the
 !!            vertical boundaries of the cell (=1 for other dofs)
+!! @param[in] orientation, the cell orientation array for a w2 field
+!! @param[in] u Real array. The velocity
 !! @param[inout] r_u Real array the data 
 !! @param[in] ndf_w3 The number of degrees of freedom per cell for w3
 !! @param[in] undf_w3 The number unique of degrees of freedom  for w3
@@ -94,7 +97,7 @@ end function ru_kernel_constructor
 !! @param[in] wqp_v Real array. Quadrature weights vertical
 subroutine ru_code(nlayers,                                                    &
                    ndf_w2, undf_w2, map_w2, w2_basis, w2_diff_basis,           &
-                   boundary_value, r_u,                                        &
+                   boundary_value, orientation, u, r_u,                        &
                    ndf_w3, undf_w3, map_w3, w3_basis, rho,                     &
                    ndf_w0, undf_w0, map_w0, w0_basis, w0_diff_basis,           &
                    theta, chi_1, chi_2, chi_3,                                 &
@@ -105,6 +108,9 @@ subroutine ru_code(nlayers,                                                    &
   use reference_profile_mod,    only: reference_profile 
   use enforce_bc_mod,           only: enforce_bc_w2
   use calc_exner_pointwise_mod, only: calc_exner_pointwise
+  use rotation_vector_mod,      only: rotation_vector_fplane,  &
+                                      rotation_vector_sphere
+  use cross_product_mod,        only: cross_product
   
   !Arguments
   integer, intent(in) :: nlayers,nqp_h, nqp_v
@@ -115,6 +121,7 @@ subroutine ru_code(nlayers,                                                    &
   integer, dimension(ndf_w3), intent(in) :: map_w3
   
   integer, dimension(ndf_w2,2), intent(in) :: boundary_value
+  integer, dimension(ndf_w2),   intent(in) :: orientation  
 
   real(kind=r_def), dimension(1,ndf_w3,nqp_h,nqp_v), intent(in) :: w3_basis  
   real(kind=r_def), dimension(3,ndf_w2,nqp_h,nqp_v), intent(in) :: w2_basis 
@@ -123,6 +130,7 @@ subroutine ru_code(nlayers,                                                    &
   real(kind=r_def), dimension(3,ndf_w0,nqp_h,nqp_v), intent(in) :: w0_diff_basis   
 
   real(kind=r_def), dimension(undf_w2), intent(inout) :: r_u
+  real(kind=r_def), dimension(undf_w2), intent(in)    :: u
   real(kind=r_def), dimension(undf_w3), intent(in)    :: rho
   real(kind=r_def), dimension(undf_w0), intent(in)    :: chi_1, chi_2, chi_3, theta 
 
@@ -136,6 +144,7 @@ subroutine ru_code(nlayers,                                                    &
   real(kind=r_def), dimension(ndf_w0) :: chi_1_e, chi_2_e, chi_3_e
   real(kind=r_def), dimension(nqp_h,nqp_v)        :: dj
   real(kind=r_def), dimension(3,3,nqp_h,nqp_v)    :: jac
+  real(kind=r_def), dimension(3,nqp_h,nqp_v)      :: rotation_vector
   real(kind=r_def), dimension(ndf_w3) :: rho_e
   real(kind=r_def), dimension(ndf_w0) :: theta_e
   real(kind=r_def), dimension(ndf_w2) :: ru_e
@@ -144,9 +153,10 @@ subroutine ru_code(nlayers,                                                    &
   real(kind=r_def) :: exner_at_quad, rho_at_quad, theta_at_quad, &
                       exner_s_at_quad, rho_s_at_quad, theta_s_at_quad,      &
                       grad_term, buoy_term
+  real(kind=r_def) :: omega_cross_u(3), u_at_quad(3)
+  real(kind=r_def) :: coriolis_term
   
   k_sphere = (/ 0.0_r_def, 0.0_r_def, 1.0_r_def /)
-
 
   do k = 0, nlayers-1
   ! Extract element arrays of chi
@@ -156,6 +166,13 @@ subroutine ru_code(nlayers,                                                    &
       chi_2_e(df) = chi_2( loc )
       chi_3_e(df) = chi_3( loc )
     end do
+! Calculate rotation and Jacobian
+    if ( l_spherical ) then
+      call rotation_vector_sphere(ndf_w0, nqp_h, nqp_v, chi_1_e, chi_2_e, chi_3_e, &
+                                  w0_basis, rotation_vector)
+    else
+      call rotation_vector_fplane(nqp_h, nqp_v, omega, f_lat, rotation_vector)
+    end if 
     call coordinate_jacobian(ndf_w0, nqp_h, nqp_v, chi_1_e, chi_2_e, chi_3_e,  &
                              w0_diff_basis, jac, dj)
     do df = 1, ndf_w3
@@ -182,6 +199,12 @@ subroutine ru_code(nlayers,                                                    &
           x_at_quad(2) = x_at_quad(2) + chi_2_e(df)*w0_basis(1,df,qp1,qp2)
           x_at_quad(3) = x_at_quad(3) + chi_3_e(df)*w0_basis(1,df,qp1,qp2)
         end do
+        u_at_quad(:) = 0.0_r_def
+        do df = 1, ndf_w2
+          u_at_quad(:) = u_at_quad(:) + u(map_w2(df)+k)*w2_basis(:,df,qp1,qp2)
+        end do
+        omega_cross_u = cross_product(rotation_vector(:,qp1,qp2), &
+                                      matmul(jac(:,:,qp1,qp2),u_at_quad))
 
         call reference_profile(exner_s_at_quad, rho_s_at_quad, &
                                theta_s_at_quad, x_at_quad)
@@ -198,14 +221,16 @@ subroutine ru_code(nlayers,                                                    &
         end if      
         
         do df = 1, ndf_w2
-          jac_v = matmul(jac(:,:,qp1,qp2),w2_basis(:,df,qp1,qp2))
+          jac_v = matmul(jac(:,:,qp1,qp2),real(orientation(df),r_def)*w2_basis(:,df,qp1,qp2))
           buoy_term = dot_product( jac_v, k_cart ) &
                     *(gravity*theta_at_quad/theta_s_at_quad)
           grad_term = cp*exner_at_quad*theta_s_at_quad*( &
                       n_sq/gravity*dot_product( jac_v, k_cart ) + &
-                      w2_diff_basis(1,df,qp1,qp2) )
-        
-          ru_e(df) = ru_e(df) +  wqp_h(qp1)*wqp_v(qp2)*( grad_term + buoy_term )
+                      real(orientation(df),r_def)*w2_diff_basis(1,df,qp1,qp2) )
+
+          coriolis_term = dot_product(jac_v/dj(qp1,qp2),omega_cross_u)
+
+          ru_e(df) = ru_e(df) +  wqp_h(qp1)*wqp_v(qp2)*( grad_term + buoy_term - coriolis_term)
         end do
       end do
     end do
