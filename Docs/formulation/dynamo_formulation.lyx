@@ -870,8 +870,8 @@ reference "eq:vorticity_split-1"
 \end_inset
 
  is the vorticity flux term that appears in the shallow water equations.
- The mass flux term could be computed using any form of finite volume/discontin
-uous Galerkin method and the potential temperature equation could be computed
+ The mass flux term could be computed using any form of finite volume/discontinu
+ous Galerkin method and the potential temperature equation could be computed
  in a semi-Lagrangian manner.
 \end_layout
 
@@ -988,7 +988,7 @@ For vector fields in
  the covariant Piola transform is used 
 \begin_inset Formula 
 \begin{equation}
-\mathbf{c}\left(\bm{\chi}\right)\equiv\mathbf{c}\left(\bm{\mathbf{\phi}}\left(\hat{\bm{\mathbf{\chi}}}\right)\right)=\left(\mathbf{g}^{-1}\right)^{T}J^{-1}\mathbf{g}^{{\rm ref}}\hat{\mathbf{c}}\left(\hat{\bm{\mathbf{\chi}}}\right),\label{eq:W1_covariant_piola}
+\mathbf{c}\left(\bm{\chi}\right)\equiv\mathbf{c}\left(\bm{\mathbf{\phi}}\left(\hat{\bm{\mathbf{\chi}}}\right)\right)=\left(\mathbf{g}^{-1}\right)^{T}J^{-T}\mathbf{g}^{{\rm ref}}\hat{\mathbf{c}}\left(\hat{\bm{\mathbf{\chi}}}\right),\label{eq:W1_covariant_piola}
 \end{equation}
 
 \end_inset
@@ -996,7 +996,7 @@ For vector fields in
 which satisfies 
 \begin_inset Formula 
 \begin{equation}
-\nabla\times\mathbf{c}\left(\bm{\chi}\right)=J^{-1}\hat{\nabla}\times\hat{\mathbf{c}}\left(\hat{\bm{\mathbf{\chi}}}\right),\label{eq:piola_curl}
+\nabla\times\mathbf{c}\left(\bm{\chi}\right)=\frac{J}{\det\left(J\right)}\hat{\nabla}\times\hat{\mathbf{c}}\left(\hat{\bm{\mathbf{\chi}}}\right),\label{eq:piola_curl}
 \end{equation}
 
 \end_inset
@@ -1249,12 +1249,12 @@ reference "eq:voticity_projection"
 \begin_layout Standard
 \begin_inset Formula 
 \begin{eqnarray}
-\left\langle J\hat{\bm{v}},\frac{J}{\det\left(J\right)}\frac{\partial\hat{\mathbf{u}}}{\partial t}\right\rangle  & = & -\left\langle J\hat{\bm{v}},\frac{J^{-1}\hat{\bm{\xi}}}{\hat{\rho}\det\left(J\right)}\times J\hat{\bm{F}}+\nabla\Phi\right\rangle +\left\langle \nabla.\hat{\bm{v}},\frac{1}{2}\left(\frac{J\hat{\bm{u}}}{\det\left(J\right)}\right).\left(\frac{J\hat{\bm{u}}}{\det\left(J\right)}\right)\right\rangle \label{eq:nonlinear_mom-pullback}\\
- &  & +c_{pd}\left\langle \hat{\theta}\nabla.\hat{\bm{v}}+J\hat{\bm{v}}.J^{-1}\nabla\hat{\theta},\Pi\right\rangle ,\nonumber \\
+\left\langle J\hat{\bm{v}},\frac{J}{\det\left(J\right)}\frac{\partial\hat{\mathbf{u}}}{\partial t}\right\rangle  & = & -\left\langle J\hat{\bm{v}},\frac{J^{-T}\hat{\bm{\xi}}}{\hat{\rho}\det\left(J\right)}\times J\hat{\bm{F}}\right\rangle -\left\langle \hat{\bm{v}},\nabla\Phi\right\rangle +\left\langle \nabla.\hat{\bm{v}},\frac{1}{2}\left(\frac{J\hat{\bm{u}}}{\det\left(J\right)}\right).\left(\frac{J\hat{\bm{u}}}{\det\left(J\right)}\right)\right\rangle \label{eq:nonlinear_mom-pullback}\\
+ &  & +c_{pd}\left\langle \hat{\theta}\nabla.\hat{\bm{v}}+\hat{\bm{v}}.\nabla\hat{\theta},\Pi\right\rangle ,\nonumber \\
 \left\langle \hat{\sigma},\frac{\partial\hat{\rho}'}{\partial t}\det\left(J\right)\right\rangle  & = & -\left\langle \hat{\sigma},\nabla.\hat{\mathbf{F}}\right\rangle ,\label{eq:nonlinear_continuity-pullback}\\
 \left\langle \hat{\gamma},\frac{\partial\hat{\theta}'}{\partial t}\det\left(J\right)\right\rangle  & = & -\left\langle \hat{\gamma},\hat{\mathbf{u}}.\nabla\hat{\theta}\right\rangle ,\label{eq:nonlinear_thermo-pullback}\\
 \left\langle J\hat{\bm{v}},\frac{J\hat{\mathbf{F}}}{\det\left(J\right)}\right\rangle  & = & \left\langle J\hat{\bm{v}},\hat{\rho}\frac{J\hat{\bm{u}}}{\det\left(J\right)}\right\rangle ,\label{eq:mass_flux_pullback}\\
-\left\langle J^{-1}\bm{c},J^{-1}\mbox{\bm{\xi}}\det\left(J\right)\right\rangle  & = & -\left\langle J\nabla\times\hat{\bm{c}},\frac{J\hat{\bm{u}}}{\det\left(J\right)}\right\rangle +\left\langle J^{-1}\hat{\bm{c}},2\bm{\Omega}\det\left(J\right)\right\rangle .\label{eq:vorticity_pullback}
+\left\langle J^{-T}\bm{c},J^{-T}\mbox{\bm{\xi}}\det\left(J\right)\right\rangle  & = & -\left\langle J\nabla\times\hat{\bm{c}},\frac{J\hat{\bm{u}}}{\det\left(J\right)}\right\rangle +\left\langle J^{-T}\hat{\bm{c}},2\bm{\Omega}\det\left(J\right)\right\rangle .\label{eq:vorticity_pullback}
 \end{eqnarray}
 
 \end_inset
@@ -1783,7 +1783,7 @@ M_{0}=\left\langle \hat{\gamma},\hat{\gamma}\det\left(J\right)\right\rangle ,\la
 
 \begin_inset Formula 
 \begin{equation}
-M_{1}=\left\langle J^{-1}\hat{\mathbf{c}},J^{-1}\hat{\mathbf{c}}\det\left(J\right)\right\rangle ,\label{eq:M1_mass_matrix}
+M_{1}=\left\langle J^{-T}\hat{\mathbf{c}},J^{-T}\hat{\mathbf{c}}\det\left(J\right)\right\rangle ,\label{eq:M1_mass_matrix}
 \end{equation}
 
 \end_inset
@@ -1845,6 +1845,7 @@ To be populated.
 \end_layout
 
 \begin_layout Standard
+
 \end_layout
 
 \begin_layout Section
@@ -2154,8 +2155,8 @@ To simulate a Cartesian vertical slice model Dynamo is run on a biperiodic
 
  direction and so the results remain 2-dimensional (for various technical
  reasons Dynamo cannot be run in a true 2D mode, each horizontal direction
- requires an even number of cells > 2, i.e. the minimum sized permissible
- domain is 4x4x1 cells).
+ requires an even number of cells > 2, i.e.
+ the minimum sized permissible domain is 4x4x1 cells).
  Results for the non-hydrostatic gravity wave test 
 \begin_inset CommandInset citation
 LatexCommand citep
@@ -2482,6 +2483,7 @@ Results for the 2D gravity wave test simulated using the linear equations
 \end_layout
 
 \begin_layout Standard
+
 \end_layout
 
 \begin_layout Section
@@ -2511,7 +2513,7 @@ status open
 
 \begin_layout Plain Layout
 \begin_inset Graphics
-	filename /net/home/h06/fra25/Documents/Programs/dynamo/r2228_nonlinear_dynamo/Docs/formulation/figures/GW_375DegL10_theta_t1_xy.eps
+	filename figures/GW_375DegL10_theta_t1_xy.eps
 	scale 50
 
 \end_inset
@@ -2538,7 +2540,7 @@ status open
 
 \begin_layout Plain Layout
 \begin_inset Graphics
-	filename /net/home/h06/fra25/Documents/Programs/dynamo/r2228_nonlinear_dynamo/Docs/formulation/figures/GW_C24L10K0_theta_t1.eps
+	filename figures/GW_C24L10K0_theta_t1.eps
 	scale 50
 
 \end_inset
@@ -2569,7 +2571,7 @@ status open
 
 \begin_layout Plain Layout
 \begin_inset Graphics
-	filename /net/home/h06/fra25/Documents/Programs/dynamo/r2228_nonlinear_dynamo/Docs/formulation/figures/GW_375DegL10_theta_t1_xz.eps
+	filename figures/GW_375DegL10_theta_t1_xz.eps
 	scale 50
 
 \end_inset
@@ -2596,7 +2598,7 @@ status open
 
 \begin_layout Plain Layout
 \begin_inset Graphics
-	filename /net/home/h06/fra25/Documents/Programs/dynamo/r2228_nonlinear_dynamo/Docs/formulation/figures/GW_C24L10K0_theta_t1_xz.eps
+	filename figures/GW_C24L10K0_theta_t1_xz.eps
 	scale 50
 
 \end_inset
@@ -5177,7 +5179,7 @@ A quadrature rule seeks to approximate the integral of a function
  
 \begin_inset Formula 
 \begin{equation}
-\int_{-1}^{+1}y(x)dx\approx\sum_{i=1}^{n}y\left(x_{i}\right)w_{i}. \label{eq:guass1}
+\int_{-1}^{+1}y(x)dx\approx\sum_{i=1}^{n}y\left(x_{i}\right)w_{i}.\label{eq:guass1}
 \end{equation}
 
 \end_inset
