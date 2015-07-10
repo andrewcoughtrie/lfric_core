@@ -52,11 +52,17 @@ class Analyser():
             raise Exception( 'No Fortran preprocessor provided in $FPP' )
         self._fpp = self._fpp.split()
 
+        self._temporaryDirectory = tempfile.mkdtemp()
+
+    ###########################################################################
+    # Destructor.
+    #
+    def __del__( self ):
+        if self._temporaryDirectory:
+            shutil.rmtree( self._temporaryDirectory )
+
     ###########################################################################
     # Scan the source tree.
-    #
-    # TODO: Rather than create a temporary directory for each file processed
-    #       this should be a property of the object.
     #
     # Arguments:
     #   sourceFilename - The name of the object to scan.
@@ -69,8 +75,7 @@ class Analyser():
         temporaryDirectory = None
         if sourceFilename.endswith( '.F90' ):
             self._logger.logEvent( '  Preprocessing ' + sourceFilename )
-            temporaryDirectory = tempfile.mkdtemp()
-            processedSourceFile = os.path.join( temporaryDirectory, \
+            processedSourceFile = os.path.join( self._temporaryDirectory, \
                                                 'processed.f90' )
             commandLine = list(self._fpp)
             commandLine.extend( [sourceFilename, processedSourceFile] )
@@ -117,6 +122,3 @@ class Analyser():
                         else:
                             dependencies.append( moduleName )
                             self._database.addDependency( programUnit, moduleName )
-
-        if temporaryDirectory:
-            shutil.rmtree( temporaryDirectory )

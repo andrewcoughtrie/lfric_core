@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS programs (name TEXT PRIMARY KEY);
         with self._database:
             self._database.executescript( '''
 CREATE TEMPORARY TABLE _units AS SELECT  program_unit FROM provides WHERE file = "{filename}";
-DELETE FROM dependencies WHERE dependor IN _units OR dependee IN _units;
+DELETE FROM dependencies WHERE dependor IN _units;
 DELETE FROM programs WHERE name IN _units;
 DELETE FROM provides WHERE file = "{filename}";
 DROP TABLE _units;

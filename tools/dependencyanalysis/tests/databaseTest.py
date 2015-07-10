@@ -121,7 +121,8 @@ class DatabaseTest( unittest.TestCase):
                                  ("wilma.x", "wilma")] )
 
         rows = self._database.execute( 'SELECT * FROM dependencies' ).fetchall()
-        self.assertEqual( rows,[("foo", "baz"), \
+        self.assertEqual( rows,[("foo", "bar"), \
+                                ("foo", "baz"), \
                                 ("fred", "wilma")] )
 
         rows = self._database.execute( 'SELECT * FROM programs' ).fetchall()
