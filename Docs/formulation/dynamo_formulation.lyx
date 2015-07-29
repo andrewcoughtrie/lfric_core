@@ -687,6 +687,46 @@ Note: To obtain the desired properties of a Charney-Philips grid, where
 
 \end_layout
 
+\begin_layout Standard
+The weak form of a prototypical equation, 
+\begin_inset Formula $s=0,$
+\end_inset
+
+ for some variable 
+\begin_inset Formula $s$
+\end_inset
+
+, is given by multiplying the equation by a test function 
+\begin_inset Formula $t$
+\end_inset
+
+ and integrating over the domain 
+\begin_inset Formula 
+\begin{equation}
+\int_{\Omega}tsdV=0,\label{eq:fem_integral_form}
+\end{equation}
+
+\end_inset
+
+ this can be concisely written as 
+\begin_inset Formula 
+\begin{equation}
+\left\langle t,s\right\rangle =0\label{eq:fem_angle_brackets}
+\end{equation}
+
+\end_inset
+
+ where the ordering makes it clear that 
+\begin_inset Formula $t$
+\end_inset
+
+ is the test function and 
+\begin_inset Formula $s$
+\end_inset
+
+ is the trial function.
+\end_layout
+
 \begin_layout Subsection
 \begin_inset CommandInset label
 LatexCommand label
@@ -715,6 +755,13 @@ reference "eq:linear_eos"
  by test functions from the appropriate space and integrating over the domain
  
 \begin_inset Formula $\Omega\in\mathbb{R}^{3}$
+\end_inset
+
+, and using 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:fem_angle_brackets"
+
 \end_inset
 
  gives the weak form of the equations
@@ -777,6 +824,13 @@ reference "eq:linear_eos"
  by test functions from the appropriate space and integrating over the domain
  
 \begin_inset Formula $\Omega\in\mathbb{R}^{3}$
+\end_inset
+
+, and using 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:fem_angle_brackets"
+
 \end_inset
 
  gives the weak form of the nonlinear equations
@@ -949,34 +1003,18 @@ key "rognes09,brezzi91,monk03"
 \end_inset
 
  for a more thorough treatment of the Piola transform.
- For vector fields in 
-\begin_inset Formula $\mathbb{W}_{2}$
+ 
+\end_layout
+
+\begin_layout Standard
+For fields in 
+\begin_inset Formula $\mathbb{W}_{0}$
 \end_inset
 
- the contravariant Piola transform is used 
+, which represent pointwise scalars (0-forms), the transform is 
 \begin_inset Formula 
 \begin{equation}
-\mathbf{v\left(\bm{\chi}\right)\equiv}\mathbf{v}\left(\bm{\mathbf{\phi}}\left(\hat{\bm{\mathbf{\chi}}}\right)\right)=\frac{\sqrt{\det\left(\mathbf{g}^{{\rm ref}}\right)}}{\sqrt{\det\left(\mathbf{g}\right)}}\frac{J\hat{\mathbf{v}}\left(\hat{\bm{\mathbf{\chi}}}\right)}{\det\left(J\right)},\label{eq:W2_contravariant_piola}
-\end{equation}
-
-\end_inset
-
-where the Jacobian 
-\begin_inset Formula $J\equiv\partial\bm{\mathbf{\phi}}\left(\hat{\bm{\chi}}\right)/\partial\hat{\bm{\mathbf{\chi}}},$
-\end_inset
-
- crucially this transformation satisfies 
-\begin_inset Formula 
-\begin{equation}
-\nabla.\mathbf{v}\left(\bm{\chi}\right)=\frac{1}{\det\left(J\right)}\hat{\nabla}.\left(\frac{\sqrt{\det\left(\mathbf{g}^{{\rm ref}}\right)}}{\sqrt{\det\left(\mathbf{g}\right)}}\hat{\mathbf{v}}\left(\hat{\bm{\mathbf{\chi}}}\right)\right),\label{eq:piola_div}
-\end{equation}
-
-\end_inset
-
-and therefore 
-\begin_inset Formula 
-\begin{equation}
-\int_{\Omega}\gamma\nabla.\mathbf{v}d\chi=\int_{\hat{\Omega}}\hat{\gamma}\hat{\nabla}.\left(\frac{\sqrt{\det\left(\mathbf{g}^{{\rm ref}}\right)}}{\sqrt{\det\left(\mathbf{g}\right)}}\hat{\mathbf{v}}\right)d\hat{\chi}.\label{eq:div_mapping}
+\gamma\left(\bm{\chi}\right)\equiv\gamma\left(\bm{\mathbf{\phi}}\left(\hat{\bm{\mathbf{\chi}}}\right)\right)=\hat{\gamma}\left(\hat{\bm{\mathbf{\chi}}}\right),\label{eq:W0_scaler_transform}
 \end{equation}
 
 \end_inset
@@ -985,7 +1023,8 @@ For vector fields in
 \begin_inset Formula $\mathbb{W}_{1}$
 \end_inset
 
- the covariant Piola transform is used 
+, which represent circulation vectors (1-forms), the covariant Piola transform
+ is used 
 \begin_inset Formula 
 \begin{equation}
 \mathbf{c}\left(\bm{\chi}\right)\equiv\mathbf{c}\left(\bm{\mathbf{\phi}}\left(\hat{\bm{\mathbf{\chi}}}\right)\right)=\left(\mathbf{g}^{-1}\right)^{T}J^{-T}\mathbf{g}^{{\rm ref}}\hat{\mathbf{c}}\left(\hat{\bm{\mathbf{\chi}}}\right),\label{eq:W1_covariant_piola}
@@ -1004,28 +1043,54 @@ which satisfies
 and therefore (this might be missing metric tensor terms)
 \begin_inset Formula 
 \begin{equation}
-\int_{\Omega}\mathbf{v}.\nabla\times\mathbf{c}d\chi=\int_{\hat{\Omega}}\frac{\sqrt{\det\left(\mathbf{g}^{{\rm ref}}\right)}}{\sqrt{\det\left(\mathbf{g}\right)}}\hat{\mathbf{v}}.\hat{\nabla}\times\hat{\mathbf{c}}d\hat{\chi}.\label{eq:curl_mapping}
+\int_{\Omega}\mathbf{c}.\nabla\times\mathbf{c}d\chi=\int_{\hat{\Omega}}\frac{\sqrt{\det\left(\mathbf{g}^{{\rm ref}}\right)}}{\sqrt{\det\left(\mathbf{g}\right)}}\hat{\mathbf{c}}.\left(\hat{\nabla}\times\hat{\mathbf{c}}\right)d\hat{\chi},\label{eq:curl_mapping}
 \end{equation}
 
 \end_inset
 
-The transforms for scalar variables are: for space 
-\begin_inset Formula $\mathbb{W}_{0}$
+where the Jacobian 
+\begin_inset Formula $J\equiv\partial\bm{\mathbf{\phi}}\left(\hat{\bm{\chi}}\right)/\partial\hat{\bm{\mathbf{\chi}}},$
 \end_inset
 
- 
+
+\end_layout
+
+\begin_layout Standard
+For vector fields in 
+\begin_inset Formula $\mathbb{W}_{2}$
+\end_inset
+
+, which represent flux vectors (2-forms), the contravariant Piola transform
+ is used 
 \begin_inset Formula 
 \begin{equation}
-\gamma\left(\bm{\chi}\right)\equiv\gamma\left(\bm{\mathbf{\phi}}\left(\hat{\bm{\mathbf{\chi}}}\right)\right)=\hat{\gamma}\left(\hat{\bm{\mathbf{\chi}}}\right),\label{eq:W0_scaler_transform}
+\mathbf{v\left(\bm{\chi}\right)\equiv}\mathbf{v}\left(\bm{\mathbf{\phi}}\left(\hat{\bm{\mathbf{\chi}}}\right)\right)=\frac{\sqrt{\det\left(\mathbf{g}^{{\rm ref}}\right)}}{\sqrt{\det\left(\mathbf{g}\right)}}\frac{J\hat{\mathbf{v}}\left(\hat{\bm{\mathbf{\chi}}}\right)}{\det\left(J\right)},\label{eq:W2_contravariant_piola}
 \end{equation}
 
 \end_inset
 
-and for 
+ crucially this transformation satisfies 
+\begin_inset Formula 
+\begin{equation}
+\nabla.\mathbf{v}\left(\bm{\chi}\right)=\frac{1}{\det\left(J\right)}\hat{\nabla}.\left(\frac{\sqrt{\det\left(\mathbf{g}^{{\rm ref}}\right)}}{\sqrt{\det\left(\mathbf{g}\right)}}\hat{\mathbf{v}}\left(\hat{\bm{\mathbf{\chi}}}\right)\right),\label{eq:piola_div}
+\end{equation}
+
+\end_inset
+
+and therefore 
+\begin_inset Formula 
+\begin{equation}
+\int_{\Omega}\gamma\nabla.\mathbf{v}d\chi=\int_{\hat{\Omega}}\hat{\gamma}\hat{\nabla}.\left(\frac{\sqrt{\det\left(\mathbf{g}^{{\rm ref}}\right)}}{\sqrt{\det\left(\mathbf{g}\right)}}\hat{\mathbf{v}}\right)d\hat{\chi}.\label{eq:div_mapping}
+\end{equation}
+
+\end_inset
+
+and for scalars in 
 \begin_inset Formula $\mathbb{W}_{3}$
 \end_inset
 
- 
+, which represent volume averaged quantities (3-forms), the transformation
+ is 
 \begin_inset Formula 
 \begin{equation}
 \sigma\left(\bm{\chi}\right)\equiv\sigma\left(\bm{\mathbf{\phi}}\left(\hat{\bm{\mathbf{\chi}}}\right)\right)=\frac{\sqrt{\det\left(\mathbf{g}^{{\rm ref}}\right)}}{\sqrt{\det\left(\mathbf{g}\right)}}\frac{\hat{\sigma}\left(\hat{\bm{\mathbf{\chi}}}\right)}{\det\left(J\right)}.\label{eq:W3_scalar_transform}
@@ -1077,7 +1142,7 @@ reference "eq:W3_scalar_transform"
 
 \end_inset
 
-which now means that the div-curl relationships are not satisfied anymore,
+which now means that the div-curl relationships are not satisfied any more,
  i.e.
  
 \begin_inset Formula $\nabla.$
@@ -1185,6 +1250,309 @@ reference "eq:W3_scalar_transform-new"
 
 \end_layout
 
+\begin_layout Standard
+Table 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "tab:Transformations-summary"
+
+\end_inset
+
+ summarises the spaces and transformations for functions in each space 
+\begin_inset Formula $\mathbb{W}_{0}$
+\end_inset
+
+ to 
+\begin_inset Formula $\mathbb{W}_{3}$
+\end_inset
+
+ in the absence of any metric terms.
+\begin_inset Float table
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="5" columns="3">
+<features rotate="0" tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Space
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Function 
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Differential of Function
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\mathbb{W}_{0}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\gamma=\hat{\gamma}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\mathbb{W}_{1}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\mathbf{c}=J^{-T}\hat{\mathbf{c}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\nabla\gamma=J^{-T}\hat{\nabla}\hat{\gamma}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\mathbb{W}_{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\mathbf{v}=\frac{J\hat{\mathbf{v}}}{\det\left(J\right)}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\nabla\times\mathbf{c}=\frac{J\hat{\nabla}\times\hat{\mathbf{c}}}{\det\left(J\right)}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\mathbb{W}_{3}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sigma=\hat{\sigma}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\nabla.\mathbf{v}=\hat{\nabla}.\hat{\mathbf{v}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "tab:Transformations-summary"
+
+\end_inset
+
+Transformations between physical 
+\begin_inset Formula $\bm{\chi}$
+\end_inset
+
+ and computational space 
+\begin_inset Formula $\hat{\bm{\chi}}$
+\end_inset
+
+, using the mapping 
+\begin_inset Formula $\bm{\phi}\left(\hat{\bm{\chi}}\right)=\bm{\chi}$
+\end_inset
+
+ and 
+\begin_inset Formula $J\equiv\partial\bm{\mathbf{\phi}}\left(\hat{\bm{\chi}}\right)/\partial\hat{\bm{\mathbf{\chi}}}$
+\end_inset
+
+.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Additionally when transforming the domain of integration from the physical
+ domain 
+\begin_inset Formula $\Omega$
+\end_inset
+
+ to the computational domain 
+\begin_inset Formula $\hat{\Omega}$
+\end_inset
+
+ the volume element 
+\begin_inset Formula $dV$
+\end_inset
+
+ also picks up a transformation term and so 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:fem_integral_form"
+
+\end_inset
+
+ and 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:fem_angle_brackets"
+
+\end_inset
+
+ become 
+\begin_inset Formula 
+\begin{equation}
+\int_{\hat{\Omega}}ts\det\left(J\right)d\hat{V}\equiv\left\langle t,s\det\left(J\right)\right\rangle \label{eq:fem_computational_integral}
+\end{equation}
+
+\end_inset
+
+ where now the angle bracket notation denotes integration in the computational
+ domain.
+\end_layout
+
 \begin_layout Subsection
 Discrete equations in the reference domain
 \end_layout
@@ -1249,8 +1617,8 @@ reference "eq:voticity_projection"
 \begin_layout Standard
 \begin_inset Formula 
 \begin{eqnarray}
-\left\langle J\hat{\bm{v}},\frac{J}{\det\left(J\right)}\frac{\partial\hat{\mathbf{u}}}{\partial t}\right\rangle  & = & -\left\langle J\hat{\bm{v}},\frac{J^{-T}\hat{\bm{\xi}}}{\hat{\rho}\det\left(J\right)}\times J\hat{\bm{F}}\right\rangle -\left\langle \hat{\bm{v}},\nabla\Phi\right\rangle +\left\langle \nabla.\hat{\bm{v}},\frac{1}{2}\left(\frac{J\hat{\bm{u}}}{\det\left(J\right)}\right).\left(\frac{J\hat{\bm{u}}}{\det\left(J\right)}\right)\right\rangle \label{eq:nonlinear_mom-pullback}\\
- &  & +c_{pd}\left\langle \hat{\theta}\nabla.\hat{\bm{v}}+\hat{\bm{v}}.\nabla\hat{\theta},\Pi\right\rangle ,\nonumber \\
+\left\langle J\hat{\bm{v}},\frac{J}{\det\left(J\right)}\frac{\partial\hat{\mathbf{u}}}{\partial t}\right\rangle  & = & -\left\langle J\hat{\bm{v}},\frac{J^{-T}\hat{\bm{\xi}}}{\hat{\rho}\det\left(J\right)}\times J\hat{\bm{F}}+\nabla\Phi\right\rangle +\left\langle \nabla.\hat{\bm{v}},\frac{1}{2}\left(\frac{J\hat{\bm{u}}}{\det\left(J\right)}\right).\left(\frac{J\hat{\bm{u}}}{\det\left(J\right)}\right)\right\rangle \label{eq:nonlinear_mom-pullback}\\
+ &  & +c_{pd}\left\langle \hat{\theta}\nabla.\hat{\bm{v}}+J\hat{\bm{v}}.J^{-T}\nabla\hat{\theta},\Pi\right\rangle ,\nonumber \\
 \left\langle \hat{\sigma},\frac{\partial\hat{\rho}'}{\partial t}\det\left(J\right)\right\rangle  & = & -\left\langle \hat{\sigma},\nabla.\hat{\mathbf{F}}\right\rangle ,\label{eq:nonlinear_continuity-pullback}\\
 \left\langle \hat{\gamma},\frac{\partial\hat{\theta}'}{\partial t}\det\left(J\right)\right\rangle  & = & -\left\langle \hat{\gamma},\hat{\mathbf{u}}.\nabla\hat{\theta}\right\rangle ,\label{eq:nonlinear_thermo-pullback}\\
 \left\langle J\hat{\bm{v}},\frac{J\hat{\mathbf{F}}}{\det\left(J\right)}\right\rangle  & = & \left\langle J\hat{\bm{v}},\hat{\rho}\frac{J\hat{\bm{u}}}{\det\left(J\right)}\right\rangle ,\label{eq:mass_flux_pullback}\\
@@ -1844,8 +2212,89 @@ Semi-Implicit Timestepping
 To be populated.
 \end_layout
 
-\begin_layout Standard
+\begin_layout Section
+Conservation
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Conservation"
 
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The numerical conservation of a number of quantities that are conserved
+ by the continuous nonlinear equations 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:nonlinear_mom"
+
+\end_inset
+
+-
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:nonlinear_thermo"
+
+\end_inset
+
+ are computed and recorded.
+ The currently measured quantities are: dry mass, dry total energy, potential
+ vorticity and axial angular momentum,
+\begin_inset Formula 
+\begin{eqnarray}
+M & = & \int_{\Omega}\rho dV,\label{eq:total_mass}\\
+E & = & \int_{\Omega}\rho\left[\Phi+\frac{1}{2}\mathbb{\mathbf{u}}.\mathbf{u}+C_{v}T\right]dV,\label{total_energy}\\
+P & = & \int_{\Omega}\bm{\xi}.\nabla\theta dV\label{total_pv}\\
+A & = & \int_{\Omega}\rho\tilde{\mathbf{z}}.\left[\mathbf{r}\times\left(\mathbf{u}+\bm{\Omega}\times\mathbf{r}\right)\right]dV,\label{eq:total_aam}
+\end{eqnarray}
+
+\end_inset
+
+where 
+\begin_inset Formula $\tilde{\mathbf{z}}$
+\end_inset
+
+ is a unit vector in the direction of 
+\begin_inset Formula $\bm{\Omega}.$
+\end_inset
+
+ In the weak formulation these are discretised as
+\begin_inset Formula 
+\begin{eqnarray}
+M & = & \sum_{cell}\left\langle \sigma,\rho\right\rangle ,\label{eq:discrete_total_mass}\\
+E & = & \sum_{cell}\left\langle \rho,\Phi+\frac{1}{2}\mathbb{\mathbf{u}}.\mathbf{u}+C_{v}\theta\Pi\right\rangle ,\label{eq:disctrete_total_energy}\\
+P & = & \sum_{cell}\left\langle \bm{\xi},\nabla\theta\right\rangle ,\label{eq:discrete_total_pv}\\
+A & = & \sum_{cell}\left\langle \rho\tilde{\mathbf{z}},\mathbf{r}\times\left(\mathbf{u}+\bm{\Omega}\times\mathbf{r}\right)\right\rangle ,\label{eq:discrete_total_aam}
+\end{eqnarray}
+
+\end_inset
+
+applying the transformations from Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Coordinate-Transforms"
+
+\end_inset
+
+
+\begin_inset Formula 
+\begin{eqnarray}
+M & = & \sum_{cell}\left\langle \hat{\sigma},\hat{\rho}\det\left(J\right)\right\rangle ,\label{eq:discrete_total_mass-1}\\
+E & = & \sum_{cell}\left\langle \hat{\rho},\left[\Phi+\frac{1}{2}\left(\frac{J\hat{\mathbb{\mathbf{u}}}}{\det\left(J\right)}\right).\left(\frac{J\hat{\mathbb{\mathbf{u}}}}{\det\left(J\right)}\right)+C_{v}\hat{\theta}\hat{\Pi}\right]\det\left(J\right)\right\rangle ,\label{eq:disctrete_total_energy-1}\\
+P & = & \sum_{cell}\left\langle J^{-T}\hat{\bm{\xi}},J^{-T}\nabla\hat{\theta}\det\left(J\right)\right\rangle ,\label{eq:discrete_total_pv-1}\\
+A & = & \sum_{cell}\left\langle \hat{\rho}\tilde{\mathbf{z}},\mathbf{r}\times\left(\frac{J\hat{\mathbf{u}}}{\det\left(J\right)}+\bm{\Omega}\times\mathbf{r}\right)\det\left(J\right)\right\rangle .\label{eq:discrete_total_aam-1}
+\end{eqnarray}
+
+\end_inset
+
+For output the total quantities are normalised by the square of the planet
+ radius and so the output quantities are: 
+\begin_inset Formula $M/a^{2},\, E/a^{2},\, P/a^{2},\, A/a^{2}$
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Section
@@ -1861,6 +2310,52 @@ name "sec:Results"
 
 \begin_layout Standard
 This section gives some indicative results obtained using Dynamo.
+ For spherical results the resolution is given in form 
+\begin_inset Formula $CxLyKz$
+\end_inset
+
+ where 
+\begin_inset Formula $x$
+\end_inset
+
+ is the number of cells along one edge of a cubed-sphere panel, 
+\begin_inset Formula $y$
+\end_inset
+
+ is the number of cells in the vertical and 
+\begin_inset Formula $z$
+\end_inset
+
+ is the polynomial order of the 
+\begin_inset Formula $\mathbb{W}_{3}$
+\end_inset
+
+ space, hence 
+\begin_inset Formula $C12L5K0$
+\end_inset
+
+ would give a cubed-sphere of 
+\begin_inset Formula $6\times12^{2}$
+\end_inset
+
+ cells in the horizontal and 
+\begin_inset Formula $5$
+\end_inset
+
+ cells in the vertical with lowest order elements.
+ The total number of degrees of freedom at a given resolution for a 
+\begin_inset Formula $\mathbb{W}_{3}$
+\end_inset
+
+ field (and hence a measure of the cost of the simulation) is given by 
+\begin_inset Formula $6x^{2}y\left(z+1\right)^{3}$
+\end_inset
+
+ which for the example above is 
+\begin_inset Formula $4320$
+\end_inset
+
+ dofs.
 \end_layout
 
 \begin_layout Subsection
@@ -2482,14 +2977,6 @@ Results for the 2D gravity wave test simulated using the linear equations
 
 \end_layout
 
-\begin_layout Standard
-
-\end_layout
-
-\begin_layout Section
-Results
-\end_layout
-
 \begin_layout Subsection
 Nonlinear Results
 \end_layout
@@ -2640,7 +3127,7 @@ Gravity wave test with (a) & (c) ENDGame, at
 \end_inset
 
  cells) and (b) & (d) Dynamo, on a 
-\begin_inset Formula $C24$
+\begin_inset Formula $C24L10K0$
 \end_inset
 
  grid with lowest order elements (
@@ -2666,7 +3153,7 @@ The gravity wave test from the dynamical core model intercomparison project
  org/projects/dcmip-2012/ and http://earthsystemcog.org/site media/docs/DCMIP-Tes
 tCaseDocument v1.7.pdf for detailed descriptions of the test problems) is
  run with the modification that the constant advecting velocity is removed.
- To facilate a comparison of results the same test is repeated in ENDGame
+ To facilitate a comparison of results the same test is repeated in ENDGame
  
 \begin_inset CommandInset citation
 LatexCommand citet
@@ -2679,7 +3166,7 @@ key "wood_etal_13_eg"
 \begin_inset Formula $\theta$
 \end_inset
 
- perturbation (difference from backgroud state) are shown in Figure 
+ perturbation (difference from background state) are shown in Figure 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "fig:Spherical-Gravity-wave-test"
@@ -2687,6 +3174,210 @@ reference "fig:Spherical-Gravity-wave-test"
 \end_inset
 
 .
+ The conservation of mass, energy, pv and axial angular momentum as given
+ by 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:discrete_total_mass-1"
+
+\end_inset
+
+-
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:discrete_total_aam-1"
+
+\end_inset
+
+ are shown in Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:conservation"
+
+\end_inset
+
+ for 
+\begin_inset Formula $C12L5K0$
+\end_inset
+
+ resolution, shows that as expected mass is conserved exactly, panel (a)
+ and energy is conserved to a very small error, panel (b).
+ The Potential vorticity is not conserved, panel (c), as the conservation
+ law for pv is not enforced, (note the initial pv for this test is zero).
+ As expected axial-angular momentum, panel (d), is also not conserved, furthermo
+re it is not clear if this diagnostic has been correctly implemented and
+ what it even means in the absence of rotation, this should be revisited
+ when rotation is added to the nonlinear equations.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename figures/Conservation_of_mass_GW_C12L5k0.eps
+	scale 50
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename figures/Conservation_of_energy_GW_C12L5k0.eps
+	scale 50
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename figures/Conservation_of_PV_GW_C12L5k0.eps
+	scale 50
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename figures/Conservation_of_AAM_GW_C12L5k0.eps
+	scale 50
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:conservation"
+
+\end_inset
+
+Conservation of (a) Mass, (b) Energy, (c) Potential vorticity and (d) Axial
+ Angular Momentum for the gravity wave test of Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Spherical-Gravity-wave-test"
+
+\end_inset
+
+ but for 
+\begin_inset Formula $C12L5K0$
+\end_inset
+
+ resolution.
+ Note this test is on an unrotating planet.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard

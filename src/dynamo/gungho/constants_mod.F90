@@ -85,6 +85,7 @@ module constants_mod
   real(kind=r_def), parameter :: GRAVITY = 9.80665_r_def !< Surface equatorial value of gravity [m/s^2].
   real(kind=r_def), parameter :: Rd = 287.05_r_def       !< Gas constant for dry air [J/(kg K)].
   real(kind=r_def), parameter :: Cp = 1005.0_r_def       !< Specific heat of dry air at constant pressure [J/(kg K)].
+  real(kind=r_def), parameter :: Cv = Cp - Rd            !< Specific heat of dry air at constant volume [J/(kg K)].
   real(kind=r_def), parameter :: KAPPA = Rd/Cp           !< Ratio of Rd and Cp [dimensionless].
   real(kind=r_def), parameter :: P_ZERO = 100000.0_r_def !< Reference surface pressure [Pa].
   real(kind=r_def), parameter :: N_SQ = 0.0001_r_def     !< The square of Brunt-Vaisala frequency [1/s^2].

@@ -32,7 +32,7 @@ real(kind=r_def), intent(out) :: exner_s, rho_s, theta_s
 
 real(kind=r_def), parameter :: THETA_SURF = 300.0_r_def
 real(kind=r_def), parameter :: EXNER_SURF = 1.0_r_def
-real(kind=r_def)            :: nsq_over_g, z, lat, lon, r, u_s(3)
+real(kind=r_def)            :: nsq_over_g, z, u_s(3), lat, lon, r
 
 if ( l_spherical ) then
   call xyz2llr(x(1),x(2),x(3),lon,lat,r)

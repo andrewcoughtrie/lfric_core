@@ -25,8 +25,6 @@ use argument_mod,            only : arg_type, func_type,                     &
                                     CELLS 
 use reference_profile_mod,   only : reference_profile
 use constants_mod,           only : N_SQ, GRAVITY, r_def
-use coord_transform_mod,     only : xyz2llr, sphere2cart_vector
-use slush_mod,               only : l_spherical
 
 implicit none
 

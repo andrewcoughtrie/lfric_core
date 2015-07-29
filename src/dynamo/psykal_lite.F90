@@ -1507,5 +1507,26 @@ contains
     end do 
   end subroutine invoke_compute_geopotential_kernel
   
+!-------------------------------------------------------------------------------    
+!> invoke_sum_field: Sum all values of a field x
+  subroutine invoke_sum_field( x, field_sum )
+    use log_mod, only : log_event, LOG_LEVEL_ERROR
+    implicit none
+    type( field_type ),  intent(in ) :: x
+    real(kind=r_def),    intent(out) :: field_sum
+
+    type( field_proxy_type)          :: x_p
+    integer                          :: df, undf
+
+    x_p = x%get_proxy()   
+
+    undf = x_p%vspace%get_undf()
+    
+    field_sum = 0.0_r_def
+    do df = 1,undf
+      field_sum = field_sum + x_p%data(df)
+    end do
+
+  end subroutine invoke_sum_field
 
   end module psy

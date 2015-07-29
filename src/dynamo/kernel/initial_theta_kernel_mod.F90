@@ -90,7 +90,6 @@ subroutine initial_theta_code(nlayers, &
   real(kind=r_def), parameter :: H      = 10000.0_r_def
   real(kind=r_def)            :: x(3)
   real(kind=r_def)            :: theta_ref, exner_ref, rho_ref
-
   real(kind=r_def)            :: lat, lon, r
   real(kind=r_def)            :: theta_pert, nl
    

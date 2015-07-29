@@ -45,6 +45,8 @@ module rk_alg_timestep_mod
                      only : galerkin_projection_algorithm
   use driver_layer,  only : interpolated_output
   use operator_mod,  only : operator_type
+  use conservation_algorithm_mod, &
+                     only : conservation_algorithm
 
   implicit none
 
@@ -210,6 +212,8 @@ contains
                             , chi                                              &
                             , 'u_____' )
 
+    call conservation_algorithm(0, mesh, rho, u, theta, xi, geopotential, chi)
+
     !==========================================================================
     ! Timestep
     nt = 30 ! number of timesteps
@@ -351,6 +355,7 @@ contains
                                 , chi                          &
                                 , 'u_____' )
       end if
+      call conservation_algorithm(n, mesh, rho, u, theta, xi, geopotential, chi)
 
       write( log_scratch_space, '(A,I0)' ) 'End of timestep ', n
       call log_event( log_scratch_space, LOG_LEVEL_TRACE )

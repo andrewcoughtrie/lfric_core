@@ -1,0 +1,91 @@
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown,
+! Met Office and NERC 2014.
+! However, it has been created with the help of the GungHo Consortium,
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+
+!>@brief Algorithm to compute various conserved quantities 
+!>@details Computes various conserved quantities and checks how
+!> accurately they have been conserved
+module conservation_algorithm_mod
+
+  use log_mod,        only: log_event,         &
+                            log_scratch_space, &
+                            LOG_LEVEL_INFO
+  use field_mod,      only: field_type 
+  use constants_mod,  only: r_def
+  use compute_total_mass_kernel_mod,   only: compute_total_mass_kernel_type
+  use compute_total_energy_kernel_mod, only: compute_total_energy_kernel_type
+  use compute_total_pv_kernel_mod,     only: compute_total_pv_kernel_type
+  use compute_total_aam_kernel_mod,    only: compute_total_aam_kernel_type
+  use quadrature_mod,  only: quadrature_type, QR3
+  use function_space_mod, &
+                       only: function_space_type, W3
+  use psy,             only: invoke_sum_field
+  use mesh_mod,        only: mesh_type
+
+implicit none
+
+private
+public :: conservation_algorithm
+
+contains
+
+  subroutine conservation_algorithm(tstep, mesh, rho, u, theta, xi, geopotential, chi)
+!>@brief Algorithm to compute various conserved quantities 
+!>@details Computes various conserved quantities and checks how
+!> accurately they have been conserved
+!> @param[in] tstep - The current timestep
+!> @param[in] rho - The density field
+!> @param[in] u - the velocity field
+!> @param[in] theta - the potential temperature field
+!> @param[in] xi - the vorticity field
+!> @param[in] geopotential - the geopotential field
+!> @param[in] chi - the 3 coordinate fields
+  implicit none
+    integer, intent(in) :: tstep
+
+    type (mesh_type), intent(in) :: mesh 
+
+    ! coordinate fields
+    type( field_type ), intent( inout ) :: chi(3)
+    ! prognostic fields    
+    type( field_type ), intent( inout ) :: u, rho, theta, xi, geopotential
+
+    ! local variables
+    type(function_space_type) :: fs
+    type( quadrature_type), pointer :: qr => null()
+    type( field_type ) :: mass, pv, aam, energy
+    real(kind=r_def) :: total_mass, total_pv, total_aam, total_energy 
+    ! Get a quadrature rule
+    qr => qr%get_instance(QR3,9,3)
+
+    ! Compute Mass
+    mass = field_type( vector_space = fs%get_instance( mesh, W3) )
+    call invoke( compute_total_mass_kernel_type(mass, rho, chi, qr) )
+    call invoke_sum_field(mass, total_mass)
+
+    ! Compute Total Energy
+    energy = field_type( vector_space = fs%get_instance( mesh, W3) )
+    call invoke( compute_total_energy_kernel_type(energy, u, rho, theta, &
+                                                  geopotential, chi, qr) )
+    call invoke_sum_field(energy, total_energy)
+
+    ! Compute Ertel PV
+    pv = field_type( vector_space = fs%get_instance( mesh, W3) )
+    call invoke( compute_total_pv_kernel_type(pv, xi, theta, chi, qr) )
+    call invoke_sum_field(energy, total_pv)
+
+    ! Compute axial angular momentum
+    aam = field_type( vector_space = fs%get_instance( mesh, W3) )
+    call invoke( compute_total_aam_kernel_type(aam, u, rho, chi, qr) )
+    call invoke_sum_field(energy, total_aam)
+
+    write( log_scratch_space, '(A,I4,4E32.24)')  &
+           'Conservation  = ',&
+            tstep, total_mass, total_energy, total_pv, total_aam
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+  end subroutine conservation_algorithm
+
+end module conservation_algorithm_mod
