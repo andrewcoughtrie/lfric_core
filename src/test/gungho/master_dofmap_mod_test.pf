@@ -1,0 +1,54 @@
+!-----------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown, 
+! Met Office and NERC 2014. 
+! However, it has been created with the help of the GungHo Consortium, 
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-----------------------------------------------------------------------------
+
+!> Test the master_dofmap representation
+!>
+module master_dofmap_mod_test
+
+  implicit none 
+
+
+contains
+
+  @test
+  subroutine test_master_dofmap()
+    use master_dofmap_mod,        only: master_dofmap_type
+    use pFUnit_Mod
+
+
+    implicit none
+
+    type(master_dofmap_type)  :: dofmap
+    integer, allocatable, dimension(:,:) :: map_init, map_copy
+    integer, pointer :: map(:) => null()
+    integer :: ncells, ndf, cell, df
+
+    ! Allocate the maps
+    ncells = 4
+    ndf = 3
+    allocate( map_init(ndf,ncells), map_copy(ndf,ncells) )
+
+    ! populate the map
+    map_init(:,1) = (/ 1, 2, 3 /)
+    map_init(:,2) = (/ 3, 4, 5 /)
+    map_init(:,3) = (/ 5, 6, 7 /)
+    map_init(:,4) = (/ 8, 9, 10/)
+
+    map_copy = map_init
+
+    dofmap = master_dofmap_type(map_init)
+
+    do cell = 1,ncells
+      map => dofmap%get_master_dofmap(cell)
+      do df = 1,ndf
+        @assertEqual( map(df), map_copy(df,cell) )
+      end do
+    end do
+
+  end subroutine test_master_dofmap
+
+end module master_dofmap_mod_test

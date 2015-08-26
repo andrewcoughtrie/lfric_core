@@ -16,9 +16,11 @@
 
 module function_space_mod
 
-use constants_mod, only : r_def
-use mesh_mod,  only: mesh_type
-
+use constants_mod,      only: r_def
+use mesh_mod,           only: mesh_type
+use master_dofmap_mod,  only: master_dofmap_type
+use stencil_dofmap_mod, only: stencil_dofmap_type, &
+                              STENCIL_POINT
 implicit none
 
 private
@@ -32,8 +34,11 @@ type, public :: function_space_type
   integer              :: ndf, ncell, undf, fs, nlayers, order
   integer              :: dim_space, dim_space_diff
   !> A two dimensional, allocatable array which holds the indirection map 
-  !! or dofmap for the whole function space over the bottom level of the domain.
-  integer, allocatable :: dofmap(:,:)
+  !> or dofmap for the whole function space over the bottom level of the domain.
+  type(master_dofmap_type) :: master_dofmap
+  !> Currently only a single generic dofmap is created, later this will be a
+  !> linked list of dofmaps
+  type(stencil_dofmap_type) :: stencil_dofmap
   !> A two dimensional, allocatable array of reals which holds the coordinates
   !! of the function_space degrees of freedom
   real(kind=r_def), allocatable :: nodal_coords(:,:)
@@ -85,6 +90,12 @@ contains
   !> @param[in] cell Which cell
   !> @return The pointer which points to a slice of the dofmap
   procedure :: get_cell_dofmap
+
+!> Subroutine Returns a pointer to a stencil dofmap for the cell 
+!! @param[in] self The calling function_space
+!! @param[in] cell Which cell
+!! @return The pointer which points to a slice of the dofmap
+  procedure :: get_stencil_dofmap
 
   !> @brief Obtains the number of dofs per cell
   !> @param[in] self The calling functions space
@@ -332,6 +343,8 @@ subroutine init_function_space(self, &
                                orientation ,fs, &
                                basis_order, basis_index, &
                                basis_vector, basis_x)
+
+
   implicit none
 
   class(function_space_type)  :: self
@@ -339,7 +352,7 @@ subroutine init_function_space(self, &
   type(mesh_type), intent(in) :: mesh
   integer, intent(in)         :: num_dofs, num_unique_dofs
   integer, intent(in)         :: dim_space, dim_space_diff
-
+ 
 ! The following four arrays have intent inout because the move_allocs in the
 ! code need access to the arrays to free them in their original locations
   integer,          intent(inout), allocatable  :: dofmap(:,:)
@@ -356,7 +369,11 @@ subroutine init_function_space(self, &
   self%undf            =  num_unique_dofs
   self%dim_space       =  dim_space
   self%dim_space_diff  =  dim_space_diff
-  call move_alloc(dofmap, self%dofmap)
+  ! Create a dofmap object and pass it the master dofmap to store
+  self%master_dofmap = master_dofmap_type(dofmap)
+  ! Create a point stencil dofmap
+  self%stencil_dofmap = stencil_dofmap_type(STENCIL_POINT, 1, num_dofs, &
+                                            mesh, self%master_dofmap)
   call move_alloc(nodal_coords , self%nodal_coords) 
   call move_alloc(dof_on_vert_boundary , self%dof_on_vert_boundary) 
   call move_alloc(orientation , self%orientation) 
@@ -423,11 +440,27 @@ function get_cell_dofmap(self,cell) result(map)
   implicit none
   class(function_space_type), target, intent(in) :: self
   integer,                            intent(in) :: cell
-  integer, pointer                               :: map(:) 
+  integer, pointer                               :: map(:)
 
-  map => self%dofmap(:,cell)
+  map => self%master_dofmap%get_master_dofmap(cell)
   return
 end function get_cell_dofmap
+!-----------------------------------------------------------------------------
+! Get a stencil dofmap for a single cell
+!-----------------------------------------------------------------------------
+!> Subroutine Returns a pointer to the dofmap for the cell 
+!! @param[in] self The calling function_space
+!! @param[in] cell Which cell
+!! @return The pointer which points to a slice of the dofmap
+function get_stencil_dofmap(self,cell) result(map)
+  implicit none
+  class(function_space_type), target, intent(in) :: self
+  integer,                            intent(in) :: cell
+  integer, pointer                               :: map(:,:)
+
+  map => self%stencil_dofmap%get_dofmap(cell)
+  return
+end function get_stencil_dofmap
 
 ! ----------------------------------------------------------------
 ! Gets the nodal coordinates of the function_space
@@ -643,4 +676,5 @@ integer function get_order(self)
 
   return
 end function get_order
+
 end module function_space_mod
