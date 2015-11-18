@@ -64,14 +64,26 @@ module field_mod
     procedure         :: write_field
 
     !> Routine to return the mesh used by this field
-    procedure :: get_mesh
+    procedure         :: get_mesh
+
+    !> Returns size of data(:) member of field_type
+    procedure         :: get_data_size
+
+    !> Overloaded assigment operator
+    procedure         :: field_type_assign
+
+    !> Routine to destroy field_type
+    final             :: field_destructor_scalar, &
+                         field_destructor_array1d, &
+                         field_destructor_array2d
+
+    !> Override default assignment for field_type pairs.
+    generic           :: assignment(=) => field_type_assign
 
   end type field_type
 
   interface field_type
-
     module procedure field_constructor
-
   end interface
 
   public :: which_function_space
@@ -105,7 +117,7 @@ contains
     class(field_type), target, intent(in)  :: self
 
     get_proxy % vspace                 => self % vspace
-    get_proxy %  data                  => self % data
+    get_proxy % data                   => self % data
 
   end function get_proxy
 
@@ -130,7 +142,7 @@ contains
   !> @param [in] vector_space the function space that the field lives on
   !> @return self the field
   !>
-  function field_constructor( vector_space ) result(self)
+  function field_constructor(vector_space) result(self)
 
     type(function_space_type), target, intent(in) :: vector_space
 
@@ -142,6 +154,90 @@ contains
     allocate(self%data(self%vspace%get_undf()))
 
   end function field_constructor
+
+  !> Destroy a scalar <code>field_type</code> instance.
+  subroutine field_destructor_scalar(self)
+    implicit none
+    type(field_type), intent(inout)    :: self
+
+    nullify(self%vspace)
+    if(allocated(self%data)) then
+      deallocate(self%data)
+    end if
+
+  end subroutine field_destructor_scalar
+
+  !> Destroy a 1d array of <code>field_type</code> instances.
+  subroutine field_destructor_array1d(self)
+    implicit none
+    type(field_type), intent(inout)    :: self(:)
+    integer :: i
+
+    do i=lbound(self,1), ubound(self,1)
+      nullify(self(i)%vspace)
+      if(allocated(self(i)%data)) then
+        deallocate(self(i)%data)
+      end if
+    end do
+
+  end subroutine field_destructor_array1d
+
+  !> Destroy a 2d array of <code>field_type</code> instances.
+  subroutine field_destructor_array2d(self)
+    implicit none
+    type(field_type), intent(inout)    :: self(:,:)
+    integer :: i,j
+
+    do i=lbound(self,1), ubound(self,1)
+      do j=lbound(self,2), ubound(self,2)
+        nullify(self(i,j)%vspace)
+        if(allocated(self(i,j)%data)) then
+          deallocate(self(i,j)%data)
+        end if
+      end do
+    end do
+
+  end subroutine field_destructor_array2d
+
+  !> Return the size of storage in instance's data member.
+  !>
+  !> @return fsize Size of data member.
+  pure function get_data_size(self) result(fsize)
+    class(field_type), intent(in)      :: self
+    integer(kind=i_def)                :: fsize
+    
+    if(allocated(self%data)) then
+      fsize = size(self%data)
+    else
+      fsize = -1_i_def
+    end if
+
+  end function get_data_size
+
+  !> Assignment operator between field_type pairs.
+  !>
+  !> @param[out] dest   field_type lhs
+  !> @param[in]  source field_type rhs
+  subroutine field_type_assign(dest, source)
+    implicit none
+    class(field_type), intent(out)     :: dest
+    class(field_type), intent(in)      :: source
+
+    integer(kind=i_def)                :: field_size
+
+    dest%vspace => source%vspace
+
+    field_size = source%get_data_size()
+
+    if(allocated(dest%data)) then
+      deallocate(dest%data)
+    end if
+
+    allocate(dest%data(field_size))
+
+    dest%data(:) = source%data(:)
+
+  end subroutine field_type_assign
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines

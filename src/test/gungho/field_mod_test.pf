@@ -7,13 +7,10 @@
 
 !> Test the field representation
 !>
+!-------------------------------------------------------------------------------
 module field_mod_test
-
   implicit none 
-
-
 contains
-
   @test
   subroutine test_field()
     use field_mod,                only: field_type, field_proxy_type
@@ -22,11 +19,10 @@ contains
     use mesh_mod,                 only: mesh_type, PLANE_BI_PERIODIC
     use pFUnit_Mod
 
-
     implicit none
 
-    type(field_type)          :: f1
-    type(field_proxy_type)    :: f1_p
+    type(field_type)          :: f1, f2
+    type(field_proxy_type)    :: f1_p, f2_p
     type(function_space_type) :: fs
     type(mesh_type)           :: mesh
     type(mesh_type)           :: mesh_out
@@ -48,6 +44,15 @@ contains
     @assertEqual( size( f1_p%data ) , f1_p%vspace%get_undf() )
     ! Check the the function space the field lives on is the one it was created with
     @assertEqual( f1%which_function_space(), W2 )
+
+    ! Assignment operator tests follow...
+    f2 = f1
+    f2_p = f2%get_proxy()
+
+    ! Check that assignment has created correct size data member...
+    @assertEqual(f1%get_data_size(), f2%get_data_size(), "Assigned field_types have different data sizes.")
+    ! Check that contained vector_space pointers point to same address
+    @assertTrue(associated(f1_p%vspace, f2_p%vspace), "Assigned field_type vspace pointers differ.")
     
     ! Operations on field data are part of the PSy and Kernel layers so
     ! that is all.
@@ -98,3 +103,5 @@ contains
   end subroutine test_field
 
 end module field_mod_test
+!-------------------------------------------------------------------------------
+! vim: set ft=fortran :
