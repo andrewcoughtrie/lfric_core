@@ -19,7 +19,8 @@ use argument_mod,            only : arg_type, func_type,                     &
                                     GH_FIELD, GH_READ, GH_INC,               &
                                     W0, W2, GH_BASIS, GH_DIFF_BASIS,         &
                                     GH_ORIENTATION, CELLS
-use constants_mod,           only : cp, r_def, omega
+use constants_mod,           only : cp, r_def
+use configuration_mod,       only : omega
 use cross_product_mod,       only : cross_product
 
 implicit none
@@ -95,7 +96,7 @@ subroutine rotation_code(nlayers,                                              &
                          )
 
   use coordinate_jacobian_mod,  only: coordinate_jacobian
-  use slush_mod,                only: l_spherical, f_lat
+  use configuration_mod,        only: l_spherical, f_lat
   use rotation_vector_mod,      only: rotation_vector_fplane,  &
                                       rotation_vector_sphere
 

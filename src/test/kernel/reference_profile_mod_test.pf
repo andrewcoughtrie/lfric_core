@@ -15,7 +15,9 @@ contains
   subroutine test_of_reference_profile()
     use pFUnit_Mod
     use reference_profile_mod, only : reference_profile
-    use constants_mod,         only : r_def, N_SQ, GRAVITY, P_ZERO, Rd, Cp, KAPPA
+    use constants_mod,         only : r_def, GRAVITY, P_ZERO, Rd, Cp, KAPPA
+    use configuration_mod,     only : l_spherical
+    use initialisation_mod,    only : ITEST_GRAVITY_WAVE, n_sq
     
     implicit none
 
@@ -23,16 +25,18 @@ contains
     real(kind=r_def) :: exner, theta, rho, x(3)
     real(kind=r_def) :: exner_exact, theta_exact, rho_exact   
 
-      
+    l_spherical = .false.
+    n_sq        = 0.0001_r_def 
+
     x = (/ 0.0_r_def, 0.0_r_def, 1000.0_r_def /)
            
-    call reference_profile(exner,rho,theta,x)
+    call reference_profile(exner,rho,theta,x,ITEST_GRAVITY_WAVE)
 
     tol=1.0e-14
     
-    theta_exact = 300.0_r_def * exp (  N_SQ/GRAVITY*x(3))
-    exner_exact = 1.0_r_def - GRAVITY**2/(Cp*300.0_r_def*N_SQ)   &
-              * (1.0_r_def - exp ( - N_SQ/GRAVITY * x(3) ))
+    theta_exact = 300.0_r_def * exp (  n_sq/GRAVITY*x(3))
+    exner_exact = 1.0_r_def - GRAVITY**2/(Cp*300.0_r_def*n_sq)   &
+              * (1.0_r_def - exp ( - n_sq/GRAVITY * x(3) ))
     rho_exact = P_ZERO/(Rd*theta_exact) * exner_exact ** ((1.0_r_def - KAPPA)/KAPPA) 
     
 

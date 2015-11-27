@@ -77,13 +77,15 @@ end subroutine tearDown
 @test
 subroutine test_compute_colours_cubedsphere(this)
   use pFUnit_Mod
-  use mesh_mod, only              : mesh_type, VGRID_UNIFORM
+  use mesh_mod, only              : mesh_type
   use partition_mod, only         : partition_type, &
                                     partitioner_interface, &
                                     partitioner_cubedsphere_serial
 
   use global_mesh_mod, only       : global_mesh_type
-  use constants_mod, only         : i_def, r_def, str_def, QUAD
+  use constants_mod, only         : i_def, r_def, str_def
+  use configuration_mod, only     : QUAD, VGRID_UNIFORM
+
   implicit none
 
   class(compute_colours_test_type), intent(inout)  :: this

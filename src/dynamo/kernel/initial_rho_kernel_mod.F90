@@ -10,15 +10,15 @@
 !> @brief Kernel which computes LHS of Galerkin projection and solves equation in W3 space
 
 module initial_rho_kernel_mod
-use kernel_mod,              only : kernel_type
-use constants_mod,           only : r_def, L_COLD_BUBBLE, &
-                                    P_ZERO, Rd, KAPPA, PI
-use argument_mod,            only : arg_type, func_type,                     &
-                                    GH_FIELD, GH_READ, GH_WRITE,             &
-                                    W0, W3,                                  &
-                                    GH_BASIS, GH_DIFF_BASIS,                 &
-                                    CELLS
-use reference_profile_mod,   only : reference_profile
+use kernel_mod,            only : kernel_type
+use argument_mod,          only : arg_type, func_type,            &
+                                  GH_FIELD, GH_READ, GH_WRITE,    &
+                                  W0, W3,                         &
+                                  GH_BASIS, GH_DIFF_BASIS,        &
+                                  CELLS
+use constants_mod,         only : r_def, P_ZERO, Rd, KAPPA, PI
+use initialisation_mod,    only : ITEST_COLD_BUBBLE, itest_option
+use reference_profile_mod, only : reference_profile
 implicit none
 
 !-------------------------------------------------------------------------------
@@ -133,8 +133,8 @@ subroutine initial_rho_code(nlayers, rho, chi_1, chi_2, chi_3, &
             x(2) = x(2) + chi_2_e(df2)*w0_basis(1,df2,qp1,qp2)
             x(3) = x(3) + chi_3_e(df2)*w0_basis(1,df2,qp1,qp2)
           end do
-          call reference_profile(exner_ref, rho_ref, theta_ref, x)
-          if ( L_COLD_BUBBLE ) then
+          call reference_profile(exner_ref, rho_ref, theta_ref, x, itest_option)
+          if ( itest_option == ITEST_COLD_BUBBLE ) then
             l = sqrt( ((x(1)-XC)/XR)**2 + ((x(3)-ZC_cold)/ZR)**2 )
             if ( l <= 1.0_r_def ) then
               dt =  15.0_r_def/2.0_r_def*(cos(PI*l)+1.0_r_def)

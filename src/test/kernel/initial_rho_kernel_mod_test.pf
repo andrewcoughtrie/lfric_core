@@ -23,8 +23,8 @@ contains
                                            field_proxy_type
     use function_space_mod,         only : function_space_type, W0, W3
     use initial_rho_kernel_mod,     only : initial_rho_code
-    use slush_mod,                  only : l_spherical
     use constants_mod,              only : r_def
+    use configuration_mod,          only : l_spherical
     use quadrature_mod,             only : quadrature_type, QR3
     use mesh_mod,                   only : mesh_type, PLANE_BI_PERIODIC
  

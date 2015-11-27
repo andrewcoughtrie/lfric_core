@@ -1,0 +1,138 @@
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown,
+! Met Office and NERC 2014.
+! However, it has been created with the help of the GungHo Consortium,
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+
+!>@brief Initialisation of prognostic fields
+module init_prognostic_fields_alg_mod
+
+  use log_mod,                         only: log_event,         &
+                                             log_scratch_space, &
+                                             LOG_LEVEL_INFO,    &
+                                             LOG_LEVEL_TRACE
+  use constants_mod,                   only: r_def 
+
+  ! Configuration and restart/checkpoint options  
+  use configuration_mod,               only: l_nonlinear  
+  use restart_control_mod,             only: restart_type    
+  ! I/O tools
+  use field_io_mod,                    only: read_state_netcdf                                                 
+
+  ! PsyKAl-lite kernels
+  use psy,                             only: invoke_set_field_scalar
+
+  ! PsyKAl PSYClone kernels
+  use initial_theta_kernel_mod,        only: initial_theta_kernel_type
+  use initial_rho_kernel_mod,          only: initial_rho_kernel_type
+  use initial_u_kernel_mod,            only: initial_u_kernel_type
+
+  ! Derived Types
+  use mesh_mod,                        only: mesh_type
+  use field_mod,                       only: field_type
+  use function_space_mod,              only: function_space_type, W0, W1, W2, W3
+  use quadrature_mod,                  only: quadrature_type, QR3
+
+  ! Initialisation tools
+  use initialisation_mod,              only : read_initialisation_namelist
+
+  implicit none
+
+  private
+  public :: init_prognostic_fields_alg
+
+contains
+  !> @details An algorithm for initialising prognostic fields for 
+  !>          all solvers.
+  !> @param[in]    mesh Mesh object on which the model runs
+  !> @param[inout] chi  The finite element form of the coordinates
+  !> @param[inout] u  The 3D wind field
+  !> @param[inout] rho The density
+  !> @param[inout] theta The potential temperature
+  !> @param[inout] xi The vorticity field 
+  !> @param[in] restart Checkpoint/restart type with timestepping information
+  subroutine init_prognostic_fields_alg( mesh, chi, u, rho, theta, xi, restart)
+
+    implicit none
+
+    ! Mesh
+    type (mesh_type), intent(in) :: mesh
+    ! Coordinate fields
+    type( field_type ), intent( inout ) :: chi(3)
+    ! Prognostic fields    
+    type( field_type ), intent( inout ) :: u, rho, theta, xi
+    ! Control
+    type( restart_type ), intent(in)    :: restart
+
+    type( function_space_type )      :: function_space
+    type( quadrature_type ), pointer :: qr => null()
+    type( field_type ), allocatable  :: state(:)
+
+    integer                          :: n_fields
+
+    qr => qr%get_instance(QR3,9,3)
+
+    ! Read intialisation namelist in Dynamo
+    call read_initialisation_namelist()
+
+    !=== Initialise global prognostic fields ==================================!
+
+    if (.not.restart%read_file()) then           ! No check point to start from
+
+      call log_event( "Dynamo: Initialising prognostic fields", LOG_LEVEL_INFO )
+      ! Initialise Theta, U, Xi (all formulations)
+      call invoke( initial_theta_kernel_type( theta, chi ) ) 
+      call invoke_set_field_scalar(0.0_r_def, u)
+      call invoke_set_field_scalar(0.0_r_def, xi) 
+      ! Initialise Rho (different for nonlinear or linear formulation)
+      if ( l_nonlinear ) then
+        call invoke( initial_rho_kernel_type ( rho, chi, qr ) )
+      else
+        call invoke_set_field_scalar(0.0_r_def, rho)                        
+      end if
+      call log_event( "Dynamo: Initialised prognostic fields", LOG_LEVEL_INFO )
+
+    else                                   ! Recorded check point to start from
+
+      allocate(state(4))
+      n_fields = 1
+      write(log_scratch_space,'(A,A)') "Reading file:", &
+            trim(restart%startfname("rho"))
+      call log_event(log_scratch_space,LOG_LEVEL_INFO)
+      state(1) = field_type(vector_space = function_space%get_instance(mesh, W3))
+      call read_state_netcdf(n_fields, state(1), trim(restart%startfname("rho")))
+      rho = state(1)
+
+      write(log_scratch_space,'(A,A)') "Reading file:", &
+            trim(restart%startfname("u"))
+      call log_event(log_scratch_space,LOG_LEVEL_INFO)
+      state(2) = field_type(vector_space = function_space%get_instance(mesh, W2))
+      call read_state_netcdf(n_fields, state(2), trim(restart%startfname("u")))
+      u = state(2)
+
+      write(log_scratch_space,'(A,A)') "Reading file:", &
+            trim(restart%startfname("theta"))
+      call log_event(log_scratch_space,LOG_LEVEL_INFO)
+      state(3) = field_type(vector_space = function_space%get_instance(mesh, W0))
+      call read_state_netcdf(n_fields, state(3), &
+           trim(restart%startfname("theta")))
+      theta = state(3)
+
+      write(log_scratch_space,'(A,A)') "Reading file:", &
+            trim(restart%startfname("xi"))
+      call log_event(log_scratch_space,LOG_LEVEL_INFO)
+      state(4) = field_type(vector_space = function_space%get_instance(mesh, W1))
+      call read_state_netcdf(n_fields, state(4), trim(restart%startfname("xi")))
+      xi = state(4)
+
+      deallocate(state)
+      call log_event( "Dynamo: Read prognostic fields from files", LOG_LEVEL_INFO )
+
+    end if
+
+    !==========================================================================!
+
+  end subroutine init_prognostic_fields_alg
+
+end module init_prognostic_fields_alg_mod

@@ -8,20 +8,18 @@
 !> @brief Functions to compute a variety of analytic profiles
 !> @details Collection of functions to return the value of a field at a given
 !!          point based upon a specified analytic formula
-module analytic_profiles_mod
+module analytic_wind_profiles_mod
 
-use constants_mod, only: r_def, &
-                         ZERO_WIND, &
-                         SOLID_BODY_ROTATION_WIND, &
-                         CONSTANT_UV_WIND, &
-                         CONSTANT_SHEAR_UV_WIND
- 
-use log_mod,       only : log_event,         &
-                   log_scratch_space, &
-                   LOG_LEVEL_ERROR
+use constants_mod,      only : r_def
+use log_mod,            only : log_event,                &
+                               log_scratch_space,        &
+                               LOG_LEVEL_ERROR
+use initialisation_mod, only : ZERO_WIND,                &
+                               SOLID_BODY_ROTATION_WIND, &
+                               CONSTANT_UV_WIND,         &
+                               CONSTANT_SHEAR_UV_WIND
 
 implicit none
-
   
 contains
 
@@ -32,7 +30,9 @@ contains
 !> @param[in] option Array of real values used to generate the initial profile
 !> @result u The result wind field vector (u,v,w)
 function analytic_wind(chi, choice, num_options, option) result(u)
+
   implicit none
+
   real(kind=r_def), intent(in) :: chi(3)
   integer,          intent(in) :: choice, num_options
   real(kind=r_def), optional   :: option(num_options)
@@ -42,18 +42,18 @@ function analytic_wind(chi, choice, num_options, option) result(u)
 
   select case ( choice )
 
-    case ( zero_wind )
+    case ( ZERO_WIND )
       u(:) = 0.0_r_def
-    case ( solid_body_rotation_wind )
+    case ( SOLID_BODY_ROTATION_WIND )
       u(1) = option(1) * ( cos(chi(2))*cos(option(2)) &
                        + sin(chi(1))*sin(chi(2))*sin(option(2)) )
       u(2) = option(1) * cos(chi(1))*sin(option(2))
       u(3) = 0.0_r_def
-    case ( constant_uv_wind )
+    case ( CONSTANT_UV_WIND )
       u(1) = option(1)
       u(2) = option(2)
       u(3) = 0.0_r_def
-    case ( constant_shear_uv_wind )
+    case ( CONSTANT_SHEAR_UV_WIND )
       u(1) = option(1)*chi(3)/option(3)
       u(2) = option(2)*chi(3)/option(3)
       u(3) = 0.0_r_def 
@@ -64,4 +64,4 @@ function analytic_wind(chi, choice, num_options, option) result(u)
 
 end function analytic_wind  
 
-end module analytic_profiles_mod
+end module analytic_wind_profiles_mod

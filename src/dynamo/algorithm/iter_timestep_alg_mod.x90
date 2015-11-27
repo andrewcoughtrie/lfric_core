@@ -5,17 +5,22 @@
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
 
-!>@brief A two time-level iterative time-discretisation of the nonlinear 3D equations
+!>@brief A two time-level iterative time-discretisation of the nonlinear 
+!>       3D equations
 module iter_timestep_alg_mod
 
-  use log_mod,            only: log_event,         &
-                                log_scratch_space, &
-                                LOG_LEVEL_INFO,    &
-                                LOG_LEVEL_TRACE
-  use constants_mod,                     only: r_def, SOLVER_OPTION, DT, NT, &
-                                               L_NEWTON_KRYLOV, &
-                                               N_OUTER_ITER, N_INNER_ITER, &
-                                               ALPHA, BETA
+  use log_mod,                           only: log_event,         &
+                                               log_scratch_space, &
+                                               LOG_LEVEL_INFO,    &
+                                               LOG_LEVEL_TRACE
+  use constants_mod,                     only: r_def    
+
+  ! Configuration and restart/checkpoint options                                                      
+  use configuration_mod,                 only: solver_option, dt, &
+                                               l_newton_krylov,   &
+                                               ALPHA, BETA,       &
+                                               N_OUTER_ITER, N_INNER_ITER 
+  use restart_control_mod,               only: restart_type
 
   ! PsyKAl-lite kernels
   use psy,                               only: invoke_axpby,                   &
@@ -30,13 +35,11 @@ module iter_timestep_alg_mod
                                                copy_bundle
 
   ! PsyKAl PSYClone kernels
-  use initial_theta_kernel_mod,          only: initial_theta_kernel_type
+  use initial_u_kernel_mod,              only: initial_u_kernel_type
   use compute_mass_matrix_kernel_w0_mod, only: compute_mass_matrix_kernel_w0_type
   use compute_mass_matrix_kernel_w1_mod, only: compute_mass_matrix_kernel_w1_type
   use compute_mass_matrix_kernel_w2_mod, only: compute_mass_matrix_kernel_w2_type
   use compute_geopotential_kernel_mod,   only: compute_geopotential_kernel_type
-  use initial_rho_kernel_mod,            only: initial_rho_kernel_type
-  use initial_u_kernel_mod,              only: initial_u_kernel_type
 
   ! Derived Types
   use mesh_mod,                          only: mesh_type
@@ -45,7 +48,6 @@ module iter_timestep_alg_mod
   use quadrature_mod,                    only: quadrature_type, QR3
   use operator_mod,                      only: operator_type
   use runtime_constants_mod,             only: runtime_constants_type
-  use restart_control_mod,               only: restart_type
 
   ! Algorithms
   use solver_mod,                        only: solver_algorithm
@@ -80,28 +82,25 @@ contains
   !> @param[inout] rho The density
   !> @param[inout] theta The potential temperature
   !> @param[inout] xi The vorticity field 
-  !> @param[in] restart checkpoint/restart type with timestepping information
+  !> @param[in] restart Checkpoint/restart type with timestepping information
   subroutine iter_timestep_alg( mesh, chi, u, rho, theta, xi, &
        restart)
 
     implicit none
 
+    ! Mesh
     type (mesh_type), intent(in) :: mesh 
-
-    ! coordinate fields
+    ! Coordinate fields
     type( field_type ), intent( inout ) :: chi(3)
-    ! prognostic fields    
+    ! Prognostic fields    
     type( field_type ), intent( inout ) :: u, rho, theta, xi
-    ! restart for timestep control and diagnostic output
-    ! control
+    ! Restart for timestep control and diagnostic output control
     type( restart_type ), intent(in)    :: restart
 
-    ! temporary fields    
+    ! Temporary fields    
     type( field_type ) :: geopotential, r_u
-
     type( field_type ) :: state_n(3), state_np1(3), state_adv(3)
     type( field_type ) :: rhs_n(3), rhs_np1(3), rhs_adv(3)
-    
     type( runtime_constants_type ) :: runtime_constants
 
     integer :: theta_fs, u_fs, rho_fs
@@ -123,14 +122,14 @@ contains
     qr => qr%get_instance(QR3,9,3)
 
     ! Create field bundles
-     state_np1(1) = field_type( vector_space = fs%get_instance(mesh, u_fs) )
-     state_np1(2) = field_type( vector_space = fs%get_instance(mesh, theta_fs) )
-     state_np1(3) = field_type( vector_space = fs%get_instance(mesh, rho_fs) )
-     call clone_bundle(state_np1, state_adv, mesh, 3)
-     call clone_bundle(state_np1, state_n,   mesh, 3)
-     call clone_bundle(state_np1, rhs_n,     mesh, 3)
-     call clone_bundle(state_np1, rhs_np1,   mesh, 3)
-     call clone_bundle(state_np1, rhs_adv,   mesh, 3)
+    state_np1(1) = field_type( vector_space = fs%get_instance(mesh, u_fs) )
+    state_np1(2) = field_type( vector_space = fs%get_instance(mesh, theta_fs) )
+    state_np1(3) = field_type( vector_space = fs%get_instance(mesh, rho_fs) )
+    call clone_bundle(state_np1, state_adv, mesh, 3)
+    call clone_bundle(state_np1, state_n,   mesh, 3)
+    call clone_bundle(state_np1, rhs_n,     mesh, 3)
+    call clone_bundle(state_np1, rhs_np1,   mesh, 3)
+    call clone_bundle(state_np1, rhs_adv,   mesh, 3)
     
     ! Create W2 field needed for u initialisation
     r_u = field_type( vector_space = fs%get_instance(mesh, u_fs) )
@@ -143,9 +142,12 @@ contains
     mm_w1 = operator_type(fs%get_instance(mesh, W1),fs%get_instance(mesh, W1))
     mm_w2 = operator_type(fs%get_instance(mesh, W2),fs%get_instance(mesh, W2))
 
-    !=== Section 2: Initialise Fields ========================================!
-    call log_event( "Dynamo: computing initial fields", LOG_LEVEL_INFO )
+    !=== Section 2: Initialise local algorithm fields ========================!
+    call log_event( "Dynamo: computing Semi-Implicit algorithm fields", &
+                     LOG_LEVEL_INFO )
+    ! Compute geopotential
     call invoke( compute_geopotential_kernel_type( geopotential, chi ) )
+    ! Compute mass matrices
     call invoke( compute_mass_matrix_kernel_w0_type(mm_w0, chi, qr), &
                  compute_mass_matrix_kernel_w1_type(mm_w1, chi, qr), &
                  compute_mass_matrix_kernel_w2_type(mm_w2, chi, qr) )
@@ -153,35 +155,36 @@ contains
     ! Create fixed state container
     runtime_constants = runtime_constants_type(mesh, chi, geopotential, &
                                                mm_w0, mm_w1, mm_w2)
-    ! Prognostics
+    ! Initialise other required fields and U field if necessary 
     if(.not.restart%read_file()) then ! no check point to start from
-       call log_event( "Dynamo: Initialising prognostic fields", LOG_LEVEL_INFO )
-       call invoke( initial_theta_kernel_type( theta, chi ) )   
-       call invoke( initial_rho_kernel_type( rho, chi, qr ) )
-       call invoke_set_field_scalar(0.0_r_def, u) 
-       call invoke_set_field_scalar(0.0_r_def, xi) 
-       call invoke_set_field_scalar(0.0_r_def, r_u) 
-       call invoke( initial_u_kernel_type( r_u, chi, qr ) )
-       call solver_algorithm(u, r_u, mesh, chi, SOLVER_OPTION, mm=mm_w2)
+      call invoke_set_field_scalar(0.0_r_def, u)
+      call invoke_set_field_scalar(0.0_r_def, r_u) 
+      call invoke( initial_u_kernel_type( r_u, chi, qr ) )
+      call solver_algorithm(u, r_u, mesh, chi, solver_option, mm=mm_w2)
     end if
 
-    !=== Intial output and output frequency ==================================! 
+    !--- Intial output and output frequency -----------------------------------! 
+    ! Output initial conditions
+    call log_event( "Dynamo: Outputing initial fields", LOG_LEVEL_INFO )
     ts_init = max( (restart%ts_start() - 1), 0 ) ! 0 or t previous.
     call output_alg(ts_init, restart, theta, u, rho, chi, mesh, mm_w0)
     call conservation_algorithm(ts_init, mesh, rho, u, theta, xi, &
                                 geopotential, chi)
-    !=== Section 3: Timestepping =============================================!
+
+    !=== Section 3: Timestepping ==============================================!
     call invoke_copy_field_data(u,     state_np1(1))
     call invoke_copy_field_data(theta, state_np1(2))
     call invoke_copy_field_data(rho,   state_np1(3))
+
     do timestep = restart%ts_start(),restart%ts_end()
-       call log_event( "/****************************************************************************\ ", &
+       call log_event( &
+       "/****************************************************************************\ ", &
             LOG_LEVEL_TRACE )
        write( log_scratch_space, '(A,I0)' ) 'Start of timestep ', timestep
        call log_event( log_scratch_space, LOG_LEVEL_INFO )
        ! Time level n fields
        call copy_bundle(state_np1, state_n, 3)
-       call rhs_alg(rhs_n, BETA*DT, state_n, runtime_constants, .false.)
+       call rhs_alg(rhs_n, BETA*dt, state_n, runtime_constants, .false.)
        !=== Section 3.1:  Outer (advection loop) ==============================!
        do outer = 1,N_OUTER_ITER
           ! Set advecting velocity & terms
@@ -190,7 +193,7 @@ contains
                xi, runtime_constants)
           !=== Section 3.2: Inner (nonlinear, coriolis loop) ===================!
           do inner = 1,N_INNER_ITER
-             call rhs_alg(rhs_np1, -ALPHA*DT, state_np1, runtime_constants, .false.)
+             call rhs_alg(rhs_np1, -ALPHA*dt, state_np1, runtime_constants, .false.)
              
              ! === Section 3.3: Solve for increments ============================!
              ! Add on advective terms: rhs = rhs_n - rhs_np1 + rhs_adv
@@ -209,23 +212,26 @@ contains
        !=== End Section 3.1 ===================================================!
        !=== Section 3.4: End of timestep diagnostics ==========================!
        if ( mod(timestep, (restart%ts_start()+restart%diag_freq()) ) == 0 ) then
-          call output_alg(timestep, restart, state_np1(2), state_np1(1), state_np1(3), chi, mesh, mm_w0)
+         call output_alg(timestep, restart, state_np1(2), state_np1(1), &
+                         state_np1(3), chi, mesh, mm_w0)
        end if
-       call conservation_algorithm(timestep, mesh, state_np1(3), state_np1(1), state_np1(2), xi, &
-            geopotential, chi)
+       call conservation_algorithm(timestep, mesh, state_np1(3), state_np1(1), &
+         state_np1(2), xi, geopotential, chi)
        
        write( log_scratch_space, '(A,I0)' ) 'End of timestep ', timestep
        call log_event( log_scratch_space, LOG_LEVEL_TRACE )
-       call log_event( '\****************************************************************************/ ', &
+       call log_event( &
+       '\****************************************************************************/ ', &
             LOG_LEVEL_TRACE )
        !=== End of Section 3.4 ================================================!
     end do
+
     ! Return fields in u, theta, rho arrays
     call invoke_copy_field_data(state_np1(1), u)
     call invoke_copy_field_data(state_np1(2), theta)
     call invoke_copy_field_data(state_np1(3), rho)
-    
-    call log_event( "Dynamo: finished timestep", LOG_LEVEL_INFO )
+
+    call log_event( "Dynamo: Finished timestep", LOG_LEVEL_INFO )
     !=== End Section 3.0 ======================================================!
   end subroutine iter_timestep_alg
 

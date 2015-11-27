@@ -8,9 +8,9 @@
 !-------------------------------------------------------------------------------
 !> @brief Module to assign the values of the coordinates of the mesh to a field
 module assign_coordinate_field_mod
-  use constants_mod, only: r_def, earth_radius
-  use slush_mod,     only: l_spherical 
-  use log_mod,       only: log_event, LOG_LEVEL_ERROR
+  use constants_mod,     only: r_def
+  use configuration_mod, only: l_spherical, earth_radius 
+  use log_mod,           only: log_event, LOG_LEVEL_ERROR
 
 contains
 !> @brief Subroutine which assigns the values of the coordinates of the mesh

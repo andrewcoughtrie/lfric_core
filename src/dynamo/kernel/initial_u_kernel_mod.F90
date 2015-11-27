@@ -8,14 +8,15 @@
 !> @brief Kernel which projects the components of a vector field into a scalar space 
 
 module initial_u_kernel_mod
-use kernel_mod,              only : kernel_type
-use constants_mod,           only : r_def, PI, earth_radius
-use argument_mod,            only : arg_type, func_type,           &
-                                    GH_FIELD, GH_INC, GH_READ,     &
-                                    W0, W2,                        &
-                                    GH_BASIS, GH_DIFF_BASIS,       &
-                                    GH_ORIENTATION, CELLS
-use constants_mod,           only : INITIAL_U_PROFILE, U0, V0, ROTATION_ANGLE
+use kernel_mod,         only : kernel_type
+use argument_mod,       only : arg_type, func_type,           &
+                               GH_FIELD, GH_INC, GH_READ,     &
+                               W0, W2,                        &
+                               GH_BASIS, GH_DIFF_BASIS,       &
+                               GH_ORIENTATION, CELLS
+use constants_mod,      only : r_def, PI
+use configuration_mod,  only : earth_radius
+use initialisation_mod, only : U0, V0, initial_u_profile, rotation_angle
 implicit none
 
 !-------------------------------------------------------------------------------
@@ -91,9 +92,9 @@ subroutine initial_u_code(nlayers, &
                           )
                        
   use coordinate_jacobian_mod, only: coordinate_jacobian
-  use slush_mod,               only: l_spherical
+  use configuration_mod,       only: l_spherical
   use coord_transform_mod,     only: sphere2cart_vector, xyz2llr
-  use analytic_profiles_mod,   only: analytic_wind
+  use analytic_wind_profiles_mod,   only: analytic_wind
   
   !Arguments
   integer, intent(in) :: nlayers, ndf, ndf_chi
@@ -148,11 +149,11 @@ subroutine initial_u_code(nlayers, &
             xyz(3) = xyz(3) + chi_3_cell(df)*chi_basis(1,df,qp1,qp2)          
           end do
           call xyz2llr(xyz(1), xyz(2), xyz(3), llr(1), llr(2), llr(3))
-          u_spherical = analytic_wind(llr, INITIAL_U_PROFILE, &
-                                      2, (/U0, ROTATION_ANGLE/))
+          u_spherical = analytic_wind(llr, initial_u_profile, &
+                                      2, (/U0, rotation_angle/))
           u_physical = sphere2cart_vector(u_spherical,llr) 
         else
-          u_physical = analytic_wind(xyz, INITIAL_U_PROFILE, &
+          u_physical = analytic_wind(xyz, initial_u_profile, &
                                      2, (/U0, V0/))
         end if
         do df = 1, ndf 

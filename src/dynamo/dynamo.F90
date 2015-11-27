@@ -21,17 +21,20 @@
 program dynamo
 
   use ESMF
-  use constants_mod,           only : i_def, str_max_filename, &
-                                      L_NONLINEAR, &
-                                      L_SEMI_IMPLICIT
-  use iter_timestep_alg_mod, &
-                               only : iter_timestep_alg
-  use rk_alg_timestep_mod, &
-                               only : rk_alg_timestep
-  use lin_rk_alg_timestep_mod, &
-                               only : lin_rk_alg_timestep
+  use constants_mod,           only : i_def, str_max_filename
+  use configuration_mod,       only : configure_dynamo,        &
+                                      l_nonlinear,             &
+                                      ITIMESTEP_SEMI_IMPLICIT, &
+                                      ITIMESTEP_RK_SSP3,       &     
+                                      itimestep_option   
+  use init_prognostic_fields_alg_mod, &
+                               only : init_prognostic_fields_alg
+  use iter_timestep_alg_mod,   only : iter_timestep_alg
+  use rk_alg_timestep_mod,     only : rk_alg_timestep
+  use lin_rk_alg_timestep_mod, only : lin_rk_alg_timestep
   use field_mod,               only : field_type
-  use function_space_mod,      only : function_space_type, W0, W1, W2, W3, Wtheta, W2V, W2H
+  use function_space_mod,      only : function_space_type, W0, W1, W2, W3,    &
+                                      Wtheta, W2V, W2H
   use set_up_mod,              only : set_up
   use assign_coordinate_field_mod, only : assign_coordinate_field
   use field_io_mod,            only : write_state_netcdf                      &
@@ -46,7 +49,7 @@ program dynamo
                                       LOG_LEVEL_INFO,    &
                                       LOG_LEVEL_DEBUG,   &
                                       LOG_LEVEL_TRACE
-  use mesh_mod, only: mesh_type
+  use mesh_mod,                only : mesh_type
 
   implicit none
 
@@ -71,7 +74,6 @@ program dynamo
                                       argument_status
   character( 6 )                   :: argument
   type(restart_type)               :: restart
-  character(len=str_max_filename)  :: rs_fname
 
   ! Set defaults for the rank information to be for a serial run
   total_ranks = 1
@@ -99,6 +101,7 @@ program dynamo
                                argument,        &
                                argument_length, &
                                argument_status )
+
     if ( argument_status > 0 ) then
       call log_event( 'Unable to retrieve command line argument', &
                       LOG_LEVEL_ERROR )
@@ -110,8 +113,8 @@ program dynamo
     end if
 
     if ( argument == '-debug' ) then
-       call log_set_level( LOG_LEVEL_TRACE )
-       call log_event( 'Switching to full debug output', LOG_LEVEL_DEBUG )
+      call log_set_level( LOG_LEVEL_TRACE )
+      call log_event( 'Switching to full debug output', LOG_LEVEL_DEBUG )
     else
       write( log_scratch_space, '( A, A, A )' ) "Unrecognised argument >", &
                                                 trim( argument ), &
@@ -119,68 +122,64 @@ program dynamo
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end if
 
-
   end do cli_argument_loop 
 
-! get the check point restart information
-  rs_fname="restart.nml"
-  restart = restart_type(rs_fname)
+  ! Configure Dynamo
+  call log_event( "Dynamo: Calling configure_dynamo(restart)", LOG_LEVEL_INFO )
+  call configure_dynamo(restart)
 
+  ! Set up mesh and element order
   call set_up(mesh, local_rank, total_ranks)
 
+  ! Calculate coordinates
   do coord = 1,3
     chi(coord) = field_type                                                    &
                  (vector_space = function_space%get_instance(mesh, W0))
   end do
+  ! Assign coordinate field
+  call log_event( "Dynamo: Computing W0 coordinate fields", LOG_LEVEL_INFO )
+  call assign_coordinate_field(mesh, chi)
 
+  ! Create prognostic fields
   theta = field_type(vector_space = function_space%get_instance(mesh, W0))
   xi    = field_type(vector_space = function_space%get_instance(mesh, W1))
   u     = field_type(vector_space = function_space%get_instance(mesh, W2))
   rho   = field_type(vector_space = function_space%get_instance(mesh, W3))
 
-  if( restart%read_file() ) then
-     allocate(state(4))
-     n_fields = 1
-     write(log_scratch_space,'(A,A)') "Reading file:",trim(restart%startfname("rho"))
-     call log_event(log_scratch_space,LOG_LEVEL_INFO)
-     state(1) = field_type(vector_space = function_space%get_instance(mesh, W3) )
-     call read_state_netcdf(n_fields, state(1), trim(restart%startfname("rho")) )
-     rho = state(1)
+  ! Initialise prognostic fields: Theta, U, Xi, Rho are initialised in 
+  ! separate algorithm/subroutine
+  call init_prognostic_fields_alg( mesh, chi, u, rho, theta, xi, restart)
 
-     write(log_scratch_space,'(A,A)') "Reading file:",trim(restart%startfname("u"))
-     call log_event(log_scratch_space,LOG_LEVEL_INFO)
-     state(2) = field_type(vector_space = function_space%get_instance(mesh, W2) )
-     call read_state_netcdf(n_fields, state(2), trim(restart%startfname("u")) )
-     u = state(2)
+  ! Run timestepping algorithms
+  if ( l_nonlinear ) then    ! Nonlinear timestepping options
 
-     write(log_scratch_space,'(A,A)') "Reading file:",trim(restart%startfname("theta"))
-     call log_event(log_scratch_space,LOG_LEVEL_INFO)
-     state(3) = field_type(vector_space = function_space%get_instance(mesh, W0) )
-     call read_state_netcdf(n_fields, state(3), trim(restart%startfname("theta")) )
-     theta = state(3)
+    select case( itimestep_option )
+      case( ITIMESTEP_SEMI_IMPLICIT )  ! Semi-Implicit 
+        call iter_timestep_alg( mesh, chi, u, rho, theta, xi, restart)
+      case( ITIMESTEP_RK_SSP3 )        ! RK SSP3
+        call rk_alg_timestep( mesh, chi, u, rho, theta, xi, restart)
+      case default
+        call log_event("Dynamo: Incorrect time stepping option chosen, "// &
+                       "stopping program! ",LOG_LEVEL_ERROR)
+        stop
+    end select
 
-     write(log_scratch_space,'(A,A)') "Reading file:",trim(restart%startfname("xi"))
-     call log_event(log_scratch_space,LOG_LEVEL_INFO)
-     state(4) = field_type(vector_space = function_space%get_instance(mesh, W1) )
-     call read_state_netcdf(n_fields, state(4), trim(restart%startfname("xi")) )
-     xi = state(4)
+  else                       ! Linear timestepping options
 
-     deallocate(state)
+    select case( itimestep_option )
+      case( ITIMESTEP_RK_SSP3 )        ! RK SSP3
+        call lin_rk_alg_timestep( mesh, chi, u, rho, theta, restart)
+      case default
+        call log_event("Dynamo: Only RK SSP3 available for linear equations. ", &
+                        LOG_LEVEL_INFO )
+        call log_event("Dynamo: Incorrect time stepping option chosen, "// &
+                       "stopping program! ",LOG_LEVEL_ERROR)
+        stop
+    end select
+        
   end if
 
-  call log_event( "Dynamo: computing W0 coordinate fields", LOG_LEVEL_INFO )
-  call assign_coordinate_field(mesh, chi)
-
-  if ( L_NONLINEAR ) then
-    if ( L_SEMI_IMPLICIT ) then
-      call iter_timestep_alg( mesh, chi, u, rho, theta, xi, restart)
-    else
-      call rk_alg_timestep( mesh, chi, u, rho, theta, xi, restart)                       
-    end if
-  else
-    call lin_rk_alg_timestep( mesh, chi, u, rho, theta, restart)   
-  end if
-   ! do some i/o
+  ! Do some i/o
   call rho%log_field(   LOG_LEVEL_DEBUG, LOG_LEVEL_INFO, 'rho' )
   call theta%log_field( LOG_LEVEL_DEBUG, LOG_LEVEL_INFO, 'theta' )
   call u%log_field(     LOG_LEVEL_DEBUG, LOG_LEVEL_INFO, 'u' )
@@ -212,8 +211,7 @@ program dynamo
      state(4) = xi
      call write_state_netcdf( n_fields, state(4), trim(restart%endfname("xi")) )
   end if
-
-  deallocate(state)
+  n_fields = 3
 
   call log_event( 'Dynamo completed', LOG_LEVEL_INFO )
 

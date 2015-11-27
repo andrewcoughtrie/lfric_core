@@ -23,9 +23,9 @@ contains
                                            field_proxy_type
     use function_space_mod,         only : function_space_type, W0, W2
     use rotation_kernel_mod,        only : rotation_code
-    use constants_mod,              only : r_def, PI, omega
+    use constants_mod,              only : r_def, PI
+    use configuration_mod,          only : omega, l_spherical, f_lat
     use quadrature_mod,             only : quadrature_type, QR3
-    use slush_mod,                  only : l_spherical, f_lat
     use mesh_mod,                   only : mesh_type, PLANE_BI_PERIODIC
 
     implicit none

@@ -13,7 +13,8 @@
 !> the RHS of momentum equation on both F-PLANE and the SPHERE
 
 module rotation_vector_mod
-use constants_mod, only: r_def, omega
+use constants_mod,     only: r_def
+use configuration_mod, only: omega
 
 implicit none
 

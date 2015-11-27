@@ -12,7 +12,8 @@ module galerkin_projection_algorithm_mod
 
   use log_mod,                 only: log_event, log_scratch_space, LOG_LEVEL_INFO
   use solver_mod,              only: solver_algorithm
-  use constants_mod,           only: r_def, SOLVER_OPTION  
+  use constants_mod,           only: r_def 
+  use configuration_mod,       only: solver_option  
   use psy,                     only: invoke_copy_field_data, invoke_set_field_scalar
   use gp_rhs_kernel_mod,       only: gp_rhs_kernel_type
   use gp_vector_rhs_kernel_mod,only: gp_vector_rhs_kernel_type
@@ -102,14 +103,14 @@ contains
                                   , rhs(dir)      &
                                   , mesh          &
                                   , chi           &
-                                  , SOLVER_OPTION &
+                                  , solver_option &
                                   , mm=mm )
           else
              call solver_algorithm( f_out(dir)    & 
                                   , rhs(dir)      &
                                   , mesh          &
                                   , chi           &
-                                  , SOLVER_OPTION &
+                                  , solver_option &
                                   , qr=qr )
           end if
        end do

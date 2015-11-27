@@ -16,7 +16,8 @@ use argument_mod,            only : arg_type, func_type,                     &
                                     W0, W1, W3,                              &
                                     GH_BASIS, GH_DIFF_BASIS, GH_ORIENTATION, &
                                     CELLS
-use constants_mod,           only : r_def, earth_radius
+use constants_mod,           only : r_def
+use configuration_mod,       only : earth_radius
 
 implicit none
 

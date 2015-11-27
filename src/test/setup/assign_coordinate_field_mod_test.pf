@@ -16,7 +16,7 @@ contains
     use pFUnit_Mod
     use assign_coordinate_field_mod, only : assign_coordinate
     use constants_mod,               only : r_def
-    use slush_mod,                   only : l_spherical
+    use configuration_mod,           only : l_spherical
 
     implicit none
     

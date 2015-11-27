@@ -7,24 +7,22 @@
 !
 !-------------------------------------------------------------------------------
 
-module analytic_profiles_mod_test
+module analytic_wind_profiles_mod_test
   implicit none
 
 contains 
 
   @test
-  subroutine analytic_profiles_test()
+  subroutine analytic_wind_profiles_test()
 
     use pFUnit_Mod
-    use constants_mod, only: r_def, &
-                             PI, &
-                             earth_radius, &
-                             ZERO_WIND, &
-                             SOLID_BODY_ROTATION_WIND, &
-                             CONSTANT_UV_WIND, &
-                             CONSTANT_SHEAR_UV_WIND
-    use analytic_profiles_mod, only: analytic_wind
-
+    use constants_mod,              only: r_def, PI
+    use configuration_mod,          only: earth_radius
+    use analytic_wind_profiles_mod, only: analytic_wind
+    use initialisation_mod,         only: ZERO_WIND,                &
+                                          SOLID_BODY_ROTATION_WIND, &
+                                          CONSTANT_UV_WIND,         &
+                                          CONSTANT_SHEAR_UV_WIND
     implicit none
 
     real(kind=r_def) :: u(3), v(3), llr(3), xyz(3)
@@ -53,6 +51,6 @@ contains
 
     @assertEqual(v, u)
 
-  end subroutine analytic_profiles_test
+  end subroutine analytic_wind_profiles_test
 
-end module analytic_profiles_mod_test
+end module analytic_wind_profiles_mod_test

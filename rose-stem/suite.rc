@@ -197,7 +197,9 @@
                             (
                             mkdir -p $DESTINATION_DIRECTORY
                             cp $SOURCE_DIRECTORY/data/ugrid_quads_2d.nc .
-                            cp $SOURCE_DIRECTORY/data/restart.nml .
+                            cp $SOURCE_DIRECTORY/data/dynamo_configfile.nml .
+                            cp $SOURCE_DIRECTORY/data/dynamo_initfile.nml .
+                            cp $SOURCE_DIRECTORY/data/dynamo_restart.nml .
                             $SOURCE_DIRECTORY/bin/dynamo | tee $DESTINATION_DIRECTORY/dynamo.out.txt
                             exit `expr ${PIPESTATUS[0]} + ${PIPESTATUS[1]}`
                             )

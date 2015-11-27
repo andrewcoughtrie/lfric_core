@@ -1,0 +1,26 @@
+! Idealised test namelist guide: idealised test options (itest_option) are 
+!    Gravity Wave = 1
+!    Cold Bubble  = 2
+!    Warm Bubble  = 3 
+&IDEALISED_TEST_NML
+itest_option = 1
+&end
+
+! Wind namelist guide: idealised wind profile options (initial_u_profile) are 
+!    Zero wind                = 0
+!    Solid body rotation wind = 1
+!    Constant UV wind         = 2
+!    Constant shear UV wind   = 3
+&WIND_NML
+initial_u_profile = 0,
+rotation_angle = 0.0
+&end
+
+! Temperature (and related quantities) namelist
+!    n_sq - the square of Brunt-Vaisala frequency
+&TEMPERATURE_NML
+n_sq = 0.0001
+&end
+
+
+

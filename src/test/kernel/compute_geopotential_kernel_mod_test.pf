@@ -15,7 +15,8 @@ contains
   subroutine test_of_compute_geopotential()
     use pFUnit_Mod
     use compute_geopotential_kernel_mod, only : compute_geopotential_code
-    use constants_mod,                   only : r_def, earth_radius, GRAVITY
+    use constants_mod,                   only : r_def, GRAVITY
+    use configuration_mod,               only : earth_radius
     
     implicit none
 

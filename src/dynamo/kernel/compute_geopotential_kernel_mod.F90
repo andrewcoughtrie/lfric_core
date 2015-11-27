@@ -18,9 +18,9 @@ use argument_mod,            only : arg_type, func_type,                     &
                                     GH_FIELD, GH_READ, GH_WRITE,             &
                                     W0, GH_BASIS,                            &
                                     CELLS
-use constants_mod,           only: r_def, earth_radius, GRAVITY 
+use constants_mod,           only: r_def, GRAVITY 
 use coord_transform_mod,     only: xyz2llr
-use slush_mod,               only: l_spherical
+use configuration_mod,       only: l_spherical
 
 implicit none
 

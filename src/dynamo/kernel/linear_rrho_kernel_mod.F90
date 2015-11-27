@@ -23,8 +23,9 @@ use argument_mod,            only : arg_type, func_type,                     &
                                     W0, W2, W3,                              &
                                     GH_BASIS, GH_DIFF_BASIS, GH_ORIENTATION, &
                                     CELLS 
+use constants_mod,           only : GRAVITY, r_def
+use initialisation_mod,      only : itest_option, n_sq 
 use reference_profile_mod,   only : reference_profile
-use constants_mod,           only : N_SQ, GRAVITY, r_def
 
 implicit none
 
@@ -104,8 +105,7 @@ subroutine linear_rrho_code(nlayers,                                            
                             ndf_w0, undf_w0, map_w0, w0_basis, w0_diff_basis,         &
                             nqp_h, nqp_v, wqp_h, wqp_v         )
                              
-  use coordinate_jacobian_mod, only: coordinate_jacobian
-  use reference_profile_mod,   only: reference_profile                          
+  use coordinate_jacobian_mod, only: coordinate_jacobian                    
   
   !Arguments
   integer, intent(in) :: nlayers, nqp_h, nqp_v
@@ -174,7 +174,7 @@ subroutine linear_rrho_code(nlayers,                                            
                               + phi_e(df)*w0_diff_basis(:,df,qp1,qp2)
         end do
         call reference_profile(exner_s_at_quad, rho_s_at_quad, & 
-                               theta_s_at_quad, x_at_quad)
+                               theta_s_at_quad, x_at_quad, itest_option)
         u_at_quad(:) = 0.0_r_def
         div_u_at_quad = 0.0_r_def
         do df = 1, ndf_w2
@@ -184,7 +184,7 @@ subroutine linear_rrho_code(nlayers,                                            
        
         div_term  =  - rho_s_at_quad*div_u_at_quad 
         vec_term = dot_product(u_at_quad,grad_phi_at_quad)/GRAVITY
-        buoy_term = N_SQ/GRAVITY*rho_s_at_quad*vec_term
+        buoy_term = n_sq/GRAVITY*rho_s_at_quad*vec_term
 
         do df = 1, ndf_w3
           rrho_e(df) = rrho_e(df) + wqp_h(qp1)*wqp_v(qp2)*w3_basis(1,df,qp1,qp2)*( buoy_term + div_term )

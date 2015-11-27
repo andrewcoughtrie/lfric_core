@@ -17,13 +17,15 @@
 !>@deprecated The Usefulness of the linear model is to be revaluated at 
 !>            the end of the Gung-Ho project and removied if possible
 module linear_ru_kernel_mod
-use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, func_type,                     &
-                                    GH_FIELD, GH_READ, GH_INC,               &
-                                    W0, W2, W3,                              &
-                                    GH_BASIS, GH_DIFF_BASIS, GH_ORIENTATION, &
-                                    CELLS
-use constants_mod,           only : N_SQ, GRAVITY, Cp, omega, r_def
+use kernel_mod,         only : kernel_type
+use argument_mod,       only : arg_type, func_type,                     &
+                               GH_FIELD, GH_READ, GH_INC,               &
+                               W0, W2, W3,                              &
+                               GH_BASIS, GH_DIFF_BASIS, GH_ORIENTATION, &
+                               CELLS
+use constants_mod,      only : GRAVITY, Cp, r_def
+use configuration_mod,  only : omega
+use initialisation_mod, only : itest_option, n_sq
 
 implicit none
 
@@ -115,7 +117,7 @@ subroutine linear_ru_code(nlayers,                                             &
   use enforce_bc_kernel_mod,    only: enforce_bc_code
   use calc_exner_pointwise_mod, only: linear_calc_exner_pointwise
   use coord_transform_mod,      only: xyz2llr, sphere2cart_vector
-  use slush_mod,                only: l_spherical, f_lat
+  use configuration_mod,        only: l_spherical, f_lat
   use rotation_vector_mod,      only: rotation_vector_fplane,  &
                                       rotation_vector_sphere
   use cross_product_mod,        only: cross_product
@@ -216,7 +218,7 @@ subroutine linear_ru_code(nlayers,                                             &
                                       matmul(jac(:,:,qp1,qp2),u_at_quad))
 
         call reference_profile(exner_s_at_quad, rho_s_at_quad, &
-                               theta_s_at_quad, x_at_quad)
+                               theta_s_at_quad, x_at_quad, itest_option)
 
         exner_at_quad = linear_calc_exner_pointwise( &
                                rho_at_quad, theta_at_quad,       & 
@@ -229,7 +231,7 @@ subroutine linear_ru_code(nlayers,                                             &
           buoy_term = dot_product( v, grad_phi_at_quad ) &
                     *(theta_at_quad/theta_s_at_quad)
           grad_term = Cp*exner_at_quad*theta_s_at_quad*( &
-                      N_SQ/GRAVITY*dot_product( v, grad_phi_at_quad ) + &
+                      n_sq/GRAVITY*dot_product( v, grad_phi_at_quad ) + &
                       real(orientation(df),r_def)*w2_diff_basis(1,df,qp1,qp2) )
 
           coriolis_term = dot_product(jac_v/dj(qp1,qp2),omega_cross_u)

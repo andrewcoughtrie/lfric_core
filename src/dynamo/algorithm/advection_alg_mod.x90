@@ -22,7 +22,8 @@ module advection_alg_mod
   use mesh_mod,                          only: mesh_type
   use field_mod,                         only: field_type
   use solver_mod,                        only: solver_algorithm
-  use constants_mod,                     only: r_def, SOLVER_OPTION, DT, L_SUPG
+  use constants_mod,                     only: r_def
+  use configuration_mod,                 only: solver_option, dt, l_supg
   use quadrature_mod,                    only: quadrature_type, QR3
   use operator_mod,                      only: operator_type
   use function_space_mod,                only: function_space_type
@@ -116,16 +117,16 @@ contains
   ! 3) theta_advection dt*( F/rho . grad(theta) )
   call invoke_set_field_scalar( 0.0_r_def, advection(2) )
   call invoke( rtheta_kernel_type( advection(2), theta, mass_flux, rho, qr) )
-  if ( L_SUPG ) &
+  if ( l_supg ) &
     call invoke( rtheta_supg_kernel_type( advection(2),     &
                                 theta_np1, theta_n, mass_flux, rho, chi, qr) )
 
   ! 4) divergence of mass flux: dt * M3^-1(div(F))
   call invoke( rrho_kernel_type( r_rho, mass_flux, qr ) )
-  call solver_algorithm( advection(3), r_rho, mesh, chi, SOLVER_OPTION, qr=qr )
+  call solver_algorithm( advection(3), r_rho, mesh, chi, solver_option, qr=qr )
 
   ! Add in Dt factor
-  call bundle_ax( DT, advection, advection, 3 )
+  call bundle_ax( dt, advection, advection, 3 )
 
   end subroutine advection_alg
 

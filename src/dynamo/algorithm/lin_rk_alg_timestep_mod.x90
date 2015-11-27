@@ -1,11 +1,12 @@
 !-------------------------------------------------------------------------------
-!  The copyright relating to this work is owned jointly by the Crown, 
+! (c) The copyright relating to this work is owned jointly by the Crown, 
 ! Met Office and NERC 2014. 
 ! However, it has been created with the help of the GungHo Consortium, 
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
 
-!>@brief A Runge-Kutta time-discretisation of the linear 3D equations, currently using 3-stage SSP.
+!>@brief A Runge-Kutta time-discretisation of the linear 3D equations, currently
+!>       using 3-stage SSP.
 !>@details An algorithm for timstepping the 3D linear no advection equations
 !>         using a 3-stage SSP Runge-Kutta algorithm. The algorithm
 !>         initialises all fields, sets up temporay fields, performs the
@@ -14,32 +15,37 @@
 !>            the end of the Gung-Ho project and removed if possible
 module lin_rk_alg_timestep_mod
 
-  use log_mod,       only: log_event, log_scratch_space,                     &
-                           LOG_LEVEL_INFO, LOG_LEVEL_TRACE
-  use psy,           only: invoke_copy_field_data,                           &
-                           invoke_set_field_scalar,                          &
-                           invoke_linear_ru_kernel,                          &
-                           invoke_axpy
+  use log_mod,           only: log_event, log_scratch_space,                    &
+                               LOG_LEVEL_INFO, LOG_LEVEL_TRACE
+  use constants_mod,     only: r_def
 
+  ! Configuration and restart/checkpoint options 
+  use configuration_mod,   only: solver_option, dt
+  use restart_control_mod, only: restart_type
 
+  ! PsyKAl-lite kernels
+  use psy,               only: invoke_copy_field_data,                          &
+                               invoke_set_field_scalar,                         &
+                               invoke_linear_ru_kernel,                         &
+                               invoke_axpy
+
+  ! PsyKAl PSYClone kernels
   use compute_geopotential_kernel_mod,   only: compute_geopotential_kernel_type
   use compute_mass_matrix_kernel_w0_mod, only: compute_mass_matrix_kernel_w0_type
   use compute_mass_matrix_kernel_w2_mod, only: compute_mass_matrix_kernel_w2_type
-  use initial_rho_kernel_mod,            only: initial_rho_kernel_type  
-  use initial_theta_kernel_mod,          only: initial_theta_kernel_type
   use linear_rtheta_kernel_mod,          only: linear_rtheta_kernel_type
   use linear_rrho_kernel_mod,            only: linear_rrho_kernel_type 
 
-  use field_mod,     only: field_type 
-  use function_space_mod, only: function_space_type, W0, W1, W2, W3
-  use galerkin_projection_algorithm_mod, only : galerkin_projection_algorithm
-  use constants_mod, only: r_def, SOLVER_OPTION, DT, str_max_filename
-  use quadrature_mod, only : quadrature_type, QR3
-  use solver_mod,     only : solver_algorithm
-  use driver_layer,  only : interpolated_output
-  use operator_mod,  only : operator_type
-  use mesh_mod,      only: mesh_type
-  use restart_control_mod, only: restart_type
+  ! Derived Types
+  use mesh_mod,            only: mesh_type
+  use field_mod,           only: field_type 
+  use function_space_mod,  only: function_space_type, W0, W1, W2, W3
+  use quadrature_mod,      only: quadrature_type, QR3
+  use operator_mod,        only: operator_type
+
+  ! Algorithms
+  use solver_mod,          only: solver_algorithm
+  use output_alg_mod,      only: output_alg
 
   implicit none
 
@@ -64,7 +70,7 @@ contains
   !> @param[inout] u The 3D wind field
   !> @param[inout] rho The density
   !> @param[inout] theta The potential temperature
-  !> @param[in] restart checkpoint/restart type with timestepping information
+  !> @param[in] restart Checkpoint/restart type with timestepping information
   !> @deprecated The Usefulness of the linear model is to be re-evaluated at 
   !>             the end of the Gung-Ho project and removed if possible
   subroutine lin_rk_alg_timestep( mesh, chi, u, rho, theta, restart)
@@ -72,13 +78,15 @@ contains
     implicit none
 
     type( mesh_type  ), intent( in )    :: mesh
-! coordinate fields
+    ! Coordinate fields
     type( field_type ), intent( inout ) :: chi(3)
-! prognostic fields    
+    ! Prognostic fields    
     type( field_type ), intent( inout ) :: u, rho, theta 
-! restart timestep and filename information
+    ! Restart timestep and filename information
+    ! Restart for timestep control and diagnostic output control 
     type(restart_type), intent( in )    :: restart
-! temporary fields    
+
+    ! Temporary fields    
     type( field_type ) :: u_n, rho_n, theta_n,       &
                           r_u, r_rho, r_theta,       &
                           u_inc, rho_inc, theta_inc, &
@@ -86,22 +94,21 @@ contains
 
     type( field_type ), allocatable :: rt_prediction(:),  &
                                        ru_prediction(:),  &
-                                       rr_prediction(:) 
-    type( field_type ) :: projected_field(3)                                       
+                                       rr_prediction(:)                                        
     
     integer :: theta_fs, u_fs, rho_fs
-    integer :: n, ts_init
-    integer :: stage, num_rk_stage, st
     real(kind=r_def), allocatable :: ak(:,:)
+
     type(function_space_type) :: fs
     type( quadrature_type), pointer :: qr => null()
-    integer, parameter :: vector_field = 3, &
-                          scalar_field = 1
-
     type(operator_type) :: mm_w2, mm_w0  
-    character(len=str_max_filename) :: fname
-    
-! SSP3 weights
+
+    ! Timestepping variables
+    integer :: timestep, ts_init
+    integer :: stage, num_rk_stage, st
+
+    !=== Section 0: Create RK weights and objects =============================!
+    ! SSP3 weights
     num_rk_stage = 3
     allocate ( ak (num_rk_stage,num_rk_stage) )
     ak(1,:) = (/ 1.0_r_def,  0.0_r_def,  0.0_r_def /)
@@ -111,8 +118,9 @@ contains
     allocate ( rt_prediction(num_rk_stage), &
                ru_prediction(num_rk_stage), & 
                rr_prediction(num_rk_stage) )
-               
- ! Local fields
+
+    !=== Section 1: Create field objects =====================================!         
+    ! Local fields
     theta_fs  = theta%which_function_space()
     u_fs      = u%which_function_space()
     rho_fs    = rho%which_function_space()
@@ -142,163 +150,102 @@ contains
 
     end do   
 
+    ! Create operators needed for timestepping
     mm_w0 = operator_type(fs%get_instance(mesh, W0),fs%get_instance(mesh, W0))              
     mm_w2 = operator_type(fs%get_instance(mesh, W2),fs%get_instance(mesh, W2)) 
 
-    do stage = 1,3 
-      projected_field(stage) = field_type                                      &
-                               (vector_space = fs%get_instance(mesh, theta_fs))
-    end do
-
-    !Construct PSy layer given a list of kernels. This is the line the code
-    !generator may parse and do its stuff.
-    
-! initialise        
+    !=== Section 2: Initialise local algorithm fields ========================!
+    call log_event( "Dynamo: computing Linear RK algorithm fields", &
+                     LOG_LEVEL_INFO )
+    ! Compute geopotential
     call invoke( compute_geopotential_kernel_type( geopotential, chi ) )
-
-    ! Construct initial conditions
-    call log_event( "Dynamo: computing initial fields", LOG_LEVEL_INFO )
-    if(.not.restart%read_file()) then ! no check point to start from
-       call log_event( "Dynamo: Initialising prognostic fields", LOG_LEVEL_INFO )
-       call invoke( initial_theta_kernel_type( theta, chi ) )
-       call invoke_set_field_scalar(0.0_r_def, u)
-       call invoke_set_field_scalar(0.0_r_def, rho)
-    end if
-
+    ! Compute mass matrices
     call invoke( compute_mass_matrix_kernel_w0_type(mm_w0, chi, qr) )
     call invoke( compute_mass_matrix_kernel_w2_type(mm_w2, chi, qr) )
 
-    call galerkin_projection_algorithm( projected_field(1) &
-                                      , theta              &
-                                      , mesh               &
-                                      , chi                &
-                                      , scalar_field       &
-                                      , qr                 &
-                                      , mm=mm_w0 ) 
+    !--- Intial output and output frequency -----------------------------------! 
+    ! Output initial conditions
+    call log_event( "Dynamo: Outputing initial fields", LOG_LEVEL_INFO )
     ts_init = max( (restart%ts_start() - 1), 0 ) ! 0 or t previous.
-    fname=trim(restart%ts_fname('diag_theta',ts_init))//".m"
-    call interpolated_output( scalar_field       &
-                            , projected_field(1) &
-                            , mesh               &
-                            , chi                &
-                            , fname)
+    call output_alg(ts_init, restart, theta, u, rho, chi, mesh, mm_w0)
 
-    call invoke_set_field_scalar(0.0_r_def, projected_field(1))
-    call galerkin_projection_algorithm( projected_field(1) &
-                                      , rho                &
-                                      , mesh               &
-                                      , chi                &
-                                      , scalar_field       &
-                                      , qr                 &
-                                      , mm=mm_w0 )
-    fname=trim(restart%ts_fname('diag_rho',ts_init))//".m"
-    call interpolated_output(scalar_field       &
-                            , projected_field(1) &
-                            , mesh               &
-                            , chi                &
-                            , fname )                    
+    !=== Section 3: Timestepping ==============================================!   
 
-    call galerkin_projection_algorithm( projected_field(:) &
-                                      , u                  &
-                                      , mesh               &
-                                      , chi                &
-                                      , vector_field       &
-                                      , qr                 &
-                                      , mm=mm_w0 )
-    fname=trim(restart%ts_fname('diag_u',ts_init))//".m"
-    call interpolated_output(vector_field       &
-                            , projected_field(:) &
-                            , mesh               &
-                            , chi                &
-                            , fname)
-
-!================================================================================    
-    ! Timestep
-    do n = restart%ts_start(),restart%ts_end()
-      call log_event( '/****************************************************************************/ ', &
+    do timestep = restart%ts_start(),restart%ts_end()
+      call log_event( &
+      '/****************************************************************************/ ', &
                       LOG_LEVEL_INFO )
-      write( log_scratch_space, '(A,I0)' ) 'Start of timestep ', n
+      write( log_scratch_space, '(A,I0)' ) 'Start of timestep ', timestep
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
-      !PSY call invoke ( copy_field_data(theta,theta_n))
+      ! PSY call invoke ( copy_field_data(theta,theta_n))
       call invoke_copy_field_data(theta,theta_n)
-      !PSY call invoke ( copy_field_data(u,u_n))
+      ! PSY call invoke ( copy_field_data(u,u_n))
       call invoke_copy_field_data(u,u_n)
-      !PSY call invoke ( copy_field_data(rho,rho_n))
+      ! PSY call invoke ( copy_field_data(rho,rho_n))
       call invoke_copy_field_data(rho,rho_n)
       
-! Runge-Kutta algorithm
+      ! Runge-Kutta algorithm
       do stage = 1,num_rk_stage
-! Compute new rhs      
-        !PSY call invoke ( set_field_scalar(0.0_r_def, rt_prediction(stage)))
+      ! Compute new rhs      
+        ! PSY call invoke ( set_field_scalar(0.0_r_def, rt_prediction(stage)))
         call invoke_set_field_scalar(0.0_r_def, rt_prediction(stage))
-        call invoke(linear_rtheta_kernel_type( rt_prediction(stage), u, geopotential, chi, qr) )
-        !PSY call invoke ( set_field_scalar(0.0_r_def, ru_prediction(stage)))
+        call invoke(linear_rtheta_kernel_type( rt_prediction(stage), u, &
+             geopotential, chi, qr) )
+        ! PSY call invoke ( set_field_scalar(0.0_r_def, ru_prediction(stage)))
         call invoke_set_field_scalar(0.0_r_def, ru_prediction(stage))
         call invoke_linear_ru_kernel ( ru_prediction(stage), u, rho, theta, &
                                           geopotential, chi, qr ) 
-        call invoke( linear_rrho_kernel_type ( rr_prediction(stage), u, geopotential, chi, qr ) )
-        !PSY call invoke ( set_field_scalar(0.0_r_def, r_theta))
+        call invoke( linear_rrho_kernel_type ( rr_prediction(stage), u, &
+             geopotential, chi, qr ) )
+        ! PSY call invoke ( set_field_scalar(0.0_r_def, r_theta))
         call invoke_set_field_scalar(0.0_r_def, r_theta)
-        !PSY call invoke ( set_field_scalar(0.0_r_def, r_u))
+        ! PSY call invoke ( set_field_scalar(0.0_r_def, r_u))
         call invoke_set_field_scalar(0.0_r_def, r_u)
-        !PSY call invoke ( set_field_scalar(0.0_r_def, r_rho))
+        ! PSY call invoke ( set_field_scalar(0.0_r_def, r_rho))
         call invoke_set_field_scalar(0.0_r_def, r_rho) 
         
         do st = 1, stage          
-          !PSY call invoke ( axpy(ak(stage,st), rt_prediction(st),r_theta, r_theta))
+          ! PSY call invoke ( axpy(ak(stage,st), rt_prediction(st),r_theta, r_theta))
           call invoke_axpy(ak(stage,st), rt_prediction(st),r_theta, r_theta)
-          !PSY call invoke ( axpy(ak(stage,st), ru_prediction(st),r_u, r_u))
+          ! PSY call invoke ( axpy(ak(stage,st), ru_prediction(st),r_u, r_u))
           call invoke_axpy(ak(stage,st), ru_prediction(st),r_u, r_u)
-          !PSY call invoke ( axpy(ak(stage,st), rr_prediction(st),r_rho, r_rho))
+          ! PSY call invoke ( axpy(ak(stage,st), rr_prediction(st),r_rho, r_rho))
           call invoke_axpy(ak(stage,st), rr_prediction(st),r_rho, r_rho)
         end do
 
-! Invert mass matrices
+        ! Invert mass matrices
         call solver_algorithm(theta_inc, r_theta, mesh, chi, &
-                              SOLVER_OPTION, mm=mm_w0)
+                              solver_option, mm=mm_w0)
         call solver_algorithm(u_inc,     r_u,     mesh, chi, &
-                              SOLVER_OPTION, mm=mm_w2)
+                              solver_option, mm=mm_w2)
         call solver_algorithm(rho_inc,   r_rho,   mesh, chi, &
-                              SOLVER_OPTION, qr=qr)
+                              solver_option, qr=qr)
 
-! add increments
-        !PSY call invoke ( axpy(DT, theta_inc, theta_n, theta))
-        call invoke_axpy(DT, theta_inc, theta_n, theta)
-        !PSY call invoke ( axpy(DT, u_inc, u_n, u))
-        call invoke_axpy(DT, u_inc, u_n, u)
-        !PSY call invoke ( axpy(DT, rho_inc, rho_n, rho))
-        call invoke_axpy(DT, rho_inc, rho_n, rho)
+        ! Add increments
+        ! PSY call invoke ( axpy(dt, theta_inc, theta_n, theta))
+        call invoke_axpy(dt, theta_inc, theta_n, theta)
+        ! PSY call invoke ( axpy(dt, u_inc, u_n, u))
+        call invoke_axpy(dt, u_inc, u_n, u)
+        ! PSY call invoke ( axpy(dt, rho_inc, rho_n, rho))
+        call invoke_axpy(dt, rho_inc, rho_n, rho)
 
-        ! diagnostics
+        ! Diagnostics
         call theta_inc%log_minmax(LOG_LEVEL_TRACE, 'theta_inc');
         call u_inc%log_minmax(LOG_LEVEL_TRACE, 'u_inc');
         call rho_inc%log_minmax(LOG_LEVEL_TRACE, 'rho_inc');
 
       end do
-      if ( mod(n, (restart%ts_start()+restart%diag_freq()) )  == 0 ) then
-        call galerkin_projection_algorithm(projected_field(1),                 &
-             theta, mesh, chi, scalar_field, qr, mm=mm_w0)
-        fname=trim(restart%ts_fname('diag_theta',n))//".m"
-        call interpolated_output(scalar_field, projected_field(1),             & 
-                                 mesh, chi, fname)
-        call galerkin_projection_algorithm(projected_field(1),                 &
-             rho,   mesh, chi, scalar_field, qr, mm=mm_w0)
-        fname=trim(restart%ts_fname('diag_rho',n))//".m"
-        call interpolated_output(scalar_field, projected_field(1),             &
-                                 mesh, chi, fname)                    
-        call galerkin_projection_algorithm(projected_field(:),                 &
-             u,     mesh, chi, vector_field, qr, mm=mm_w0)
-        fname=trim(restart%ts_fname('diag_u',n))//".m"
-        call interpolated_output(vector_field, projected_field(:),             &
-                                 mesh, chi, fname)     
+       !---------End of timestep diagnostics ----------------------------------!
+      if ( mod(timestep, (restart%ts_start()+restart%diag_freq()) )  == 0 ) then
+        call output_alg(timestep, restart, theta, u, rho, chi, mesh, mm_w0)
       end if
-      write( log_scratch_space, '(A,I0)' ) 'End of timestep ', n
+      write( log_scratch_space, '(A,I0)' ) 'End of timestep ', timestep
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
       call log_event( '\****************************************************************************/ ', &
                       LOG_LEVEL_INFO )
     end do
-    call log_event( "Dynamo: finished timestep", LOG_LEVEL_INFO )
+    call log_event( "Dynamo: Finished timestep", LOG_LEVEL_INFO )
     !==========================================================================
 
   end subroutine lin_rk_alg_timestep

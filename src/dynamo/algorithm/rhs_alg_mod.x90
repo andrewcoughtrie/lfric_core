@@ -21,11 +21,11 @@ module rhs_alg_mod
   use multiplicity_kernel_mod,           only: multiplicity_kernel_type
   use rrho_kernel_mod,                   only: rrho_kernel_type
   use rtheta_kernel_mod,                 only: rtheta_kernel_type
-
   use mesh_mod,                          only: mesh_type
   use field_mod,                         only: field_type
   use solver_mod,                        only: solver_algorithm
-  use constants_mod,                     only: r_def, SOLVER_OPTION, L_ROTATING
+  use constants_mod,                     only: r_def
+  use configuration_mod,                 only: solver_option, l_rotating
   use quadrature_mod,                    only: quadrature_type, QR3
   use operator_mod,                      only: operator_type
   use function_space_mod,                only: function_space_type
@@ -52,93 +52,93 @@ contains
 !>         This can be given either timelevel n or n+1 fields to compute
 !>         the appropriate part of the full right hand side
 !> @param[inout] rhs The state vector to compute
-!> @param[in]    alpha_dt The offcentring parameter times the timestep
+!> @param[in]    alpha_dt The offcentering parameter times the timestep
 !> @param[in]    state The current model prognostic state
 !> @param[in]    runtime_constants Runtime constants for the model
 !> @param[in]    l_from_solver flag set to true if computing the lhs
   subroutine rhs_alg(rhs, alpha_dt, state, runtime_constants, &
-       l_from_solver)
+                     l_from_solver)
+  
+  implicit none
 
-    implicit none
+  real(kind=r_def),             intent(in)    :: alpha_dt
+  ! Form of state and rhs is [u,theta,rho] & [rhs_tmp(1),rhs_tmp(2),rhs_tmp(3)]
+  type(field_type), target,     intent(in)    :: state(3)
+  type(field_type),             intent(inout) :: rhs(3)
+  type(runtime_constants_type), intent(in)    :: runtime_constants
+  logical,                      intent(in)    :: l_from_solver
 
-    real(kind=r_def),             intent(in)    :: alpha_dt
-    ! Form of state and rhs is [u,theta,rho] & [rhs_tmp(1),rhs_tmp(2),rhs_tmp(3)]
-    type(field_type), target,     intent(in)    :: state(3)
-    type(field_type),             intent(inout) :: rhs(3)
-    type(runtime_constants_type), intent(in)    :: runtime_constants
-    logical,                      intent(in)    :: l_from_solver
+  type(field_type), pointer :: chi(:), geopotential => null()
+  type(operator_type), pointer :: mm_w2, mm_w0 => null()
+  type(mesh_type), pointer    :: mesh => null()
 
-    type(field_type), pointer :: chi(:), geopotential => null()
-    type(operator_type), pointer :: mm_w2, mm_w0 => null()
-    type(mesh_type), pointer    :: mesh => null()
+  type( quadrature_type ), pointer :: qr => null()
+  type(field_type), pointer :: u ,theta, rho
+  type(field_type)          :: rhs_tmp(3)
+  type(field_type)          :: f_star, ones, w2_multiplicity
+  type(function_space_type) :: fs
+  integer                   :: u_fs, rho_fs
 
-    type( quadrature_type ), pointer :: qr => null()
-    type(field_type), pointer :: u ,theta, rho
-    type(field_type)          :: rhs_tmp(3)
-    type(field_type)          :: f_star, ones, w2_multiplicity
-    type(function_space_type) :: fs
-    integer                   :: u_fs, rho_fs
+  mesh         => runtime_constants%get_mesh()
+  geopotential => runtime_constants%get_geopotential()
+  mm_w0        => runtime_constants%get_mass_matrix(0)
+  mm_w2        => runtime_constants%get_mass_matrix(2)
+  chi          => runtime_constants%get_coordinates()
 
-    mesh         => runtime_constants%get_mesh()
-    geopotential => runtime_constants%get_geopotential()
-    mm_w0        => runtime_constants%get_mass_matrix(0)
-    mm_w2        => runtime_constants%get_mass_matrix(2)
-    chi          => runtime_constants%get_coordinates()
+  u     => state(1)
+  theta => state(2)
+  rho   => state(3)
+ 
+  call clone_bundle(rhs, rhs_tmp, mesh, 3)
 
-    u     => state(1)
-    theta => state(2)
-    rho   => state(3)
+  qr => qr%get_instance(QR3,9,3)
 
-    call clone_bundle(rhs, rhs_tmp, mesh, 3)
+  if ( l_from_solver ) then    
+    ! Need to create u*rho^ref \in W2 for rhs_tmp(3) kernel -> sampled mass flux
+    u_fs = u%which_function_space() 
+    w2_multiplicity = field_type( vector_space = fs%get_instance(mesh, u_fs) )
+    call invoke_set_field_scalar( 0.0_r_def, w2_multiplicity )
+    call invoke ( multiplicity_kernel_type( w2_multiplicity ) )
+    f_star = field_type( vector_space = fs%get_instance(mesh, u_fs) )
+    call invoke_set_field_scalar( 0.0_r_def, f_star )
+    call invoke_sample_flux_kernel( f_star, u, w2_multiplicity, rho )
+  end if
 
-    qr => qr%get_instance(QR3,9,3)
+  ! Compute rhs_u
+  call invoke_set_field_scalar( 0.0_r_def, rhs_tmp(1) )
+  call invoke( pressure_gradient_kernel_type( rhs_tmp(1), rho, theta, qr ) )
+  call invoke( kinetic_energy_gradient_kernel_type( rhs_tmp(1), u, chi, qr ) )
+  if ( .not. l_from_solver ) &
+     call invoke( geopotential_gradient_kernel_type( rhs_tmp(1), geopotential, qr ) )
+  if ( l_rotating ) call invoke( rotation_kernel_type( rhs_tmp(1), u, chi, qr ) )
+  call invoke(enforce_bc_kernel_type(rhs_tmp(1)) )
+  call invoke_set_field_scalar( 0.0_r_def, rhs(1) )
+  call invoke( matrix_vector_kernel_mm_type( rhs(1), u, mm_w2) )
+  call invoke_axpy( alpha_dt, rhs_tmp(1), rhs(1), rhs(1) ) 
+ 
+  ! Compute rhs_theta
+  call invoke_set_field_scalar( 0.0_r_def, rhs_tmp(2) )
+  if ( l_from_solver ) then
+    rho_fs = rho%which_function_space() 
+    ones = field_type( vector_space = fs%get_instance(mesh, rho_fs) )
+    call invoke_set_field_scalar( 1.0_r_def, ones )
+    call invoke( rtheta_kernel_type( rhs_tmp(2), theta, u, ones, qr) )
+  end if
+  call invoke_set_field_scalar( 0.0_r_def, rhs(2) )
+  call invoke( matrix_vector_kernel_mm_type( rhs(2), theta, mm_w0) )
+  call invoke_axpy( alpha_dt, rhs_tmp(2), rhs(2), rhs(2) ) 
 
-    if ( l_from_solver ) then    
-      ! Need to create u*rho^ref \in W2 for rhs_tmp(3) kernel -> sampled mass flux
-      u_fs = u%which_function_space() 
-      w2_multiplicity = field_type( vector_space = fs%get_instance(mesh, u_fs) )
-      call invoke_set_field_scalar( 0.0_r_def, w2_multiplicity )
-      call invoke ( multiplicity_kernel_type( w2_multiplicity ) )
-      f_star = field_type( vector_space = fs%get_instance(mesh, u_fs) )
-      call invoke_set_field_scalar( 0.0_r_def, f_star )
-      call invoke_sample_flux_kernel( f_star, u, w2_multiplicity, rho )
-    end if
-
-    ! Compute rhs_u
-    call invoke_set_field_scalar( 0.0_r_def, rhs_tmp(1) )
-    call invoke( pressure_gradient_kernel_type( rhs_tmp(1), rho, theta, qr ) )
-    call invoke( kinetic_energy_gradient_kernel_type( rhs_tmp(1), u, chi, qr ) )
-    if ( .not. l_from_solver ) &
-      call invoke( geopotential_gradient_kernel_type( rhs_tmp(1), geopotential, qr ) )
-    if ( L_ROTATING ) call invoke( rotation_kernel_type( rhs_tmp(1), u, chi, qr ) )
-    call invoke(enforce_bc_kernel_type(rhs_tmp(1)) )
-    call invoke_set_field_scalar( 0.0_r_def, rhs(1) )
-    call invoke( matrix_vector_kernel_mm_type( rhs(1), u, mm_w2) )
-    call invoke_axpy( alpha_dt, rhs_tmp(1), rhs(1), rhs(1) ) 
-
-    ! Compute rhs_theta
-    call invoke_set_field_scalar( 0.0_r_def, rhs_tmp(2) )
-    if ( l_from_solver ) then
-      rho_fs = rho%which_function_space() 
-      ones = field_type( vector_space = fs%get_instance(mesh, rho_fs) )
-      call invoke_set_field_scalar( 1.0_r_def, ones )
-      call invoke( rtheta_kernel_type( rhs_tmp(2), theta, u, ones, qr) )
-    end if
-    call invoke_set_field_scalar( 0.0_r_def, rhs(2) )
-    call invoke( matrix_vector_kernel_mm_type( rhs(2), theta, mm_w0) )
-    call invoke_axpy( alpha_dt, rhs_tmp(2), rhs(2), rhs(2) ) 
-
-    ! Compute rhs_rho
-    if ( l_from_solver ) then
-      call invoke( rrho_kernel_type( rhs_tmp(3), f_star, qr ) )  
-      call solver_algorithm( rhs_tmp(3), rhs_tmp(3), mesh, chi, SOLVER_OPTION, qr=qr )
-    else
-      call invoke_set_field_scalar( 0.0_r_def, rhs_tmp(3) )
-    end if
-    call invoke_axpy( alpha_dt, rhs_tmp(3), rho, rhs(3) )
+  ! Compute rhs_rho
+  if ( l_from_solver ) then
+    call invoke( rrho_kernel_type( rhs_tmp(3), f_star, qr ) )
+    call solver_algorithm( rhs_tmp(3), rhs_tmp(3), mesh, chi, solver_option, qr=qr )
+  else
+    call invoke_set_field_scalar( 0.0_r_def, rhs_tmp(3) )
+  end if
+  call invoke_axpy( alpha_dt, rhs_tmp(3), rho, rhs(3) )
 
   end subroutine rhs_alg
-  
+
 end module rhs_alg_mod
 
 

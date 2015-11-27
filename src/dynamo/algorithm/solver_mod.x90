@@ -13,7 +13,8 @@
 !! solve a number of iterative solver algorithms are possible or for
 !! discontinuous systems an exact solver can be used
 module solver_mod
-  use constants_mod,           only : r_def, str_def, MAX_ITER, SOLVER_TOL, &
+  use constants_mod,           only : r_def, str_def
+  use configuration_mod,       only : MAX_ITER, SOLVER_TOL, &
                                       CG_SOLVER, BICG_SOLVER, JACOBI_SOLVER, &
                                       GMRES_SOLVER, GCR_SOLVER, NO_PRE_COND
   use log_mod,                 only : log_event,         &
@@ -473,7 +474,7 @@ contains
 !! @param[in] mesh The mesh object the model for fields
   subroutine gmres_solver_algorithm(lhs, rhs, mm, mesh)
 
-    use constants_mod, only: GCRK
+    use configuration_mod, only: GCRK
 
     implicit none
     type(field_type),    intent(inout) :: lhs
@@ -650,7 +651,7 @@ contains
 !! @param[in] mesh The mesh object the model for fields
   subroutine gcr_solver_algorithm(lhs, rhs, mm, mesh)
 
-    use constants_mod, only: GCRK
+    use configuration_mod, only: GCRK
 
     implicit none
     type(field_type),    intent(inout) :: lhs
@@ -762,7 +763,7 @@ end subroutine gcr_solver_algorithm
 !! @param[in] pre_cond_type The type of preconditioner to be used
 !! routine to use
   subroutine preconditioner(y, x, pre_cond_type)
-    use constants_mod, only: DIAGONAL_PRE_COND
+    use configuration_mod, only: DIAGONAL_PRE_COND
     implicit none
     type(field_type), intent(inout) :: y
     type(field_type), intent(in)    :: x

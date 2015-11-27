@@ -24,7 +24,8 @@ contains
     use function_space_mod,         only : function_space_type, W0, W2, W3
     use compute_total_energy_kernel_mod, & 
                                     only : compute_total_energy_code
-    use constants_mod,              only : r_def, GRAVITY, Cv, earth_radius
+    use constants_mod,              only : r_def, GRAVITY, Cv
+    use configuration_mod,          only : earth_radius
     use quadrature_mod,             only : quadrature_type, QR3
     use calc_exner_pointwise_mod,   only : calc_exner_pointwise
     use mesh_mod,                   only : mesh_type, PLANE_BI_PERIODIC

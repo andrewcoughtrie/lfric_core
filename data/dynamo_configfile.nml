@@ -1,0 +1,66 @@
+! FEM namelist guide: reference_element options are 
+!    Triangles = 1
+!    Quads     = 2
+&FEM_NML
+reference_element = 2,
+element_order = 0
+&end
+
+&HORIZONTAL_MESH_NML
+mesh_filename = "ugrid_quads_2d.nc",
+l_spherical   = .true.,
+l_fplane      = .false.,
+f_lat_deg     = 45.0
+&end
+
+! Vertical mesh namelist guide: vertical spacing options (vgrid_option) are 
+!    Uniform   = 1
+!    Quadratic = 2
+!    Geometric = 3
+!    DCMIP     = 4
+&VERTICAL_MESH_NML
+domain_top    = 10000.0,
+nlayers       = 5,
+vgrid_option  = 1
+&end
+
+&SCALING_NML
+earth_scaling = 125.0
+&end
+
+&FORMULATION_NML
+l_nonlinear     = .true.,  
+l_rotating      = .true., 
+l_newton_krylov = .false.,
+l_supg          = .false.,
+&end
+
+! Solver namelist guide: solver options (solver_option) are
+!    Conjugate Gradient solver             = 1 
+!    BiCGSTAB solver                       = 2 
+!    Jacobi solver                         = 3 
+!    Generalized Minimal RESidual solver   = 4
+!    Generalized Conjugate Residual solver = 5 
+&SOLVER_NML
+solver_option = 2 
+&end
+
+! Timestepping namelist guide: timestepping algorithms (itimestep_option) are 
+!    Semi-implict = 0  (Only for nonlinear equations)
+!    RK-SSP3      = 1 
+! Initial and final timestep, diagnostic frequency and checkpoint and restart
+! options are in file restart_filename
+&TIMESTEPPING_NML
+itimestep_option = 0,
+dt = 10.0,
+restart_filename = "dynamo_restart.nml"
+&end
+
+
+
+
+
+
+
+
+

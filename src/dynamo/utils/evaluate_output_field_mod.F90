@@ -6,12 +6,12 @@
 !-------------------------------------------------------------------------------
 module evaluate_output_field_mod
 
-use constants_mod,           only: r_def, earth_radius
+use constants_mod,           only: r_def
+use configuration_mod,       only: l_spherical, earth_radius
 use field_mod,               only: field_type, field_proxy_type
 use coordinate_jacobian_mod, only: coordinate_jacobian, &
                                    coordinate_jacobian_inverse
 use mesh_mod,                only: mesh_type
-use slush_mod,               only: l_spherical
 use coord_transform_mod,     only: cartesian_distance, llr2xyz
 use log_mod,                 only: log_event, LOG_LEVEL_ERROR
 

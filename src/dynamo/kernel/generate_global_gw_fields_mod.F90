@@ -14,8 +14,10 @@ module generate_global_gw_fields_mod
 !> but is based on previous approaches by Skamarock et al. (JAS 1994), Tomita and Satoh (FDR 2004), and
 !> Jablonowski et al. (NCAR Tech Report 2008) 
 
-use constants_mod, only: r_def, PI, GRAVITY, Cp, P_ZERO, &
-                         omega, earth_radius, N_SQ, KAPPA, Rd
+use constants_mod,     only: r_def, PI, GRAVITY, Cp, P_ZERO, &
+                             KAPPA, Rd
+use configuration_mod, only: omega, earth_radius
+use initialisation_mod,only: n_sq 
 
 implicit none
 
@@ -43,13 +45,16 @@ implicit none
                                  T_EQUATOR = 300.0_r_def,   &     ! Temperature at Equator    
                                  ZTOP      = 10000.0_r_def        ! Model Top       
                            
-  real(kind=r_def) :: bigG = (GRAVITY*GRAVITY)/(N_SQ*Cp)      ! G constant from DCMIP formulation                            
+  real(kind=r_def) :: bigG                                    ! G constant from DCMIP formulation                            
   real(kind=r_def) :: tsurf, psurf                            ! Surface temperature (k) and pressure (Pa)
   real(kind=r_def) :: temperature, pressure                   ! temperature(k) and pressure (Pa)
   real(kind=r_def) :: exp_fac
   real(kind=r_def) :: p_equator = P_ZERO
 
-! intialise wind field
+! Calculate bigG
+  bigG = (GRAVITY*GRAVITY)/(n_sq*Cp) 
+
+! Initialise wind field
   u(1) = U0 * cos(lat)
   u(2) = 0.0_r_def
   u(3) = 0.0_r_def
@@ -58,20 +63,20 @@ implicit none
   exp_fac = (U0+2.0_r_def*omega*earth_radius)*(cos(2.0_r_def*lat)-1.0_r_def)
 
 ! Compute surface temperture
-  tsurf = bigG + (T_EQUATOR - bigG)*exp( -(U0*N_SQ/(4.0_r_def*GRAVITY*GRAVITY))*exp_fac ) 
+  tsurf = bigG + (T_EQUATOR - bigG)*exp( -(U0*n_sq/(4.0_r_def*GRAVITY*GRAVITY))*exp_fac ) 
 
 ! Compute surface pressure
   psurf = p_equator*exp( (U0/(4.0_r_def*bigG*Rd))*exp_fac  ) * (tsurf/T_EQUATOR)**(Cp/Rd)
 
 ! Compute pressure and temperature
-  pressure = psurf*( (bigG/tsurf)*exp(-N_SQ*z/GRAVITY)+1.0_r_def - (bigG/tsurf)  )**(Cp/Rd)
+  pressure = psurf*( (bigG/tsurf)*exp(-n_sq*z/GRAVITY)+1.0_r_def - (bigG/tsurf)  )**(Cp/Rd)
 
-  temperature = bigG*(1.0_r_def - exp(N_SQ*z/GRAVITY))+ tsurf*exp(N_SQ*z/GRAVITY)
+  temperature = bigG*(1.0_r_def - exp(n_sq*z/GRAVITY))+ tsurf*exp(n_sq*z/GRAVITY)
 
 ! Compute density from equation of state
   rho = pressure/(Rd*temperature)
 
-! convert pressure to exner pressure and temperature to potential temperature
+! Convert pressure to exner pressure and temperature to potential temperature
   exner = (pressure/P_ZERO)**KAPPA
   theta = temperature/exner
 

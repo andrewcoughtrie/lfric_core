@@ -18,12 +18,13 @@
 !>            the end of the Gung-Ho project and removied if possible
 module linear_rtheta_kernel_mod
 use kernel_mod,              only : kernel_type
-use constants_mod,           only : r_def, N_SQ, GRAVITY, earth_radius
 use argument_mod,            only : arg_type, func_type,                     &
                                     GH_FIELD, GH_READ, GH_INC,               &
                                     W0, W2,                                  &
                                     GH_BASIS, GH_DIFF_BASIS, GH_ORIENTATION, &
                                     CELLS
+use constants_mod,           only : r_def, GRAVITY
+use initialisation_mod,      only : itest_option, n_sq
 use reference_profile_mod,   only : reference_profile
 
 implicit none
@@ -88,8 +89,7 @@ subroutine linear_rtheta_code(nlayers,                                         &
                               orientation,                                     &
                               nqp_h, nqp_v, wqp_h, wqp_v )
                                
-  use coordinate_jacobian_mod, only: coordinate_jacobian
-  use reference_profile_mod,   only: reference_profile                               
+  use coordinate_jacobian_mod, only: coordinate_jacobian                             
   
   !Arguments
   integer, intent(in) :: nlayers, nqp_h, nqp_v
@@ -153,10 +153,10 @@ subroutine linear_rtheta_code(nlayers,                                         &
                               + phi_e(df)*w0_diff_basis(:,df,qp1,qp2)
         end do
         call reference_profile(exner_s_at_quad, rho_s_at_quad, &
-                               theta_s_at_quad, x_at_quad)
+                               theta_s_at_quad, x_at_quad, itest_option)
 
         vec_term = dot_product(u_at_quad,grad_phi_at_quad)/GRAVITY
-        buoy_term = -N_SQ/GRAVITY*theta_s_at_quad*vec_term
+        buoy_term = -n_sq/GRAVITY*theta_s_at_quad*vec_term
 
         do df = 1, ndf_w0
           rtheta_e(df) = rtheta_e(df) + wqp_h(qp1)*wqp_v(qp2)*w0_basis(1,df,qp1,qp2)*buoy_term

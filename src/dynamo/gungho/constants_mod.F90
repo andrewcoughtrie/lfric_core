@@ -88,87 +88,15 @@ module constants_mod
   real(kind=r_def), parameter :: Cv = Cp - Rd            !< Specific heat of dry air at constant volume [J/(kg K)].
   real(kind=r_def), parameter :: KAPPA = Rd/Cp           !< Ratio of Rd and Cp [dimensionless].
   real(kind=r_def), parameter :: P_ZERO = 100000.0_r_def !< Reference surface pressure [Pa].
-  real(kind=r_def), parameter :: N_SQ = 0.0001_r_def     !< The square of Brunt-Vaisala frequency [1/s^2].
   real(kind=r_def), parameter :: OMEGA_UNSCALED = 7.292116E-5_r_def !< Angular velocity [rad/s].
   real(kind=r_def), parameter :: EARTH_RADIUS_UNSCALED = 6371229.0_r_def !< Radius of the Earth [m].
   !> @}
 
-  !> @name Small Earth scalings
   !> @{
-  real(kind=r_def), parameter :: EARTH_SCALING = 125.0_r_def !< Scaling factor to modify Earth parameters.
-  real(kind=r_def)            :: omega = OMEGA_UNSCALED*EARTH_SCALING !< Scale up rotation [rad/s].
-  real(kind=r_def)            :: earth_radius = EARTH_RADIUS_UNSCALED/EARTH_SCALING !< Scale down Earth radius [m].
-  !> @}
-
-  !> @name Enumeration of the available choices for the linear solver 
-  !> @{
-  integer (kind=i_def), parameter :: CG_SOLVER     = 1 !< Conjugate Gradient solver option.
-  integer (kind=i_def), parameter :: BICG_SOLVER   = 2 !< BiCGSTAB solver option.
-  integer (kind=i_def), parameter :: JACOBI_SOLVER = 3 !< Jacobi solver option.
-  integer (kind=i_def), parameter :: GMRES_SOLVER  = 4 !< Generalized Minimal RESidual solver option.
-  integer (kind=i_def), parameter :: GCR_SOLVER    = 5 !< Generalized Conjugate Residual solver option.
-  !> @}
-  !> @name Linear solver constants
-  !> @{
-  integer (kind=i_def), parameter :: MAX_ITER = 99 !< Maximum iteration number for solver.
-  integer (kind=i_def), parameter :: SOLVER_OPTION = BICG_SOLVER !< Choice of solver from the above list
-                                                                 !< (currently hard-wired).
-  integer (kind=i_def), parameter :: NO_PRE_COND       = -1 !< No preconditioner option.
-  integer (kind=i_def), parameter :: DIAGONAL_PRE_COND = 1  !< Diagonal preconditioner option.
-  real(kind=r_def),     parameter :: SOLVER_TOL = 1.0e-4_r_def !< Relative tolerance of solver.
-  integer (kind=i_def), parameter :: GCRK  = 32                !< Dimension of the approximate Krylov subspace.
-                                                               !< In other words, it is the number of potential 
-                                                               !< residual vectors to calculate at each iteration 
-                                                               !< of the solver
-
-  integer (kind=i_def), parameter :: TRI  = 1                  !< For triangular reference elements
-  integer (kind=i_def), parameter :: QUAD = 2                  !< For quadrilateral reference elements
-
   ! Missing data indicators
   real    (r_def), parameter :: RMDI = -huge(0.0_r_def)        !< Missing data indicator value for real numbers
   integer (i_def), parameter :: IMDI = -huge(0_i_def)          !< Missing data indicator value for integer numbers
-  
-  !> @}
-  !> @name Formulation switches
-  logical, parameter :: L_NONLINEAR     = .true.  !< Solve the full nonlinear equation set
-  logical, parameter :: L_SEMI_IMPLICIT = .true.  !< Use the iterative timestepping method or Runge-Kutta method
-  logical, parameter :: L_ROTATING      = .true.  !< Turn on/off Coriolis terms
-  logical, parameter :: L_NEWTON_KRYLOV = .false. !< Use Newton-Krylov method to compute lhs
-  logical, parameter :: L_SUPG          = .false. !< Use Streamline-Upwind-Petrov-Galerkin method for stabilisation of CG advection
   !> @}
 
-  !> @}
-  !> @name Runtime options
-  real(kind=r_def),    parameter :: DT = 10.0_r_def !< Timestep in seconds
-  integer(kind=i_def), parameter :: NT = 3          !< Number of timesteps to run for
-  !> @}
-  !> @}
-  !> @name Idealised test switches
-  logical, parameter :: L_COLD_BUBBLE  = .false. ! Straka density current test (planer domain only)
-  logical, parameter :: L_GRAVITY_WAVE = .true.  ! Gravity wave test (either planer or spherical)
-  !> @}
-
-  !> @}
-  !> @name Iterative timestepping options
-  integer, parameter :: N_OUTER_ITER = 2 !< Number of outer (advection) iterations to do
-  integer, parameter :: N_INNER_ITER = 2 !< Number of inner (Newton) iterations to do
-  real(kind=r_def), parameter :: ALPHA = 0.5_r_def !< Time off-centering parameter
-  real(kind=r_def), parameter :: BETA = (1.0_r_def - ALPHA) !< 1 - Time off-centering parameter
-  !> @}
- !> @name Enumeration of the available choices for the initialisation profiles
- !> @{
- integer, parameter :: ZERO_WIND                = 0
- integer, parameter :: SOLID_BODY_ROTATION_WIND = 1
- integer, parameter :: CONSTANT_UV_WIND         = 2
- integer, parameter :: CONSTANT_SHEAR_UV_WIND   = 3
- !> @{
-
- !> @{
- !> @name Initialisation options
- integer(kind=i_def), parameter :: INITIAL_U_PROFILE = zero_wind
- real(kind=r_def),    parameter :: U0 = 0.0_r_def
- real(kind=r_def),    parameter :: V0 = 0.0_r_def
- real(kind=r_def),    parameter :: ROTATION_ANGLE = 0.0_r_def
- !> @{
 end module constants_mod
 

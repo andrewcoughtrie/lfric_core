@@ -15,8 +15,10 @@ contains
   subroutine gp_vector_rhs_kernel_test()
     use pFUnit_Mod
     use gp_vector_rhs_kernel_mod, only : gp_vector_rhs_code
-    use quadrature_mod,  only : quadrature_type, QR3
-    use constants_mod,            only : r_def
+    use quadrature_mod,    only : quadrature_type, QR3
+    use constants_mod,     only : r_def
+    use configuration_mod, only : l_spherical
+
     implicit none
 
     integer :: num_layers,  undf, undf_f
@@ -35,6 +37,7 @@ contains
     integer :: df, dim, qp1, qp2
     integer, dimension(1) :: orientation
 
+    l_spherical = .false.
     qr => qr%get_instance(QR3, 9, 3)
 
     xqp_h => qr%get_xqp_h()

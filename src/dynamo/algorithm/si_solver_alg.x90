@@ -13,9 +13,10 @@ module si_solver_alg_mod
   use function_space_mod,    only: function_space_type
   use mesh_mod,              only: mesh_type
 
-  use constants_mod,         only: r_def, str_def, MAX_ITER, SOLVER_TOL, &
-                                   NO_PRE_COND, L_NEWTON_KRYLOV, GCRK, &
-                                   DIAGONAL_PRE_COND, DT
+  use constants_mod,         only: r_def, str_def
+  use configuration_mod,     only: MAX_ITER, SOLVER_TOL, &
+                                   NO_PRE_COND, DIAGONAL_PRE_COND, GCRK, &
+                                   l_newton_krylov, dt
   use log_mod,               only: log_event,         &
                                    log_scratch_space, &
                                    LOG_LEVEL_ERROR,   &
@@ -64,17 +65,21 @@ contains
     
     type(mesh_type), pointer     :: mesh
     type(field_type)             :: rhs(bundle_size)
-    real(kind=r_def), parameter  :: TAU_DT = -0.5_r_def*DT
+    real(kind=r_def)             :: tau_dt    ! tau_dt would eventually be set globally 
+                                              ! (probably the same place as alpha)
     real(kind=r_def)             :: delta_i(bundle_size), delta
     integer                      :: i
     type(field_type)             :: mm_diagonal(bundle_size)
     type(operator_type), pointer :: mm_w2, mm_w0 => null()
 
+    ! Set up tau_dt: to be used here and in subsequent algorithms
+    tau_dt = -0.5_r_def*dt
+
     mesh => runtime_constants%get_mesh()    
     call clone_bundle(x0, rhs, mesh, bundle_size)
 
-    if ( L_NEWTON_KRYLOV ) then
-      call rhs_alg(rhs, TAU_DT, x0, runtime_constants, .true.)    
+    if ( l_newton_krylov ) then
+      call rhs_alg(rhs, tau_dt, x0, runtime_constants, .true.)    
       do i = 1, bundle_size
         ! 1.0 should be norm(dx), but this would be 0, so give a 1/0!
         call invoke_compute_delta(delta_i(i), 1.0_r_def, x0(i))       
@@ -92,7 +97,7 @@ contains
     call invoke( mm_diagonal_kernel_type( mm_diagonal(2), mm_w0) )
     call invoke_set_field_scalar( 1.0_r_def, mm_diagonal(3) )
 
-    call mixed_gmres_alg(x0, rhs0, rhs, x_ref, delta, runtime_constants, mm_diagonal)
+    call mixed_gmres_alg(x0, rhs0, rhs, x_ref, delta, tau_dt, runtime_constants, mm_diagonal)
 
   end subroutine si_solver_alg
 
@@ -107,10 +112,11 @@ contains
 !>@param[in]    x_ref Reference state
 !>@param[in]    delta Small distance used to compute the Jacobian for the NK
 !!              method
+!>@param[in]    tau_dt The offcentering parameter times the timestep
 !>@param[in]    runtime_constants Container for various constant objects
 !>@param[in]    mm_diagonal fields containing a diagonal approxiamtion to the
 !!                          mass matrices
-subroutine mixed_gmres_alg(x0, rhs0, rhs, x_ref, delta, runtime_constants, mm_diagonal)
+subroutine mixed_gmres_alg(x0, rhs0, rhs, x_ref, delta, tau_dt, runtime_constants, mm_diagonal)
     use psy, only: invoke_inner_prod
     implicit none
 
@@ -119,21 +125,19 @@ subroutine mixed_gmres_alg(x0, rhs0, rhs, x_ref, delta, runtime_constants, mm_di
     type(field_type)             :: mm_diagonal(bundle_size)
     type(runtime_constants_type) :: runtime_constants
     real(kind=r_def), intent(in) :: delta
-
-    type(mesh_type), pointer :: mesh
-    real(kind=r_def), parameter :: TAU_DT = -0.5_r_def*DT
+    real(kind=r_def), intent(in) :: tau_dt
+    type(mesh_type), pointer     :: mesh
 ! The temporary fields
-    type(field_type)                   :: dx(bundle_size), Ax(bundle_size), &
+    type(field_type)             :: dx(bundle_size), Ax(bundle_size), &
                                           residual(bundle_size), s(bundle_size), &
                                           w(bundle_size), v(bundle_size,GCRK)
-
     ! the scalars
-    real(kind=r_def)                   :: h(GCRK+1, GCRK), u(GCRK), g(GCRK+1)
-    real(kind=r_def)                   :: beta, si, ci, nrm, h1, h2, p, q
+    real(kind=r_def)             :: h(GCRK+1, GCRK), u(GCRK), g(GCRK+1)
+    real(kind=r_def)             :: beta, si, ci, nrm, h1, h2, p, q
     ! others
-    real(kind=r_def)                   :: err, sc_err, init_err
-    integer                            :: iter, i, j, k, m
-    integer, parameter                 :: MAX_GMRES_ITER = 20
+    real(kind=r_def)             :: err, sc_err, init_err
+    integer                      :: iter, i, j, k, m
+    integer, parameter           :: MAX_GMRES_ITER = 20
     
     integer :: precon = NO_PRE_COND
     integer :: postcon = DIAGONAL_PRE_COND
@@ -168,8 +172,6 @@ subroutine mixed_gmres_alg(x0, rhs0, rhs, x_ref, delta, runtime_constants, mm_di
 
     ! Initial guess
     call set_bundle_scalar(0.0_r_def, dx, bundle_size)
-    ! This call in redundent since dx = 0 then Ax = 0
-    !call apply_lhs(Ax, dx, rhs, x0, x_ref, delta, runtime_constants, TAU_DT)
     call set_bundle_scalar(0.0_r_def, Ax, bundle_size)
 
     call minus_bundle( rhs0, Ax, residual, bundle_size )
@@ -189,7 +191,7 @@ subroutine mixed_gmres_alg(x0, rhs0, rhs, x_ref, delta, runtime_constants, mm_di
       do j = 1, GCRk
 
         call bundle_preconditioner(w, v(:,j), postcon, mm_diagonal, bundle_size)
-        call apply_lhs(s, w, rhs, x0, x_ref, delta, runtime_constants, TAU_DT, bundle_size)
+        call apply_lhs(s, w, rhs, x0, x_ref, delta, runtime_constants, tau_dt, bundle_size)
         call bundle_preconditioner(w, s, precon, mm_diagonal, bundle_size )
         do k = 1, j
           h(k,j) =  bundle_inner_product( v(:,k), w, bundle_size )
@@ -233,7 +235,7 @@ subroutine mixed_gmres_alg(x0, rhs0, rhs, x_ref, delta, runtime_constants, mm_di
       end do
 
       ! Check for convergence
-      call apply_lhs(Ax, dx, rhs, x0, x_ref, delta, runtime_constants, TAU_DT, bundle_size)
+      call apply_lhs(Ax, dx, rhs, x0, x_ref, delta, runtime_constants, tau_dt, bundle_size)
 
       call minus_bundle( rhs0, Ax, residual, bundle_size )
 
@@ -301,7 +303,7 @@ end subroutine mixed_gmres_alg
     type(field_type)                            :: x_new(bundle_size), rhs_new(bundle_size)
     type(mesh_type), pointer                    :: mesh => null()
 
-    if ( l_NEWTON_KRYLOV ) then
+    if ( l_newton_krylov ) then
       mesh => runtime_constants%get_mesh()
       call clone_bundle(x0, x_new, mesh, bundle_size)
       call clone_bundle(x0, rhs_new, mesh, bundle_size)

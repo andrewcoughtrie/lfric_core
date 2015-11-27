@@ -13,9 +13,12 @@ module mesh_mod_test
   use reference_element_mod, only: reference_cube,                 &
                                    deallocate_reference,           &
                                    reference_element
-  use constants_mod,         only: r_def, i_def, QUAD, PI
-  use mesh_mod,              only: VGRID_UNIFORM, VGRID_QUADRATIC, &
-                                   VGRID_GEOMETRIC, VGRID_DCMIP
+  use constants_mod,         only: r_def, i_def, PI
+  use configuration_mod,     only: QUAD,            &
+                                   VGRID_UNIFORM,   &
+                                   VGRID_QUADRATIC, &
+                                   VGRID_GEOMETRIC, &
+                                   VGRID_DCMIP
   use coord_transform_mod,   only: llr2xyz
 
   implicit none
@@ -54,10 +57,11 @@ contains
   !> @brief Test mesh object functionality
   subroutine test_mesh(this)
 
-    use slush_mod,       only: l_spherical
-    use global_mesh_mod, only: global_mesh_type
-    use partition_mod,   only: partition_type
-    use mesh_mod,        only: mesh_type, domain_limits
+    use configuration_mod, only: l_spherical, earth_scaling, &
+                                 EARTH_RADIUS_UNSCALED, earth_radius 
+    use global_mesh_mod,   only: global_mesh_type
+    use partition_mod,     only: partition_type
+    use mesh_mod,          only: mesh_type, domain_limits
 
     implicit none
 
@@ -92,6 +96,8 @@ contains
 
     ! Set the input variables for mesh construction and testing
     l_spherical = .true.
+    earth_scaling = 125.0_r_def
+    earth_radius = EARTH_RADIUS_UNSCALED/earth_scaling  
     nlayers     = 5_i_def
     domain_top  = 10000.0_r_def
     ! Set vertical grid spacings values to test meshes with

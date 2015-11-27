@@ -17,14 +17,14 @@
 
 module mesh_mod
 
-  use global_mesh_mod, only: global_mesh_type
-  use partition_mod,   only: partition_type
-  use constants_mod,   only: i_def, r_def, l_def, IMDI
-  use slush_mod,       only: l_spherical
-  use log_mod,         only: log_event,                                       &
-                             log_scratch_space,                               &
-                             LOG_LEVEL_DEBUG,                                 &
-                             LOG_LEVEL_ERROR
+  use global_mesh_mod,   only: global_mesh_type
+  use partition_mod,     only: partition_type
+  use constants_mod,     only: i_def, r_def, l_def, IMDI
+  use configuration_mod, only: l_spherical
+  use log_mod,           only: log_event,                                     &
+                               log_scratch_space,                             &
+                               LOG_LEVEL_DEBUG,                               &
+                               LOG_LEVEL_ERROR
 
   implicit none
 
@@ -258,22 +258,9 @@ module mesh_mod
   end type mesh_type
 
   !============================================================================
-  ! Switches for Horizontal and Vertical Mesh Type Grids
+  ! Options for horizontal pFUnit test meshes
   !============================================================================
   !
-  !> @}
-  !> @nameVertical Grid Types
-  !< Uniform grid spacing
-  integer(i_def), parameter :: VGRID_UNIFORM      = 1 
-  !< Quadratic grid spacing 
-  integer(i_def), parameter :: VGRID_QUADRATIC    = 2 
-  !< Geometric grid spacing with stretching factor prescribed 
-  integer(i_def), parameter :: VGRID_GEOMETRIC    = 3  
-  !< DCMIP grid spacing (DCMIP document, App. F.2.) with flattening
-  !< parameter prescribed
-  integer(i_def), parameter :: VGRID_DCMIP        = 4                                                  
-  !> @}
-
   !> @}
   !> @name Horizontal Grid Types for pFunit tests
   integer(i_def), parameter :: PLANE             = 1
@@ -1200,7 +1187,8 @@ contains
     !    +---+---+---+
     !
 
-    use constants_mod, only: PI
+    use constants_mod,     only: PI
+    use configuration_mod, only: VGRID_UNIFORM
 
     implicit none
 
@@ -1214,7 +1202,7 @@ contains
     self%nedges_per_cell = 12
     self%nfaces_per_cell = 6
 
-    if (mesh_cfg==PLANE) then
+    if (mesh_cfg == PLANE) then
       self%domain_top = 10000.0_r_def
 
       self%ncells_2d = 9
@@ -1226,7 +1214,7 @@ contains
       self%nverts  = 96
       self%nfaces  = 156
       self%nedges  = 224
-    else if (mesh_cfg==PLANE_BI_PERIODIC) then
+    else if (mesh_cfg == PLANE_BI_PERIODIC) then
       self%domain_top = 6000.0_r_def
 
       ! 3x3x3 mesh bi-periodic
@@ -1266,7 +1254,7 @@ contains
 
 
 
-    if (mesh_cfg==PLANE) then
+    if (mesh_cfg == PLANE) then
       !=========================================================
       ! Assign 3D cell local ids on adjacent to given cell
       !
@@ -1667,7 +1655,7 @@ contains
       self % domain_size%minimum%z =  0.0_r_def
       self % domain_size%maximum%z =  self % domain_top
 
-    else if (mesh_cfg==PLANE_BI_PERIODIC) then
+    else if (mesh_cfg == PLANE_BI_PERIODIC) then
       !=========================================================
       ! Assign 3D cell local ids on adjacent to given cell
       !
@@ -2082,8 +2070,7 @@ contains
                                      nverts_h, nedges_h, nfaces_h,            &
                                      nverts,   nedges,   nfaces,              &
                                      SWB, SEB, NEB, NWB, SWT, SET, NET, NWT
-    use slush_mod,             only: l_spherical
-    use constants_mod,         only: earth_radius
+    use configuration_mod,     only: l_spherical, earth_radius
     implicit none
 
     class(mesh_type) :: self
@@ -2260,7 +2247,7 @@ contains
 
     call log_event('vert coords', LOG_LEVEL_DEBUG)
     do i=1, nverts_3d
-      write(log_scratch_space, '(i6,3f12.4)') i,                              &
+      write(log_scratch_space, '(i6,3ES20.10E3)') i,                          &
         self%vertex_coords(1,i),                                              &
         self%vertex_coords(2,i),                                              &
         self%vertex_coords(3,i)
@@ -2503,8 +2490,10 @@ contains
   !> @param [in] vgrid_option  Choice of vertical grid
   subroutine set_vertical_coordinate(self, vgrid_option)
 
-    use constants_mod,   only: i_def, r_def
-    use log_mod,         only: log_event, LOG_LEVEL_ERROR
+    use constants_mod,     only: i_def, r_def
+    use log_mod,           only: log_event, LOG_LEVEL_ERROR
+    use configuration_mod, only: VGRID_UNIFORM, VGRID_QUADRATIC, &
+                                 VGRID_GEOMETRIC, VGRID_DCMIP
 
     implicit none
 

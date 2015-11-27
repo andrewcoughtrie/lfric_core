@@ -15,9 +15,11 @@
 
 module set_up_mod
 
-  use constants_mod,              only : i_def, r_def, str_def, PI, QUAD
-  use mesh_mod,                   only : VGRID_UNIFORM, VGRID_QUADRATIC, &
-                                         VGRID_GEOMETRIC, VGRID_DCMIP
+  use constants_mod,              only : i_def, r_def, str_def 
+  use configuration_mod,          only : TRI, QUAD, &
+                                         VGRID_UNIFORM, VGRID_QUADRATIC, &
+                                         VGRID_GEOMETRIC, VGRID_DCMIP, &
+                                         mesh_filename
   use function_space_mod,         only : function_space_type
   use reference_element_mod,      only : reference_cube, &
                                          reference_element, nfaces, nedges, nverts
@@ -40,11 +42,11 @@ contains
 !> @param[in] total_ranks Total number of MPI ranks in this job
   subroutine set_up(mesh, local_rank, total_ranks)
 
-    use log_mod,         only : log_event, LOG_LEVEL_INFO
-    use slush_mod,       only : element_order,                                &
-                                l_spherical, w_unique_dofs, w_dof_entity,     &
-                                l_fplane, f_lat
+    use log_mod,           only : log_event, LOG_LEVEL_INFO
+    use configuration_mod, only : element_order, l_spherical, & 
+                                  nlayers, domain_top, vgrid_option
 
+    use slush_mod,       only : w_unique_dofs, w_dof_entity
     use mesh_mod,        only : mesh_type
     use partition_mod,   only : partition_type,                 &
                                 partitioner_interface,          &
@@ -56,7 +58,6 @@ contains
 
     implicit none
 
-    character(len = str_def) :: filename
     type (global_mesh_type)  :: global_mesh
     type (partition_type)    :: partition
 
@@ -69,10 +70,6 @@ contains
     ! Number of ranks the mesh is partitioned over in the x- and y-directions
     ! (across a single face for a cubed-sphere mesh)
     integer :: xproc, yproc
-    real(r_def)    :: domain_top
-    integer(i_def) :: nlayers
-    integer(i_def) :: vgrid_option !> Choice of uniform or different kinds 
-                                   !> of stretched grids in vertical
 
     ! Get the processor decomposition
     ! Code is not set up to run in parallel - so hardcode for now
@@ -82,32 +79,24 @@ contains
 !>       When this happens their values will need to be checked to make sure they are
 !>       sensible
 
-    ! hard-coded these numbers are
-    l_fplane      = .true.
-    nlayers       = 5
-    element_order = 0
-    l_spherical   = .true.   
-    ! Domain top for all grids - vertical spacing is calculated from 
-    ! domain_top and vgrid_option
-    domain_top = 10000.0_r_def
-    vgrid_option = VGRID_UNIFORM
+    call log_event( "set_up: Generating/reading the mesh", LOG_LEVEL_INFO )
 
-    filename = 'ugrid_quads_2d.nc' 
-    call log_event( "set_up: generating/reading the mesh", LOG_LEVEL_INFO )
-
-    reference_element = QUAD
-
+    ! Currently only quad elements are fully functional
+    if ( reference_element /= QUAD ) then 
+      call log_event( "set_up: Reference_element must be QUAD for now...", LOG_LEVEL_INFO )
+    end if
     ! Setup reference cube  
     call reference_cube()
 
     ! Generate the global mesh and choose a partitioning strategy by setting
     ! a function pointer to point at the appropriate partitioning routine
-    global_mesh = global_mesh_type( filename )
+    global_mesh = global_mesh_type( mesh_filename )
     if ( l_spherical ) then
       partitioner_ptr => partitioner_cubedsphere_serial
+      call log_event( "set_up: Setting up cubed sphere partitioner ", LOG_LEVEL_INFO )
     else
       partitioner_ptr => partitioner_biperiodic
-      if ( l_fplane ) f_lat = PI/4.0_r_def
+      call log_event( "set_up: Setting up biperiodic plane partitioner ", LOG_LEVEL_INFO )
     end if
 
     ! Generate the partition object

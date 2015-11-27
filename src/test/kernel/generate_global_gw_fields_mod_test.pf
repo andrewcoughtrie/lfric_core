@@ -18,7 +18,8 @@ contains
   @test
   subroutine generate_global_gw_fields_test( )
     use pFUnit_Mod  
-    use constants_mod,                 only : r_def, Rd, P_ZERO
+    use constants_mod,                 only: r_def, Rd, P_ZERO
+    use initialisation_mod,            only: n_sq
     use generate_global_gw_fields_mod, only: generate_global_gw_fields
 
     real(kind=r_def) :: lat, z, tol
@@ -27,6 +28,7 @@ contains
 
     lat = 0.0_r_def
     z   = 0.0_r_def
+    n_sq = 0.0001_r_def 
 
     call generate_global_gw_fields(lat, z, exner, u, theta, rho)
 

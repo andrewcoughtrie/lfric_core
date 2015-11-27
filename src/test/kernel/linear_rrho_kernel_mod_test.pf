@@ -24,6 +24,7 @@ contains
     use function_space_mod,         only : function_space_type, W0, W2, W3
     use linear_rrho_kernel_mod,     only : linear_rrho_code
     use constants_mod,              only : r_def, GRAVITY
+    use initialisation_mod,         only : n_sq
     use quadrature_mod,             only : quadrature_type, QR3
     use mesh_mod,                   only : mesh_type, PLANE_BI_PERIODIC
 
@@ -64,8 +65,9 @@ contains
     real(kind=r_def), pointer :: xp(:,:) => null()
     real(kind=r_def), pointer :: zp(:) => null()
     real(kind=r_def), pointer :: wh(:), wv(:) => null()
-   
+
     tol = 1.0e-6_r_def  
+    n_sq = 0.0001_r_def
     qr => qr%get_instance(QR3,9,3)
 
     ! Dummy mesh mod has 9 cells, 3 layers and is uniform in vertical

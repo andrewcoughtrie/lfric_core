@@ -11,7 +11,8 @@
 
 module compute_total_mass_kernel_mod
 use kernel_mod,              only : kernel_type
-use constants_mod,           only : r_def, earth_radius
+use constants_mod,           only : r_def
+use configuration_mod,       only : earth_radius
 use argument_mod,            only : arg_type, func_type,             &
                                     GH_FIELD, GH_WRITE, GH_READ,     &
                                     W0, W3, GH_BASIS, GH_DIFF_BASIS, &

@@ -22,10 +22,10 @@ module dofmap_mod
 
 use num_dof_mod
 use reference_element_mod
-use mesh_mod,      only: mesh_type
-use constants_mod, only: i_def, c_def
-use slush_mod,     only: l_spherical
-use log_mod, only : log_event, LOG_LEVEL_ERROR
+use mesh_mod,          only: mesh_type
+use constants_mod,     only: i_def, c_def
+use configuration_mod, only: l_spherical
+use log_mod,           only: log_event, LOG_LEVEL_ERROR
 
 implicit none
 

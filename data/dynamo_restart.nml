@@ -2,7 +2,7 @@
 checkpoint_read = .F
 timestep_start = 1
 timestep_end = 3
-checkpoint_write = .T
-restart_stem_name="hswarez_100day"
+checkpoint_write = .F
+restart_stem_name="restartDynamo"
 diagnostic_frequency = 3
 /

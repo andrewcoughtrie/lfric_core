@@ -26,7 +26,7 @@ contains
                                     only : kinetic_energy_gradient_code
     use constants_mod,              only : r_def
     use quadrature_mod,             only : quadrature_type, QR3
-    use slush_mod,                  only : l_spherical
+    use configuration_mod,          only : l_spherical
     use mesh_mod,                   only : mesh_type, PLANE_BI_PERIODIC
 
     implicit none

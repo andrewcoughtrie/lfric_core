@@ -11,13 +11,15 @@ module output_alg_mod
   use mesh_mod,                          only: mesh_type
   use field_mod,                         only: field_type
   use function_space_mod,                only: function_space_type, W0, W3
-  use galerkin_projection_algorithm_mod, only: galerkin_projection_algorithm
-  use driver_layer,                      only: interpolated_output
   use quadrature_mod,                    only: quadrature_type, QR3
   use operator_mod,                      only: operator_type
   use restart_control_mod,               only: restart_type
+
+  use galerkin_projection_algorithm_mod, only: galerkin_projection_algorithm
+  use driver_layer,                      only: interpolated_output
  
   use psy,                               only: invoke_set_field_scalar
+
   implicit none
 
   private
