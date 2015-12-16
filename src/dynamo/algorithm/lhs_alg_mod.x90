@@ -24,11 +24,12 @@ module lhs_alg_mod
   use mesh_mod,                          only: mesh_type
   use field_mod,                         only: field_type
   use constants_mod,                     only: r_def
-  use quadrature_mod,                    only: quadrature_type, QR3
+  use quadrature_mod,                    only: quadrature_type, GAUSSIAN
   use operator_mod,                      only: operator_type
   use function_space_mod,                only: function_space_type
   use runtime_constants_mod,             only: runtime_constants_type
   use field_bundle_mod,                  only: clone_bundle
+  use configuration_mod,                 only: element_order
   implicit none
 
   private
@@ -69,7 +70,7 @@ contains
   type(operator_type), pointer :: mm_w2, mm_w0 => null()
   type(mesh_type), pointer    :: mesh => null()
 
-  type( quadrature_type ), pointer :: qr => null()
+  type( quadrature_type )   :: qr
   type(field_type), pointer :: u ,theta, rho, u_ref, theta_ref, rho_ref
   type(field_type)          :: ones, f_star, w2_multiplicity 
   type(function_space_type) :: fs
@@ -91,7 +92,7 @@ contains
 
   call clone_bundle(lhs, lhs_tmp, mesh, 3)
 
-  qr => qr%get_instance(QR3,9,3)
+  qr = quadrature_type(element_order+2, GAUSSIAN)
 
   ! Compute lhs_u
   call invoke_set_field_scalar( 0.0_r_def, lhs_tmp(1) )
@@ -101,6 +102,8 @@ contains
                matrix_vector_kernel_mm_type( lhs(1), u, mm_w2) )
   call invoke( enforce_bc_kernel_type( lhs_tmp(1) ) )
   call invoke_axpy( alpha_dt, lhs_tmp(1), lhs(1), lhs(1) ) 
+
+  qr = quadrature_type(element_order+1, GAUSSIAN)
  
   ! Compute lhs_theta
   rho_fs = rho%which_function_space()  

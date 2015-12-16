@@ -17,6 +17,7 @@
 
 module quadrature_mod
 use constants_mod, only: r_def, PI, EPS
+use log_mod,       only: LOG_LEVEL_ERROR, log_event, log_scratch_space
 implicit none
 private
 
@@ -28,23 +29,13 @@ type, public :: quadrature_type
   !> allocatable arrays which holds the values of the gaussian quadrature
   real(kind=r_def), allocatable :: xqp(:), xqp_h(:,:), wqp(:), wqp_h(:)
 
-  !> enumerated integer representing this instance of the quadrature rule
-  integer :: qr
-
   !> integer Number of quadrature points in the horizontal
   integer :: nqp_h
 
-    !> integer Number of quadrature points in the vertical
+  !> integer Number of quadrature points in the vertical
   integer :: nqp_v
 
 contains
-  !> @brief Returns a pointer to the quadrature. If a quadrature had not
-  !! yet been created, it creates one before returning the pointer to it.
-  !> @param[in] quadrature Integer, quadrature rule
-  !> @param[in] nqp_h Integer, number of quadrature points in the horizontal
-  !> @param[in] nqp_v Integer, number of quadrature points in the vertical
-  procedure, nopass :: get_instance
-
   !final     :: final_gauss
   !> @brief Writes out an answer for a test
   !> @param self The calling gaussian quadrature
@@ -67,12 +58,6 @@ contains
   !> @return xqp_v The array to copy the quadrature points into
   procedure :: get_xqp_v
 
-  !> @brief Returns the enumerated integer for the gaussian_quadrature
-  !! which is this gaussian_quadrature
-  !> @param[in] self The calling quadrature rule
-  !> @return qr The quadrature rule
-  procedure :: which
-
   !> @brief Returns the 1-d array of horizontal quadrature weights
   !> @param[in] self The calling quadrature rule
   !> @return wqp_h The pointer to the horizontal quadrature weights
@@ -92,93 +77,66 @@ contains
   !> @param[in] self The calling quadrature rule
   !> @return nqp_h Number of quadrature points in the horizontal
   procedure :: get_nqp_h
-
+  !> @brief Routine to destroy quadrature
+  final     :: quadrature_destructor
 end type
 
 !-------------------------------------------------------------------------------
 ! Module parameters
 !-------------------------------------------------------------------------------
-!> Integer that defines the type of Gaussian quadrature required
-integer, public, parameter      :: QR3 = 1001, QRnewton = 1002
+!> Integer that defines the type of quadrature rule required
+integer, public, parameter      :: GAUSSIAN = 1001, &
+                                   NEWTON   = 1002
 
-!> All fields are integrated onto a fixed Guassian quadrature.
-!> This is a static copy of that Gaussian quadrature object 
-type(quadrature_type), target, allocatable, save :: qr_3, qr_newton
-
+interface quadrature_type
+module procedure init_quadrature
+end interface
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 contains
 
 !-------------------------------------------------------------------------------
-! Returns a pointer to the quadrature
-!-------------------------------------------------------------------------------
-function get_instance(quadrature,nqp_h,nqp_v) result(instance)
-
-  use log_mod, only : log_event, LOG_LEVEL_ERROR
-
-  implicit none
-
-  integer :: quadrature
-  type(quadrature_type), pointer :: instance
-  integer, intent(in) :: nqp_h, nqp_v
-
-  select case (quadrature)
-  case (QR3)
-    if(.not.allocated(qr_3)) then
-      allocate(qr_3)
-      call init_quadrature(qr_3, QR3, nqp_h, nqp_v)
-      call create_gaussian_quadrature(qr_3)
-    end if
-    instance => qr_3
-  case (QRnewton)
-    if(.not.allocated(qr_newton)) then
-      allocate(qr_newton)
-      call init_quadrature(qr_newton, QRnewton, nqp_h, nqp_v)
-      call create_newton_cotes_quadrature(qr_newton)
-    end if
-    instance => qr_newton
-  case default
-    instance => null() ! To keep GCC's uninitialised use checker happy.
-    ! Not a recognised  quadrature. Logging an event with severity:
-    ! LOG_LEVEL_ERROR will cause execution to abort
-    call log_event( 'Quadrature type not recognised in '// &
-                    'quadrature%get_instance', LOG_LEVEL_ERROR )
-  end select
-
-  return
-end function get_instance
-
-!-------------------------------------------------------------------------------
 ! Initialises the quadrature rule
 !-------------------------------------------------------------------------------
 !> @brief Initialises the quadrature rule 
-!> @param[in] nqp_h Integer, number of quadrature points in the horizontal
-!> @param[in] nqp_v Integer, number of quadrature points in the vertical
-!> @param[in] qr Integer, quadrature rule
+!> @param[in] order Integer, The order of integration, i.e. number of points per
+!!            dimension
+!> @param[in] rule Integer, quadrature rule
 !-------------------------------------------------------------------------------
-subroutine init_quadrature(self, qr, nqp_h, nqp_v)
+function init_quadrature(order, rule) result (self)
 
   implicit none
 
-  class(quadrature_type) :: self
-  integer,intent(in)  :: nqp_h,nqp_v
-  integer, intent(in) :: qr
+  type(quadrature_type) :: self
+  integer, intent(in) :: order
+  integer, intent(in) :: rule
 
-  self%nqp_h = nqp_h
-  self%nqp_v = nqp_v
+    self%nqp_h = order**2
+    self%nqp_v = order
 
-  allocate( self%xqp(nqp_v) )
-  allocate( self%wqp(nqp_v) ) 
-  allocate( self%xqp_h(nqp_h,2) ) 
-  allocate( self%wqp_h(nqp_h) )
+    allocate( self%xqp(self%nqp_v) )
+    allocate( self%wqp(self%nqp_v) ) 
+    allocate( self%xqp_h(self%nqp_h,2) ) 
+    allocate( self%wqp_h(self%nqp_h) )
 
-  self%xqp(:) = 0.0_r_def
-  self%wqp(:) = 0.0_r_def
-  self%xqp_h(:,:) = 0.0_r_def
-  self%wqp_h(:) = 0.0_r_def
-  self%qr = qr
-end subroutine init_quadrature 
+    self%xqp(:) = 0.0_r_def
+    self%wqp(:) = 0.0_r_def
+    self%xqp_h(:,:) = 0.0_r_def
+    self%wqp_h(:) = 0.0_r_def
+
+    select case (rule)
+      case (GAUSSIAN)
+        call create_gaussian_quadrature(self)
+      case (NEWTON)
+        call create_newton_cotes_quadrature(self)
+      case default
+         write(log_scratch_space,'(A,I5)') "quadrature_type:Invalid Quadrature Rule: ",rule
+        call log_event(log_scratch_space,LOG_LEVEL_ERROR)
+    end select
+
+
+end function init_quadrature 
 
 !-----------------------------------------------------------------------------
 ! Computes Gaussian quadrature points and weights 
@@ -390,18 +348,6 @@ function get_xqp_v(self) result(xqp_v)
 end function get_xqp_v
 
 !-----------------------------------------------------------------------------
-! Returns the enumerated integer for quadrature rule
-!-----------------------------------------------------------------------------
-function which(self) result(qr)
-  implicit none
-  class(quadrature_type),  intent(in) :: self
-  integer :: qr
-
-  qr = self%qr
-  return
-end function which
-
-!-----------------------------------------------------------------------------
 ! Returns the number of quadrature points in the vertical
 !-----------------------------------------------------------------------------
 function get_nqp_v(self) result(nqp_v)
@@ -449,5 +395,24 @@ function get_wqp_v(self) result(wqp_v)
   return
 end function get_wqp_v 
 
+subroutine quadrature_destructor(self)
+  implicit none
+  type(quadrature_type) :: self
+
+  if(allocated(self%xqp)) then
+     deallocate(self%xqp)
+  end if
+  if(allocated(self%xqp_h)) then
+     deallocate(self%xqp_h)
+  end if
+  if(allocated(self%wqp)) then
+     deallocate(self%wqp)
+  end if
+  if(allocated(self%wqp_h)) then
+     deallocate(self%wqp_h)
+  end if
+  
+  
+end subroutine quadrature_destructor
 
 end module quadrature_mod

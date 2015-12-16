@@ -16,7 +16,7 @@ contains
     use pFUnit_Mod
     use function_space_mod, only : function_space_type, W0, W1, W2, W3, Wtheta, W2V, W2H
     use constants_mod, only : r_def, i_def
-    use quadrature_mod, only : quadrature_type, QR3 
+    use quadrature_mod, only : quadrature_type, GAUSSIAN
     use function_space_build_mod, only : & 
                                   w0_func_space, w1_func_space,              &
                                   w2_func_space, w3_func_space,              &
@@ -38,7 +38,7 @@ contains
 
     implicit none
 
-    type(quadrature_type), pointer :: qr => null()
+    type(quadrature_type) :: qr
     type(mesh_type)  :: mesh
     type(mesh_type)  :: mesh_out
     integer          :: test_fs
@@ -78,7 +78,7 @@ contains
 
     nqp_h = 9
     nqp_v = 3
-    qr => qr%get_instance(QR3,nqp_h,nqp_v)
+    qr = quadrature_type(3, GAUSSIAN)
     xp => qr%get_xqp_h()
     zp => qr%get_xqp_v()
 

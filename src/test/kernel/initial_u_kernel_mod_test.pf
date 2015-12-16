@@ -23,7 +23,7 @@ contains
     use initial_u_kernel_mod,  &
                                     only : initial_u_code
     use constants_mod,              only : r_def
-    use quadrature_mod,             only : quadrature_type, QR3
+    use quadrature_mod,             only : quadrature_type, GAUSSIAN
     use configuration_mod,          only : l_spherical
     use mesh_mod,                   only : mesh_type, PLANE_BI_PERIODIC
 
@@ -31,7 +31,7 @@ contains
     type(field_type) :: chi(3)
     type(field_proxy_type )   :: chi_p(3) 
     type(function_space_type) :: fs
-    type( quadrature_type), pointer :: qr => null()
+    type( quadrature_type) :: qr
     type(mesh_type)  :: mesh
     real(kind=r_def) :: tol
     real(kind=r_def) :: answer
@@ -59,8 +59,8 @@ contains
     real(kind=r_def), pointer :: zp(:) => null()
     real(kind=r_def), pointer :: wh(:), wv(:) => null()
    
-    tol = 1.0e-12_r_def  
-    qr => qr%get_instance(QR3,9,3)
+    tol = 1.0e-12_r_def
+    qr = quadrature_type(3, GAUSSIAN)
     l_spherical = .false.
     ! Dummy mesh mod has 9 cells, 3 layers
     mesh = mesh_type(PLANE_BI_PERIODIC)

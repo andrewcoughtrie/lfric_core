@@ -14,7 +14,7 @@ contains
   @test
   subroutine test_quadrature()
     use pFUnit_Mod
-    use quadrature_mod, only : quadrature_type, QR3
+    use quadrature_mod, only : quadrature_type, GAUSSIAN
     use constants_mod, only : r_def
     implicit none
 
@@ -22,16 +22,9 @@ contains
     real(kind=r_def) :: result, answer, epsilon
     integer          :: test_qr
     
-    integer :: nqp_h, nqp_v
-    type(quadrature_type), pointer :: qr => null()
+    type(quadrature_type)  :: qr 
 
-    nqp_h=9
-    nqp_v=3
-
-    qr => qr%get_instance(QR3, nqp_h, nqp_v)
-
-    test_qr = qr%which()
-    @assertEqual(test_qr,QR3)
+    qr = quadrature_type(3, GAUSSIAN)
 
     polynomial = 0.33333333333333333333333_r_def
 

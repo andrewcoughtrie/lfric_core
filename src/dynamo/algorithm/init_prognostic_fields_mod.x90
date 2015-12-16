@@ -15,7 +15,7 @@ module init_prognostic_fields_alg_mod
   use constants_mod,                   only: r_def 
 
   ! Configuration and restart/checkpoint options  
-  use configuration_mod,               only: l_nonlinear  
+  use configuration_mod,               only: l_nonlinear, element_order  
   use restart_control_mod,             only: restart_type    
   ! I/O tools
   use field_io_mod,                    only: read_state_netcdf                                                 
@@ -32,7 +32,7 @@ module init_prognostic_fields_alg_mod
   use mesh_mod,                        only: mesh_type
   use field_mod,                       only: field_type
   use function_space_mod,              only: function_space_type, W0, W1, W2, W3
-  use quadrature_mod,                  only: quadrature_type, QR3
+  use quadrature_mod,                  only: quadrature_type, GAUSSIAN
 
   ! Initialisation tools
   use initialisation_mod,              only : read_initialisation_namelist
@@ -66,12 +66,12 @@ contains
     type( restart_type ), intent(in)    :: restart
 
     type( function_space_type )      :: function_space
-    type( quadrature_type ), pointer :: qr => null()
+    type( quadrature_type )          :: qr
     type( field_type ), allocatable  :: state(:)
 
     integer                          :: n_fields
 
-    qr => qr%get_instance(QR3,9,3)
+    qr = quadrature_type(element_order+3, GAUSSIAN)
 
     ! Read intialisation namelist in Dynamo
     call read_initialisation_namelist()

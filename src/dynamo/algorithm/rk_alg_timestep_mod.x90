@@ -19,7 +19,7 @@ module rk_alg_timestep_mod
 
   ! Configuration and restart/checkpoint options 
   use configuration_mod,   only: solver_option, dt, &
-                                 l_rotating
+                                 l_rotating, element_order
   use restart_control_mod, only: restart_type
 
   ! PsyKAl-lite kernels
@@ -48,11 +48,11 @@ module rk_alg_timestep_mod
   use mesh_mod,            only: mesh_type
   use field_mod,           only: field_type
   use function_space_mod,  only: function_space_type, W0, W1, W2, W3
-  use quadrature_mod,      only: quadrature_type, QR3
   use operator_mod,        only: operator_type
 
   ! Algorithms
   use solver_mod,          only: solver_algorithm
+  use quadrature_mod, only: quadrature_type, GAUSSIAN
   use conservation_algorithm_mod, &
                            only: conservation_algorithm
   use output_alg_mod,      only: output_alg
@@ -108,14 +108,15 @@ contains
 
     integer :: theta_fs, u_fs, rho_fs, xi_fs
     real(kind=r_def), allocatable :: ak(:,:)
-
     type(function_space_type) :: fs
-    type(quadrature_type), pointer :: qr => null()
-    type(operator_type) :: mm_w2, mm_w1, mm_w0
+    type( quadrature_type) :: qr 
+    integer, parameter :: VECTOR_FIELD = 3, &
+                          SCALAR_FIELD = 1
 
     ! Timestepping variables
     integer :: timestep, ts_init
     integer :: stage, num_rk_stage, st
+    type(operator_type) :: mm_w2, mm_w1, mm_w0
 
     !=== Section 0: Create RK weights and objects =============================!
     ! SSP3 weights
@@ -136,7 +137,7 @@ contains
     rho_fs    = rho%which_function_space()
     xi_fs     = xi%which_function_space()
 
-    qr => qr%get_instance(QR3,9,3)
+    qr = quadrature_type(element_order+3, GAUSSIAN)
 
     theta_n      = field_type( vector_space = fs%get_instance(mesh, theta_fs) )
     u_n          = field_type( vector_space = fs%get_instance(mesh, u_fs) )

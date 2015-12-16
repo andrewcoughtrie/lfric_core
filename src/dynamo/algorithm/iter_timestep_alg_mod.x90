@@ -19,7 +19,8 @@ module iter_timestep_alg_mod
   use configuration_mod,                 only: solver_option, dt, &
                                                l_newton_krylov,   &
                                                ALPHA, BETA,       &
-                                               N_OUTER_ITER, N_INNER_ITER 
+                                               N_OUTER_ITER, N_INNER_ITER, &
+                                               element_order
   use restart_control_mod,               only: restart_type
 
   ! PsyKAl-lite kernels
@@ -46,7 +47,7 @@ module iter_timestep_alg_mod
   use mesh_mod,                          only: mesh_type
   use field_mod,                         only: field_type
   use function_space_mod,                only: function_space_type, W0, W1, W2, W3
-  use quadrature_mod,                    only: quadrature_type, QR3
+  use quadrature_mod,                    only: quadrature_type, GAUSSIAN
   use operator_mod,                      only: operator_type
   use runtime_constants_mod,             only: runtime_constants_type
 
@@ -112,7 +113,7 @@ contains
     integer :: theta_fs, u_fs, rho_fs, xi_fs
 
     type( function_space_type )      :: fs
-    type( quadrature_type ), pointer :: qr => null()
+    type( quadrature_type )          :: qr
     type( operator_type )            :: mm_w2, mm_w1, mm_w0
 
     ! Iterative timestepping variables
@@ -126,7 +127,7 @@ contains
     rho_fs    = rho%which_function_space()
     xi_fs     = xi%which_function_space()
 
-    qr => qr%get_instance(QR3,9,3)
+    qr = quadrature_type(element_order+3, GAUSSIAN)
 
     ! Create field bundles
     state_np1(1) = field_type( vector_space = fs%get_instance(mesh, u_fs) )

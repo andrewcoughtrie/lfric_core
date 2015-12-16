@@ -23,9 +23,9 @@ contains
     use pert_pressure_gradient_kernel_mod, &
                                     only : pert_pressure_gradient_code
     use constants_mod,              only : r_def, GRAVITY
-    use quadrature_mod,             only : quadrature_type, QR3
     use configuration_mod,          only : l_spherical
     use initialisation_mod,         only : n_sq
+    use quadrature_mod,             only : quadrature_type, GAUSSIAN
     use reference_profile_mod,      only : reference_profile
     use mesh_mod,                   only : mesh_type, PLANE_BI_PERIODIC
 
@@ -34,7 +34,7 @@ contains
     type(field_type) :: chi(3)
     type(field_proxy_type )   :: chi_p(3) 
     type(function_space_type) :: fs
-    type( quadrature_type), pointer :: qr => null()
+    type( quadrature_type) :: qr
     type(mesh_type)  :: mesh
 
     real(kind=r_def) :: tol
@@ -70,7 +70,7 @@ contains
     tol = 1.0e-3_r_def  
     l_spherical = .false. 
     n_sq        = 0.0001_r_def 
-    qr => qr%get_instance(QR3,9,3)
+    qr = quadrature_type(3, GAUSSIAN)
 
     ! Dummy mesh mod has 9 cells, 3 layers and is uniform in vertical
     mesh = mesh_type(PLANE_BI_PERIODIC)

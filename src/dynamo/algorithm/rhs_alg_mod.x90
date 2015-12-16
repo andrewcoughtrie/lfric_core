@@ -25,8 +25,9 @@ module rhs_alg_mod
   use field_mod,                         only: field_type
   use solver_mod,                        only: solver_algorithm
   use constants_mod,                     only: r_def
-  use configuration_mod,                 only: solver_option, l_rotating
-  use quadrature_mod,                    only: quadrature_type, QR3
+  use configuration_mod,                 only: solver_option, l_rotating, &
+                                               element_order
+  use quadrature_mod,                    only: quadrature_type, GAUSSIAN
   use operator_mod,                      only: operator_type
   use function_space_mod,                only: function_space_type
   use runtime_constants_mod,             only: runtime_constants_type
@@ -72,7 +73,7 @@ contains
   type(operator_type), pointer :: mm_w2, mm_w0 => null()
   type(mesh_type), pointer    :: mesh => null()
 
-  type( quadrature_type ), pointer :: qr => null()
+  type( quadrature_type )   :: qr 
   type(field_type), pointer :: u ,theta, rho
   type(field_type)          :: rhs_tmp(3)
   type(field_type)          :: f_star, ones, w2_multiplicity
@@ -91,7 +92,11 @@ contains
  
   call clone_bundle(rhs, rhs_tmp, mesh, 3)
 
-  qr => qr%get_instance(QR3,9,3)
+  if ( l_from_solver ) then
+    qr = quadrature_type(element_order+3, GAUSSIAN)
+  else
+    qr = quadrature_type(element_order+2, GAUSSIAN)
+  end if
 
   if ( l_from_solver ) then    
     ! Need to create u*rho^ref \in W2 for rhs_tmp(3) kernel -> sampled mass flux
@@ -119,6 +124,7 @@ contains
   ! Compute rhs_theta
   call invoke_set_field_scalar( 0.0_r_def, rhs_tmp(2) )
   if ( l_from_solver ) then
+    qr = quadrature_type(element_order+1, GAUSSIAN)
     rho_fs = rho%which_function_space() 
     ones = field_type( vector_space = fs%get_instance(mesh, rho_fs) )
     call invoke_set_field_scalar( 1.0_r_def, ones )

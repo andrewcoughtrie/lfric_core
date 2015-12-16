@@ -14,13 +14,13 @@ contains
   @test
   subroutine gp_rhs_kernel_test()
     use pFUnit_Mod
-    use gp_rhs_kernel_mod,        only : gp_rhs_code
-    use quadrature_mod,  only : quadrature_type, QR3
-    use constants_mod,            only : r_def
+    use gp_rhs_kernel_mod, only : gp_rhs_code
+    use quadrature_mod,    only : quadrature_type, GAUSSIAN
+    use constants_mod,     only : r_def
     implicit none
 
     integer :: num_layers, undf
-    type(quadrature_type), pointer  :: qr => null()
+    type(quadrature_type) :: qr
     real(kind=r_def) :: f_data(1), rhs(8)
     real(kind=r_def) :: answer, tol
     real(kind=r_def), allocatable :: basis(:,:,:,:), &
@@ -35,7 +35,7 @@ contains
     real(kind=r_def) :: fx, fy, fz
     integer :: df, dim, qp1, qp2
 
-    qr => qr%get_instance(QR3,9,3)
+    qr = quadrature_type(3, GAUSSIAN)
 
     xqp_h => qr%get_xqp_h()
     xqp_v => qr%get_xqp_v()

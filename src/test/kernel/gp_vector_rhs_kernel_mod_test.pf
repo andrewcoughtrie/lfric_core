@@ -15,14 +15,13 @@ contains
   subroutine gp_vector_rhs_kernel_test()
     use pFUnit_Mod
     use gp_vector_rhs_kernel_mod, only : gp_vector_rhs_code
-    use quadrature_mod,    only : quadrature_type, QR3
-    use constants_mod,     only : r_def
     use configuration_mod, only : l_spherical
-
+    use quadrature_mod,           only : quadrature_type, GAUSSIAN
+    use constants_mod,            only : r_def
     implicit none
 
     integer :: num_layers,  undf, undf_f
-    type(quadrature_type), pointer :: qr => null()
+    type(quadrature_type) :: qr
     real(kind=r_def) :: f_data(1), rhs1(8), rhs2(8), rhs3(8)
     real(kind=r_def) :: answer, tol
     real(kind=r_def), allocatable :: basis(:,:,:,:), &
@@ -35,9 +34,9 @@ contains
     integer :: nqp_h, nqp_v
     real(kind=r_def) :: fx, fy, fz, dx, dy, dz, t_vec(3)
     integer :: df, dim, qp1, qp2
-
+    
     l_spherical = .false.
-    qr => qr%get_instance(QR3, 9, 3)
+    qr = quadrature_type(3, GAUSSIAN)
 
     xqp_h => qr%get_xqp_h()
     xqp_v => qr%get_xqp_v()

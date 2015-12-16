@@ -25,15 +25,15 @@ contains
     use rotation_kernel_mod,        only : rotation_code
     use constants_mod,              only : r_def, PI
     use configuration_mod,          only : omega, l_spherical, f_lat
-    use quadrature_mod,             only : quadrature_type, QR3
+    use quadrature_mod,             only : quadrature_type, GAUSSIAN
     use mesh_mod,                   only : mesh_type, PLANE_BI_PERIODIC
 
     implicit none
 
-    type(field_type)                :: chi(3)
-    type(field_proxy_type )         :: chi_p(3)
-    type(function_space_type)       :: fs
-    type( quadrature_type), pointer :: qr => null()
+    type(field_type)          :: chi(3)
+    type(field_proxy_type )   :: chi_p(3)
+    type(function_space_type) :: fs
+    type( quadrature_type)    :: qr 
     type(mesh_type)  :: mesh
 
     real(kind=r_def) :: tol
@@ -69,7 +69,7 @@ contains
     tol = 1.0e-3_r_def  
     l_spherical = .false.
     f_lat = PI/4.0_r_def 
-    qr => qr%get_instance(QR3,9,3)
+    qr = quadrature_type(3, GAUSSIAN)
 
     ! Dummy mesh mod has 9 cells, 3 layers and is uniform in vertical
     mesh = mesh_type(PLANE_BI_PERIODIC)

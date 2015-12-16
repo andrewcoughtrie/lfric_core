@@ -11,15 +11,14 @@ module output_alg_mod
   use mesh_mod,                          only: mesh_type
   use field_mod,                         only: field_type
   use function_space_mod,                only: function_space_type, W0, W3
-  use quadrature_mod,                    only: quadrature_type, QR3
-  use operator_mod,                      only: operator_type
-  use restart_control_mod,               only: restart_type
-
   use galerkin_projection_algorithm_mod, only: galerkin_projection_algorithm
   use driver_layer,                      only: interpolated_output
+  use quadrature_mod,                    only: quadrature_type, GAUSSIAN
+  use operator_mod,                      only: operator_type
+  use restart_control_mod,               only: restart_type
+  use configuration_mod,                 only: element_order
  
   use psy,                               only: invoke_set_field_scalar
-
   implicit none
 
   private
@@ -56,11 +55,11 @@ contains
                           SCALAR_FIELD = 1
     type( field_type ) :: W0_projected_field(3)
     type( field_type ) :: W3_projected_field(1)
-    type( quadrature_type ), pointer :: qr => null()
+    type( quadrature_type )          :: qr
     type( function_space_type )      :: fs
     character(len=str_max_filename)  :: fname
 
-    qr => qr%get_instance(QR3,9,3)
+    qr = quadrature_type(element_order+3, GAUSSIAN)
 
     ! Create fields needed for output (these can be in CG or DG space)
     do dir = 1,3

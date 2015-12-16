@@ -16,11 +16,11 @@ contains
     use pFUnit_Mod
     use w3_solver_kernel_mod,    only : solver_w3_code
     use constants_mod,           only : r_def
-    use quadrature_mod,  only : quadrature_type, QR3
+    use quadrature_mod,  only : quadrature_type, GAUSSIAN
     implicit none
 
     integer :: num_layers, ndf, map(1),undf
-    type(quadrature_type), pointer  :: qr => null()
+    type(quadrature_type) :: qr
     real(kind=r_def) :: xdata(1)
     real(kind=r_def) :: rhsdata(1)
     real(kind=r_def) :: answer, tol
@@ -36,7 +36,7 @@ contains
     real(kind=r_def) :: fx, fy, fz
     integer :: df, dim, qp1, qp2
 
-    qr => qr%get_instance(QR3, 9, 3)
+    qr = quadrature_type(3, GAUSSIAN)
 
     xqp_h => qr%get_xqp_h()
     xqp_v => qr%get_xqp_v()

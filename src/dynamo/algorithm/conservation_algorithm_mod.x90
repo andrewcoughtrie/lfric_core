@@ -19,11 +19,12 @@ module conservation_algorithm_mod
   use compute_total_energy_kernel_mod, only: compute_total_energy_kernel_type
   use compute_total_pv_kernel_mod,     only: compute_total_pv_kernel_type
   use compute_total_aam_kernel_mod,    only: compute_total_aam_kernel_type
-  use quadrature_mod,  only: quadrature_type, QR3
+  use quadrature_mod,  only: quadrature_type, GAUSSIAN
   use function_space_mod, &
-                       only: function_space_type, W3
-  use psy,             only: invoke_sum_field
-  use mesh_mod,        only: mesh_type
+                         only: function_space_type, W3
+  use psy,               only: invoke_sum_field
+  use mesh_mod,          only: mesh_type
+  use configuration_mod, only: element_order
 
 implicit none
 
@@ -55,11 +56,11 @@ contains
 
     ! local variables
     type(function_space_type) :: fs
-    type( quadrature_type), pointer :: qr => null()
+    type( quadrature_type):: qr 
     type( field_type ) :: mass, pv, aam, energy
     real(kind=r_def) :: total_mass, total_pv, total_aam, total_energy 
     ! Get a quadrature rule
-    qr => qr%get_instance(QR3,9,3)
+    qr = quadrature_type(element_order+3, GAUSSIAN)
 
     ! Compute Mass
     mass = field_type( vector_space = fs%get_instance( mesh, W3) )

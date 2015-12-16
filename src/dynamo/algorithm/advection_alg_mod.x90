@@ -24,8 +24,8 @@ module advection_alg_mod
   use solver_mod,                        only: solver_algorithm
   use constants_mod,                     only: r_def
   use configuration_mod,                 only: solver_option, dt, l_supg, &
-	                                       DIAGONAL_PRE_COND
-  use quadrature_mod,                    only: quadrature_type, QR3
+	                                       DIAGONAL_PRE_COND, element_order
+  use quadrature_mod,                    only: quadrature_type, GAUSSIAN
   use operator_mod,                      only: operator_type
   use function_space_mod,                only: function_space_type
   use runtime_constants_mod,             only: runtime_constants_type
@@ -73,7 +73,7 @@ contains
   type(mesh_type),     pointer :: mesh => null()
 
   type(function_space_type) :: fs
-  type( quadrature_type ), pointer :: qr => null()
+  type( quadrature_type )   :: qr
   type(field_type), pointer :: u ,theta, rho, theta_np1, theta_n => null()
   type(field_type)          :: r_xi, mass_flux, r_rho 
   integer                   :: xi_fs, u_fs, rho_fs, theta_fs
@@ -102,7 +102,7 @@ contains
   r_xi      = field_type( vector_space = fs%get_instance(mesh, xi_fs) )
   r_rho     = field_type( vector_space = fs%get_instance(mesh, rho_fs) )
 
-  qr => qr%get_instance(QR3,9,3)
+  qr = quadrature_type(element_order+3, GAUSSIAN)
 
   ! Compute advection terms
   ! 1) mass flux ( F = rho * u )

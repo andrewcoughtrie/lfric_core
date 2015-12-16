@@ -25,13 +25,13 @@ contains
     use rrho_kernel_mod, &
                                     only : rrho_code
     use constants_mod,              only : r_def
-    use quadrature_mod,             only : quadrature_type, QR3
+    use quadrature_mod,             only : quadrature_type, GAUSSIAN
     use mesh_mod,                   only : mesh_type, PLANE_BI_PERIODIC
 
     implicit none
 
     type(function_space_type) :: fs
-    type( quadrature_type), pointer :: qr => null()
+    type( quadrature_type) :: qr
     type(mesh_type)  :: mesh
 
     real(kind=r_def) :: tol
@@ -58,7 +58,7 @@ contains
     real(kind=r_def), pointer :: wh(:), wv(:) => null()
    
     tol = 1.0e-6_r_def 
-    qr => qr%get_instance(QR3,9,3)
+    qr = quadrature_type(3, GAUSSIAN)
 
     ! Dummy mesh mod has 9 cells, 3 layers and is uniform in vertical
     mesh = mesh_type(PLANE_BI_PERIODIC)
