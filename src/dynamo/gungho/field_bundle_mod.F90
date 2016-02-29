@@ -24,6 +24,7 @@ contains
 
     use function_space_mod, only: function_space_type
     use mesh_mod,           only: mesh_type
+    use configuration_mod,  only: element_order
 
     implicit none
     integer,          intent(in)    :: bundle_size
@@ -38,7 +39,7 @@ contains
     do i = 1,bundle_size   
       mesh => x(i)%get_mesh()
       fs_handle = x(i)%which_function_space()
-      y(i) = field_type( vector_space = fs%get_instance(mesh,0,fs_handle) )
+      y(i) = field_type( vector_space = fs%get_instance(mesh,element_order,fs_handle) )
     end do
   end subroutine clone_bundle
 !=============================================================================!
@@ -181,8 +182,9 @@ contains
 
     use function_space_mod, only: function_space_type
     use mesh_mod,           only: mesh_type
-    use psykal_lite_mod,                only: invoke_copy_field_data
+    use psykal_lite_mod,    only: invoke_copy_field_data
     use log_mod,            only: lOG_LEVEL_INFO   
+    use configuration_mod,  only: element_order
 
     implicit none
     integer,          intent(in) :: bundle_size
@@ -199,7 +201,7 @@ contains
       mesh => x(i)%get_mesh()
       fs_handle = x(1)%which_function_space()
 
-      y = field_type( vector_space = fs%get_instance(mesh,0,fs_handle) )
+      y = field_type( vector_space = fs%get_instance(mesh,element_order,fs_handle) )
       call invoke_copy_field_data( x(1), y ) 
       call y%log_minmax(LOG_LEVEL_INFO, 'field')
     end do
