@@ -1189,5 +1189,62 @@ subroutine invoke_conservative_fluxes(    rho,          &
 
 end subroutine invoke_conservative_fluxes
 
+!-------------------------------------------------------------------------------
+subroutine invoke_calc_departure_wind(u_departure_wind, u_piola, chi)
+  use calc_departure_wind_kernel_mod, only: calc_departure_wind_code
+  implicit none
+
+  type(field_type), intent(inout) :: u_departure_wind
+  type(field_type), intent(in)    :: chi(3), u_piola
+
+  type(field_proxy_type) :: u_departure_wind_p, chi_p(3), u_piola_p
+
+  integer                 :: cell, nlayers
+  integer                 :: ndf_chi, ndf
+  integer                 :: undf_chi, undf
+  integer                 :: diff_dim_chi
+  integer, pointer        :: map_chi(:), map(:) => null()
+
+  real(kind=r_def), allocatable  :: diff_basis_chi(:,:,:)
+  real(kind=r_def), pointer :: nodes(:,:) => null()
+  integer :: ii
+
+  do ii = 1,3
+    chi_p(ii)  = chi(ii)%get_proxy()
+  end do
+  u_piola_p = u_piola%get_proxy()
+  u_departure_wind_p = u_departure_wind%get_proxy()
+
+  nlayers = u_piola_p%vspace%get_nlayers()
+
+  ndf  = u_piola_p%vspace%get_ndf( )
+  undf = u_piola_p%vspace%get_undf()
+
+  ndf_chi  = chi_p(1)%vspace%get_ndf( )
+  undf_chi = chi_p(1)%vspace%get_undf()
+  diff_dim_chi = chi_p(1)%vspace%get_dim_space_diff( )
+  allocate(diff_basis_chi(diff_dim_chi, ndf_chi, ndf))
+
+  nodes => u_piola_p%vspace%get_nodes( )
+  call chi_p(1)%vspace%compute_nodal_diff_basis_function(diff_basis_chi, ndf_chi, ndf, nodes)
+
+  do cell = 1, u_piola_p%vspace%get_ncell()
+     map     => u_piola_p%vspace%get_cell_dofmap( cell )
+     map_chi => chi_p(1)%vspace%get_cell_dofmap( cell )
+     call calc_departure_wind_code( nlayers,                    &
+                                    u_departure_wind_p%data,    &
+                                    u_piola_p%data,             &
+                                    chi_p(1)%data,              &
+                                    chi_p(2)%data,              &
+                                    chi_p(3)%data,              &
+                                    ndf, undf, map,             &
+                                    ndf_chi, undf_chi, map_chi, &
+                                    diff_basis_chi              &
+                                     )
+  end do
+  deallocate(diff_basis_chi)
+end subroutine invoke_calc_departure_wind
+!-------------------------------------------------------------------------------
+
 
 end module psykal_lite_mod
