@@ -25,7 +25,7 @@ module partition_mod
 use global_mesh_mod, only : global_mesh_type
 use log_mod,         only : log_event,         &
                             LOG_LEVEL_ERROR
-use constants_mod,   only: i_def, r_def
+use constants_mod,   only: i_def, r_def, l_def
 
 use ESMF
 
@@ -41,62 +41,106 @@ public :: partitioner_cubedsphere, &
 type, public :: partition_type
   private
 !> The number of the MPI rank
-  integer              :: local_rank
+  integer(i_def)              :: local_rank
 !> Total number of MPI ranks in this execution
-  integer              :: total_ranks
-!> A List of global cell ids known to this partition ordered with core cells
-!> first followed by the owned cells and finally the halo cells ordered by
+  integer(i_def)              :: total_ranks
+!> A List of global cell ids known to this partition ordered with inner cells
+!> first followed by the edge cells and finally the halo cells ordered by
 !> depth of halo
-  integer, allocatable :: global_cell_id( : )
+  integer(i_def), allocatable :: global_cell_id( : )
 !> A list of the ranks that own all the cells known to this partition
 !> held in the order of cells in the <code>global_cell_id</code> array
-  integer, pointer     :: cell_owner( : )
-!> The number of "core" cells in the <code>global_cell_id</code> list
-  integer              :: num_core
-!> The number of "owned" cells in the <code>global_cell_id</code> list
-  integer              :: num_owned
+  integer(i_def), allocatable :: cell_owner( : )
+!> The number of "inner" cells in the <code>global_cell_id</code> list -
+!> one entry for each depth of inner halo
+  integer(i_def), allocatable :: num_inner( : )
+!> The index of the last "inner" cell in the <code>global_cell_id</code> list -
+!> one entry for each depth of inner halo
+  integer(i_def), allocatable :: last_inner_cell( : )
+!> The depth to which inner halos are generated
+  integer(i_def)              :: inner_depth
+!> The number of "edge" cells in the <code>global_cell_id</code> list
+  integer(i_def)              :: num_edge
+!> The index of the last "edge" cell in the <code>global_cell_id</code> list
+  integer(i_def)              :: last_edge_cell
 !> The number of "halo" cells in the <code>global_cell_id</code> list -
 !> one entry for each depth of halo
-  integer, allocatable :: num_halo( : )
+  integer(i_def), allocatable :: num_halo( : )
+!> The index of the last "halo" cell in the <code>global_cell_id</code> list -
+!> one entry for each depth of halo
+  integer(i_def), allocatable :: last_halo_cell( : )
 !> The depth to which halos are generated
-  integer              :: halo_depth
+  integer(i_def)              :: halo_depth
 !> The number of "ghost" cells in the <code>global_cell_id</code> list
-  integer(i_def)       :: num_ghost
+  integer(i_def)              :: num_ghost
 !> The total number of cells in the global domain
-  integer              :: global_num_cells
+  integer(i_def)              :: global_num_cells
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 contains
-  !> @brief  Returns the total of core, owned and all halo cells in a 2d slice on
-  !> the local partition
-  !> @return num_cells The total number of the core, owned and all halo cells
-  !> on the local partition
+  !> @brief  Returns the total of all inner, edge and all halo cells in
+  !> a 2d slice on the local partition
+  !> @return num_cells The total number of the all inner, edge and
+  !>                   halo cells on the local partition
   procedure, public :: get_num_cells_in_layer
 
-  !> @brief  Returns the total number of core cells in a 2d slice on the local partition
-  !> @return core_cells The total number of core cells on the local partition
-  procedure, public :: get_num_cells_core
+  !> @brief Returns the maximum depth of the inner halos
+  !> @return inner_depth The maximum depth of the inner halos
+  procedure, public :: get_inner_depth
 
-  !> @brief  Returns the total number of owned cells in a 2d slice on the local partition
-  !> @return core_cells The total number of owned cells on the local partition
-  procedure, public :: get_num_cells_owned
+  !> @brief  Gets number of cells in an inner halo 
+  !> @details Returns the total number of inner halo cells in a particular
+  !>          depth of inner halo in a 2d slice on the local partition
+  !> @param[in] depth The depth of the inner halo being queried
+  !> @return inner_cells The total number of inner halo cells in the
+  !> particular depth on the local partition
+  procedure, public :: get_num_cells_inner
+
+  !> @brief  Gets the index of the last cell in an inner halo
+  !> @details Returns the index of the last cell in a particular depth
+  !>          of inner halo in a 2d slice on the local partition
+  !> @param[in] depth The depth of the inner halo being queried
+  !> @return last_inner_cell The index of the last cell in the particular depth
+  !>         of inner halo on the local partition
+  procedure, public :: get_last_inner_cell
+
+  !> @brief  Returns the total number of edge cells in a 2d slice on the local
+  !>         partition
+  !> @return edge_cells The total number of "edge" cells on the local partition
+  procedure, public :: get_num_cells_edge
+
+  !> @brief  Gets the index of the last edge cell in a 2d slice on the local
+  !>         partition
+  !> @return last_edge_cell The index of the last of "edge" cell on the local
+  !>         partition
+  procedure, public :: get_last_edge_cell
 
   !> @brief Returns the maximum depth of the halo
   !> @return halo_depth The maximum depth of halo cells
   procedure, public :: get_halo_depth
 
   !> @brief  Gets number of cells in a halo 
-  !> @details Returns the total number of halo cells in a particular depth of halo in a
-  !> 2d slice on the local partition
+  !> @details Returns the total number of halo cells in a particular depth
+  !>          of halo in a 2d slice on the local partition
   !> @param[in] depth The depth of the halo being queried
   !> @return halo_cells The total number of halo cells of the particular depth
   !> on the local partition
   procedure, public :: get_num_cells_halo
 
-  !> @brief Gets the total number of ghost cells in a slice around the local partition
-  !> @return ghost_cells The total number of ghost cells around the local partition
+  !> @brief  Gets the index of the last cell in a halo 
+  !> @details Returns the index of the last cell in a particular depth
+  !>          of halo in a 2d slice on the local partition
+  !> @param[in] depth The depth of the halo being queried
+  !> @return last_halo_cell The index of the last cell in the particular depth
+  !>         of halo on the local partition
+  procedure, public :: get_last_halo_cell
+
+  !> @brief Gets the total number of ghost cells in a slice around the local
+  !>        partition
+  !> @return ghost_cells The total number of ghost cells around the local
+  !>         partition
   procedure, public :: get_num_cells_ghost
 
   !> @brief Returns the local rank number
@@ -113,7 +157,7 @@ contains
   procedure, public :: get_cell_owner
 
   !> @brief  Returns the global index of the cell that corresponds to the given
-  !! local index on the local partition
+  !!         local index on the local partition
   !> @param[in] lid The id of a cell in local index space
   !> @return gid The id of a cell in global index space
   procedure, public :: get_gid_from_lid
@@ -122,8 +166,18 @@ contains
   !> partition that corresponds to the given global index.
   !> @param[in] gid The global index to search for on the local partition
   !> @return lid The local index that corresponds to the given global index
-  !> or -1 if the cell with the given global index is not present of the local partition
+  !>             or -1 if the cell with the given global index is not present
+  !>             of the local partition
   procedure, public :: get_lid_from_gid
+
+  !> Overloaded assigment operator
+  procedure, public :: partition_type_assign
+
+  !> Routine to destroy partition_type
+  final             :: partition_destructor 
+
+  !> Override default assignment for partition_type pairs.
+  generic :: assignment(=) => partition_type_assign
 
 end type partition_type
 
@@ -134,28 +188,31 @@ end interface
 
 interface
 !-------------------------------------------------------------------------------
-! Interface for the partitioner function pointer that is supplied to the constructor
+! Interface for partitioner function pointer to be supplied to the constructor
 !-------------------------------------------------------------------------------
   subroutine partitioner_interface( global_mesh, &
                                     xproc, &
                                     yproc, &
                                     local_rank, &
                                     total_ranks, &
-                                    halo_depth, &
+                                    max_stencil_depth, &
                                     global_cell_id, &
-                                    num_core, &
-                                    num_owned, &
+                                    num_inner, &
+                                    num_edge, &
                                     num_halo, &
                                     num_ghost )
     import :: global_mesh_type
     import :: i_def
 
-    type(global_mesh_type), intent(in) :: global_mesh
-    integer,                intent(in)    :: xproc, yproc, local_rank, total_ranks
-    integer, allocatable,   intent(inout) :: global_cell_id( : )
-    integer,                intent(in)    :: halo_depth
-    integer(i_def),         intent(out)   :: num_core, num_owned, &
-                                             num_halo( : ), num_ghost
+    type(global_mesh_type),     intent(in)    :: global_mesh
+    integer(i_def),             intent(in)    :: xproc, yproc, &
+                                                 local_rank, total_ranks
+    integer(i_def), allocatable,intent(inout) :: global_cell_id( : )
+    integer(i_def),             intent(in)    :: max_stencil_depth
+    integer(i_def),             intent(out)   :: num_inner( : ),&
+                                                 num_edge, &
+                                                 num_halo( : ), &
+                                                 num_ghost
   end subroutine partitioner_interface
 end interface
 
@@ -183,35 +240,41 @@ function partition_constructor( global_mesh, &
                                 partitioner, &
                                 xproc, &
                                 yproc, &
-                                halo_depth, &
+                                max_stencil_depth, &
                                 local_rank, &
                                 total_ranks) result(self)
 
 implicit none
 
-type(global_mesh_type), intent(in) :: global_mesh
+type(global_mesh_type),           intent(in) :: global_mesh
+procedure(partitioner_interface), pointer    :: partitioner
+integer(i_def),                   intent(in) :: xproc
+integer(i_def),                   intent(in) :: yproc
+integer(i_def),                   intent(in) :: max_stencil_depth
+integer(i_def),                   intent(in) :: local_rank
+integer(i_def),                   intent(in) :: total_ranks
 
-procedure(partitioner_interface) :: partitioner
-
-integer, intent(in) :: xproc
-integer, intent(in) :: yproc
-integer, intent(in) :: halo_depth
-integer, intent(in) :: local_rank
-integer, intent(in) :: total_ranks
-
-type(partition_type) :: self
+type(partition_type), target :: self
 
 type(ESMF_DistGrid) :: distgrid
-integer :: rc
-type(ESMF_Array) :: temporary_esmf_array
+integer(i_def) :: rc
+type(ESMF_Array) :: tmp_esmf_array
 type(ESMF_RouteHandle) :: haloHandle
-integer :: cell
+integer(i_def) :: cell
+integer(i_def) :: i
+integer(i_def) :: total_inners
+integer(i_def) :: last
+integer(i_def), pointer :: cell_owner_ptr( : )
 integer(i_def) :: halo_start, halo_finish
 
 self%local_rank = local_rank
 self%total_ranks = total_ranks
-self%halo_depth = halo_depth
-allocate( self%num_halo(halo_depth) )
+self%halo_depth = max_stencil_depth + 1
+allocate( self%num_halo(self%halo_depth) )
+allocate( self%last_halo_cell(self%halo_depth) )
+self%inner_depth = max_stencil_depth + 1
+allocate( self%num_inner(self%inner_depth) )
+allocate( self%last_inner_cell(self%inner_depth) )
 self%global_num_cells = global_mesh%get_ncells()
 
 ! Call the partitioner that has been passed into the routine
@@ -220,12 +283,25 @@ call partitioner( global_mesh, &
                   xproc, yproc, &
                   local_rank, &
                   total_ranks, &
-                  halo_depth, &
+                  max_stencil_depth, &
                   self%global_cell_id, &
-                  self%num_core, &
-                  self%num_owned, &
+                  self%num_inner, &
+                  self%num_edge, &
                   self%num_halo, &
                   self%num_ghost )
+
+! Derive the indices of the last cell in each category
+last=0
+do i=self%inner_depth, 1, -1
+  last = last + self%num_inner(i)
+  self%last_inner_cell(i)=last
+end do
+last = last + self%num_edge
+self%last_edge_cell=last
+do i=1,self%halo_depth
+  last = last + self%num_halo(i)
+  self%last_halo_cell(i)=last
+end do
 
 ! Calculate ownership of cells known to the local partition
 ! by filling the locally owned cells with the local rank and performing
@@ -234,53 +310,61 @@ call partitioner( global_mesh, &
 ! Set up the ESMF structures required to perform a halo swap
 !
 rc = ESMF_SUCCESS
+
+total_inners=0
+do i=1,self%inner_depth
+  total_inners=total_inners+self%num_inner(i)
+end do
+
+allocate(self%cell_owner(self%get_num_cells_in_layer()+ &
+                           self%get_num_cells_ghost()))
+cell_owner_ptr=>self%cell_owner
+
+
 ! Create an ESMF DistGrid, which describes which partition owns which cells
 distgrid = ESMF_DistGridCreate( arbSeqIndexList= &
-                          self%global_cell_id(1:self%num_core+self%num_owned), &
+                            self%global_cell_id(1:total_inners+self%num_edge), &
                                 rc=rc )
 
-halo_start  = self%num_core+self%num_owned+1
+! Can only halo-swap an ESMF array so set one up that's big enough to hold all
+! the owned cells and all the halos
+halo_start  = total_inners+self%num_edge+1
 halo_finish = self%get_num_cells_in_layer()+self%get_num_cells_ghost()
 !If this is a serial run (no halos), halo_start is out of bounds - so fix it
 if(halo_start > self%get_num_cells_in_layer())then
   halo_start  = self%get_num_cells_in_layer()
   halo_finish = self%get_num_cells_in_layer() - 1
 end if
-! Can only halo-swap an ESMF array so set one up that's big enough to hold all
-! the owned cells and all the halos
 if (rc == ESMF_SUCCESS) &
-  temporary_esmf_array = &
+  tmp_esmf_array = &
     ESMF_ArrayCreate( distgrid=distgrid, &
-                      typekind=ESMF_TYPEKIND_I4, &
+                      farrayPtr=cell_owner_ptr, &
                       haloSeqIndexList= &
-                                self%global_cell_id( halo_start:halo_finish ), &
-                      rc=rc )
-
-! Point our Fortran array at the space we've set up in the ESMF array
-if (rc == ESMF_SUCCESS) &
-  call ESMF_ArrayGet( array=temporary_esmf_array, &
-                      farrayPtr=self%cell_owner, &
+                      self%global_cell_id( halo_start:halo_finish ), &
                       rc=rc )
 
 ! Calculate the routing table required to perform the halo-swap, so the
 ! code knows where to find the values it needs to fill in the halos
 if (rc == ESMF_SUCCESS) then
-  call ESMF_ArrayHaloStore( array=temporary_esmf_array, &
+  call ESMF_ArrayHaloStore( array=tmp_esmf_array, &
                             routehandle=haloHandle, &
                             rc=rc )
 
-  ! Set ownership of all core + owned cells to the local rank id
+  ! Set ownership of all inner and edge cells to the local rank id
   ! - halo cells are unset
-  do cell = 1,self%num_core+self%num_owned
+  do cell = 1,total_inners+self%num_edge
     self%cell_owner(cell)=local_rank
   end do
 end if
 
 ! Do the halo swap to fill in the halo cell ownership
 if (rc == ESMF_SUCCESS) &
-  call ESMF_ArrayHalo( temporary_esmf_array, &
+  call ESMF_ArrayHalo( tmp_esmf_array, &
                        routehandle=haloHandle, &
                        rc=rc )
+
+if (rc == ESMF_SUCCESS) &
+  call ESMF_ArrayDestroy(tmp_esmf_array, rc=rc)
 
 ! Return code indicates something went wrong in the above, so log an error
 if (rc /= ESMF_SUCCESS) call log_event( &
@@ -288,6 +372,52 @@ if (rc /= ESMF_SUCCESS) call log_event( &
   LOG_LEVEL_ERROR )
 
 end function partition_constructor
+
+! Destroy a partition_type instance.
+subroutine partition_destructor(self)
+
+  implicit none
+  type(partition_type), intent(inout)    :: self
+
+  if ( allocated( self%cell_owner ) )      deallocate( self%cell_owner )
+  if ( allocated( self%global_cell_id ) )  deallocate( self%global_cell_id )
+  if ( allocated( self%num_halo ) )        deallocate( self%num_halo )
+  if ( allocated( self%last_halo_cell ) )  deallocate( self%last_halo_cell )
+  if ( allocated( self%num_inner ) )       deallocate( self%num_inner )
+  if ( allocated( self%last_inner_cell ) ) deallocate( self%last_inner_cell )
+
+end subroutine partition_destructor
+
+subroutine partition_type_assign(dest, source)
+  class(partition_type), intent(out)   :: dest
+  class(partition_type), intent(in)    :: source
+
+  dest%local_rank = source%local_rank
+  dest%total_ranks = source%total_ranks
+  dest%halo_depth = source%halo_depth
+
+  allocate( dest%num_halo(dest%halo_depth) )
+  allocate( dest%last_halo_cell(dest%halo_depth) )
+  dest%inner_depth = source%inner_depth
+  allocate( dest%num_inner(dest%inner_depth) )
+  allocate( dest%last_inner_cell(dest%inner_depth) )
+  dest%global_num_cells = source%global_num_cells
+
+  allocate( dest%global_cell_id( size(source%global_cell_id)) )
+  dest%global_cell_id=source%global_cell_id
+  dest%num_inner=source%num_inner
+  dest%num_edge=source%num_edge
+  dest%num_halo=source%num_halo
+  dest%num_ghost=source%num_ghost
+
+  dest%last_inner_cell=source%last_inner_cell
+  dest%last_edge_cell=source%last_edge_cell
+  dest%last_halo_cell=source%last_halo_cell
+
+  allocate( dest%cell_owner(size(source%cell_owner)) )
+  dest%cell_owner=source%cell_owner
+
+end subroutine partition_type_assign
 
 !-------------------------------------------------------------------------------
 ! Biperiodic partitioner
@@ -301,22 +431,16 @@ end function partition_constructor
 !> @param [in] yproc Number of processors along y-direction
 !> @param local_rank [in] Local MPI rank number
 !> @param total_ranks [in] Total number of MPI ranks
-!> @param [in] halo_depth The depth to which halos will be created
-!> @param partitioned_cells [out] Returned array that holds the global ids of all
-!>                          cells in local partition
-!> @param num_core [out] Number of cells that are wholly owned by the partition
-!>                 (i.e. all dofs in these cells are wholly owned by the
-!>                 partition). The cell ids of these cells appear first in the
-!>                 <code>partitioned_cells</code> array
-!> @param num_owned [out] Number of cells that are owned by the partition,
-!>                  but may have dofs that are also owned by halo cells. The
-!>                  cell ids of these cells follow the core cells in the
-!>                  <code>partitioned_cells</code> array
-!> @param num_halo [out] Number of cells that are halo cells. The cell ids
-!>                 of these cells follow the owned cells in the
-!>                 <code>partitioned_cells</code> array
+!> @param [in] max_stencil_depth The maximum depth of stencil that will be used
+!>                               with this partition
+!> @param partitioned_cells [out] Returned array that holds the global ids of
+!>                                all cells in local partition
+!> @param num_inner [out] Number of cells that are inner halo cells.
+!> @param num_edge [out] Number of cells that are owned by the partition,
+!>                 but may have dofs that are also owned by halo cells. 
+!> @param num_halo [out] Number of cells that are halo cells. 
 !> @param num_ghost [out] Number of "ghost" cells. These are cells in an extra
-!>                  halo around the outermost actaul halo and are not in the
+!>                  halo around the outermost actual halo and are not in the
 !>                  partitioned domain, but are required to fully describe the 
 !>                  cells in the partitioned domain
 !-------------------------------------------------------------------------------
@@ -325,26 +449,26 @@ end function partition_constructor
                                      yproc, &
                                      local_rank, &
                                      total_ranks, &
-                                     halo_depth, &
+                                     max_stencil_depth, &
                                      partitioned_cells, &
-                                     num_core, &
-                                     num_owned, &
+                                     num_inner, &
+                                     num_edge, &
                                      num_halo, &
                                      num_ghost )
   implicit none
 
   type(global_mesh_type), intent(in) :: global_mesh
 
-  integer,               intent(in)    :: xproc
-  integer,               intent(in)    :: yproc
-  integer,               intent(in)    :: local_rank
-  integer,               intent(in)    :: total_ranks
-  integer,               intent(in)    :: halo_depth
-  integer, allocatable,  intent(inout) :: partitioned_cells( : )
-  integer,               intent(out)   :: num_core
-  integer,               intent(out)   :: num_owned
-  integer,               intent(out)   :: num_halo( : )
-  integer(i_def),        intent(out)   :: num_ghost
+  integer(i_def),              intent(in)    :: xproc
+  integer(i_def),              intent(in)    :: yproc
+  integer(i_def),              intent(in)    :: local_rank
+  integer(i_def),              intent(in)    :: total_ranks
+  integer(i_def),              intent(in)    :: max_stencil_depth
+  integer(i_def), allocatable, intent(inout) :: partitioned_cells( : )
+  integer(i_def),              intent(out)   :: num_inner( : )
+  integer(i_def),              intent(out)   :: num_edge
+  integer(i_def),              intent(out)   :: num_halo( : )
+  integer(i_def),              intent(out)   :: num_ghost
 
   call partitioner_rectangular_panels( global_mesh, &
                                        1, &
@@ -352,10 +476,10 @@ end function partition_constructor
                                        yproc, &
                                        local_rank, &
                                        total_ranks, &
-                                       halo_depth, &
+                                       max_stencil_depth, &
                                        partitioned_cells, &
-                                       num_core, &
-                                       num_owned, &
+                                       num_inner, &
+                                       num_edge, &
                                        num_halo, &
                                        num_ghost )
 
@@ -373,20 +497,14 @@ end function partition_constructor
 !> @param [in] yproc Number of processors along y-direction
 !> @param local_rank [in] Local MPI rank number
 !> @param total_ranks [in] Total number of MPI ranks
-!> @param [in] halo_depth The depth to which halos will be created
-!> @param partitioned_cells [out] Returned array that holds the global ids of all
-!>                          cells in local partition
-!> @param num_core [out] Number of cells that are wholly owned by the partition
-!>                 (i.e. all dofs in these cells are wholly owned by the
-!>                 partition). The cell ids of these cells appear first in the
-!>                 <code>partitioned_cells</code> array
-!> @param num_owned [out] Number of cells that are owned by the partition,
-!>                  but may have dofs that are also owned by halo cells. The
-!>                  cell ids of these cells follow the core cells in the
-!>                  <code>partitioned_cells</code> array
-!> @param num_halo [out] Number of cells that are halo cells. The cell ids
-!>                 of these cells follow the owned cells in the
-!>                 <code>partitioned_cells</code> array
+!> @param [in] max_stencil_depth The maximum depth of stencil that will be used
+!>                               with this partition
+!> @param partitioned_cells [out] Returned array that holds the global ids of
+!>                                all cells in local partition
+!> @param num_inner [out] Number of cells that are inner halo cells. 
+!> @param num_edge [out] Number of cells that are owned by the partition,
+!>                 but may have dofs that are also owned by halo cells.
+!> @param num_halo [out] Number of cells that are halo cells.
 !> @param num_ghost [out] Number of "ghost" cells. These are cells in an extra
 !>                  halo around the outermost actaul halo and are not in the
 !>                  partitioned domain, but are required to fully describe the 
@@ -397,26 +515,26 @@ end function partition_constructor
                                       yproc, &
                                       local_rank, &
                                       total_ranks, &
-                                      halo_depth, &
+                                      max_stencil_depth, &
                                       partitioned_cells, &
-                                      num_core, &
-                                      num_owned, &
+                                      num_inner, &
+                                      num_edge, &
                                       num_halo, &
                                       num_ghost )
   implicit none
 
   type(global_mesh_type), intent(in) :: global_mesh
 
-  integer,               intent(in)    :: xproc
-  integer,               intent(in)    :: yproc
-  integer,               intent(in)    :: local_rank
-  integer,               intent(in)    :: total_ranks
-  integer,               intent(in)    :: halo_depth
-  integer, allocatable,  intent(inout) :: partitioned_cells( : )
-  integer,               intent(out)   :: num_core
-  integer,               intent(out)   :: num_owned
-  integer,               intent(out)   :: num_halo( : )
-  integer(i_def),        intent(out)   :: num_ghost
+  integer(i_def),              intent(in)    :: xproc
+  integer(i_def),              intent(in)    :: yproc
+  integer(i_def),              intent(in)    :: local_rank
+  integer(i_def),              intent(in)    :: total_ranks
+  integer(i_def),              intent(in)    :: max_stencil_depth
+  integer(i_def), allocatable, intent(inout) :: partitioned_cells( : )
+  integer(i_def),              intent(out)   :: num_inner( : )
+  integer(i_def),              intent(out)   :: num_edge
+  integer(i_def),              intent(out)   :: num_halo( : )
+  integer(i_def),              intent(out)   :: num_ghost
 
   !check that we have a number of ranks that is compatible with this partitioner
   if( modulo(total_ranks,6) /= 0 ) call log_event( &
@@ -429,10 +547,10 @@ end function partition_constructor
                                        yproc, &
                                        local_rank, &
                                        total_ranks, &
-                                       halo_depth, &
+                                       max_stencil_depth, &
                                        partitioned_cells, &
-                                       num_core, &
-                                       num_owned, &
+                                       num_inner, &
+                                       num_edge, &
                                        num_halo, &
                                        num_ghost )
 
@@ -450,20 +568,14 @@ end function partition_constructor
 !> @param [in] yproc Number of processors along y-direction
 !> @param local_rank [in] Local MPI rank number
 !> @param total_ranks [in] Total number of MPI ranks
-!> @param [in] halo_depth The depth to which halos will be created
-!> @param partitioned_cells [out] Returned array that holds the global ids of all
-!>                          cells in local partition
-!> @param num_core [out] Number of cells that are wholly owned by the partition
-!>                 (i.e. all dofs in these cells are wholly owned by the
-!>                 partition). The cell ids of these cells appear first in the
-!>                 <code>partitioned_cells</code> array
-!> @param num_owned [out] Number of cells that are owned by the partition,
-!>                  but may have dofs that are also owned by halo cells. The
-!>                  cell ids of these cells follow the core cells in the
-!>                  <code>partitioned_cells</code> array
-!> @param num_halo [out] Number of cells that are halo cells. The cell ids
-!>                 of these cells follow the owned cells in the
-!>                 <code>partitioned_cells</code> array
+!> @param [in] max_stencil_depth The maximum depth of stencil that will be used
+!>                               with this partition
+!> @param partitioned_cells [out] Returned array that holds the global ids of
+!>                                all cells in local partition
+!> @param num_inner [out] Number of cells that are inner halo cells.
+!> @param num_edge [out] Number of cells that are owned by the partition,
+!>                 but may have dofs that are also owned by halo cells.
+!> @param num_halo [out] Number of cells that are halo cells. 
 !> @param num_ghost [out] Number of "ghost" cells. These are cells in an extra
 !>                  halo around the outermost actaul halo and are not in the
 !>                  partitioned domain, but are required to fully describe the 
@@ -474,10 +586,10 @@ end function partition_constructor
                                              yproc, &
                                              local_rank, &
                                              total_ranks, &
-                                             halo_depth, &
+                                             max_stencil_depth, &
                                              partitioned_cells, &
-                                             num_core, &
-                                             num_owned, &
+                                             num_inner, &
+                                             num_edge, &
                                              num_halo, &
                                              num_ghost )
 
@@ -491,19 +603,18 @@ end function partition_constructor
 
   type(global_mesh_type), intent(in) :: global_mesh
 
-  integer,              intent(in)    :: xproc
-  integer,              intent(in)    :: yproc
-  integer,              intent(in)    :: local_rank
-  integer,              intent(in)    :: total_ranks
-  integer,              intent(in)    :: halo_depth
-  integer, allocatable, intent(inout) :: partitioned_cells( : )
-  integer,              intent(out)   :: num_core
-  integer,              intent(out)   :: num_owned
-  integer,              intent(out)   :: num_halo( : )
-  integer(i_def),       intent(out)   :: num_ghost
+  integer(i_def),              intent(in)    :: xproc
+  integer(i_def),              intent(in)    :: yproc
+  integer(i_def),              intent(in)    :: local_rank
+  integer(i_def),              intent(in)    :: total_ranks
+  integer(i_def),              intent(in)    :: max_stencil_depth
+  integer(i_def), allocatable, intent(inout) :: partitioned_cells( : )
+  integer(i_def),              intent(out)   :: num_inner( : )
+  integer(i_def),              intent(out)   :: num_edge
+  integer(i_def),              intent(out)   :: num_halo( : )
+  integer(i_def),              intent(out)   :: num_ghost
 
-  integer :: i
-  integer :: depth ! loop counter over halo depths
+  integer(i_def) :: i
 
   if( total_ranks /= 1 .or. local_rank /= 0 )then
    call log_event( 'Can only use the serial partitioner with a single process',&
@@ -515,15 +626,14 @@ end function partition_constructor
      LOG_LEVEL_ERROR )
   endif
 
-  num_core = global_mesh%get_ncells()
-  num_owned = 0
-  do depth = 1, halo_depth
-    num_halo(depth) = 0
-  end do
+  num_inner(:) = 0
+  num_inner(size(num_inner)) =  global_mesh%get_ncells()
+  num_edge = 0
+  num_halo(:) = 0
   num_ghost=0
 
-  allocate(partitioned_cells(num_core))
-  do i = 1,num_core
+  allocate(partitioned_cells(num_inner(size(num_inner))))
+  do i = 1,num_inner(size(num_inner))
     partitioned_cells(i)= i
   end do
 
@@ -539,61 +649,57 @@ end function partition_constructor
                                              yproc, &
                                              local_rank, &
                                              total_ranks, &
-                                             halo_depth, &
+                                             max_stencil_depth, &
                                              partitioned_cells, &
-                                             num_core, &
-                                             num_owned, &
+                                             num_inner, &
+                                             num_edge, &
                                              num_halo, &
                                              num_ghost )
 
-  use linked_list_mod,       only : linked_list_type, add_item, add_unique_item, clear_list
+  use linked_list_mod,       only : linked_list_type, &
+                                    insert_item, &
+                                    insert_unique_item, &
+                                    clear_list, &
+                                    BEFORE
   use reference_element_mod, only : W, E, N
 
   implicit none
 
-  type(global_mesh_type), intent(in) :: global_mesh                ! A global mesh object 
+  type(global_mesh_type),      intent(in)    :: global_mesh             ! A global mesh object 
+  integer(i_def),              intent(in)    :: num_panels              ! Number of panels that make up the mesh
+  integer(i_def),              intent(in)    :: xproc                   ! Number of processors along x-direction
+  integer(i_def),              intent(in)    :: yproc                   ! Number of processors along y-direction
+  integer(i_def),              intent(in)    :: local_rank              ! Local MPI rank number
+  integer(i_def),              intent(in)    :: total_ranks             ! Total number of MPI ranks
+  integer(i_def),              intent(in)    :: max_stencil_depth       ! The maximum depth of stencil that will be used
+                                                                        ! with this partition
+  integer(i_def), allocatable, intent(inout) :: partitioned_cells( : )  ! Returned array that holds the global ids of
+                                                                        ! all cells in local partition
+  integer(i_def),              intent(out)   :: num_inner( : )          ! Number of cells that are inner halo cells.
+  integer(i_def),              intent(out)   :: num_edge                ! Number of cells that are owned by the partition,
+                                                                        ! but may have dofs that are also owned by halo cells. 
+  integer(i_def),              intent(out)   :: num_halo( : )           ! Number of cells that are halo cells.
+  integer(i_def),              intent(out)   :: num_ghost               ! Number of cells that are ghost cells - surrounding,
+                                                                        ! but not in the partitioned domain
 
-  integer,                intent(in)    :: num_panels              ! Number of panels that make up the mesh
-  integer,                intent(in)    :: xproc                   ! Number of processors along x-direction
-  integer,                intent(in)    :: yproc                   ! Number of processors along y-direction
-  integer,                intent(in)    :: local_rank              ! Local MPI rank number
-  integer,                intent(in)    :: total_ranks             ! Total number of MPI ranks
-  integer,                intent(in)    :: halo_depth              ! The depth to which halos will be created
-  integer, allocatable,   intent(inout) :: partitioned_cells( : )  ! Returned array that holds the global ids of
-                                                                   ! all cells in local partition
-  integer,                intent(out)   :: num_core                ! Number of cells that are wholly owned by the partition
-                                                                   ! (i.e. all dofs in these cells are wholly owned by the
-                                                                   ! partition). The cell ids of these cells appear first in the
-                                                                   ! partitioned_cells array
-  integer,                intent(out)   :: num_owned               ! Number of cells that are owned by the partition,
-                                                                   ! but may have dofs that are also owned by halo cells. The
-                                                                   ! cell ids of these cells follow the core cells in the
-                                                                   ! partitioned_cells array
-  integer,                intent(out)   :: num_halo( : )           ! Number of cells that are halo cells. The cell ids
-                                                                   ! of these cells follow the owned cells in the
-                                                                   ! partitioned_cells array
-  integer(i_def),         intent(out)   :: num_ghost               ! Number of cells that are ghost cells - surrounding,
-                                                                   ! but not in the partitioned domain
-
-  integer :: face      ! which face of the cube is implied by local_rank (0->5)
-  integer :: start_cell ! lowest cell id of the face implaced by local_rank
-  integer :: start_rank ! The number of the first rank on the face implied by local_rank
-  integer :: local_xproc, local_yproc ! x- and y-dirn processor id of this partition
-  integer :: start_x   ! global cell id of start of the domain on this partition in x-dirn
-  integer :: num_x     ! number of cells in the domain on this partition in x-dirn
-  integer :: start_y   ! global cell id of start of the domain on this partition in y-dirn
-  integer :: num_y     ! number of cells in the domain on this partition in y-dirn
-  integer :: num_in_list !total number of cells known to this partition
-  integer :: num_added ! number of cells added to the linked list
-  integer :: ix, iy    ! loop counters over cells on this partition in x- and y-dirns
+  integer(i_def) :: face      ! which face of the cube is implied by local_rank (0->5)
+  integer(i_def) :: start_cell ! lowest cell id of the face implaced by local_rank
+  integer(i_def) :: start_rank ! The number of the first rank on the face implied by local_rank
+  integer(i_def) :: local_xproc, local_yproc ! x- and y-dirn processor id of this partition
+  integer(i_def) :: start_x   ! global cell id of start of the domain on this partition in x-dirn
+  integer(i_def) :: num_x     ! number of cells in the domain on this partition in x-dirn
+  integer(i_def) :: start_y   ! global cell id of start of the domain on this partition in y-dirn
+  integer(i_def) :: num_y     ! number of cells in the domain on this partition in y-dirn
+  integer(i_def) :: num_in_list !total number of cells known to this partition
+  integer(i_def) :: num_added ! number of cells added to the linked list
+  integer(i_def) :: ix, iy    ! loop counters over cells on this partition in x- and y-dirns
 
   type(linked_list_type), pointer :: curr=>null()  ! the current position at which items will be added
                                                    ! to the list that holds cells known to this partition
-  type(linked_list_type), pointer :: start=>null() ! start of the list that holds cells known to this partition
-  type(linked_list_type), pointer :: last_core=>null() ! location of the last core cell in the list of cells
-  type(linked_list_type), pointer :: last_owned=>null() ! location of the last owned cell in the list of cells
-  type(linked_list_type), pointer :: last_halo=>null() ! location of the last halo cell in the list of cells
-  type(linked_list_type), pointer :: curr_pos=>null() ! current position when looping over subsections of cells
+  type(linked_list_type), pointer :: partition=>null()  ! start of a list of all cells in the partition
+  type(linked_list_type), pointer :: start=>null() ! start of the ordered list that holds cells known to this partition
+  type(linked_list_type), pointer :: last=>null() ! location of the last owned cell in the list of cells
+  type(linked_list_type), pointer :: start_subsect=>null() ! start position when looping over subsections of cells
 
   integer :: i, j         ! loop counters
   integer :: cells(4)     ! The cells around the vertex being queried
@@ -606,15 +712,15 @@ end function partition_constructor
   integer :: cell_next(4) ! The cells around the cell being queried
   integer :: num_cells_x  ! number of cells across a panel in x-direction
   integer :: num_cells_y  ! number of cells across a panel in y-direction
-  integer :: swap_temp    ! temporary swap space used to swap items in the bubble sort
-  logical :: swapped      ! flag set to true if the current iteration of the bubble sort swapped any items
   integer :: start_sort, end_sort ! range over which to sort cells
   integer :: depth        ! counter over the halo depths
   integer :: orig_num_in_list ! number of cells in list before halos are added
+  integer(i_def) :: num_apply
 
   if(num_panels==1)then
     ! A single panelled mesh might be rectangluar - so find the dimensions
-    ! Find num_cells_x by walking west-wards through the mesh until you're back where you started
+    ! Find num_cells_x by walking west-wards through the mesh until you're
+    ! back where you started
     cell=1
     call global_mesh%get_cell_next(cell,cell_next)
     num_cells_x=1
@@ -682,79 +788,107 @@ end function partition_constructor
   num_y   = int( ( real( local_yproc + 1 ) * real( num_cells_y )/ &
                    real( yproc ) ) + 0.5_r_def ) - start_y + 1
 
-  !Create a linked list of cells known to this partition
-  !Start with the core cells - those with all dofs wholly owned by the partition
+  !Create a linked list of all cells that are part of this partition (not halos)
   num_in_list = 0
-  do iy = start_y + 1, start_y+num_y - 2
-    do ix = start_x + 1, start_x+num_x - 2
-      call add_item( curr,global_mesh%get_cell_id(start_cell, ix-1, iy-1) )
-      if(.not.associated(start))start => curr
-      num_in_list = num_in_list + 1
+  do iy = start_y, start_y+num_y - 1
+    do ix = start_x, start_x+num_x - 1
+      call insert_item( curr,global_mesh%get_cell_id(start_cell, ix-1, iy-1) )
+      if(.not.associated(partition))partition => curr
     end do
   end do
-  num_core = num_in_list
+  nullify(curr)
 
-  ! Store location of last core cell in the linked list
-  last_core => curr
-
-  ! Now add the owned cells - those still owned by the partition -
-  ! but may have dofs shared with halo cells
+  ! Create a linked-list of all cells known to the partition, including halos.
+  ! This will be ordered as:
+  ! inner n, inner n-1 ... inner 1, edge, halo 1 ... halo n-1, halo n
+  !
+  ! Start with the edge cells - those cells owned by the partition - but are on
+  ! the edge of the partitioned domain, so may have dofs shared with halo cells
   ! Those cells along the top/bottom
+  num_in_list=0
   do ix = start_x, start_x+num_x-1
-    call add_item( curr,global_mesh%get_cell_id(start_cell, ix-1, start_y-1) )
+    call insert_item( curr, &
+                      global_mesh%get_cell_id(start_cell, ix-1, start_y-1) )
     num_in_list = num_in_list+1
     if(.not.associated(start))start => curr
-    call add_unique_item( start,curr,global_mesh%get_cell_id(start_cell, ix-1, start_y+num_y-2), num_added )
+    call insert_unique_item( start,curr, &
+                   global_mesh%get_cell_id(start_cell, ix-1, start_y+num_y-2), &
+                             num_added )
     num_in_list = num_in_list+num_added
   end do
   ! Those along the left/right
   do iy = start_y+1, start_y+num_y-2
-    call add_unique_item( start,curr,global_mesh%get_cell_id(start_cell, start_x-1, iy-1), num_added )
+    call insert_unique_item( start,curr, &
+                         global_mesh%get_cell_id(start_cell, start_x-1, iy-1), &
+                             num_added )
     num_in_list = num_in_list+num_added
-    call add_unique_item( start,curr,global_mesh%get_cell_id(start_cell, start_x+num_x-2, iy-1), num_added )
+    call insert_unique_item( start,curr, &
+                   global_mesh%get_cell_id(start_cell, start_x+num_x-2, iy-1), &
+                             num_added )
     num_in_list = num_in_list+num_added
   end do
-  num_owned = num_in_list-num_core
+  num_edge = num_in_list
 
-  ! Store location of last owned cell in the linked list
-  last_owned => curr
-
-  ! Add all cells that are in a single depth halo around each of the owned cells
-  ! Start by applying a stencil around the first cell after the last core cell
-  ! (i.e. the first owned cell) - or the first cell (if there are no core cells)
-  if(associated(last_core))then
-   curr_pos => last_core%next
-  else
-   curr_pos => start
-  end if
-  orig_num_in_list = num_in_list
-  call apply_stencil( global_mesh, &
-                      curr_pos, &
-                      num_owned, &
-                      start, &
-                      curr, &
-                      num_in_list )
-
-  num_halo(1) = num_in_list - orig_num_in_list
-
-  curr_pos => last_owned%next
-  do depth = 2,halo_depth+1
-    ! Store location of last halo cell in the linked list
-    last_halo => curr
+  ! Add all cells from the halos (up to max_stencil_depth+1) that are in a
+  ! stencil around each of the owned cells, but are not part of the partition.
+  ! Also add a "ghost" halo (max_stencil_depth+2) - used later to work out
+  ! dof ownerships
+  start_subsect => start
+  num_apply=num_edge
+  do depth = 1,max_stencil_depth+2
     orig_num_in_list = num_in_list
+    last=>curr
     call apply_stencil( global_mesh, &
-                        curr_pos, &
-                        num_halo(depth-1), &
+                        start_subsect, &
+                        num_apply, &
                         start, &
                         curr, &
-                        num_in_list )
-    if(depth <= halo_depth) then
+                        num_in_list, &
+                        exclude=partition )
+    if(depth <= max_stencil_depth+1)then
       num_halo(depth) = num_in_list - orig_num_in_list
+      start_subsect => last%next
+      num_apply = num_halo(depth)
     else
       num_ghost = num_in_list - orig_num_in_list
     end if
-    curr_pos => last_halo%next
   end do
+  
+  ! Add all cells from the inner halos (up to max_stencil_depth) that are in a
+  ! stencil around each of the owned cells, but are not part of the outer halos
+  curr => start
+  start_subsect => start
+  num_apply=num_edge
+  do depth = 1,max_stencil_depth
+    orig_num_in_list = num_in_list
+    call apply_stencil( global_mesh, &
+                        start_subsect, &
+                        num_apply, &
+                        start, &
+                        curr, &
+                        num_in_list, &
+                        placement=BEFORE )
+    num_inner(depth) = num_in_list - orig_num_in_list
+    num_apply = num_inner(depth)
+  end do
+  start => curr
+
+  !Any cells that haven't been assigned a category, yet, must be inner halo
+  !cells of depth max_stencil_depth+1
+  num_inner(max_stencil_depth+1)=0
+  do
+    if ( .not. associated(partition) )exit
+    call insert_unique_item( start, &
+                             curr, &
+                             partition%dat, &
+                             num_added, &
+                             placement=BEFORE )
+    start => curr
+    num_in_list=num_in_list+num_added
+    num_inner(max_stencil_depth+1)=num_inner(max_stencil_depth+1)+num_added
+    partition => partition%next
+  end do
+
 
   allocate(partitioned_cells(num_in_list))
   curr => start
@@ -769,59 +903,34 @@ end function partition_constructor
   ! Cell ids within the separate groups have to be in numerical order.
   ! so (bubble) sort the separate groups
   !
-  !Sort core cells
-  start_sort = 1
-  end_sort = num_core
-  do
-    swapped = .false.
-    do i = start_sort,end_sort-1
-      if(partitioned_cells(i) > partitioned_cells(i+1))then
-        swap_temp = partitioned_cells(i)
-        partitioned_cells(i) = partitioned_cells(i+1)
-        partitioned_cells(i+1) = swap_temp
-        swapped = .true.
-      end if
-    end do
-    if( .not.swapped )exit
-  end do
-  !
-  ! Sort owned cells
-  start_sort = num_core + 1
-  end_sort = num_core + num_owned
-  do
-    swapped = .false.
-    do i = start_sort,end_sort-1
-      if(partitioned_cells(i) > partitioned_cells(i+1))then
-        swap_temp = partitioned_cells(i)
-        partitioned_cells(i) = partitioned_cells(i+1)
-        partitioned_cells(i+1) = swap_temp
-        swapped = .true.
-      end if
-    end do
-    if( .not.swapped )exit
-  end do
-  !
-  ! Sort halo cells in their groups of halo depths
-  do depth = 1,halo_depth +1      ! also sort ghost cells
+  ! Sort the individual depths of inner halo cells
+  end_sort=0
+  do depth = max_stencil_depth+1, 1, -1
     start_sort = end_sort + 1
-    if(depth <= halo_depth) then
-      end_sort = start_sort + num_halo(depth) - 1
-    else
-      end_sort = start_sort + num_ghost - 1
-    end if
-    do
-      swapped = .false.
-      do i = start_sort,end_sort-1
-        if(partitioned_cells(i) > partitioned_cells(i+1))then
-          swap_temp = partitioned_cells(i)
-          partitioned_cells(i) = partitioned_cells(i+1)
-          partitioned_cells(i+1) = swap_temp
-          swapped = .true.
-        end if
-      end do
-      if( .not.swapped )exit
-    end do
+    end_sort = start_sort + num_inner(depth) - 1
+    call bubble_sort( partitioned_cells(start_sort:end_sort), &
+                      end_sort-start_sort+1 )
   end do
+  !
+  ! Sort edge cells
+  start_sort = end_sort + 1
+  end_sort = start_sort + num_edge - 1
+  call bubble_sort( partitioned_cells(start_sort:end_sort), &
+                    end_sort-start_sort+1 )
+  !
+  ! Sort the individual depths of halo cells
+  do depth = 1,max_stencil_depth+1
+    start_sort = end_sort + 1
+    end_sort = start_sort + num_halo(depth) - 1
+    call bubble_sort( partitioned_cells(start_sort:end_sort), &
+                      end_sort-start_sort+1 )
+  end do  
+  !
+  ! Sort the ghost halo
+  start_sort = end_sort + 1
+  end_sort = start_sort + num_ghost - 1
+  call bubble_sort( partitioned_cells(start_sort:end_sort), &
+                    end_sort-start_sort+1 )
 
   end subroutine partitioner_rectangular_panels
 
@@ -833,10 +942,10 @@ end function partition_constructor
 !          partition - if they are not already in the list.
 ! Input:   global_mesh      A global mesh object that describes the layout of 
 !                           the global mesh
-!          input_cells      A pointer to the start of a portion of the linked list
-!                           over which the stencil will be applied
-!          number_of_cells  The number of cells in the portion of the linked list
-!                           over which the stencil will be applied
+!          input_cells      A pointer to the start of a portion of the linked
+!                           list over which the stencil will be applied
+!          number_of_cells  The number of cells in the portion of the linked
+!                           list over which the stencil will be applied
 !          start            Start of the linked-list that holds cells known to 
 !                           this partition
 ! In/Out:  curr             Current position at which items will be added to the
@@ -848,23 +957,27 @@ end function partition_constructor
                             number_of_cells, &
                             start, &
                             curr, &
-                            num_in_list )
-  use linked_list_mod, only : linked_list_type, add_unique_item
+                            num_in_list, &
+                            placement, &
+                            exclude )
+  use linked_list_mod, only : linked_list_type, insert_unique_item, BEFORE
   use reference_element_mod, only : nverts_h
   implicit none
 
-  type(global_mesh_type), intent(in)             :: global_mesh
-  type(linked_list_type), intent(inout), pointer :: input_cells
-  integer,                intent(in)             :: number_of_cells
-  type(linked_list_type), intent(inout), pointer :: curr
-  type(linked_list_type), intent(in),    pointer :: start
-  integer,                intent(inout)          :: num_in_list
+  type(global_mesh_type),                    intent(in)    :: global_mesh
+  type(linked_list_type),           pointer, intent(inout) :: input_cells
+  integer(i_def),                            intent(in)    :: number_of_cells
+  type(linked_list_type),           pointer, intent(inout) :: curr
+  type(linked_list_type),           pointer, intent(inout) :: start
+  integer(i_def),                            intent(inout) :: num_in_list
+  integer(i_def),         optional,          intent(in)    :: placement
+  type(linked_list_type), optional, pointer, intent(in)    :: exclude
 
-  integer              :: i,j,k  ! loop counter
-  integer              :: cell_id ! the current cell id that the stencil is being applied to
-  integer              :: num_added ! number of cells added to the linked list
-  integer, allocatable :: verts(:)
-  integer, allocatable :: cells(:)
+  integer(i_def) :: i,j,k  ! loop counter
+  integer(i_def) :: cell_id ! the current cell id that the stencil is being applied to
+  integer(i_def) :: num_added ! number of cells added to the linked list
+  integer(i_def), allocatable :: verts(:)
+  integer(i_def), allocatable :: cells(:)
 
   allocate( cells( global_mesh%get_max_cells_per_vertex() ) )
   allocate( verts(nverts_h) )
@@ -876,8 +989,12 @@ end function partition_constructor
       call global_mesh%get_cell_on_vert( verts(j), cells )
       do k = 1,global_mesh%get_max_cells_per_vertex()
         if(cells(k) > 0)then
-          call add_unique_item( start,curr,cells(k), num_added )
+          call insert_unique_item( start, curr, cells(k), num_added, &
+                                   placement=placement, exclude=exclude )
           num_in_list = num_in_list + num_added
+          if ( present(placement) .and. placement == BEFORE ) then
+            start => curr
+          end if
         end if
       end do
     end do
@@ -897,10 +1014,14 @@ function get_num_cells_in_layer( self ) result ( num_cells )
 
   class(partition_type), intent(in) :: self
 
-  integer :: num_cells
-  integer :: depth   ! loop counter over halo depths
+  integer(i_def) :: num_cells
+  integer(i_def) :: depth   ! loop counter over halo depths
 
-  num_cells = self%num_core + self%num_owned
+  num_cells = self%num_edge
+
+  do depth = 1,self%inner_depth
+    num_cells = num_cells + self%num_inner(depth)
+  end do
 
   do depth = 1,self%halo_depth
     num_cells = num_cells + self%num_halo(depth)
@@ -909,33 +1030,86 @@ function get_num_cells_in_layer( self ) result ( num_cells )
 end function get_num_cells_in_layer
 
 !-------------------------------------------------------------------------------
-! Gets total number of core cells in a 2d slice on the local partition
+! Gets the depth of the inner halos that have been set up
 !-------------------------------------------------------------------------------
-function get_num_cells_core( self ) result ( core_cells )
+function get_inner_depth( self ) result ( inner_depth )
   implicit none
 
   class(partition_type), intent(in) :: self
 
-  integer :: core_cells
+  integer(i_def) :: inner_depth
 
-  core_cells = self%num_core
+  inner_depth = self%inner_depth
 
-end function get_num_cells_core
+end function get_inner_depth
 
 !-------------------------------------------------------------------------------
-! Gets total number of owned cells in a 2d slice on the local partition
+! Gets total number of cells in a particular depth of inner halo in a 2d
+! slice on the local partition
 !-------------------------------------------------------------------------------
-function get_num_cells_owned( self ) result ( owned_cells )
+function get_num_cells_inner( self, depth ) result ( inner_cells )
   implicit none
 
   class(partition_type), intent(in) :: self
 
-  integer :: owned_cells
+  integer(i_def), intent(in) :: depth
+  integer(i_def)             :: inner_cells
 
-  owned_cells = self%num_owned
+  if( depth > self%inner_depth )then
+    inner_cells = 0
+  else
+    inner_cells = self%num_inner(depth)
+  end if
 
-end function get_num_cells_owned
+end function get_num_cells_inner
 
+!-------------------------------------------------------------------------------
+! Gets the index of the last cell in a particular depth of inner halo in a 2d
+! slice on the local partition
+!-------------------------------------------------------------------------------
+function get_last_inner_cell( self, depth ) result ( last_inner_cell )
+  implicit none
+
+  class(partition_type), intent(in) :: self
+
+  integer(i_def), intent(in) :: depth
+  integer(i_def)             :: last_inner_cell
+
+  if( depth > self%inner_depth )then
+    last_inner_cell = 0
+  else
+    last_inner_cell = self%last_inner_cell(depth)
+  end if
+
+end function get_last_inner_cell
+
+!-------------------------------------------------------------------------------
+! Gets total number of edge cells in a 2d slice on the local partition
+!-------------------------------------------------------------------------------
+function get_num_cells_edge( self ) result ( edge_cells )
+  implicit none
+
+  class(partition_type), intent(in) :: self
+
+  integer(i_def) :: edge_cells
+
+  edge_cells = self%num_edge
+
+end function get_num_cells_edge
+
+!-------------------------------------------------------------------------------
+! Gets the index of the last edge cell in a 2d slice on the local partition
+!-------------------------------------------------------------------------------
+function get_last_edge_cell( self ) result ( last_edge_cell )
+  implicit none
+
+  class(partition_type), intent(in) :: self
+
+  integer(i_def) :: last_edge_cell
+
+  last_edge_cell = self%last_edge_cell
+
+end function get_last_edge_cell
 
 !-------------------------------------------------------------------------------
 ! Gets the depth of the halos that have been set up
@@ -945,7 +1119,7 @@ function get_halo_depth( self ) result ( halo_depth )
 
   class(partition_type), intent(in) :: self
 
-  integer :: halo_depth
+  integer(i_def) :: halo_depth
 
   halo_depth = self%halo_depth
 
@@ -961,8 +1135,8 @@ function get_num_cells_halo( self, depth ) result ( halo_cells )
 
   class(partition_type), intent(in) :: self
 
-  integer, intent(in) :: depth
-  integer             :: halo_cells
+  integer(i_def), intent(in) :: depth
+  integer(i_def)             :: halo_cells
 
   if( depth > self%halo_depth )then
     halo_cells = 0
@@ -972,6 +1146,25 @@ function get_num_cells_halo( self, depth ) result ( halo_cells )
 
 end function get_num_cells_halo
 
+!-------------------------------------------------------------------------------
+! Gets the index of the last halo cell in a particular depth of halo in a 2d
+! slice on the local partition
+!-------------------------------------------------------------------------------
+function get_last_halo_cell( self, depth ) result ( last_halo_cell )
+  implicit none
+
+  class(partition_type), intent(in) :: self
+
+  integer(i_def), intent(in) :: depth
+  integer(i_def)             :: last_halo_cell
+
+  if( depth > self%halo_depth )then
+    last_halo_cell = 0
+  else
+    last_halo_cell = self%last_halo_cell(depth)
+  end if
+
+end function get_last_halo_cell
 
 !-------------------------------------------------------------------------------
 ! Gets total number of ghost cells in a 2d slice on the local partition
@@ -996,7 +1189,7 @@ function get_local_rank( self ) result ( local_rank )
 
   class(partition_type), intent(in) :: self
 
-  integer             :: local_rank
+  integer(i_def) :: local_rank
 
   local_rank = self%local_rank
 
@@ -1011,7 +1204,7 @@ function get_total_ranks( self ) result ( total_ranks )
 
   class(partition_type), intent(in) :: self
 
-  integer             :: total_ranks
+  integer(i_def) :: total_ranks
 
   total_ranks = self%total_ranks
 
@@ -1026,9 +1219,9 @@ function get_cell_owner( self, cell_number ) result ( cell_owner )
 
   class(partition_type), intent(in) :: self
 
-  integer, intent(in) :: cell_number
+  integer(i_def), intent(in) :: cell_number
 
-  integer :: cell_owner
+  integer(i_def) :: cell_owner
 
   cell_owner=self%cell_owner(cell_number)
 
@@ -1044,14 +1237,17 @@ function get_gid_from_lid( self, lid ) result ( gid )
 
   class(partition_type), intent(in) :: self
 
-  integer, intent(in) :: lid           ! local index
-  integer             :: gid           ! global index
-  integer             :: nlayer        ! layer of supplied lid
-  integer             :: lid_in_layer  ! supplied lid projected to bottom layer
-  integer             :: num_in_list   ! total number of cells in partition
-  integer             :: depth         ! loop counter over halo depths
+  integer(i_def), intent(in) :: lid           ! local index
+  integer(i_def)             :: gid           ! global index
+  integer(i_def)             :: nlayer        ! layer of supplied lid
+  integer(i_def)             :: lid_in_layer  ! supplied lid projected to bottom layer
+  integer(i_def)             :: num_in_list   ! total number of cells in partition
+  integer(i_def)             :: depth         ! loop counter over halo depths
 
-  num_in_list = self%num_core + self%num_owned + self%num_ghost
+  num_in_list = self%num_edge + self%num_ghost
+  do depth = 1,self%inner_depth
+    num_in_list = num_in_list + self%num_inner(depth)
+  end do
   do depth = 1,self%halo_depth
     num_in_list = num_in_list + self%num_halo(depth)
   end do
@@ -1071,27 +1267,32 @@ function get_lid_from_gid( self, gid ) result ( lid )
 ! Performs a search through the global cell lookup table looking for the
 ! required global index.
 !
-! The partitioned_cells array holds global indices in four groups: core cells,
-! followed by owned cells, then the halo cells and fnally the ghost cells. The
-! cells are numerically ordered within the different groups so a binary search
-! can be used, but not between groups, so need to do separate binary searches
-! through the core, owned, halo and ghost cells and exit if a match is found
+! The partitioned_cells array holds global indices in various groups:
+! the inner halos, then the edge cells, the halo cells and finally
+! the ghost cells. The cells are numerically ordered within the different
+! groups so a binary search can be used, but not between groups, so need to do
+! separate binary searches through the inner, edge, halo and ghost cells and
+! exit if a match is found
 !
   implicit none
 
   class(partition_type), intent(in) :: self
 
-  integer, intent(in) :: gid           ! global index
-  integer             :: lid           ! local index
-  integer             :: nlayer        ! layer of supplied gid
-  integer             :: gid_in_layer  ! supplied gid projected to bottom layer
-  integer             :: depth         ! loop counter over halo depths
-  integer             :: start_search  ! start point for a search
-  integer             :: end_search    ! end point for a search
-  integer             :: num_in_list   ! total number of cells in partition
-  integer(i_def)      :: num_halo      ! number of halo points already counted
+  integer(i_def), intent(in) :: gid           ! global index
+  integer(i_def)             :: lid           ! local index
+  integer(i_def)             :: nlayer        ! layer of supplied gid
+  integer(i_def)             :: gid_in_layer  ! supplied gid projected to bottom layer
+  integer(i_def)             :: depth         ! loop counter over halo depths
+  integer(i_def)             :: start_search  ! start point for a search
+  integer(i_def)             :: end_search    ! end point for a search
+  integer(i_def)             :: num_in_list   ! total number of cells in partition
+  integer(i_def)             :: num_halo      ! number of halo points already counted
+  integer(i_def)             :: num_inner! number of inner halo points already counted
 
-  num_in_list = self%num_core + self%num_owned
+  num_in_list = self%num_edge
+  do depth = 1,self%inner_depth
+    num_in_list = num_in_list + self%num_inner(depth)
+  end do
   do depth = 1,self%halo_depth
     num_in_list = num_in_list + self%num_halo(depth)
   end do
@@ -1107,21 +1308,26 @@ function get_lid_from_gid( self, gid ) result ( lid )
   gid_in_layer = modulo(gid-1,self%global_num_cells) + 1
   nlayer = (gid-1) / self%global_num_cells
 
-  ! Search though core cells - looking for the gid
-  start_search = 1
-  end_search = self%num_core
-  lid = binary_search( self%global_cell_id( start_search:end_search ), gid )
-  if(lid /= -1)then
-    lid = lid + nlayer*(num_in_list)  !convert back to 3d lid
-    return
-  end if
+  ! Search though the inner halo cells - looking for the gid
+  end_search = 0
+  num_inner=0
+  do depth = self%inner_depth, 1, -1
+    start_search = end_search + 1
+    end_search = start_search + self%num_inner(depth) - 1
+    lid = binary_search( self%global_cell_id( start_search:end_search ), gid )
+    if(lid /= -1)then
+      lid = lid +  num_inner + nlayer*(num_in_list)  !convert back to 3d lid
+      return
+    end if
+    num_inner = num_inner + self%num_inner(depth)
+  end do
 
-  ! Search though owned cells - looking for the gid
+  ! Search though edge cells - looking for the gid
   start_search = end_search + 1
-  end_search = start_search + self%num_owned - 1
+  end_search = start_search + self%num_edge - 1
   lid = binary_search( self%global_cell_id( start_search:end_search ), gid )
   if(lid /= -1)then
-    lid = lid + self%num_core + nlayer*(num_in_list)  !convert back to 3d lid
+    lid = lid + num_inner + nlayer*(num_in_list)  !convert back to 3d lid
     return
   end if
 
@@ -1136,7 +1342,7 @@ function get_lid_from_gid( self, gid ) result ( lid )
     end if
     lid = binary_search( self%global_cell_id( start_search:end_search ), gid )
     if(lid /= -1)then
-      lid = lid + self%num_core + self%num_owned + num_halo + &
+      lid = lid + num_inner + self%num_edge + num_halo + &
                                    nlayer*(num_in_list)  !convert back to 3d lid
       return
     end if
@@ -1145,7 +1351,8 @@ function get_lid_from_gid( self, gid ) result ( lid )
     end if
   end do
 
-  ! No lid has been found in either the core, owned or halo cells on this partition, so return with lid=-1
+  ! No lid has been found in either the inner, edge or halo cells on this
+  ! partition, so return with lid=-1
   return
 
 end function get_lid_from_gid
@@ -1164,10 +1371,10 @@ pure function binary_search( array_to_be_searched, value_to_find ) result ( id )
 
   implicit none
 
-  integer, intent(in) :: array_to_be_searched( : )
-  integer, intent(in) :: value_to_find
-  integer             :: bot, top  ! Lower and upper index limits between which to search for the value
-  integer             :: id        ! Next index for refining the search. If an entry is found this will
+  integer(i_def), intent(in) :: array_to_be_searched( : )
+  integer(i_def), intent(in) :: value_to_find
+  integer(i_def)             :: bot, top  ! Lower and upper index limits between which to search for the value
+  integer(i_def)             :: id        ! Next index for refining the search. If an entry is found this will
                                    ! contain the index of the matching entry
 
   ! Set bot and top to be the whole array to begin with
@@ -1193,6 +1400,35 @@ pure function binary_search( array_to_be_searched, value_to_find ) result ( id )
 
 end function binary_search
 
+!-------------------------------------------------------------------------------
+! Performs a simple bubble sort on an array. PRIVATE function.
+!-------------------------------------------------------------------------------
+! Details: Performs a bubble sort on an array of data.
+! Input:   array  The array that will be sorted
+!          len  The length of the array to be sorted
+!-------------------------------------------------------------------------------
+subroutine bubble_sort(array, len)
+integer(i_def), intent(inout) :: array(:)
+integer(i_def), intent(in)    :: len
+
+logical(l_def) :: swapped
+integer(i_def) :: i
+integer(i_def) :: swap_temp
+
+do
+  swapped = .false.
+  do i = 1,len-1
+    if(array(i) > array(i+1))then
+      swap_temp = array(i)
+      array(i) = array(i+1)
+      array(i+1) = swap_temp
+      swapped = .true.
+    end if
+  end do
+  if( .not.swapped )exit
+end do
+
+end subroutine bubble_sort
 
 !==============================================================================
 ! The following routines are only available when setting data for unit testing.
@@ -1210,21 +1446,28 @@ function partition_constructor_unit_test_data() result (self)
   ! Returns partition object from global_mesh of size 3x3 quad reference cell
   ! (see global_mesh_mod for data) which only has one partition.
 
-  self%local_rank       = 0
-  self%total_ranks      = 1
-  self%num_core         = 9
-  self%num_owned        = 0
-  self%halo_depth       = 1
-  self%global_num_cells = 9
+  self%local_rank        = 0
+  self%total_ranks       = 1
+  self%halo_depth        = 1
+  self%inner_depth       = 1
+  self%global_num_cells  = 9
 
   allocate( self%global_cell_id (self%global_num_cells) )
   allocate( self%cell_owner     (self%global_num_cells) )
+  allocate( self%num_inner      (self%inner_depth) )
+  allocate( self%last_inner_cell(self%inner_depth) )
   allocate( self%num_halo       (self%halo_depth) )
+  allocate( self%last_halo_cell (self%halo_depth) )
 
-  self%global_cell_id   = [1,2,3,4,5,6,7,8,9]
-  self%cell_owner       = [0,0,0,0,0,0,0,0,0]
-  self%num_halo(:)      = 0
-  self%num_ghost        = 0
+  self%global_cell_id    = [1,2,3,4,5,6,7,8,9]
+  self%cell_owner        = [0,0,0,0,0,0,0,0,0]
+  self%num_inner(1)      = 9
+  self%last_inner_cell(1)= 9
+  self%num_edge          = 0
+  self%last_edge_cell    = 9
+  self%num_halo(1)       = 0
+  self%last_halo_cell(1) = 9
+  self%num_ghost         = 0
 
 end function partition_constructor_unit_test_data
 

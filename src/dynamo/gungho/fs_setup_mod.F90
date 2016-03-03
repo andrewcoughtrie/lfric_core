@@ -1079,6 +1079,9 @@ subroutine dofmap_setup( mesh, dynamo_fs, ncells_2d_with_ghost                 &
 
   integer(i_def) :: dofmap_size(0:3)
 
+  ! Number of cells in all the inner halos added together 
+  integer(i_def) :: tot_num_inner
+
   type (select_entity_type), pointer :: select_entity => null()
 
   !=========================================================
@@ -1141,6 +1144,14 @@ subroutine dofmap_setup( mesh, dynamo_fs, ncells_2d_with_ghost                 &
   dof_column_height_d3  (:,:) = 0
   dof_cell_owner_d3     (:,:) = 0
 
+  ! Sum the number of cells in all the inner halos
+  tot_num_inner=0
+  do idepth=1,mesh%get_inner_depth()
+    tot_num_inner = tot_num_inner + &
+                         mesh%get_num_cells_inner(idepth)
+  end do
+
+
   ! Assume we have all possible global connectivity information
   ! in practice this requires connectivity
   ! (3,2) -> faces on cells
@@ -1150,12 +1161,12 @@ subroutine dofmap_setup( mesh, dynamo_fs, ncells_2d_with_ghost                 &
   id_owned = 1
   id_halo  = -1
 
-  ! Loop over 3 entities (cells) starting with core + owned + first depth halo
-  ! then proceding with further halo depths as required
-  start  = 1
-  finish = mesh % get_num_cells_core()   &
-         + mesh % get_num_cells_owned()  &
-         + mesh % get_num_cells_halo(1)
+  ! loop over 3 entities (cells) starting with core + inner halos + edge
+  ! + first depth halo then proceding with further halo depths as required
+  start=1
+  finish=tot_num_inner + &
+         mesh%get_num_cells_edge() + &
+         mesh%get_num_cells_halo(1)
 
   select case (dynamo_fs)
   case(W0,W1,W2,W3)
@@ -1372,9 +1383,8 @@ subroutine dofmap_setup( mesh, dynamo_fs, ncells_2d_with_ghost                 &
         end if
       end do
 
-      if (icell ==   mesh%get_num_cells_core()                                 &
-                   + mesh%get_num_cells_owned()) then
-        last_dof_owned   = id_owned - 1
+      if(icell == tot_num_inner + mesh%get_num_cells_edge())then
+        last_dof_owned = id_owned - 1
         last_dof_annexed = id_owned - id_halo - 2
       end if
 

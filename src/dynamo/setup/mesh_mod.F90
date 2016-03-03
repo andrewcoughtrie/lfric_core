@@ -219,10 +219,14 @@ module mesh_mod
     procedure, public :: is_vertex_owned
     procedure, public :: is_edge_owned
     procedure, public :: is_cell_owned
-    procedure, public :: get_num_cells_core
-    procedure, public :: get_num_cells_owned
+    procedure, public :: get_inner_depth
+    procedure, public :: get_num_cells_inner
+    procedure, public :: get_last_inner_cell
+    procedure, public :: get_num_cells_edge
+    procedure, public :: get_last_edge_cell
     procedure, public :: get_halo_depth
     procedure, public :: get_num_cells_halo
+    procedure, public :: get_last_halo_cell
     procedure, public :: get_num_cells_ghost
     procedure, public :: get_gid_from_lid
 
@@ -1043,36 +1047,95 @@ contains
 
   end function is_cell_owned
 
-
-  !> @return The total number of core cells on the local partition
-  !>         from the partition object associated with this
-  !>         mesh object
+  !> Returns the maximum depth of the inner halos from the partition object
+  !> @return inner_halo_depth The maximum depth of the inner halo cells
   !============================================================================
-  function get_num_cells_core( self ) result ( core_cells )
-
+  function get_inner_depth( self ) result ( inner_depth )
     implicit none
 
     class(mesh_type), intent(in) :: self
-    integer(i_def)               :: core_cells
 
-    core_cells = self%partition%get_num_cells_core()
+    integer(i_def) :: inner_depth
 
-  end function get_num_cells_core
+    inner_depth = self%partition%get_inner_depth()
 
+  end function get_inner_depth
 
-  !> @details Get the number of owned cells from the partition object
-  !> @return  The total number of core cells on the local partition
+  !> Returns the total number of inner halo cells in a particular depth of
+  !> inner halo in a 2d slice from the partition object
+  !> @param[in] depth The depth of the inner halo being queried
+  !> @return inner_halo_cells The total number of inner halo cells of the
+  !>                          particular depth on the local partition
   !============================================================================
-  function get_num_cells_owned( self ) result ( owned_cells )
-
+  function get_num_cells_inner( self, depth ) result ( inner_cells )
     implicit none
 
     class(mesh_type), intent(in) :: self
-    integer(i_def)               :: owned_cells
 
-    owned_cells = self%partition%get_num_cells_owned()
+    integer(i_def), intent(in) :: depth
+    integer(i_def)             :: inner_cells
 
-  end function get_num_cells_owned
+    if( depth > self%get_inner_depth() )then
+      inner_cells = 0
+    else
+      inner_cells = self%partition%get_num_cells_inner(depth)
+    end if
+
+  end function get_num_cells_inner
+
+  !> @brief  Gets the index of the last cell in an inner halo
+  !> @details Returns the index of the last cell in a particular depth
+  !>          of inner halo in a 2d slice on the local partition
+  !> @param[in] depth The depth of the inner halo being queried
+  !> @return last_inner_cell The index of the last cell in the particular depth
+  !>         of inner halo on the local partition
+  !============================================================================
+  function get_last_inner_cell( self, depth ) result ( last_inner_cell )
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+
+    integer(i_def), intent(in) :: depth
+    integer(i_def)             :: last_inner_cell
+
+    if( depth > self%get_inner_depth() )then
+      last_inner_cell = 0
+    else
+      last_inner_cell = self%partition%get_last_inner_cell(depth)
+    end if
+
+  end function get_last_inner_cell
+
+  !> Get the number of edge cells from the partition object
+  !> @return edge_cells The total number of edge cells on the 
+  !> local partition
+  !============================================================================
+  function get_num_cells_edge( self ) result ( edge_cells )
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+
+    integer(i_def) :: edge_cells
+
+    edge_cells = self%partition%get_num_cells_edge()
+
+  end function get_num_cells_edge
+
+  !> @brief  Gets the index of the last edge cell in a 2d slice on the local
+  !>         partition
+  !> @return last_edge_cell The index of the last of "edge" cell on the local
+  !>         partition
+  !============================================================================
+  function get_last_edge_cell( self ) result ( last_edge_cell )
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+
+    integer(i_def) :: last_edge_cell
+
+    last_edge_cell = self%partition%get_last_edge_cell()
+
+  end function get_last_edge_cell
 
 
   !> @details Returns the maximum depth of the halo from the partition object
@@ -1111,6 +1174,28 @@ contains
 
   end function get_num_cells_halo
 
+  !> @brief  Gets the index of the last cell in a halo 
+  !> @details Returns the index of the last cell in a particular depth
+  !>          of halo in a 2d slice on the local partition
+  !> @param[in] depth The depth of the halo being queried
+  !> @return last_halo_cell The index of the last cell in the particular depth
+  !>         of halo on the local partition
+  !============================================================================
+  function get_last_halo_cell( self, depth ) result ( last_halo_cell )
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+
+    integer(i_def), intent(in) :: depth
+    integer(i_def)             :: last_halo_cell
+
+    if( depth > self%get_halo_depth() )then
+      last_halo_cell = 0
+    else
+      last_halo_cell = self%partition%get_last_halo_cell(depth)
+    end if
+
+  end function get_last_halo_cell
 
   !> @details Get the total number of ghost cells in a slice around
   !>          the local partition

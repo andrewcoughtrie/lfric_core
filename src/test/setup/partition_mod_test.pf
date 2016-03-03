@@ -92,12 +92,17 @@ contains
   integer :: yproc
   integer :: local_rank
   integer :: total_ranks
-  integer :: halo_depth
+  integer :: max_stencil_depth
 
   integer :: num_cells_in_layer
-  integer :: num_cells_core
-  integer :: num_cells_owned
+  integer :: inner_depth
+  integer :: halo_depth  
+  integer :: num_cells_inner
+  integer :: last_inner_cell
+  integer :: num_cells_edge
+  integer :: last_edge_cell
   integer :: num_cells_halo
+  integer :: last_halo_cell
   integer(i_def) :: num_cells_ghost
   integer :: cell_owner
   integer :: lid
@@ -112,7 +117,7 @@ contains
   yproc = 1
   local_rank = this%local_rank
   total_ranks = this%total_ranks
-  halo_depth = 1
+  max_stencil_depth = 1
 
   filename = 'data/ugrid_quads_2d_biperiodic_8x8.nc' 
   global_mesh = global_mesh_type( filename )
@@ -120,25 +125,40 @@ contains
   !
   ! Generate the partition
   partition = partition_type( global_mesh, &
-                             partitioner_ptr, &
-                             halo_depth, &
-                             xproc, &
-                             yproc, &
-                             local_rank, &
-                             total_ranks)
+                              partitioner_ptr, &
+                              xproc, &
+                              yproc, &
+                              max_stencil_depth, &
+                              local_rank, &
+                              total_ranks )
   !
   ! Test functionality of the partition object we've just created
   num_cells_in_layer = partition%get_num_cells_in_layer()
   @assertEqual( 64, num_cells_in_layer )
 
-  num_cells_core = partition%get_num_cells_core()
-  @assertEqual( 36, num_cells_core )
+  inner_depth = partition%get_inner_depth()
+  @assertEqual( 2, inner_depth )
 
-  num_cells_owned = partition%get_num_cells_owned()
-  @assertEqual( 28, num_cells_owned )
+  num_cells_inner = partition%get_num_cells_inner(1)
+  @assertEqual( 20, num_cells_inner )
+
+  last_inner_cell = partition%get_last_inner_cell(1)
+  @assertEqual( 36, last_inner_cell )
+
+  num_cells_edge = partition%get_num_cells_edge()
+  @assertEqual( 28, num_cells_edge )
+
+  last_edge_cell = partition%get_last_edge_cell()
+  @assertEqual( 64, last_edge_cell )
+
+  halo_depth = partition%get_halo_depth()
+  @assertEqual( 2, halo_depth )
 
   num_cells_halo = partition%get_num_cells_halo(1)
   @assertEqual( 0, num_cells_halo )
+
+  last_halo_cell = partition%get_last_halo_cell(1)
+  @assertEqual( 64, last_halo_cell )
 
   num_cells_ghost = partition%get_num_cells_ghost()
   @assertEqual( 0, num_cells_ghost )
@@ -148,11 +168,11 @@ contains
 
   lid = 1
   gid = partition%get_gid_from_lid( lid )
-  @assertEqual( 18, gid )
+  @assertEqual( 27, gid )
 
-  gid = 4
+  gid = 30
   lid = partition%get_lid_from_gid( gid )
-  @assertEqual( 40, lid )
+  @assertEqual( 4, lid )
 
 !> @todo  Can't test a parallel biperiodic partition until the unit tests can
 !>        be run in parallel - but that will be another ticket
@@ -164,7 +184,7 @@ contains
 !  yproc = 2
 !  local_rank = 2
 !  total_ranks = 4
-!  halo_depth = 2
+!  max_stencil_depth = 2
 !  !
 !  ! Set a new global mesh - everything else is the same as previous test
 !  filename = 'data/ugrid_quads_2d.nc' 
@@ -173,38 +193,14 @@ contains
 !  ! Generate the partition
 !  partition = partition_type( global_mesh, &
 !                              partitioner_ptr, &
-!                              halo_depth, &
 !                              xproc, &
 !                              yproc, &
+!                              max_stencil_depth, &
 !                              local_rank, &
 !                              total_ranks )
 !  !
 !  ! Test functionality of the partition object we've just created
-!  num_cells_in_layer = partition%get_num_cells_in_layer()
-!  @assertEqual( 81, num_cells_in_layer )
-!
-!  num_cells_core = partition%get_num_cells_core()
-!  @assertEqual( 9, num_cells_core )
-!
-!  num_cells_owned = partition%get_num_cells_owned()
-!  @assertEqual( 16, num_cells_owned )
-!
-!  num_cells_halo = partition%get_num_cells_halo( 1 )
-!  @assertEqual( 24, num_cells_halo )
-!
-!  num_cells_halo = partition%get_num_cells_halo( 2 )
-!  @assertEqual( 32, num_cells_halo )
-!
-!  cell_owner = partition%get_cell_owner( 26 )
-!  @assertEqual( 1, cell_owner )
-!
-!  lid = 1
-!  gid = partition%get_gid_from_lid( lid )
-!  @assertEqual( 62, gid )
-!
-!  gid = 4
-!  lid = partition%get_lid_from_gid( gid )
-!  @assertEqual( 29, lid )
+!  ...
 
 
   !-------------------------------------------------------
@@ -214,7 +210,7 @@ contains
   yproc = 1
   local_rank = this%local_rank
   total_ranks = this%total_ranks
-  halo_depth = 1
+  max_stencil_depth = 1
 
   filename = 'data/ugrid_quads_2d_cubedsphere_6x4x4.nc' 
   global_mesh = global_mesh_type( filename )
@@ -222,9 +218,9 @@ contains
 
   partition = partition_type( global_mesh, &
                               partitioner_ptr, &
-                              halo_depth, &
                               xproc, &
                               yproc, &
+                              max_stencil_depth, &
                               local_rank, &
                               total_ranks )
   !
@@ -232,14 +228,29 @@ contains
   num_cells_in_layer = partition%get_num_cells_in_layer()
   @assertEqual( 96, num_cells_in_layer )
 
-  num_cells_core = partition%get_num_cells_core()
-  @assertEqual( 96, num_cells_core )
+  inner_depth = partition%get_inner_depth()
+  @assertEqual( 2, inner_depth )
 
-  num_cells_owned = partition%get_num_cells_owned()
-  @assertEqual( 0, num_cells_owned )
+  num_cells_inner = partition%get_num_cells_inner(2)
+  @assertEqual( 96, num_cells_inner )
 
-  num_cells_halo = partition%get_num_cells_halo( 1 )
+  last_inner_cell = partition%get_last_inner_cell(1)
+  @assertEqual( 96, last_inner_cell )
+
+  num_cells_edge = partition%get_num_cells_edge()
+  @assertEqual( 0, num_cells_edge )
+
+  last_edge_cell = partition%get_last_edge_cell()
+  @assertEqual( 96, last_edge_cell )
+
+  halo_depth = partition%get_halo_depth()
+  @assertEqual( 2, halo_depth )
+
+  num_cells_halo = partition%get_num_cells_halo(1)
   @assertEqual( 0, num_cells_halo )
+
+  last_halo_cell = partition%get_last_halo_cell(1)
+  @assertEqual( 96, last_halo_cell )
 
   num_cells_ghost = partition%get_num_cells_ghost()
   @assertEqual( 0, num_cells_ghost )
@@ -265,7 +276,7 @@ contains
 !  yproc = 2
 !  local_rank = this%local_rank
 !  total_ranks = this%total_ranks
-!  halo_depth = 2
+!  max_stencil_depth = 2
 !
 !  filename = 'data/ugrid_quads_2d.nc' 
 !  global_mesh = global_mesh_type( filename )
@@ -273,38 +284,14 @@ contains
 !
 !  partition = partition_type( global_mesh, &
 !                              partitioner_ptr, &
-!                              halo_depth, &
 !                              xproc, &
 !                              yproc, &
+!                              max_stencil_depth, &
 !                              local_rank, &
 !                              total_ranks )
 !  !
 !  ! Test functionality of the partition object we've just created
-!  num_cells_in_layer = partition%get_num_cells_in_layer()
-!  @assertEqual( 32, num_cells_in_layer )
-!
-!  num_cells_core = partition%get_num_cells_core()
-!  @assertEqual( 0, num_cells_core )
-!
-!  num_cells_owned = partition%get_num_cells_owned()
-!  @assertEqual( 4, num_cells_owned )
-!
-!  num_cells_halo = partition%get_num_cells_halo( 1 )
-!  @assertEqual( 11, num_cells_halo )
-!
-!  num_cells_halo = partition%get_num_cells_halo( 2 )
-!  @assertEqual( 17, num_cells_halo )
-!
-!  cell_owner = partition%get_cell_owner( 5 )
-!  @assertEqual( 1, cell_owner )
-!
-!  lid = 3
-!  gid = partition%get_gid_from_lid( lid )
-!  @assertEqual( 23, gid )
-!
-!  gid = 88
-!  lid = partition%get_lid_from_gid( gid )
-!  @assertEqual( 14, lid )
+!  ...
 
   end subroutine test_partition
 

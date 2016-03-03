@@ -512,24 +512,34 @@ contains
     @assertEqual( 7, test_integer )
 
     !-------------------------------------------------------------------
-    ! Test get_num_cells_core
-    test_integer=( mesh_1%get_num_cells_core() )
+    ! Test inner halo cell information
+    test_integer=mesh_1%get_inner_depth()
+    @assertEqual( 1, test_integer )
+
+    test_integer=mesh_1%get_num_cells_inner(1)
+    @assertEqual( 9, test_integer )
+
+    test_integer=mesh_1%get_last_inner_cell(1)
     @assertEqual( 9, test_integer )
 
     !-------------------------------------------------------------------
-    ! Test get_num_cells_owned
-    test_integer=( mesh_1%get_num_cells_owned() )
+    ! Test edge cell information
+    test_integer=( mesh_1%get_num_cells_edge() )
     @assertEqual( 0, test_integer )
 
+    test_integer=( mesh_1%get_last_edge_cell() )
+    @assertEqual( 9, test_integer )
+
     !-------------------------------------------------------------------
-    ! Test get_halo_depth
+    ! Test halo information
     test_integer=( mesh_1%get_halo_depth() )
     @assertEqual( 1, test_integer )
 
-    !-------------------------------------------------------------------
-    ! Test get_num_cells_halo
     test_integer=( mesh_1%get_num_cells_halo( 1 ) )
     @assertEqual( 0, test_integer )
+
+    test_integer=mesh_1%get_last_halo_cell( 1 )
+    @assertEqual( 9, test_integer )
 
     !-------------------------------------------------------------------
     ! Test get_num_cells_ghost
