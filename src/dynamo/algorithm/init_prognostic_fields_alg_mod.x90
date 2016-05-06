@@ -12,7 +12,7 @@ module init_prognostic_fields_alg_mod
                                              log_scratch_space, &
                                              LOG_LEVEL_INFO,    &
                                              LOG_LEVEL_TRACE
-  use constants_mod,                   only: r_def
+  use constants_mod,                   only: r_def, i_def
 
   use solver_mod,                      only: solver_algorithm
   use solver_config_mod,               only: method
@@ -34,7 +34,6 @@ module init_prognostic_fields_alg_mod
   use compute_mass_matrix_kernel_w2_mod, only: compute_mass_matrix_kernel_w2_type
 
   ! Derived Types
-  use mesh_mod,                        only: mesh_type
   use function_space_collection_mod,   only: function_space_collection
   use function_space_mod,              only: function_space_type
   use field_mod,                       only: field_type
@@ -52,19 +51,19 @@ module init_prognostic_fields_alg_mod
 contains
   !> @details An algorithm for initialising prognostic fields for 
   !>          all solvers.
-  !> @param[in]    mesh Mesh object on which the model runs
+  !> @param[in] mesh_id Id of Mesh object on which the model runs
   !> @param[inout] chi  The finite element form of the coordinates
   !> @param[inout] u  The 3D wind field
   !> @param[inout] rho The density
   !> @param[inout] theta The potential temperature
   !> @param[inout] xi The vorticity field 
   !> @param[in] restart Checkpoint/restart type with timestepping information
-  subroutine init_prognostic_fields_alg( mesh, chi, u, rho, theta, xi, restart)
+  subroutine init_prognostic_fields_alg( mesh_id, chi, u, rho, theta, xi, restart)
 
     implicit none
 
-    ! Mesh
-    type (mesh_type), intent(in) :: mesh
+    ! Mesh id
+    integer(i_def),  intent(in) :: mesh_id
     ! Coordinate fields
     type( field_type ), intent( inout ) :: chi(3)
     ! Prognostic fields
@@ -92,16 +91,16 @@ contains
       call invoke( initial_theta_kernel_type( theta, chi ) )
       if ( transport_only ) then
         r_u = field_type( vector_space =                                           &
-                    function_space_collection%get_fs(mesh, element_order, W2) )
+                    function_space_collection%get_fs(mesh_id, element_order, W2) )
         call invoke_set_field_scalar(0.0_r_def, u)
         call invoke_set_field_scalar(0.0_r_def, r_u)
         call invoke( initial_u_kernel_type( r_u, chi, qr ) )
-        w2_fs    => function_space_collection%get_fs(mesh, &
+        w2_fs    => function_space_collection%get_fs(mesh_id, &
                                                      element_order, &
                                                      W2)
         mm_w2 = operator_type( w2_fs, w2_fs )
         call invoke( compute_mass_matrix_kernel_w2_type(mm_w2, chi, qr) )
-        call solver_algorithm(u, r_u, mesh, chi, method, mm=mm_w2)
+        call solver_algorithm(u, r_u, mesh_id, chi, method, mm=mm_w2)
       else
         call invoke_set_field_scalar(0.0_r_def, u)
       end if
@@ -123,7 +122,7 @@ contains
       call log_event(log_scratch_space,LOG_LEVEL_INFO)
 
       state(1) = field_type(vector_space =                                     &
-                        function_space_collection%get_fs(mesh,element_order, W3))
+                        function_space_collection%get_fs(mesh_id,element_order, W3))
 
       call read_state_netcdf(n_fields, state(1), trim(restart%startfname("rho")))
       rho = state(1)
@@ -133,7 +132,7 @@ contains
       call log_event(log_scratch_space,LOG_LEVEL_INFO)
 
       state(2) = field_type(vector_space =                                      &
-                       function_space_collection%get_fs(mesh, element_order, W2))
+                       function_space_collection%get_fs(mesh_id, element_order, W2))
 
       call read_state_netcdf(n_fields, state(2), trim(restart%startfname("u")))
       u = state(2)
@@ -143,7 +142,7 @@ contains
       call log_event(log_scratch_space,LOG_LEVEL_INFO)
 
       state(3) = field_type(vector_space =                                      &
-                        function_space_collection%get_fs(mesh, element_order, W0))
+                        function_space_collection%get_fs(mesh_id, element_order, W0))
 
       call read_state_netcdf(n_fields, state(3), &
            trim(restart%startfname("theta")))
@@ -154,7 +153,7 @@ contains
       call log_event(log_scratch_space,LOG_LEVEL_INFO)
 
       state(4) = field_type(vector_space =                                      &
-                       function_space_collection%get_fs(mesh, element_order, W1))
+                       function_space_collection%get_fs(mesh_id, element_order, W1))
 
       call read_state_netcdf(n_fields, state(4), trim(restart%startfname("xi")))
       xi = state(4)

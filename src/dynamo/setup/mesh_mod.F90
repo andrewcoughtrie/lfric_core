@@ -23,7 +23,7 @@ module mesh_mod
   use extrusion_config_mod, only: extrusion_method_uniform
   use global_mesh_mod,      only : global_mesh_type
   use log_mod,              only : log_event, log_scratch_space, &
-                                   LOG_LEVEL_DEBUG, LOG_LEVEL_ERROR
+                                   LOG_LEVEL_DEBUG, LOG_LEVEL_ERROR, LOG_LEVEL_INFO
   use partition_mod,        only : partition_type
 
   implicit none
@@ -182,8 +182,11 @@ module mesh_mod
     !==========================================================================
     ! Colouring storage: these form the arguments to set_colours().
     !==========================================================================
+    !> integer, the number of colours
     integer(i_def),              private :: ncolours
+    !> integer 1-d array, how many cells belong to each colour
     integer(i_def), allocatable, private :: ncells_per_colour(:)
+    !> integer 2-d array, which cells are in each colour.
     integer(i_def), allocatable, private :: cells_in_colour(:,:)
 
   contains
@@ -243,21 +246,29 @@ module mesh_mod
 
     procedure, private :: set_vertical_coordinate
 
-    ! Overloaded assigment operator
-    procedure         :: mesh_type_assign
+    procedure, public, nopass :: get_mesh_instance_global
+    procedure, public, nopass :: get_mesh_instance_id
+    procedure, public, nopass :: get_mesh_noargs
+    generic,   public :: get_mesh_instance => get_mesh_instance_global, &
+         get_mesh_instance_id,  get_mesh_noargs
+
+    procedure, public, nopass :: get_mesh_instance_test
+
 
     ! Destructor frees colouring storage
     final :: mesh_destructor
 
-    ! Override default assignment for mesh_type pairs.
-    generic           :: assignment(=) => mesh_type_assign
-
   end type mesh_type
 
-  interface mesh_type
-    module procedure mesh_constructor
-    module procedure mesh_constructor_unit_test_data
-  end interface
+  ! -------------------------------------------------------------------------
+  ! Module parameters
+  ! -------------------------------------------------------------------------
+  !> The mesh_type saved in module scope to hold the singleton
+  type(mesh_type), target, allocatable, save :: primal_mesh
+  
+  !> Counter variable to keep track of the next mesh id number to uniquely 
+  !! identify each Singleton
+  integer(i_def) :: mesh_id_counter = 0
 
   !============================================================================
   ! Options for horizontal pFUnit test meshes
@@ -269,14 +280,101 @@ module mesh_mod
   integer(i_def), parameter, public :: PLANE_BI_PERIODIC = 2
   !> @}
 
-  !> Counter variable to keep track next mesh id number
-  integer(i_def) :: mesh_id_counter = 0
+  public destroy_mesh_singleton
 
 contains
 
+  !> Returns a pointer to the primal_mesh
+  !! The mesh is a Singleton, so it is created once and thereafter a pointer
+  !! to this mesh is returned whenever an instance is requested.
+  !> @param [in] global_mesh   Global mesh object on which the partition is
+  !!                           applied
+  !> @param [in] partition     Partition object to base 3D-Mesh on
+  !> @param [in] nlayers_in    Number of 3D-cell layers in the 3D-Mesh object
+  !> @param [in] domain_top    Top of atmosphere above surface
+  !> @param [in] vgrid_option  Choice of vertical grid
+  !> @return                   pointer to 3D-Mesh object based on the list of 
+  !!                           partitioned cells on the given global mesh
+  function get_mesh_instance_global(global_mesh, partition, nlayers_in, domain_top, & 
+       vgrid_option) result(instance) 
+    implicit none
+    type (partition_type),   intent(in) :: partition
+    type (global_mesh_type), intent(in) :: global_mesh
+    
+    integer(i_def), intent(in) :: nlayers_in
+    integer(i_def), intent(in) :: vgrid_option
+    real(r_def),    intent(in) :: domain_top
+    
+    type(mesh_type), pointer :: instance
+    
+    instance => null()
+    
+    if(allocated(primal_mesh)) then
+       instance => primal_mesh
+       return
+    else
+       allocate(primal_mesh)
+       call mesh_constructor(global_mesh, partition, nlayers_in, domain_top, &
+            vgrid_option, primal_mesh)
+       instance => primal_mesh
+    end if
+
+  end function get_mesh_instance_global
+
+  !> Returns a pointer to a mesh used in the unit tests, typically 
+  !! bi-periodic of small size. 
+  function get_mesh_instance_test(grid_option) result(instance)
+    implicit none
+    integer(i_def), intent(in) :: grid_option
+
+    type(mesh_type), pointer :: instance
+    instance => null()
+    if(allocated(primal_mesh)) then 
+       instance => primal_mesh
+       return
+    else
+       allocate(primal_mesh)
+       call mesh_constructor_unit_test_data(grid_option, primal_mesh)
+       instance => primal_mesh
+    end if
+  end function get_mesh_instance_test
+
+  !> Returns a pointer to the primal mesh. This is used in the PSylayer
+  !! via the functions space wrapper. Temporary measure to preserve the
+  !! API
+  function get_mesh_noargs() result(instance)
+    implicit none
+    type(mesh_type), pointer :: instance 
+    instance => null()
+    if(allocated(primal_mesh)) then
+       instance => primal_mesh
+       return
+    else
+       write(log_scratch_space,'(A)') & 
+            "Can't make a mesh from thin air: Gimmie something to work with"
+       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+  end function get_mesh_noargs
+
+  function get_mesh_instance_id(mesh_id) result(instance)
+    implicit none
+    integer, intent(in) :: mesh_id
+    type(mesh_type), pointer :: instance 
+    instance => null()
+    if(allocated(primal_mesh)) then
+       instance => primal_mesh
+       return
+    else
+       write(log_scratch_space,'(A)') & 
+            "Can't make a mesh from thin air: Gimmie something to work with"
+       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+  end function get_mesh_instance_id
 
   !============================================================================
-  !> @brief Stucture-Constructor
+  !> @brief Builds the mesh object
   !> @param [in] partition     Partition object to base 3D-Mesh on
   !> @param [in] global_mesh   Global mesh object on which the partition is
   !>                           applied
@@ -286,12 +384,14 @@ contains
   !> @return                   3D-Mesh object based on the list of partitioned
   !>                           cells on the given global mesh
   !============================================================================
-  function mesh_constructor ( partition,     &
+  subroutine mesh_constructor (              &
                               global_mesh,   &
+                              partition,     &
                               nlayers_in,    &
                               domain_top,    &
-                              vgrid_option ) &
-                            result( self )
+                              vgrid_option,  &
+                              self )
+    
 
     ! User structure constructor function for 3d-mesh object
     ! for given 2d-partition of global skin.
@@ -300,14 +400,13 @@ contains
 
     implicit none
 
-    type (partition_type),   intent(in) :: partition
     type (global_mesh_type), intent(in) :: global_mesh
+    type (partition_type),   intent(in) :: partition
 
     integer(i_def), intent(in) :: nlayers_in
     integer(i_def), intent(in) :: vgrid_option
     real(r_def),    intent(in) :: domain_top
-
-    type(mesh_type) :: self
+    type(mesh_type), intent(out) :: self
 
     integer(i_def) :: i, j        ! loop counters
 
@@ -324,8 +423,8 @@ contains
     nedges_per_2d_cell = global_mesh%get_nedges_per_cell()
 
     mesh_id_counter = mesh_id_counter+1
-
     self%mesh_id    = mesh_id_counter
+
     self%partition  = partition
     self%ncells_2d  = partition%get_num_cells_in_layer()
     self%nlayers    = nlayers_in
@@ -411,7 +510,7 @@ contains
     deallocate( verts )
     deallocate( edges )
 
-  end function mesh_constructor
+  end subroutine mesh_constructor
 
 
   !============================================================================
@@ -506,7 +605,6 @@ contains
     end do
 
   end subroutine get_column_coords
-
 
   !> @details This function returns the id number of the mesh, this number is
   !>          assigned when the object is first instatiated.
@@ -2088,7 +2186,6 @@ contains
 
     type (mesh_type) :: self
 
-
     if (allocated(self%cell_lid_gid_map)) deallocate(self%cell_lid_gid_map)
     if (allocated(self%cell_next))        deallocate(self%cell_next)
     if (allocated(self%vert_on_cell))     deallocate(self%vert_on_cell)
@@ -2113,111 +2210,7 @@ contains
       deallocate(self%cells_in_colour)
     end if
 
-
   end subroutine mesh_destructor
-
-  !> Assignment operator between mesh_type pairs.
-  !>
-  !> @param[out] dest   field_type lhs
-  !> @param[in]  source field_type rhs
-
-  subroutine mesh_type_assign ( dest, source)
-
-    use reference_element_mod, only: nfaces, nverts
-
-
-    implicit none
-
-    class(mesh_type), intent(out)     :: dest
-    class(mesh_type), intent(in)      :: source
-
-
-    dest%mesh_id    = source%mesh_id
-    dest%partition  = source%partition
-    dest%ncells_2d  = source%ncells_2d
-    dest%nlayers    = source%nlayers
-    dest%ncells     = source%ncells
-    dest%domain_top = source%domain_top
-    dest%ncolours   = source%ncolours
-
-
-    ! Copy vertical coordinates eta[0,1] and dz
-    allocate( dest%eta ( 0:source%nlayers ) )
-    allocate( dest%dz  ( source%nlayers   ) )
-
-    dest%eta(:) = source%eta(:)
-    dest%dz(:) = source%dz(:)
-
-    ! Copy vertex coords
-    allocate ( dest % vertex_coords ( 3, source%nverts ) )
-    dest%vertex_coords(:,:) = source%vertex_coords(:,:)
-
-    dest%nverts_2d = source%nverts_2d
-    dest%nedges_2d = source%nedges_2d
-    dest%ncells_2d = source%ncells_2d
-    dest%ncells_2d_with_ghost = source%ncells_2d_with_ghost
-
-    dest%nverts = source%nverts
-    dest%nedges = source%nedges
-    dest%nfaces = source%nfaces
-    dest%ncells = source%ncells
-    dest%ncells_with_ghost = source%ncells_with_ghost
-
-    dest%nverts_per_cell = source%nverts_per_cell
-    dest%nedges_per_cell = source%nedges_per_cell
-    dest%nfaces_per_cell = source%nfaces_per_cell
-
-    ! Copy 2d cell lid/gid map
-    allocate( dest % cell_lid_gid_map(source%ncells_2d_with_ghost) )
-    dest%cell_lid_gid_map(:) = source%cell_lid_gid_map(:)
-
-    ! Calculate next-to cells and vertices on cells
-    allocate ( dest % cell_next    ( nfaces, source%ncells_with_ghost ) )
-    allocate ( dest % vert_on_cell ( nverts, source%ncells_with_ghost ) )
-
-    dest%cell_next(:,:) = source%cell_next(:,:)
-    dest%vert_on_cell(:,:) = source%vert_on_cell(:,:)
-
-
-    allocate( dest % face_on_cell(source%nfaces_per_cell, source%ncells_2d_with_ghost) )
-    allocate( dest % edge_on_cell(source%nedges_per_cell, source%ncells_2d_with_ghost) )
-
-    dest%face_on_cell(:,:) = source%face_on_cell(:,:)
-    dest%edge_on_cell(:,:) = source%edge_on_cell(:,:)
-
-
-    ! copy domain size
-
-    dest % domain_size%minimum%x =  source % domain_size%minimum%x
-    dest % domain_size%maximum%x =  source % domain_size%maximum%x
-    dest % domain_size%minimum%y =  source % domain_size%minimum%y
-    dest % domain_size%maximum%y =  source % domain_size%maximum%y
-    dest % domain_size%minimum%z =  source % domain_size%minimum%z
-    dest % domain_size%maximum%z =  source % domain_size%maximum%z
-    
-
-    ! Copy ownership of cell vertices and cell edges
-    allocate( &
-      dest%vertex_ownership (lbound(source%vertex_ownership,1):ubound(source%vertex_ownership,1) &
-                             , lbound(source%vertex_ownership,2):ubound(source%vertex_ownership,2) ) )
-    allocate( &
-      dest%edge_ownership (lbound(source%edge_ownership,1):ubound(source%edge_ownership,1) &
-                           , lbound(source%edge_ownership,2):ubound(source%edge_ownership,2) ) )
-    allocate( &
-      dest%vert_cell_owner (lbound(source%vert_cell_owner,1):ubound(source%vert_cell_owner,1) &
-                            , lbound(source%vert_cell_owner,2):ubound(source%vert_cell_owner,2) ) )
-    allocate( &
-      dest%edge_cell_owner (lbound(source%edge_cell_owner,1):ubound(source%edge_cell_owner,1) &
-                           , lbound(source%edge_cell_owner,2):ubound(source%edge_cell_owner,2) ) )
-
-    dest%vertex_ownership(:,:) = source%vertex_ownership(:,:)
-    dest%edge_ownership(:,:) = source%edge_ownership(:,:)
-    dest%vert_cell_owner(:,:) = source%vert_cell_owner(:,:)
-    dest%edge_cell_owner(:,:) = source%edge_cell_owner(:,:)
-
-
-  end subroutine mesh_type_assign
-
 
   !============================================================================
   ! This routine is only available when setting data for unit testing.
@@ -2230,7 +2223,7 @@ contains
   !> @return             A 3D-Mesh object based on a 3x3-cell global mesh
   !>                     with one partition.
   !============================================================================
-  function mesh_constructor_unit_test_data(mesh_cfg) result (self)
+  subroutine mesh_constructor_unit_test_data(mesh_cfg, self)
 
     ! Mesh returned is based on a 3x3 partition with the following
     ! cell numbering.
@@ -2255,42 +2248,47 @@ contains
     integer(i_def), parameter :: nedges_per_2d_cell = 4
 
 
-    mesh_id_counter = mesh_id_counter+1_i_def
-
-    self%mesh_id         = mesh_id_counter
     self%partition       = partition_type()
     self%nverts_per_cell = 8
     self%nedges_per_cell = 12
     self%nfaces_per_cell = 6
     self%ncolours        = -1  ! Initialise ncolours to error status
 
+    mesh_id_counter = mesh_id_counter+1
+    self%mesh_id    = mesh_id_counter
+
+
 
     if (mesh_cfg == PLANE) then
-      self%domain_top = 10000.0_r_def
-
-      self%ncells_2d = 9
-      self%nverts_2d = 16
-      self%nedges_2d = 24
-
-      self%nlayers = 5
-      self%ncells  = 45
-      self%nverts  = 96
-      self%nfaces  = 156
-      self%nedges  = 224
-
+       self%domain_top = 10000.0_r_def
+       
+       self%ncells_2d = 9
+       self%nverts_2d = 16
+       self%nedges_2d = 24
+       
+       self%nlayers = 5
+       self%ncells  = 45
+       self%nverts  = 96
+       self%nfaces  = 156
+       self%nedges  = 224
+       
     else if (mesh_cfg == PLANE_BI_PERIODIC) then
-      self%domain_top = 6000.0_r_def
-
-      ! 3x3x3 mesh bi-periodic
-      self%ncells_2d = 9
-      self%nverts_2d = 9
-      self%nedges_2d = 18
-
-      self%nlayers = 3
-      self%ncells  = 27
-      self%nverts  = 36
-      self%nfaces  = 90
-      self%nedges  = 99
+       self%domain_top = 6000.0_r_def
+       
+       ! 3x3x3 mesh bi-periodic
+       self%ncells_2d = 9
+       self%nverts_2d = 9
+       self%nedges_2d = 18
+       
+       self%nlayers = 3
+       self%ncells  = 27
+       self%nverts  = 36
+       self%nfaces  = 90
+       self%nedges  = 99
+    else
+       write(log_scratch_space,'(A,I0)')  &
+            "mesh_constructor_unit_test_data:bad mesh specify:", mesh_cfg
+       call log_event(log_scratch_space,LOG_LEVEL_ERROR)
     end if
 
 
@@ -2902,6 +2900,17 @@ contains
 
     end if
 
-  end function mesh_constructor_unit_test_data
+  end subroutine mesh_constructor_unit_test_data
+  
+  !> No arguments, dellocates the primal mesh and thus the singleton
+  !! used in unit testing framework.
+  subroutine destroy_mesh_singleton()
+    implicit none
+
+    if( allocated(primal_mesh) ) then
+       deallocate(primal_mesh)
+    end if
+    
+  end subroutine destroy_mesh_singleton
 
 end module mesh_mod

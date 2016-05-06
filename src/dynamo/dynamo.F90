@@ -44,8 +44,8 @@ program dynamo
                                              LOG_LEVEL_ERROR,   &
                                              LOG_LEVEL_INFO,    &
                                              LOG_LEVEL_DEBUG,   &
-                                             LOG_LEVEL_TRACE
-  use mesh_mod,                       only : mesh_type
+                                             LOG_LEVEL_TRACE,   &
+                                             log_scratch_space
   use restart_config_mod,             only : filename
   use restart_control_mod,            only : restart_type
   use rk_alg_timestep_mod,            only : rk_alg_timestep
@@ -57,8 +57,6 @@ program dynamo
 
   use runge_kutta_init_mod,    only: runge_kutta_init
   implicit none
-
-  type( mesh_type )           :: mesh
 
   ! coordinate fields
   type( field_type ) :: chi(3)
@@ -73,6 +71,7 @@ program dynamo
   integer :: rc
   integer :: total_ranks, local_rank
   integer :: petCount, localPET
+  integer :: mesh_id
   type(restart_type)               :: restart
 
   ! Initialise ESMF and get the rank information from the virtual machine
@@ -95,8 +94,10 @@ program dynamo
   restart = restart_type( filename, local_rank, total_ranks )
 
   ! Set up mesh and element order
-  call set_up(mesh, local_rank, total_ranks)
+  call set_up(local_rank, total_ranks, mesh_id)
 
+  write(log_scratch_space,'(A,I0)') "Dynamo:Partition mesh, id=", mesh_id
+  call log_event(log_scratch_space,LOG_LEVEL_INFO)
   ! Create top level function space collection
 
   function_space_collection = function_space_collection_type()
@@ -104,32 +105,31 @@ program dynamo
   ! Calculate coordinates
   do coord = 1,3
     chi(coord) = field_type (vector_space =                                    &
-                       function_space_collection%get_fs(mesh,element_order,W0) )
+                       function_space_collection%get_fs(mesh_id,element_order,W0) )
   end do
   ! Assign coordinate field
   call log_event( "Dynamo: Computing W0 coordinate fields", LOG_LEVEL_INFO )
-  call assign_coordinate_field(mesh, chi)
-
+  call assign_coordinate_field(chi, mesh_id)
 
   ! Create prognostic fields
   theta = field_type( vector_space = &
-                     function_space_collection%get_fs(mesh, element_order, W0) )
+                     function_space_collection%get_fs(mesh_id, element_order, W0) )
   xi    = field_type( vector_space = &
-                     function_space_collection%get_fs(mesh, element_order, W1) )
+                     function_space_collection%get_fs(mesh_id, element_order, W1) )
   u     = field_type( vector_space = &
-                     function_space_collection%get_fs(mesh, element_order, W2) )
+                     function_space_collection%get_fs(mesh_id, element_order, W2) )
   rho   = field_type( vector_space = &
-                     function_space_collection%get_fs(mesh, element_order, W3) )
+                     function_space_collection%get_fs(mesh_id, element_order, W3) )
 
   ! Initialise prognostic fields: Theta, U, Xi, Rho are initialised in 
   ! separate algorithm/subroutine
-  call init_prognostic_fields_alg( mesh, chi, u, rho, theta, xi, restart)
+  call init_prognostic_fields_alg( mesh_id, chi, u, rho, theta, xi, restart)
 
   ! Run timestepping algorithms
   if ( transport_only ) then
 
     call runge_kutta_init()
-    call rk_transport( mesh, chi, u, rho, restart)
+    call rk_transport( mesh_id, chi, u, rho, restart)
 
   else
 
@@ -137,10 +137,10 @@ program dynamo
 
       select case( method )
         case( timestepping_method_semi_implicit )  ! Semi-Implicit 
-          call iter_timestep_alg( mesh, chi, u, rho, theta, xi, restart)
+          call iter_timestep_alg( mesh_id, chi, u, rho, theta, xi, restart)
         case( timestepping_method_rk )             ! RK
           call runge_kutta_init()
-          call rk_alg_timestep( mesh, chi, u, rho, theta, xi, restart)
+          call rk_alg_timestep( mesh_id, chi, u, rho, theta, xi, restart)
         case default
           call log_event("Dynamo: Incorrect time stepping option chosen, "// &
                          "stopping program! ",LOG_LEVEL_ERROR)
@@ -152,7 +152,7 @@ program dynamo
       select case( method )
         case( timestepping_method_rk )        ! RK 
           call runge_kutta_init()
-          call lin_rk_alg_timestep( mesh, chi, u, rho, theta, restart)
+          call lin_rk_alg_timestep( mesh_id, chi, u, rho, theta, restart)
         case default
           call log_event("Dynamo: Only RK available for linear equations. ", &
                           LOG_LEVEL_INFO )

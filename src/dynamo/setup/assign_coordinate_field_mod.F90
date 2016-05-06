@@ -11,7 +11,7 @@ module assign_coordinate_field_mod
 
   use base_mesh_config_mod, only : geometry, &
                                    base_mesh_geometry_spherical
-  use constants_mod,        only : r_def
+  use constants_mod,        only : r_def, i_def
   use log_mod,              only : log_event, LOG_LEVEL_ERROR
   use planet_config_mod,    only : scaled_radius
 
@@ -23,10 +23,10 @@ contains
 !! and the data atributes of the field so that its values can be assigned.
 !! calls two subroutines, get_cell_coords from the mesh generator and then
 !! assign_coordinate on a column by column basis
-!! @param[in]  mesh Mesh object on which this field is attached
+!! @param[in]  mesh_id id of mesh  on which this field is attached
 !! @param[out] chi  Real array of size 3 (x,y,z) of fields
 
-  subroutine assign_coordinate_field(mesh,chi)
+  subroutine assign_coordinate_field(chi, mesh_id)
 
     use field_mod,             only: field_type, field_proxy_type
     use reference_element_mod, only: nverts, x_vert
@@ -34,8 +34,8 @@ contains
 
     implicit none
 
-    type( mesh_type),   intent( in    ) :: mesh
     type( field_type ), intent( inout ) :: chi(3)
+    integer(i_def),     intent(in)      :: mesh_id  
 
     type( field_proxy_type )      :: chi_proxy(3)
     real(kind=r_def), pointer     :: dof_coords(:,:) => null()
@@ -45,6 +45,8 @@ contains
     integer     :: undf, ndf, nlayers
     integer     :: alloc_error
     integer, pointer :: map(:) => null()
+    type( mesh_type), pointer :: mesh => null()
+
 
     ! Break encapsulation and get the proxy.
     chi_proxy(1) = chi(1)%get_proxy()
@@ -59,6 +61,7 @@ contains
       call log_event( " assign_coordinate_field: Unable to allocate "// &
                       "local array dz(nlayers) ", LOG_LEVEL_ERROR )
     end if
+    mesh => mesh%get_mesh_instance(mesh_id)
     call mesh%get_dz(dz)
 
     allocate( vert_coords(3,nverts,nlayers ) )

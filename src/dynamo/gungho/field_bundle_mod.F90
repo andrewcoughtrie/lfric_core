@@ -25,7 +25,6 @@ contains
 
   subroutine clone_bundle(x, y, bundle_size)
 
-    use mesh_mod,                  only: mesh_type
     use finite_element_config_mod, only: element_order
 
     implicit none
@@ -33,16 +32,14 @@ contains
     type(field_type), intent(in)    :: x(bundle_size)
     type(field_type), intent(inout) :: y(bundle_size)
 
-    type(mesh_type), pointer  :: mesh => null()
-    integer(i_def)            :: fs_handle
+    integer(i_def)            :: fs_handle, mesh_id
     integer                   :: i
 
     do i = 1,bundle_size   
-      mesh => x(i)%get_mesh()
       fs_handle = x(i)%which_function_space()
-
+      mesh_id = x(i)%get_mesh_id()
       y(i) = field_type( vector_space = &
-               function_space_collection%get_fs(mesh,element_order,fs_handle) )
+               function_space_collection%get_fs(mesh_id,element_order,fs_handle) )
 
     end do
   end subroutine clone_bundle
@@ -184,7 +181,6 @@ contains
 !> @param [in] bundle_size the number of fields in the bundle
   subroutine bundle_minmax(x, bundle_size)
 
-    use mesh_mod,                  only: mesh_type
     use psykal_lite_mod,           only: invoke_copy_field_data
     use log_mod,                   only: lOG_LEVEL_INFO   
     use finite_element_config_mod, only: element_order
@@ -193,18 +189,17 @@ contains
     integer,          intent(in) :: bundle_size
     type(field_type), intent(in) :: x(bundle_size)
     type(field_type)             :: y
-    type(mesh_type),  pointer    :: mesh => null()
-    integer(i_def)               :: fs_handle
+    integer(i_def)               :: fs_handle, mesh_id
     integer                      :: i
 
 ! This has strange syntax as psykal_lite_modclone doesnt like calls to
 ! type-bound procedures of field arrays
     do i = 1,bundle_size
-      mesh => x(i)%get_mesh()
       fs_handle = x(1)%which_function_space()
+      mesh_id = x(i)%get_mesh_id()
 
       y = field_type( vector_space = &
-               function_space_collection%get_fs(mesh,element_order,fs_handle) )
+               function_space_collection%get_fs(mesh_id,element_order,fs_handle) )
 
       call invoke_copy_field_data( x(1), y ) 
       call y%log_minmax(LOG_LEVEL_INFO, 'field')

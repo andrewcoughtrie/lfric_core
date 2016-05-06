@@ -8,7 +8,7 @@ module evaluate_output_field_mod
 
 use base_mesh_config_mod,    only: geometry, &
                                    base_mesh_geometry_spherical
-use constants_mod,           only: r_def
+use constants_mod,           only: r_def, i_def
 use coordinate_jacobian_mod, only: coordinate_jacobian, &
                                    coordinate_jacobian_inverse
 use coord_transform_mod,     only: cartesian_distance, llr2xyz
@@ -31,16 +31,16 @@ contains
 !>@deprecated This is a temporary solution until a better output routine is
 !>implemented as which point this routine will be reviewed to see if it will be
 !>needed elsewhere in the model
-!>@param[in]  mesh      The 3D mesh object this field is connected with
+!>@param[in]  mesh_id   The id of the 3D mesh object this field is connected with
 !>@param[in]  field     The field object to evaluate
 !>@param[in]  chi       The 3D coordinate field
 !>@param[in]  x_in      The point to evaluate the field at
 !>@param[in]  cell      The horizontal cell that x_in lies within
 !>@param[in]  nz        The number of vertical points to evaluate
 !>@param[out] field_out The array containing field evaluates at x_in
-subroutine evaluate_output_field( mesh, field, chi, x_in, cell, nz, field_out )
+subroutine evaluate_output_field( mesh_id, field, chi, x_in, cell, nz, field_out )
 
-  type(mesh_type),  intent(in)  :: mesh 
+  integer(i_def),   intent(in)  :: mesh_id
   type(field_type), intent(in)  :: field, chi(3) 
   integer,          intent(in)  :: cell, nz
   real(kind=r_def), intent(in)  :: x_in(3,nz)
@@ -60,6 +60,7 @@ subroutine evaluate_output_field( mesh, field, chi, x_in, cell, nz, field_out )
   real(kind=r_def)              :: domain_top, eta_in
   real(kind=r_def), allocatable :: eta(:)  ! eta(0:nlayers)
   real(kind=r_def), allocatable :: chi_cell(:,:), dgamma(:,:) 
+  type(mesh_type),  pointer  :: mesh => null()
 
   offset = 0.0_r_def
 
@@ -75,6 +76,7 @@ subroutine evaluate_output_field( mesh, field, chi, x_in, cell, nz, field_out )
   map_f => field_proxy%vspace%get_cell_dofmap(cell)
   ndf_f = field_proxy%vspace%get_ndf() 
   nlayers = field_proxy%vspace%get_nlayers()
+  mesh => mesh%get_mesh_instance(mesh_id)
   domain_top = mesh%get_domain_top()
 
   allocate ( chi_cell(ndf,3), dgamma(3,ndf), out_layer(nz) )

@@ -10,7 +10,7 @@
 
 module galerkin_projection_algorithm_mod
 
-  use constants_mod,                   only: r_def
+  use constants_mod,                   only: r_def, i_def
   use function_space_collection_mod,   only: function_space_collection
   use field_mod,                       only: field_type
   use finite_element_config_mod,       only: element_order
@@ -18,7 +18,6 @@ module galerkin_projection_algorithm_mod
   use gp_rhs_kernel_mod,               only: gp_rhs_kernel_type
   use gp_vector_rhs_kernel_mod,        only: gp_vector_rhs_kernel_type
   use log_mod,                   only: log_event, log_scratch_space, LOG_LEVEL_INFO
-  use mesh_mod,                  only: mesh_type
   use operator_mod,              only: operator_type
   use psykal_lite_mod,           only: invoke_copy_field_data, invoke_set_field_scalar
   use quadrature_mod,            only: quadrature_type
@@ -41,7 +40,7 @@ contains
 !>          component is computed.
 !> @param[out] f_out A field to project to
 !> @param[in]  f_in  The field to project
-!> @param[in]  mesh The mesh object the model for fields
+!> @param[in]  mesh id of the mesh object the model for fields
 !> @param[in]  chi   A 3D coordinate field
 !> @param[in]  space_dimension The dimension of the space f_in (scalar or vector)
   subroutine galerkin_projection_algorithm( f_out           &
@@ -60,7 +59,7 @@ contains
     type( field_type ), intent(inout) :: f_out(space_dimension)
 ! Field to intput
     type( field_type ), intent(inout) :: f_in  
-    type( mesh_type),   intent(in)    :: mesh
+    integer( i_def ),   intent(in)    :: mesh
 ! Coordinate fields
     type( field_type ), intent(inout) :: chi(3)  
     type( quadrature_type ), intent(in) :: qr

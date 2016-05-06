@@ -96,7 +96,6 @@ contains
   subroutine si_solver_init(x0, runtime_constants)
     use function_space_mod,              only: function_space_type
     use function_space_collection_mod,   only: function_space_collection
-    use mesh_mod,                        only: mesh_type
     use finite_element_config_mod,       only: element_order
     use lhs_alg_mod,                     only: lhs_init
 
@@ -106,7 +105,7 @@ contains
     type(runtime_constants_type), intent(in) :: runtime_constants
     integer                                  :: iter
     type(function_space_type), pointer       :: exner_fs => null()
-    type(mesh_type), pointer                 :: mesh => null()
+    integer(i_def)                           :: mesh
     integer(kind=i_def)                      :: fs_handle    
 
     allocate( dx         (si_bundle_size), &
@@ -129,7 +128,7 @@ contains
       call clone_bundle(x0, x0_ext, si_bundle_size)
     else
       call clone_bundle(x0, x0_ext(1:bundle_size), bundle_size)
-      mesh => x0(bundle_size)%get_mesh()
+      mesh = x0(bundle_size)%get_mesh_id()
       fs_handle = x0(bundle_size)%which_function_space()
 
       exner_fs => function_space_collection%get_fs(mesh, &

@@ -14,7 +14,6 @@
 
 module runtime_constants_mod
   use field_mod,    only: field_type
-  use mesh_mod,     only: mesh_type
   use operator_mod, only: operator_type
 
   implicit none
@@ -33,12 +32,11 @@ module runtime_constants_mod
   !---------------------------------------------------------------------------
   !> Algorithm layer representation of the runtime constants
   !> Currently contains pointers to:
-  !> a mesh, fem coodinate field array, 3 mass matrices and a geopotential field
+  !> a fem coodinate field array, 3 mass matrices and a geopotential field
   !> along with getters to return pointers to each object
   type, public :: runtime_constants_type
     private
 
-    type(mesh_type), pointer        :: mesh => null()
     type(field_type), pointer       :: coordinates(:) => null()
     type(operator_ptr), allocatable :: mass_matrix(:)
     type(field_ptr),    allocatable :: mass_matrix_diagonal(:)
@@ -46,7 +44,6 @@ module runtime_constants_mod
     type(operator_type), pointer    :: grad, div, curl => null()
 
   contains
-    procedure, public :: get_mesh
     procedure, public :: get_coordinates
     procedure, public :: get_geopotential
     procedure, public :: get_mass_matrix    
@@ -60,13 +57,12 @@ module runtime_constants_mod
     module procedure runtime_constants_constructor
   end interface
 contains
-  function runtime_constants_constructor(mesh, coords, phi, mm0, mm1, mm2, mm3, &
+  function runtime_constants_constructor( coords, phi, mm0, mm1, mm2, mm3, &
                                          mm3_inv, &
                                          mm0d, mm1d, mm2d, mm3d, &
                                          grad, curl, div ) &
                                          result(self)
     implicit none
-    type(mesh_type),     target, intent(in) :: mesh
     type(field_type),    target, intent(in) :: coords(3)
     type(field_type),    target, intent(in) :: phi
     type(operator_type), target, intent(in) :: mm0, mm1, mm2, mm3, mm3_inv
@@ -74,7 +70,6 @@ contains
     type(field_type),    target, intent(in) :: mm0d, mm1d, mm2d, mm3d
     type(runtime_constants_type), target    :: self
 
-    self%mesh => mesh
     self%coordinates => coords(:)
     self%geopotential => phi
     allocate(self%mass_matrix(0:4))
@@ -94,14 +89,6 @@ contains
 
   end function runtime_constants_constructor
 
-  !> Function to return a pointer to the mesh
-  !> @return The mesh type
-  function get_mesh(self) result(mesh)
-    class(runtime_constants_type), target :: self
-    type(mesh_type), pointer :: mesh
-
-    mesh => self%mesh
-  end function get_mesh
 
   !> Function to return a pointer to the coordinate array
   !> @return The coordinate field array

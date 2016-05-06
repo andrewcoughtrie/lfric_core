@@ -10,7 +10,7 @@
 !>         multistage explicit Runge-Kutta algorithm.
 module rk_transport_mod
 
-  use constants_mod,                     only: r_def, str_max_filename
+  use constants_mod,                     only: r_def, i_def, str_max_filename
   use log_mod,                           only: log_event,         &
                                                log_scratch_space, &
                                                LOG_LEVEL_INFO,    &
@@ -39,7 +39,6 @@ module rk_transport_mod
   use enforce_bc_kernel_mod,             only: enforce_bc_kernel_type
 
   ! Derived Types
-  use mesh_mod,                          only: mesh_type
   use field_mod,                         only: field_type
   use function_space_mod,                only: function_space_type
   use function_space_collection_mod,     only: function_space_collection
@@ -64,17 +63,17 @@ contains
   !> @details An algorithm for timstepping the transport equation using the
   !>          Runge-Kutta algortihm. rho and u fields are initialised before
   !>          this algorithm is called.
-  !> @param[in]    mesh Mesh object on which the model runs
+  !> @param[in]    mesh_id Mesh id of mesh on which the model runs
   !> @param[inout] chi  The finite element form of the coordinates
   !> @param[in]    u The 3D wind field
   !> @param[inout] rho The density
   !> @param[in] restart Checkpoint/restart type with timestepping information
-  subroutine rk_transport( mesh, chi, u, rho, restart)
+  subroutine rk_transport( mesh_id, chi, u, rho, restart)
 
     implicit none
 
-    ! Mesh
-    type (mesh_type), intent(in) :: mesh
+    ! Mesh id
+    integer(i_def),  intent(in) :: mesh_id
     ! Coordinate fields
     type( field_type ), intent( inout ) :: chi(3)
     ! Prognostic fields
@@ -92,7 +91,6 @@ contains
     type(function_space_type), pointer :: w0_fs    => null()
     type(function_space_type), pointer :: w2_fs    => null()
 
-    type(function_space_type) :: fs
     type(quadrature_type)     :: qr
     type(operator_type)       :: mm_w2, mm_w0
 
@@ -104,12 +102,12 @@ contains
 
     !=== Section 1: Create field objects =====================================!
     ! Local fields
-    u_fs     => function_space_collection%get_fs(mesh, element_order, &
+    u_fs     => function_space_collection%get_fs(mesh_id, element_order, &
                                                  u%which_function_space())
-    rho_fs   => function_space_collection%get_fs(mesh, element_order, &
+    rho_fs   => function_space_collection%get_fs(mesh_id, element_order, &
                                                  rho%which_function_space())
-    w0_fs    => function_space_collection%get_fs(mesh, element_order, W0)
-    w2_fs    => function_space_collection%get_fs(mesh, element_order, W2)
+    w0_fs    => function_space_collection%get_fs(mesh_id, element_order, W0)
+    w2_fs    => function_space_collection%get_fs(mesh_id, element_order, W2)
 
     qr = quadrature_type(element_order+3, GAUSSIAN)
 
@@ -133,10 +131,10 @@ contains
 
     ! Dummy W0 and W1 field needed for output algorithm
     xi = field_type( vector_space =                                           &
-                    function_space_collection%get_fs(mesh, element_order, W1) )
+                    function_space_collection%get_fs(mesh_id, element_order, W1) )
     call invoke_set_field_scalar(0.0_r_def, xi)
     theta = field_type( vector_space =                                           &
-                    function_space_collection%get_fs(mesh, element_order, W0) )
+                    function_space_collection%get_fs(mesh_id, element_order, W0) )
     call invoke_set_field_scalar(0.0_r_def, theta)
 
     call invoke_set_field_scalar(0.0_r_def, mass_flux)
@@ -144,7 +142,7 @@ contains
     ! Output initial conditions
     call log_event( "Dynamo: Outputing initial fields", LOG_LEVEL_INFO )
     ts_init = max( (restart%ts_start() - 1), 0 ) ! 0 or t previous.
-    call output_alg(ts_init, theta, xi, u, rho, chi, mesh, mm_w0)
+    call output_alg(ts_init, theta, xi, u, rho, chi, mesh_id, mm_w0)
 
     !=== Section 2: Timestepping ==============================================!
 
@@ -167,7 +165,7 @@ contains
         call invoke(enforce_bc_kernel_type( r_u ) )
 
         call invoke_set_field_scalar(0.0_r_def, mass_flux)
-        call solver_algorithm( mass_flux, r_u, mesh, chi, method, mm=mm_w2 )
+        call solver_algorithm( mass_flux, r_u, mesh_id, chi, method, mm=mm_w2 )
 
         ! Compute rrho = div(F)
         call invoke( rrho_kernel_type  ( rr_prediction(stage), mass_flux, qr ) )
@@ -179,7 +177,7 @@ contains
         end do
 
         ! Invert mass matrices
-        call solver_algorithm( rho_inc, r_rho, mesh, chi, method, qr=qr )
+        call solver_algorithm( rho_inc, r_rho, mesh_id, chi, method, qr=qr )
 
         ! Add increments
         call invoke_axpy(dt, rho_inc, rho_n, rho)
@@ -187,7 +185,7 @@ contains
 
       ! Diagnostics
       if ( mod(timestep, diagnostic_frequency) == 0 ) then
-        call output_alg(timestep, theta, xi, u, rho, chi, mesh, mm_w0)
+        call output_alg(timestep, theta, xi, u, rho, chi, mesh_id, mm_w0)
       end if
 
       write( log_scratch_space, '(A,I0)' ) 'End of timestep ', timestep

@@ -45,19 +45,20 @@ contains
 
 !> @brief Generates a mesh and determines the basis functions and dofmaps
 !> @details This will be replaced with code that reads the information in
-!> @param[out] mesh Mesh object to run model on
 !> @param[in] local_rank Number of the MPI rank of this process
 !> @param[in] total_ranks Total number of MPI ranks in this job
-  subroutine set_up(mesh, local_rank, total_ranks)
+!> @param[out] primal_mesh_id id of paritioned primal mesh
+  subroutine set_up(local_rank, total_ranks, primal_mesh_id)
 
     implicit none
 
-    type (mesh_type), intent(out), target   :: mesh
-    integer(i_def), intent(in) :: local_rank
-    integer(i_def), intent(in) :: total_ranks
+    integer(i_def), intent(in)  :: local_rank
+    integer(i_def), intent(in)  :: total_ranks
+    integer(i_def), intent(out) :: primal_mesh_id
 
     type (global_mesh_type)    :: global_mesh
     type (partition_type)      :: partition
+    type (mesh_type), pointer  :: mesh => null()
 
     procedure (partitioner_interface), pointer :: partitioner_ptr => null ()
 
@@ -129,10 +130,11 @@ contains
 
 
     ! Generate the mesh
-    mesh =  mesh_type ( partition, global_mesh, &
+    mesh => mesh%get_mesh_instance(global_mesh, partition, &
                         number_of_layers, domain_top, method )
     call mesh%set_colours()
-
+    ! return the primal_mesh_id
+    primal_mesh_id = mesh%get_id()
 
     return
   end subroutine set_up

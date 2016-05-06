@@ -62,15 +62,14 @@ contains
     reference_element = finite_element_shape_quadrilateral
     call reference_cube()
 
+    this%mesh = this%mesh%get_mesh_instance_test(PLANE_BI_PERIODIC)
     ! Create top level function space collection
 
     function_space_collection = function_space_collection_type()
 
 
-    this%mesh = mesh_type(PLANE_BI_PERIODIC)
-
-    this%w0_fs => function_space_collection%get_fs( this%mesh, element_order, W0 )
-    this%w1_fs => function_space_collection%get_fs( this%mesh, element_order, W1 )
+    this%w0_fs => function_space_collection%get_fs( this%mesh%get_id(), element_order, W0 )
+    this%w1_fs => function_space_collection%get_fs( this%mesh%get_id(), element_order, W1 )
 
     this%comp_field = field_type( vector_space = this%w1_fs )
     comp_p = this%comp_field%get_proxy()
@@ -94,6 +93,7 @@ contains
   subroutine tearDown( this )
 
     use reference_element_mod, only : deallocate_reference
+    use mesh_mod,              only : destroy_mesh_singleton
 
     implicit none
 
@@ -103,6 +103,7 @@ contains
 
     call function_space_collection%clear()
     call deallocate_reference()
+    call destroy_mesh_singleton()
 
   end subroutine tearDown
 

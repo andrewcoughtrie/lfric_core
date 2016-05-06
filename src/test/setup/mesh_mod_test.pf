@@ -15,7 +15,7 @@ module mesh_mod_test
   use global_mesh_mod,      only: global_mesh_type
   use partition_mod,        only: partition_type
   use mesh_mod,             only: mesh_type, domain_limits
-  use pFUnit_Mod
+  use pFUnit_Mod                                            
 
   implicit none
 
@@ -23,7 +23,8 @@ module mesh_mod_test
   public :: mesh_test_type,  &
             test_get_scalar, test_get_integer, test_get_boolean, &
             test_get_1d_array, test_get_2d_array, test_get_3d_array, &
-            test_dz_array
+            test_extrude_uniform, test_extrude_quadratic, test_extrude_geometric, &
+            test_extrude_dcmip
 
 
   @testCase
@@ -38,7 +39,10 @@ module mesh_mod_test
     procedure :: test_get_1d_array
     procedure :: test_get_2d_array
     procedure :: test_get_3d_array
-    procedure :: test_dz_array
+    procedure :: test_extrude_uniform
+    procedure :: test_extrude_quadratic
+    procedure :: test_extrude_geometric
+    procedure :: test_extrude_dcmip
   end type mesh_test_type
 
   integer(i_def), parameter :: nlayers    = 5_i_def
@@ -87,10 +91,12 @@ contains
   subroutine tearDown( this )
 
     use reference_element_mod, only : deallocate_reference
+    use mesh_mod,              only : destroy_mesh_singleton
 
     implicit none
 
     class( mesh_test_type ), intent( inout ) :: this
+    call destroy_mesh_singleton()
 
     call deallocate_reference()
 
@@ -108,12 +114,12 @@ contains
     type (domain_limits)      :: domain
 
     integer(i_def) :: test_integer
-
-    mesh_1 = mesh_type( this%partition,   &
-                        this%global_mesh, &
-                        nlayers,     &
-                        domain_top,  &
-                        extrusion_method_uniform )
+    mesh_1 = mesh_1%get_mesh_instance( &
+         this%global_mesh, &
+         this%partition,   &
+         nlayers,     &
+         domain_top,  &
+         extrusion_method_uniform )
 
     !-------------------------------------------------------------------
     ! Test get_nlayers
@@ -221,6 +227,7 @@ contains
   end subroutine test_get_scalar
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
   subroutine test_get_1d_array( this )
 
     implicit none
@@ -232,11 +239,12 @@ contains
     real(r_def) :: test_real_array1(3)
     real(r_def) :: test_real_array2(3)
 
-    mesh_1 = mesh_type( this%partition,   &
-                        this%global_mesh, &
-                        nlayers,     &
-                        domain_top,  &
-                        extrusion_method_uniform )
+    mesh_1 = mesh_1%get_mesh_instance( &
+         this%global_mesh, &
+         this%partition,   &
+         nlayers,     &
+         domain_top,  &
+         extrusion_method_uniform )
 
     !-------------------------------------------------------------------
     ! Test get_vert_coords
@@ -288,12 +296,12 @@ contains
 
     real(r_def) :: test_real_array1_2d(3,8)
     real(r_def) :: test_real_array2_2d(3,8)
-
-    mesh_1 = mesh_type( this%partition,   &
-                        this%global_mesh, &
-                        nlayers,     &
-                        domain_top,  &
-                        extrusion_method_uniform )
+    mesh_1 = mesh_1%get_mesh_instance( &
+         this%global_mesh, &
+         this%partition,   &
+         nlayers,     &
+         domain_top,  &
+         extrusion_method_uniform )
 
     !-------------------------------------------------------------------
     ! Test get_cell_coords
@@ -338,12 +346,12 @@ contains
 
     real(r_def) :: test_real_array1_3d(3,8,5)
     real(r_def) :: test_real_array2_3d(3,8,5)
-
-    mesh_1 = mesh_type( this%partition,   &
-                        this%global_mesh, &
-                        nlayers,          &
-                        domain_top,       &
-                        extrusion_method_uniform )
+    mesh_1 = mesh_1%get_mesh_instance( &
+         this%global_mesh, &
+         this%partition,   &
+         nlayers,          &
+         domain_top,       &
+         extrusion_method_uniform )
 
     !-------------------------------------------------------------------
     ! Test get_column_coords
@@ -403,79 +411,108 @@ contains
 
   end subroutine test_get_3d_array
 
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @test
-  subroutine test_dz_array( this )
-
-    use extrusion_config_mod, &
-                             only: extrusion_method_quadratic, &
-                                   extrusion_method_geometric, &
-                                   extrusion_method_dcmip
-
+  @test 
+  subroutine test_extrude_uniform(this)
     implicit none
+    class(mesh_test_type), intent(inout) :: this
 
-    class( mesh_test_type ), intent( inout ) :: this
-
-    ! Set vertical grid spacings values to test meshes with
-    real(r_def), parameter :: dz_uni   = 2000.0_r_def
-    real(r_def), parameter :: dz_quad  = 400.0_r_def
-    real(r_def), parameter :: dz_geom  = 1883.545714005761_r_def
-    real(r_def), parameter :: dz_dcmip = 883.0368802245059_r_def
-
-    type (mesh_type) :: mesh_1, mesh_3, mesh_4, mesh_5
+    real(r_def), parameter :: dz   = 2000.0_r_def
+    type (mesh_type) :: mesh_1
 
     real(r_def) :: dz_test(nlayers)
     real(r_def) :: test_real
 
-    mesh_1 = mesh_type( this%partition,   &
-                        this%global_mesh, &
-                        nlayers,          &
-                        domain_top,       &
-                        extrusion_method_uniform )
-    mesh_3 = mesh_type( this%partition,   &
-                        this%global_mesh, &
-                        nlayers,          &
-                        domain_top,       &
-                        extrusion_method_quadratic )
-    mesh_4 = mesh_type( this%partition,   &
-                        this%global_mesh, &
-                        nlayers,          &
-                        domain_top,       &
-                        extrusion_method_geometric )
-    mesh_5 = mesh_type( this%partition,   &
-                        this%global_mesh, &
-                        nlayers,          &
-                        domain_top,       &
-                        extrusion_method_dcmip )
+    mesh_1 = mesh_1%get_mesh_instance( &
+         this%global_mesh, &
+         this%partition,   &
+         nlayers,          &
+         domain_top,       &
+         extrusion_method_uniform )
 
-    !-------------------------------------------------------------------
-    ! Test get_dz for different meshes
-
-    ! Uniform mesh_1, first layer depth
     dz_test = 0.0_r_def
     call mesh_1%get_dz(dz_test)
     test_real = dz_test(1)
-    @assertEqual ( test_real, dz_uni, 1.0e-2_r_def )
+    @assertEqual ( test_real, dz, 1.0e-2_r_def )
 
-    ! Quadratic mesh_3, first layer depth
+  end subroutine test_extrude_uniform
+
+  @test 
+  subroutine test_extrude_quadratic(this)
+    use extrusion_config_mod, only: extrusion_method_quadratic
+    implicit none
+    class(mesh_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: dz   = 400.0_r_def
+    type (mesh_type) :: mesh_1
+
+    real(r_def) :: dz_test(nlayers)
+    real(r_def) :: test_real
+
+    mesh_1 = mesh_1%get_mesh_instance( &
+         this%global_mesh, &
+         this%partition,   &
+         nlayers,          &
+         domain_top,       &
+         extrusion_method_quadratic)
+
     dz_test = 0.0_r_def
-    call mesh_3%get_dz(dz_test)
+    call mesh_1%get_dz(dz_test)
     test_real = dz_test(1)
-    @assertEqual ( test_real, dz_quad, 1.0e-2_r_def )
+    @assertEqual ( test_real, dz, 1.0e-2_r_def )
 
-    ! Geometric mesh_4 with stretching_factor = 1.03_r_def, first layer depth
+  end subroutine test_extrude_quadratic
+
+ @test 
+  subroutine test_extrude_geometric(this)
+    use extrusion_config_mod, only: extrusion_method_geometric
+    implicit none
+    class(mesh_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: dz   = 1883.545714005761_r_def
+    type (mesh_type) :: mesh_1
+
+    real(r_def) :: dz_test(nlayers)
+    real(r_def) :: test_real
+
+    mesh_1 = mesh_1%get_mesh_instance( &
+         this%global_mesh, &
+         this%partition,   &
+         nlayers,          &
+         domain_top,       &
+         extrusion_method_geometric)
+
     dz_test = 0.0_r_def
-    call mesh_4%get_dz(dz_test)
+    call mesh_1%get_dz(dz_test)
     test_real = dz_test(1)
-    @assertEqual ( test_real, dz_geom, 1.0e-2_r_def )
+    @assertEqual ( test_real, dz, 1.0e-2_r_def )
 
-    ! DCMIP mesh_5 with phi_flatten = 15.0_r_def, first layer depth
+  end subroutine test_extrude_geometric
+
+@test 
+  subroutine test_extrude_dcmip(this)
+    use extrusion_config_mod, only: extrusion_method_dcmip
+    implicit none
+    class(mesh_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: dz   = 883.0368802245059_r_def
+    type (mesh_type) :: mesh_1
+    
+    real(r_def) :: dz_test(nlayers)
+    real(r_def) :: test_real
+    
+    mesh_1 = mesh_1%get_mesh_instance( &
+         this%global_mesh, &
+         this%partition,   &
+         nlayers,          &
+         domain_top,       &
+         extrusion_method_dcmip)
+    
     dz_test = 0.0_r_def
-    call mesh_5%get_dz(dz_test)
+    call mesh_1%get_dz(dz_test)
     test_real = dz_test(1)
-    @assertEqual ( test_real, dz_dcmip, 1.0e-2_r_def )
+    @assertEqual ( test_real, dz, 1.0e-2_r_def )
 
-  end subroutine test_dz_array
+  end subroutine test_extrude_dcmip
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @test
@@ -485,23 +522,17 @@ contains
 
     class( mesh_test_type ), intent( inout ) :: this
 
-    type (mesh_type) :: mesh_1, mesh_2
+    type (mesh_type) :: mesh_1
 
     integer(i_def) :: test_integer
-    integer(i_def) :: test_integer2
 
-    mesh_1 = mesh_type( this%partition,   &
-                        this%global_mesh, &
-                        nlayers,     &
-                        domain_top,  &
-                        extrusion_method_uniform )
-    mesh_2 = mesh_type( this%partition,   &
-                        this%global_mesh, &
-                        nlayers,     &
-                        domain_top,  &
-                        extrusion_method_uniform )
-
-    !-------------------------------------------------------------------
+    mesh_1 = mesh_1%get_mesh_instance( &
+         this%global_mesh, &
+         this%partition,   &
+         nlayers,     &
+         domain_top,  &
+         extrusion_method_uniform )
+     !-------------------------------------------------------------------
     ! Test get_vert_cell_owner
     test_integer=mesh_1%get_vertex_cell_owner(2,4)
     @assertEqual( 5, test_integer )
@@ -551,12 +582,6 @@ contains
     test_integer=( mesh_1%get_gid_from_lid( 1 ) )
     @assertEqual( 1, test_integer )
 
-    !-------------------------------------------------------------------
-    ! Test Mesh_1 and Mesh_2 have different ids
-    test_integer = mesh_1%get_id()
-    test_integer2 = mesh_2%get_id()
-    @assertFalse ( test_integer == test_integer2 )
-
   end subroutine test_get_integer
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -569,11 +594,12 @@ contains
 
     type(mesh_type)     :: mesh_1
 
-    mesh_1 = mesh_type( this%partition,   &
-                        this%global_mesh, &
-                        nlayers,          &
-                        domain_top,       &
-                        extrusion_method_uniform )
+    mesh_1 = mesh_1%get_mesh_instance( &
+         this%global_mesh,     &
+         this%partition,   &
+         nlayers,          &
+         domain_top,       &
+         extrusion_method_uniform )
 
     !-------------------------------------------------------------------
     ! Test is_vertex_owned
@@ -600,11 +626,12 @@ contains
     type(domain_limits) :: domain
     real(r_def)         :: test_real
 
-    mesh_1 = mesh_type( this%partition,   &
-                        this%global_mesh, &
-                        nlayers,          &
-                        domain_top,       &
-                        extrusion_method_uniform )
+    mesh_1 = mesh_1%get_mesh_instance( &
+         this%global_mesh, &
+         this%partition,   &
+         nlayers,          &
+         domain_top,       &
+         extrusion_method_uniform )
 
     !-------------------------------------------------------------------
     ! Test get_domain_size

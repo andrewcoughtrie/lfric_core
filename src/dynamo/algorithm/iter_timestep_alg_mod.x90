@@ -9,7 +9,7 @@
 !>       3D equations
 module iter_timestep_alg_mod
 
-  use constants_mod,                     only: r_def
+  use constants_mod,                     only: r_def, i_def
   use log_mod,                           only: log_event,         &
                                                log_scratch_space, &
                                                LOG_LEVEL_INFO,    &
@@ -54,7 +54,6 @@ module iter_timestep_alg_mod
   use enforce_bc_kernel_mod,             only: enforce_bc_kernel_type
 
   ! Derived Types
-  use mesh_mod,                          only: mesh_type
   use function_space_collection_mod,     only: function_space_collection
   use field_mod,                         only: field_type
   use function_space_mod,                only: function_space_type
@@ -94,7 +93,7 @@ contains
   !>         by default. This means that there is one evaluation of old time
   !>         level terms, 2 evaluation of advective terms and 4 evaluations 
   !>         of new time level terms and increment updates per timestep
-  !> @param[in]    mesh Mesh object on which the model runs
+  !> @param[in]    mesh id of Mesh object on which the model runs
   !> @param[inout] chi  The finite element form of the coordinates
   !> @param[inout] u  The 3D wind field
   !> @param[inout] rho The density
@@ -106,8 +105,8 @@ contains
 
     implicit none
 
-    ! Mesh
-    type (mesh_type), intent(in) :: mesh 
+    ! Mesh id
+    integer(i_def), intent(in) :: mesh
 
     ! Coordinate fields
     type( field_type ), intent( inout ) :: chi(3)
@@ -234,7 +233,7 @@ contains
     call set_bundle_scalar(0.0_r_def, rhs_heldsuarez, bundle_size)
 
     ! Create fixed state container
-    runtime_constants = runtime_constants_type(mesh, chi, geopotential, &
+    runtime_constants = runtime_constants_type( chi, geopotential, &
                                                mm_w0, mm_w1, mm_w2, mm_w3, &
                                                mm_w3_inv,&
                                                mm_diagonal_w0, &

@@ -20,7 +20,8 @@ contains
     use pFUnit_Mod
     use stencil_dofmap_mod,  only: stencil_dofmap_type, STENCIL_POINT
     use master_dofmap_mod,   only: master_dofmap_type
-    use mesh_mod,            only: mesh_type, PLANE_BI_PERIODIC
+    use mesh_mod,            only: mesh_type, PLANE_BI_PERIODIC, &
+                                   destroy_mesh_singleton
 
     implicit none
 
@@ -33,7 +34,7 @@ contains
     integer :: err
 
     ! Dummy mesh mod has 9 cells, 3 layers and is uniform in vertical
-    mesh = mesh_type(PLANE_BI_PERIODIC)    
+    mesh = mesh%get_mesh_instance_test(PLANE_BI_PERIODIC)    
 
     ! Allocate the maps
     ncells = 4
@@ -61,6 +62,7 @@ contains
     id = STENCIL_POINT*100 + 1
     @assertEqual( id, dofmap%get_id() )
 
+    call destroy_mesh_singleton
 
     return
   end subroutine test_stencil_dofmap

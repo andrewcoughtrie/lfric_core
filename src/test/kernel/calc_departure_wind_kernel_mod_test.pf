@@ -68,13 +68,12 @@ contains
     reference_element = finite_element_shape_quadrilateral
     call reference_cube()
 
-    ! Create top level function space collection
+    this%mesh = this%mesh%get_mesh_instance_test(PLANE_BI_PERIODIC)
 
     function_space_collection = function_space_collection_type()
 
-    this%mesh = mesh_type(PLANE_BI_PERIODIC)
 
-    w2_fs => function_space_collection%get_fs( this%mesh, element_order, W2 )
+    w2_fs => function_space_collection%get_fs( this%mesh%get_id(), element_order, W2 )
     this%piola_field =  field_type( vector_space = w2_fs )
     this%departure_field =  field_type( vector_space = w2_fs )
     u_piola = this%piola_field%get_proxy()
@@ -83,7 +82,7 @@ contains
     dim_u  = u_piola%vspace%get_dim_space( )
     allocate( this%nodal_basis_u(dim_u, ndf, ndf) )
 
-    w0_fs => function_space_collection%get_fs( this%mesh, element_order, W0 )
+    w0_fs => function_space_collection%get_fs( this%mesh%get_id(), element_order, W0 )
     do i = 1,3
       this%chi(i) = field_type( vector_space = w0_fs )
       chi_p(i)    = this%chi(i)%get_proxy()
@@ -98,6 +97,7 @@ contains
   subroutine tearDown( this )
 
     use reference_element_mod, only : deallocate_reference
+    use mesh_mod,              only : destroy_mesh_singleton
 
     implicit none
 
@@ -108,6 +108,7 @@ contains
 
     call function_space_collection%clear()
     call deallocate_reference()
+    call destroy_mesh_singleton()
 
   end subroutine tearDown
 

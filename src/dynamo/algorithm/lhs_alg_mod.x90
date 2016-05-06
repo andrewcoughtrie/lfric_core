@@ -9,7 +9,7 @@
 !>       equations
 module lhs_alg_mod
 
-  use constants_mod,                     only: r_def
+  use constants_mod,                     only: r_def, i_def
   use enforce_bc_kernel_mod,             only: enforce_bc_kernel_type
   use function_space_collection_mod,     only: function_space_collection
   use field_bundle_mod,                  only: clone_bundle
@@ -26,7 +26,6 @@ module lhs_alg_mod
                                                invoke_sample_flux_kernel, &
                                                invoke_set_field_scalar
   use matrix_vector_kernel_mod,          only: matrix_vector_kernel_type
-  use mesh_mod,                          only: mesh_type
   use multiplicity_kernel_mod,           only: multiplicity_kernel_type
   use operator_mod,                      only: operator_type
   use quadrature_mod,                    only: quadrature_type, GAUSSIAN
@@ -52,12 +51,11 @@ contains
     type(field_type), intent(in) :: state(si_bundle_size)
 
     type(function_space_type), pointer :: rho_fs, u_fs => null()
-    type(mesh_type),           pointer :: mesh => null()
+    integer(i_def),                    :: mesh
     integer                            :: fs_handle
 
     allocate( lhs_tmp(si_bundle_size) )
     call clone_bundle(state, lhs_tmp, si_bundle_size)
-    mesh => state(1)%get_mesh()
 
     ! For computing lhs_theta
     fs_handle = state(3)%which_function_space()

@@ -69,6 +69,7 @@ module field_mod
 
     !> Routine to return the mesh used by this field
     procedure         :: get_mesh
+    procedure         :: get_mesh_id
 
     !> Overloaded assigment operator
     procedure         :: field_type_assign
@@ -201,7 +202,7 @@ contains
     integer(i_def) :: rc
     integer(i_def) :: halo_start, halo_finish
 
-    type (mesh_type)   :: mesh
+    type (mesh_type), pointer   :: mesh => null()
 
     self%vspace => vector_space
 
@@ -237,7 +238,7 @@ contains
 
     ! Create a flag for holding whether a halo depth is dirty or not
     ! and initialise it as all dirty
-    mesh=vector_space%get_mesh()
+    mesh=>vector_space%get_mesh()
     allocate(self%halo_dirty(mesh%get_halo_depth()))
     self%halo_dirty(:)=1
 
@@ -396,6 +397,22 @@ contains
 
     return
   end function get_mesh
+
+  !> Function to get mesh id from the field.
+  !>
+  !> @return mesh_id
+  function get_mesh_id(self) result(mesh_id)
+    implicit none
+
+    class (field_type) :: self
+    integer(i_def) :: mesh_id
+
+    mesh_id = self%vspace%get_mesh_id()
+
+    return
+  end function get_mesh_id
+
+  
 
   !> Writes a checksum of this field to a file.
   !>

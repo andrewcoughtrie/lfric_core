@@ -118,7 +118,7 @@ contains
     call reference_cube()
 
     ! Dummy mesh mod has 9 cells, 3 layers and is uniform in vertical
-    this%mesh = mesh_type(PLANE_BI_PERIODIC)
+    this%mesh = this%mesh%get_mesh_instance_test(PLANE_BI_PERIODIC)
 
     description = function_space_description(this%function_space)
 
@@ -135,6 +135,7 @@ contains
   subroutine tearDown( this )
 
     use reference_element_mod, only : deallocate_reference
+    use mesh_mod,              only : destroy_mesh_singleton
 
     implicit none
 
@@ -144,6 +145,7 @@ contains
     deallocate(this%test_diff_basis)
 
     call deallocate_reference()
+    call destroy_mesh_singleton
 
   end subroutine tearDown
 
@@ -227,7 +229,7 @@ contains
         basis_diff_function => fs2hk0_basis_diff_function
     end select
 
-    test_fs => function_space_type( this%mesh,     &
+    test_fs => function_space_type( this%mesh%get_id(),     &
                                     element_order, &
                                     this%function_space )
 
@@ -282,7 +284,7 @@ contains
     integer(i_def),            pointer :: stencil_map(:,:) => null()
     integer(i_def),            pointer :: map(:)           => null()
 
-    test_fs => function_space_type( this%mesh,     &
+    test_fs => function_space_type( this%mesh%get_id(),     &
                                     element_order, &
                                     this%function_space )
 
@@ -308,7 +310,7 @@ contains
     integer(i_def),            pointer :: stencil_map(:,:) => null()
     integer(i_def),            pointer :: map(:)           => null()
 
-    test_fs => function_space_type( this%mesh,     &
+    test_fs => function_space_type( this%mesh%get_id(),     &
                                     element_order, &
                                     this%function_space )
 
@@ -339,7 +341,7 @@ contains
     integer(i_def),            pointer :: stencil_map(:,:) => null()
     integer(i_def),            pointer :: map(:)           => null()
 
-    test_fs => function_space_type( this%mesh,     &
+    test_fs => function_space_type( this%mesh%get_id(),     &
                                     element_order, &
                                     this%function_space )
 
@@ -378,7 +380,7 @@ contains
 
     integer :: i
 
-    test_fs => function_space_type( this%mesh,     &
+    test_fs => function_space_type( this%mesh%get_id(),     &
                                     element_order, &
                                     this%function_space )
 
@@ -403,7 +405,7 @@ contains
     type(function_space_type), pointer :: test_fs => null()
     type(mesh_type),           pointer :: mesh_out => null()
 
-    test_fs => function_space_type( this%mesh,     &
+    test_fs => function_space_type( this%mesh%get_id(),     &
                                     element_order, &
                                     this%function_space )
 
@@ -446,7 +448,7 @@ contains
 
     integer :: colour_idx
 
-    test_fs => function_space_type( this%mesh,     &
+    test_fs => function_space_type( this%mesh%get_id(),     &
                                     element_order, &
                                     this%function_space )
 

@@ -54,6 +54,7 @@ contains
   subroutine tearDown( this )
 
     use reference_element_mod, only : deallocate_reference
+    use mesh_mod,                  only : destroy_mesh_singleton
 
     implicit none
 
@@ -61,6 +62,7 @@ contains
 
     call function_space_collection%clear()
     call deallocate_reference()
+    call destroy_mesh_singleton()
 
   end subroutine tearDown
 
@@ -91,14 +93,14 @@ contains
     integer, pointer :: map(:) => null()
 
 
-    mesh = mesh_type(PLANE_BI_PERIODIC)
+    mesh = mesh%get_mesh_instance_test( PLANE_BI_PERIODIC )
 
     ! Set element order
     element_order = 0
 
     ! Test flux computation
     level = field_type( vector_space =                                      &
-                function_space_collection%get_fs( mesh, element_order, W2 ) )
+                function_space_collection%get_fs( mesh%get_id(), element_order, W2 ) )
 
     ! Insert Psykal_lite unpacking code here
     l_p = level%get_proxy()

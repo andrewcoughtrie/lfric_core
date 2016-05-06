@@ -329,6 +329,7 @@ contains
   !> @brief Access the mesh object used to create this function space
   !> @return mesh Mesh object
   procedure, public :: get_mesh
+  procedure, public :: get_mesh_id
 
   !> @brief Returns the element order of a function space
   procedure, public :: get_element_order
@@ -409,22 +410,22 @@ contains
 !>                           are assigned to the function spaces "handles" in the
 !>                           fs_handles_mod module.
 !> @return    A pointer to the function space held in this module
-function fs_constructor(mesh, element_order, dynamo_fs) result(instance)
+function fs_constructor(mesh_id, element_order, dynamo_fs) result(instance)
 
   implicit none
 
-  type(mesh_type), target :: mesh
-  integer(i_def) :: dynamo_fs
-  integer(i_def) :: element_order
+  integer(i_def), intent(in) :: mesh_id
+  integer(i_def), intent(in) :: element_order
+  integer(i_def), intent(in) :: dynamo_fs
 
   type(function_space_type), pointer :: instance
 
   allocate(instance)
 
+  instance%mesh  => instance%mesh%get_mesh_instance(mesh_id)
   ! Set the id in the base class
-  call instance%set_id(1000000*mesh%get_id() + (1000*element_order) + dynamo_fs)
+  call instance%set_id(1000000*instance%mesh%get_id() + (1000*element_order) + dynamo_fs)
 
-  instance%mesh  => mesh
   instance%fs    =  dynamo_fs
 
 
@@ -1175,13 +1176,30 @@ function get_mesh(self) result (mesh)
 
   implicit none
 
-  class(function_space_type) :: self
-  type(mesh_type), pointer   :: mesh
+  class(function_space_type), intent(in) :: self
+  type(mesh_type), pointer :: mesh
 
-  mesh => self%mesh
+  mesh => self%mesh%get_mesh_noargs()
 
   return
 end function get_mesh
+
+!-----------------------------------------------------------------------------
+! Get id of mesh object for this space
+!-----------------------------------------------------------------------------
+!> @brief Gets the id of the mesh object for this space
+!> @param[in] self the calling function space
+!> @return mesh_id
+!-----------------------------------------------------------------------------
+function get_mesh_id(self) result (mesh_id)
+  implicit none
+  class(function_space_type), intent(in) :: self
+  integer(i_def) :: mesh_id
+  
+  mesh_id = self%mesh%get_id()
+
+  return
+end function get_mesh_id
 
 !-----------------------------------------------------------------------------
 ! Gets a routing table for halo swapping

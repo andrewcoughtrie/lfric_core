@@ -15,7 +15,7 @@ module conservation_algorithm_mod
   use compute_total_mass_kernel_mod,   only: compute_total_mass_kernel_type
   use compute_total_pv_kernel_mod,     only: compute_total_pv_kernel_type
 
-  use constants_mod,                   only: r_def
+  use constants_mod,                   only: r_def, i_def
   use function_space_collection_mod,   only: function_space_collection
   use field_mod,                       only: field_type
   use finite_element_config_mod,       only: element_order
@@ -24,7 +24,6 @@ module conservation_algorithm_mod
   use log_mod,                         only: log_event,         &
                                              log_scratch_space, &
                                              LOG_LEVEL_INFO
-  use mesh_mod,                        only: mesh_type
   use psykal_lite_mod,                 only: invoke_sum_field
   use quadrature_mod,                  only: quadrature_type, GAUSSIAN
 
@@ -40,6 +39,7 @@ contains
 !>@details Computes various conserved quantities and checks how
 !> accurately they have been conserved
 !> @param[in] tstep - The current timestep
+!> @param[in] mesh id of mesh object
 !> @param[in] rho - The density field
 !> @param[in] u - the velocity field
 !> @param[in] theta - the potential temperature field
@@ -49,7 +49,7 @@ contains
   implicit none
     integer, intent(in) :: tstep
 
-    type (mesh_type), intent(in) :: mesh 
+    integer(i_def), intent(in) :: mesh 
 
     ! coordinate fields
     type( field_type ), intent( inout ) :: chi(3)

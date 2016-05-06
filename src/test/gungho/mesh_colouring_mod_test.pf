@@ -71,7 +71,7 @@ end subroutine setUp
 subroutine tearDown(this)
 
   use reference_element_mod, only : deallocate_reference
-
+  use mesh_mod,              only : destroy_mesh_singleton
   implicit none
 
   class(compute_colours_test_type), intent(inout) :: this
@@ -79,6 +79,7 @@ subroutine tearDown(this)
   integer  :: rc
 
   call deallocate_reference()
+  call destroy_mesh_singleton
 
 end subroutine tearDown
 !-------------------------------------------------------------------------------
@@ -115,7 +116,7 @@ subroutine test_compute_colours_cubedsphere(this)
   global_mesh = global_mesh_type(filename)
   partitioner_ptr => partitioner_cubedsphere_serial
 
-  partition = partition_type(global_mesh, &
+  partition = partition_type( global_mesh, &
                             partitioner_ptr, &
                             this%xproc, &
                             this%yproc, &
@@ -125,11 +126,12 @@ subroutine test_compute_colours_cubedsphere(this)
 
   ! Mesh is now constructed with num_layers and domain top instead of dz and
   ! is uniform in vertical for purpose of the test
-  mesh = mesh_type( partition,       &
-                    global_mesh,     &
-                    this%num_layers, &
-                    10000.0_r_def,   &
-                    extrusion_method_uniform )
+  mesh = mesh%get_mesh_instance( &
+       global_mesh,     &
+       partition,       &
+       this%num_layers, &
+       10000.0_r_def,   &
+       extrusion_method_uniform )
 
   ! Mesh is not yet coloured...
   @assertFalse(mesh%is_coloured(), "Mesh is unexpectedly coloured")
@@ -210,11 +212,12 @@ subroutine test_compute_colours_biperiodic(this)
 
   ! Mesh is now constructed with num_layers and domain top instead of dz and
   ! is uniform in vertical for purpose of the test
-  mesh = mesh_type( partition,       &
-                    global_mesh,     &
-                    this%num_layers, &
-                    10000.0_r_def,   &
-                    extrusion_method_uniform )
+  mesh = mesh%get_mesh_instance( &
+       global_mesh,     &
+       partition,       &
+       this%num_layers, &
+       10000.0_r_def,   &
+       extrusion_method_uniform )
 
   ! Mesh is not yet coloured...
   @assertFalse(mesh%is_coloured(), "Mesh is unexpectedly coloured")

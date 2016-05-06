@@ -1,5 +1,5 @@
 !-------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown,
+! (C) The copyright relating to this work is owned jointly by the Crown,
 ! Met Office and NERC 2014.
 ! However, it has been created with the help of the GungHo Consortium,
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
@@ -15,7 +15,7 @@ module rk_alg_timestep_mod
                            log_scratch_space, &
                            LOG_LEVEL_INFO,    &
                            LOG_LEVEL_TRACE
-  use constants_mod,       only: r_def
+  use constants_mod,       only: r_def, i_def
 
   ! Configuration and restart/checkpoint options
   use finite_element_config_mod, only : element_order
@@ -53,7 +53,6 @@ module rk_alg_timestep_mod
   use compute_div_operator_kernel_mod,   only: compute_div_operator_kernel_type
 
   ! Derived Types
-  use mesh_mod,                          only: mesh_type
   use function_space_collection_mod,     only: function_space_collection
   use field_mod,                         only: field_type
   use function_space_mod,                only: function_space_type
@@ -92,7 +91,7 @@ contains
   !>          modifying the (currently hardwired) Butcher tableau (ak array)
   !>          The current set up uses the 3rd-order three stage
   !>          Strong-Stability-Preserving (SSP3) method
-  !> @param[in]    mesh Mesh object on which the model runs
+  !> @param[in]    mesh id of mesh object on which the model runs
   !> @param[inout] chi  The finite element form of the coordinates
   !> @param[inout] u The 3D wind field
   !> @param[inout] rho The density
@@ -104,7 +103,7 @@ contains
     implicit none
 
     ! Mesh
-    type (mesh_type), intent(in) :: mesh 
+    integer(i_def), intent(in) :: mesh 
     ! Coordinate fields
     type( field_type ), intent( inout ) :: chi(3)
     ! Prognostic fields
@@ -223,7 +222,7 @@ contains
     call invoke_set_field_scalar(1.0_r_def,mm_diagonal_w3)
 
     ! Create fixed state container
-    runtime_constants = runtime_constants_type(mesh, chi, geopotential, &
+    runtime_constants = runtime_constants_type( chi, geopotential, &
                                                mm_w0, mm_w1, mm_w2, mm_w3, &
                                                mm_w3_inv,&
                                                mm_diagonal_w0, &

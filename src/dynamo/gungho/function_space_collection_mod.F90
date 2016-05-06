@@ -16,7 +16,6 @@
 module function_space_collection_mod
 
   use constants_mod,      only: i_def, l_def
-  use mesh_mod,           only: mesh_type
   use function_space_mod, only: function_space_type
   use fs_continuity_mod,  only: W0, W1, W2, W3, Wtheta, W2V, W2H, fs_name
   use log_mod,            only: log_event, log_scratch_space                  &
@@ -68,12 +67,12 @@ end function function_space_collection_constructor
 !-----------------------------------------------------------------------------
 !> Function to get an instance of a function space from the linked list
 !> or create it if it doesn't exist
-function get_fs(self, mesh, element_order, dynamo_fs) result(fs)
+function get_fs(self, mesh_id, element_order, dynamo_fs) result(fs)
 
   implicit none
 
   class(function_space_collection_type), intent(inout) :: self
-  type(mesh_type), intent(in), target                  :: mesh
+  integer(i_def), intent(in)                           :: mesh_id
   integer(i_def), intent(in)                           :: element_order
   integer(i_def), intent(in)                           :: dynamo_fs
 
@@ -102,7 +101,8 @@ function get_fs(self, mesh, element_order, dynamo_fs) result(fs)
   end if
 
   ! Generate id for requested function space
-  fs_id = 1000000*mesh%get_id() + (1000*element_order) + dynamo_fs
+  ! can use the passed mesh_id
+  fs_id = 1000000*mesh_id + (1000*element_order) + dynamo_fs
 
   ! point at the head of the fs linked list
   loop => self%fs_list%get_head()
@@ -114,7 +114,7 @@ function get_fs(self, mesh, element_order, dynamo_fs) result(fs)
       ! List is empty or at the end of list and we didn't find it
       ! so create new function space and add it 
       call self%fs_list%insert_item(                                           &
-                            function_space_type(mesh, element_order, dynamo_fs))
+                            function_space_type(mesh_id, element_order, dynamo_fs))
 
       write(log_scratch_space, '(A,2(I0,A))')                                  &
         'Generated order-',element_order,' '//trim(fs_name(dynamo_fs))//  &

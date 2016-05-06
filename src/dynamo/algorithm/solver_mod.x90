@@ -14,7 +14,7 @@
 !! discontinuous systems an exact solver can be used
 module solver_mod
 
-  use constants_mod,                 only : r_def, str_def
+  use constants_mod,                 only : r_def, str_def, i_def
   use function_space_collection_mod, only : function_space_collection
   use field_mod,                     only : field_type
   use finite_element_config_mod,     only : element_order
@@ -27,7 +27,6 @@ module solver_mod
                                         LOG_LEVEL_DEBUG,   &
                                         LOG_LEVEL_TRACE
   use matrix_vector_kernel_mod,  only : matrix_vector_kernel_type
-  use mesh_mod,                  only : mesh_type
   use operator_mod,              only : operator_type
   use psykal_lite_mod,           only : invoke_inner_prod,              &
                                         invoke_axpy,                    &
@@ -84,22 +83,22 @@ contains
 
     type(field_type), intent(inout) :: lhs
     type(field_type), intent(inout) :: rhs
-    type(mesh_type),  intent(in)    :: mesh
+    integer(i_def),   intent(in)    :: mesh
 
     ! chi is really intent(in) but this currently causes
     ! problems because PSyclone makes everything (inout)
     type(field_type), intent(inout) :: chi(3)
 
-    integer,                         intent(in)    :: solver_type
+    integer(i_def),                  intent(in)    :: solver_type
     type(quadrature_type), optional, intent(in)    :: qr
     type(operator_type),   optional, intent(inout) :: mm
-    integer,               optional, intent(in)    :: preconditioner_choice
+    integer(i_def),        optional, intent(in)    :: preconditioner_choice
     type(field_type),      optional, intent(in)    :: mmd
 
-    integer, parameter :: NUM_JACOBI_ITERS = 5
+    integer(i_def), parameter :: NUM_JACOBI_ITERS = 5
 
-    integer :: fs_l, fs_r
-    integer :: prec
+    integer(i_def) :: fs_l, fs_r
+    integer(i_def) :: prec
 
     if ( present(preconditioner_choice) ) then
       prec = preconditioner_choice
@@ -163,7 +162,7 @@ contains
 !! @param[in]  rhs_field The input b
 !! @param[inout] lhs_field The answer, x
 !! @param[in] mm operator type, the mass matrix
-!! @param[in] mesh The mesh object the model for fields#
+!! @param[in] mesh The id of the mesh object the model for fields#
 !! @param[in] precond_option Choice of preconditioner
 !! @param[in] mmd (optional) the mass matrix diagonal
   subroutine bicg_solver_algorithm(lhs, rhs, mm, mesh, precond_option, mmd)
@@ -171,9 +170,9 @@ contains
     type(field_type),    intent(inout) :: lhs
     type(field_type),    intent(in)    :: rhs
     type(operator_type), intent(inout) :: mm
-    type(mesh_type),     intent(in)    :: mesh
+    integer(i_def),      intent(in)    :: mesh
     type(field_type),    intent(in), optional :: mmd
-    integer,             intent(in)    :: precond_option
+    integer(i_def),      intent(in)    :: precond_option
 
     type(function_space_type), pointer :: rhs_fs => null()
 
@@ -186,7 +185,7 @@ contains
     real(kind=r_def)                   :: ts,tt
     ! others
     real(kind=r_def)                   :: err,sc_err, init_err
-    integer                            :: iter
+    integer(i_def)                     :: iter
 
     ! compute the residual this is a global sum to the PSy ---
     call invoke_inner_prod(rhs,rhs,sc_err)
@@ -294,7 +293,7 @@ contains
 !! @param[in] rhs_field The input b
 !! @param[inout] lhs_field The answer, x
 !! @param[in] mm The mass matrix
-!! @param[in] mesh The mesh object the model for fields
+!! @param[in] mesh The id of mesh object the model for fields
 !! @param[in] precond_option Choice of preconditioner
 !! @param[in] mmd The mass matrix diagonal
   subroutine cg_solver_algorithm(lhs, rhs, mm, mesh, precond_option, mmd)
@@ -302,8 +301,8 @@ contains
     type(field_type),    intent(inout) :: lhs
     type(field_type),    intent(in)    :: rhs
     type(operator_type), intent(inout) :: mm
-    type(mesh_type),     intent(in)    :: mesh
-    integer,             intent(in)    :: precond_option
+    integer(i_def),      intent(in)    :: mesh
+    integer(i_def),      intent(in)    :: precond_option
     type(field_type),    intent(in), optional :: mmd
 
     type(function_space_type), pointer :: rhs_fs => null()
@@ -316,7 +315,7 @@ contains
     real(kind=r_def)                   :: rs_new, rs_old
     ! others
     real(kind=r_def)                   :: err,sc_err, init_err
-    integer                            :: iter
+    integer(i_def)                     :: iter
 
     call invoke_inner_prod( rhs, rhs, rs_old )
 
@@ -414,22 +413,22 @@ contains
 !! @param[in] rhs_field The input b
 !! @param[inout] lhs_field The answser, x
 !! @param[in] mm operator type, the mass matrix
-!! @param[in] mesh The mesh object the model for fields
+!! @param[in] mesh The id of mesh object the model for fields
 !! @param[in] n_iter The number of Jacobi iterations to perform
   subroutine jacobi_solver_algorithm(lhs, rhs, mm, mesh, n_iter)
 
   use mm_diagonal_kernel_mod, only: mm_diagonal_kernel_type
   implicit none
 
-  integer,             intent(in)    :: n_iter
+  integer(i_def),      intent(in)    :: n_iter
   type(field_type),    intent(inout) :: lhs, rhs
   type(operator_type), intent(inout) :: mm
-  type(mesh_type),     intent(in)    :: mesh
+  integer(i_def),      intent(in)    :: mesh
   type(field_type)                   :: Ax, diagonal, res
 
   real(kind=r_def), parameter :: MU = 0.9_r_def
 
-  integer :: iter
+  integer(i_def) :: iter
 
   type(function_space_type), pointer :: rhs_fs => null()
 
@@ -470,7 +469,7 @@ contains
 !! @param[in] rhs_field The input b
 !! @param[inout] lhs_field The answser, x
 !! @param[inout] mm The mass matrix
-!! @param[in] mesh The mesh object the model for fields
+!! @param[in] mesh The id of  mesh object the model for fields
 !! @param[in] precond_option The choice of preconditioner
 !! @param[in] pstcond_option The choice of postconditioner
 !! @param[in] mmd Optional diagonal mass matrix used for conditioning
@@ -481,8 +480,8 @@ contains
     type(field_type),    intent(inout) :: lhs
     type(field_type),    intent(in)    :: rhs
     type(operator_type), intent(inout) :: mm
-    type(mesh_type),     intent(in)    :: mesh
-    integer,             intent(in)    :: precond_option, pstcond_option
+    integer(i_def),      intent(in)    :: mesh
+    integer(i_def),      intent(in)    :: precond_option, pstcond_option
     type(field_type),    intent(in), optional :: mmd
     ! The temporary fields
     type(field_type)                   :: Ax, r, s, w, v(GCRK)
@@ -492,7 +491,7 @@ contains
     real(kind=r_def)                   :: beta, si, ci, nrm, h1, h2, p, q
     ! others
     real(kind=r_def)                   :: err, sc_err, init_err
-    integer                            :: iter, i, j, k, m
+    integer(i_def)                     :: iter, i, j, k, m
 
     type(function_space_type), pointer :: rhs_fs => null()
 
@@ -636,7 +635,7 @@ contains
 !! @param[in] rhs_field The input b
 !! @param[inout] lhs_field The answser, x
 !! @param[inout] mm operator type, the mass matrix
-!! @param[in] mesh The mesh object the model for fields
+!! @param[in] mesh The id mesh object the model for fields
 !! @param[in] precond_option Choice of preconditioner
 !! @param[in] mmd optional, mass matrix diagonal
   subroutine gcr_solver_algorithm( lhs, rhs, mm, mesh , precond_option, mmd )
@@ -646,9 +645,9 @@ contains
     type(field_type),    intent(inout) :: lhs
     type(field_type),    intent(in)    :: rhs
     type(operator_type), intent(inout) :: mm
-    type(mesh_type),     intent(in)    :: mesh
+    integer(i_def),      intent(in)    :: mesh
     type(field_type),    intent(in), optional :: mmd
-    integer,             intent(in)    :: precond_option
+    integer(i_def),      intent(in)    :: precond_option
 
     ! The temporary fields
     type(field_type)                   :: Ax, r, s(GCRK), v(GCRK)
@@ -657,7 +656,7 @@ contains
     real(kind=r_def)                   :: alpha
     ! others
     real(kind=r_def)                   :: err, sc_err, init_err
-    integer                            :: iter, m, n
+    integer(i_def)                     :: iter, m, n
 
     type(function_space_type), pointer :: rhs_fs => null()
 
@@ -750,7 +749,7 @@ end subroutine gcr_solver_algorithm
 
     type(field_type), intent(inout) :: y
     type(field_type), intent(in)    :: x
-    integer,          intent(in)    :: preconditioner
+    integer(i_def),   intent(in)    :: preconditioner
     type(field_type), intent(in), optional :: diagonal
 
     select case ( preconditioner )
