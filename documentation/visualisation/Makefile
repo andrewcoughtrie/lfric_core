@@ -8,8 +8,8 @@
 INITIAL_dynamo_VERSION   = v1.0
 INITIAL_psyclone_VERSION = vn1.2.1
 
-dynamo_REPOSITORY_URL   = https://puma.nerc.ac.uk/svn/GungHo_svn/Dynamo
-psyclone_REPOSITORY_URL = https://puma.nerc.ac.uk/svn/GungHo_svn/PSyclone
+dynamo_REPOSITORY_URL   = https://code.metoffice.gov.uk/svn/lfric/Dynamo
+psyclone_REPOSITORY_URL = https://code.metoffice.gov.uk/svn/lfric/PSyclone
 
 Q ?= @
 
