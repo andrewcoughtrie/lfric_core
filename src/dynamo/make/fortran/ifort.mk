@@ -8,7 +8,7 @@
 #
 $(info ** Chosen Intel Fortran compiler)
 
-FFLAGS_COMPILER           = -openmp
+FFLAGS_COMPILER           = -qopenmp
 FFLAGS_NO_OPTIMISATION    = -O0
 FFLAGS_SAFE_OPTIMISATION  = -O2 -fp-model precise
 FFLAGS_RISKY_OPTIMISATION = -O3 -xhost
@@ -17,7 +17,7 @@ FFLAGS_WARNINGS           = -warn all -warn errors
 FFLAGS_INIT               = -ftrapuv
 FFLAGS_RUNTIME            = -check all -fpe0
 
-LDFLAGS_COMPILER = -openmp
+LDFLAGS_COMPILER = -qopenmp
 
 ifdef CRAY_ENVIRONMENT
 LD_COMPILER_LIBRARIES = stdc++
