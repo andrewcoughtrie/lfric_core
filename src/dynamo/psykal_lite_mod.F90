@@ -15,6 +15,7 @@
 module psykal_lite_mod
 
   use field_mod,      only : field_type, field_proxy_type 
+  use scalar_mod,     only : scalar_type
   use operator_mod,   only : operator_type, operator_proxy_type
   use quadrature_mod, only : quadrature_type
   use constants_mod,  only : r_def, i_def
@@ -117,7 +118,8 @@ contains
     implicit none
     type( field_type ),  intent(in ) :: x,y
     real(kind=r_def),    intent(out) :: inner_prod
-    REAL(kind=r_def)                 :: inner_prod_local
+    real(kind=r_def)                 :: inner_prod_local_tmp
+    type( scalar_type )              :: inner_prod_local
     type( field_proxy_type)          ::  x_p,y_p
     INTEGER                          :: i,undf
 
@@ -133,17 +135,20 @@ contains
       stop
     endif
 
-    inner_prod_local = 0.0_r_def
+    inner_prod_local_tmp = 0.0_r_def 
     !$omp parallel do default(none), schedule(static) & 
     !$omp& shared(x_p, y_p, undf),  private(i) &
-    !$omp& reduction(+:inner_prod_local)
+    !$omp& reduction(+:inner_prod_local_tmp)
     do i = 1,undf
-      inner_prod_local = inner_prod_local + ( x_p%data(i) * y_p%data(i) )
+      inner_prod_local_tmp = inner_prod_local_tmp + &
+                             ( x_p%data(i) * y_p%data(i) )
     end do
     !$omp end parallel do
 
-    ! This is an ungenerated comment! Yuk. Now call the global sum
-    CALL invoke_global_sum_scalar(inner_prod_local, inner_prod)
+    inner_prod_local = scalar_type( inner_prod_local_tmp )
+
+    ! Get the global sum of the inner products
+    inner_prod = inner_prod_local%get_sum()
     
   end subroutine invoke_inner_prod
   
@@ -544,7 +549,8 @@ contains
     implicit none
     type( field_type ),  intent(in ) :: x
     real(kind=r_def),    intent(out) :: field_sum
-    real(kind=r_def)                 :: field_sum_local
+    real(kind=r_def)                 :: field_sum_local_tmp
+    type( scalar_type )              :: field_sum_local
     type( field_proxy_type)          :: x_p
     integer(kind=i_def)              :: df, undf
 
@@ -553,16 +559,17 @@ contains
     undf = x_p%vspace%get_last_dof_owned()
     
     ! Calculate the local sum on this partition
-    field_sum_local = 0.0_r_def
-    !$omp parallel do schedule(static), default(none), shared(x_p, undf),  private(df), reduction(+:field_sum_local)
+    field_sum_local_tmp = 0.0_r_def
+    !$omp parallel do schedule(static), default(none), shared(x_p, undf),  private(df), reduction(+:field_sum_local_tmp)
     do df = 1,undf
-      field_sum_local = field_sum_local + x_p%data(df)
+      field_sum_local_tmp = field_sum_local_tmp + x_p%data(df)
     end do
     !$omp end parallel do
 
+    field_sum_local = scalar_type( field_sum_local_tmp )
+
     ! Now call the global sum
-    field_sum = 0.0_r_def
-    CALL invoke_global_sum_scalar(field_sum_local, field_sum)
+    field_sum = field_sum_local%get_sum()
 
   end subroutine invoke_sum_field
 
@@ -671,29 +678,34 @@ contains
     real(kind=r_def),   intent(out)   :: delta
     type( field_proxy_type)           :: x_proxy
     integer(kind=i_def)               :: i,undf
-    real(kind=r_def)                  :: r_undf, r_undf_global
+    real(kind=r_def)                  :: r_undf_global, tmp
     real(kind=r_def), parameter       :: delta0 = 1.0e-6_r_def
-    real(kind=r_def)                  :: delta_l
+    real(kind=r_def)                  :: delta_l_tmp
+    type( scalar_type )               :: delta_l
+    type( scalar_type )               :: r_undf
 
     x_proxy = x%get_proxy()
 
     ! Calculate local delta
     undf = x_proxy%vspace%get_last_dof_owned()
-    delta_l = 0.0_r_def
+    delta_l_tmp = 0.0_r_def
     !$omp parallel do default(none), schedule(static) &
     !$omp&            shared(x_proxy, undf) &
-    !$omp&            private(i), reduction(+:delta_l)
+    !$omp&            private(i), reduction(+:delta_l_tmp)
     do i = 1,undf
-      delta_l = delta_l + delta0*abs(x_proxy%data(i)) + delta0
+      delta_l_tmp = delta_l_tmp + delta0*abs(x_proxy%data(i)) + delta0
     end do
     !$omp end parallel do
 
-    ! Get global delta
-    delta   = 0.0_r_def
-    call invoke_global_sum_scalar(delta_l,delta)
-    r_undf=real(undf)
-    r_undf_global = 0.0_r_def
-    call invoke_global_sum_scalar(r_undf,r_undf_global)
+    delta_l = scalar_type( delta_l_tmp )
+
+    ! Get global delta and global number of unique dofs
+    delta = delta_l%get_sum()
+
+    tmp=real(undf)  !Intel Fortran produces an internal compiler error if real(undf) is passed directly to the scalar constructor - so create a tmp
+    r_undf = scalar_type( tmp )
+    r_undf_global = r_undf%get_sum()
+
     delta = delta/(r_undf_global*norm)
 
   end subroutine invoke_compute_delta
@@ -1464,68 +1476,5 @@ subroutine invoke_calc_deppts(u_n,u_np1,dep_pts,direction,dep_pt_method)
   end do
 
 end subroutine invoke_calc_deppts
-
-!-------------------------------------------------------------------------------   
-!> Perform a global sum on a scalar
-  subroutine invoke_global_sum_scalar(scalar, global_sum )
-    use ESMF
-    implicit none
-    real(kind=r_def), intent(inout) :: scalar
-    REAL(kind=r_def), INTENT(inout) :: global_sum
-
-    type(ESMF_VM)  :: vm
-    integer(kind=i_def) :: rc
-
-    call ESMF_VMGetCurrent(vm=vm, rc=rc)
-    call ESMF_VMAllFullReduce(vm, &
-                             [scalar], &
-                             global_sum, &
-                             1, &
-                             ESMF_REDUCE_SUM, &
-                             rc=rc)
-
-  end subroutine invoke_global_sum_scalar
-
-!-------------------------------------------------------------------------------   
-!> Find the maximum of a distributed scalar
-  subroutine invoke_global_max_scalar(scalar, global_max )
-    use ESMF
-    implicit none
-    real(kind=r_def), intent(inout) :: scalar
-    real(kind=r_def), intent(inout) :: global_max
-
-    type(ESMF_VM)  :: vm
-    INTEGER(kind=i_def) :: rc
-
-    call ESMF_VMGetCurrent(vm=vm, rc=rc)
-    call ESMF_VMAllFullReduce(vm, &
-                             [scalar], &
-                             global_max, &
-                             1, &
-                             ESMF_REDUCE_MAX, &
-                             rc=rc)
-
-  end subroutine invoke_global_max_scalar
-
-!-------------------------------------------------------------------------------   
-!> Find the minimum of a distributed scalar
-  subroutine invoke_global_min_scalar(scalar, global_min )
-    use ESMF
-    implicit none
-    real(kind=r_def), intent(inout) :: scalar
-    real(kind=r_def), intent(inout) :: global_min
-
-    type(ESMF_VM)  :: vm
-    integer(kind=i_def) :: rc
-
-    call ESMF_VMGetCurrent(vm=vm, rc=rc)
-    call ESMF_VMAllFullReduce(vm, &
-                             [scalar], &
-                             global_min, &
-                             1, &
-                             ESMF_REDUCE_MIN, &
-                             rc=rc)
-
-  end subroutine invoke_global_min_scalar
 
 end module psykal_lite_mod

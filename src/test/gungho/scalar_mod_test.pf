@@ -1,0 +1,87 @@
+!-----------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown, 
+! Met Office and NERC 2014. 
+! However, it has been created with the help of the GungHo Consortium, 
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-----------------------------------------------------------------------------
+
+!> Test the scalar object
+!>
+!-------------------------------------------------------------------------------
+module scalar_mod_test
+
+  use constants_mod, only : r_def
+  use pFUnit_Mod
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: scalar_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type scalar_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(scalar_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(scalar_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all( this )
+
+    use scalar_mod, only: scalar_type
+
+    implicit none
+
+    class(scalar_test_type), intent(inout) :: this
+
+    type(scalar_type)          :: s1
+
+    real(r_def) :: s1_val
+    real(r_def) :: sum, min, max
+
+    s1_val = 23.0
+
+    s1 = scalar_type ( s1_val )
+
+    ! Check the scalar type has been correctly constructed and that
+    ! we have access to the data
+    @assertEqual( s1_val, s1%value, 1.0e-2_r_def )
+
+    ! Test the global reductions
+    ! - a bit trivial until we have parallel tests
+    sum = s1%get_sum()
+    @assertEqual( s1_val, sum, 1.0e-2_r_def )
+
+    min = s1%get_min()
+    @assertEqual( s1_val, min, 1.0e-2_r_def )
+
+    max = s1%get_max()
+    @assertEqual( s1_val, max, 1.0e-2_r_def )
+
+
+  end subroutine test_all
+
+end module scalar_mod_test
