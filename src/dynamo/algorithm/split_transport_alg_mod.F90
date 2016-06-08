@@ -1,0 +1,131 @@
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown,
+! Met Office and NERC 2014.
+! However, it has been created with the help of the GungHo Consortium,
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+!> @brief Algorithm which calculates the mass fluxes using the symmetric COSMIC
+!>        method.
+!>        The algorithm below outputs the mass fluxes at timestep n+1 (np1)
+!>        given the wind fields at timestep n and n+1 and the density field at
+!>        timestep n.
+module split_transport_alg_mod
+
+  use constants_mod,                     only: r_def, i_def
+  use mesh_mod,                          only: mesh_type
+  use field_mod,                         only: field_type
+  use function_space_mod,                only: function_space_type
+  use function_space_collection_mod,     only: function_space_collection
+  use quadrature_mod,                    only: quadrature_type, GAUSSIAN
+  use psykal_lite_mod,                   only: invoke_set_field_scalar
+  use log_mod,                           only: log_event,            &
+                                               log_scratch_space,    &
+                                               LOG_LEVEL_INFO,       &
+                                               LOG_LEVEL_TRACE
+  use flux_direction_mod,                only: x_direction, y_direction
+  use finite_element_config_mod,         only: element_order
+  use biperiodic_deppt_config_mod,       only: method
+
+  use psykal_lite_mod,                   only: invoke_set_field_scalar,        &
+                                               invoke_calc_departure_wind,     &
+                                               invoke_calc_deppts,             &
+                                               invoke_plus_field_data,         &
+                                               invoke_copy_field_data,         &
+                                               invoke_axpby
+
+  use oned_advective_density_update_alg_mod,     only: oned_advective_density_update_alg
+  use oned_conservative_flux_alg_mod,    only: oned_conservative_flux_alg
+
+  implicit none
+
+  private
+  public :: split_transport_alg
+
+contains
+
+!> @brief Algorithm which calculates the mass fluxes using the symmetric COSMIC
+!>        method.
+!>        The algorithm below outputs the mass fluxes at timestep n+1 (np1)
+!>        given the wind fields at timestep n and n+1 and the density field at
+!>        timestep n.
+!> @param[in] u_n     Winds at time level n
+!> @param[in] u_np1   Winds at time level n+1
+!> @param[in] rho     Density at time level n
+!> @param[in] chi     the fem coordinate field array
+!> @param[in] mesh_id  mesh id
+!> @param[inout] mass_flux   mass fluxes in 2D used to update density
+  subroutine split_transport_alg( u_n,            &
+                                  u_np1,          &
+                                  rho,            &
+                                  chi,            &
+                                  mesh_id,           &
+                                  mass_flux )
+
+    implicit none
+
+    type(field_type),    intent(in)     :: u_n
+    type(field_type),    intent(in)     :: u_np1
+    type(field_type),    intent(in)     :: chi(3)
+    type(field_type),    intent(in)     :: rho
+    integer(i_def),      intent(in)     :: mesh_id
+    type(field_type),    intent(inout)  :: mass_flux
+
+    type( field_type ) :: departure_wind_n, departure_wind_np1, dep_pts_x, dep_pts_y
+    type( field_type ) :: mass_flux_x, mass_flux_y
+    type( field_type ) :: rho_n, rho_adv_x, rho_adv_y, rho_hat_adv_x, rho_hat_adv_y
+
+    type(function_space_type) :: fs
+    type(function_space_type), pointer :: rho_fs   => null()
+    type(function_space_type), pointer :: u_fs     => null()
+
+    rho_fs   => function_space_collection%get_fs( mesh_id, element_order, rho%which_function_space()   )
+    u_fs   => function_space_collection%get_fs( mesh_id, element_order, u_n%which_function_space()   )
+
+    departure_wind_n    = field_type( vector_space = u_fs )
+    departure_wind_np1  = field_type( vector_space = u_fs )
+    dep_pts_x           = field_type( vector_space = u_fs )
+    dep_pts_y           = field_type( vector_space = u_fs )
+    mass_flux_x         = field_type( vector_space = u_fs )
+    mass_flux_y         = field_type( vector_space = u_fs )
+
+    rho_n         = field_type( vector_space = rho_fs )
+    rho_adv_x     = field_type( vector_space = rho_fs )
+    rho_adv_y     = field_type( vector_space = rho_fs )
+    rho_hat_adv_x = field_type( vector_space = rho_fs )
+    rho_hat_adv_y = field_type( vector_space = rho_fs )
+
+    call invoke_copy_field_data(rho,rho_n)
+
+    ! Calculate the departure wind used to calculate the departure points
+    call invoke_calc_departure_wind(departure_wind_n,u_n,chi)
+    call invoke_calc_departure_wind(departure_wind_np1,u_np1,chi)
+
+    ! Calculate the departure points for W2 nodal points at lowest order
+    call invoke_set_field_scalar(0.0_r_def,dep_pts_x)
+    call invoke_set_field_scalar(0.0_r_def,dep_pts_y)
+
+    call invoke_calc_deppts(departure_wind_n,departure_wind_np1,dep_pts_x,x_direction,method)
+    call invoke_calc_deppts(departure_wind_n,departure_wind_np1,dep_pts_y,y_direction,method)
+
+    ! Perform two 1D advective updates in the x and y directions (horizontal)
+    call oned_advective_density_update_alg(x_direction,u_n, dep_pts_x, rho_n, rho_adv_x, mesh_id)
+    call oned_advective_density_update_alg(y_direction,u_n, dep_pts_y, rho_n, rho_adv_y, mesh_id)
+
+    ! Average the two advective density updates with the density at timestep level n
+    call invoke_axpby(0.5_r_def,rho_n,0.5_r_def,rho_adv_x,rho_hat_adv_x)
+    call invoke_axpby(0.5_r_def,rho_n,0.5_r_def,rho_adv_y,rho_hat_adv_y)
+
+    ! Calculate separately the conservative fluxes in the x and y directions (horizontal)
+    call invoke_set_field_scalar(0.0_r_def,mass_flux_x)
+    call invoke_set_field_scalar(0.0_r_def,mass_flux_y)
+    call invoke_set_field_scalar(0.0_r_def,mass_flux)
+
+    call oned_conservative_flux_alg(x_direction,u_n, dep_pts_x, rho_hat_adv_y, mass_flux_x, mesh_id)
+    call oned_conservative_flux_alg(y_direction,u_n, dep_pts_y, rho_hat_adv_x, mass_flux_y, mesh_id)
+
+    ! Combine the mass fluxes in the x and y directions
+    call invoke_plus_field_data(mass_flux_x,mass_flux_y,mass_flux)
+
+  end subroutine split_transport_alg
+
+end module split_transport_alg_mod

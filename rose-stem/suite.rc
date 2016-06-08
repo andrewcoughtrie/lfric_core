@@ -1,6 +1,6 @@
 #!jinja2
 {%- set builds = ['fast-debug'] %}
-{%- set science_configs = ['semi-implicit', 'runge-kutta', 'transport-rk'] %}
+{%- set science_configs = ['semi-implicit', 'runge-kutta', 'transport-rk', 'transport-cosmic'] %}
 {%- set science_target = 'fast-debug' %}
 {%- set compile_config = 'semi_implicit' %}
 

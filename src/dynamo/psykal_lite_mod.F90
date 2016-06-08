@@ -1392,6 +1392,7 @@ subroutine invoke_calc_departure_wind(u_departure_wind, u_piola, chi)
 
   nodes => u_piola_p%vspace%get_nodes( )
   call chi_p(1)%vspace%compute_nodal_diff_basis_function(diff_basis_chi, ndf_chi, ndf, nodes)
+  call u_piola_p%vspace%compute_nodal_basis_function(nodal_basis_u, ndf, ndf, nodes)
 
   do cell = 1, u_piola_p%vspace%get_ncell()
      map     => u_piola_p%vspace%get_cell_dofmap( cell )

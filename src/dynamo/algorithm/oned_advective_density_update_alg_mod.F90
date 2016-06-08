@@ -1,0 +1,121 @@
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown,
+! Met Office and NERC 2014.
+! However, it has been created with the help of the GungHo Consortium,
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+!> @brief Algorithm which acts in one direction only and updates density using
+!>        the advective form of transport equation
+!> @details Updates the density in either the x or y direction depending on the
+!>          direction variable. An advective update is performed but using the
+!>          conservative flux operator, a multiplicative correction is made to
+!>          ensure the advective update is performed.
+module oned_advective_density_update_alg_mod
+
+  use constants_mod,                     only: r_def, i_def
+  use mesh_mod,                          only: mesh_type
+  use field_mod,                         only: field_type
+  use function_space_mod,                only: function_space_type
+  use function_space_collection_mod,     only: function_space_collection
+  use log_mod,                           only: log_event,            &
+                                               log_scratch_space,    &
+                                               LOG_LEVEL_INFO,       &
+                                               LOG_LEVEL_TRACE
+  use density_update_alg_mod,            only: density_update_alg
+  use finite_element_config_mod,         only: element_order
+  use subgrid_config_mod,                only: transport_stencil_length,       &
+                                               rho_stencil_length
+
+  use psykal_lite_mod,                   only: invoke_set_field_scalar,        &
+                                               invoke_subgrid_coeffs,          &
+                                               invoke_conservative_fluxes,     &
+                                               invoke_divide_field
+
+  implicit none
+
+  private
+  public :: oned_advective_density_update_alg
+
+contains
+
+!> @brief Algorithm which acts in one direction only and updates density using
+!>        the advective form of transport equation
+!> @details Updates the density in either the x or y direction depending on the
+!>          direction variable. An advective update is performed but using the
+!>          conservative flux operator, a multiplicative correction is made to
+!>          ensure the advective update is performed.
+!> @param[inout] direction the direction in which to perform the 1D advective update
+!> @param[inout] u  wind values
+!> @param[inout] dep_pts departure points for W2 points at lowest order
+!> @param[inout] rho_in   density at time n
+!> @param[inout] rho_out  density after advective update
+!> @param[inout] mesh     mesh object on which the model runs
+  subroutine oned_advective_density_update_alg(   direction,    &
+                                                  u,            &
+                                                  dep_pts,      &
+                                                  rho_in,       &
+                                                  rho_out,      &
+                                                  mesh_id )
+
+    implicit none
+
+    integer(i_def), intent(in)          :: direction
+    type(field_type),    intent(in)     :: u
+    type(field_type),    intent(in)     :: dep_pts
+    type(field_type),    intent(in)     :: rho_in
+    type(field_type),    intent(inout)  :: rho_out
+    integer(i_def),      intent(in)     :: mesh_id
+
+    type( field_type ) :: a0, a1, a2
+    type( field_type ) :: rho_adv, r_rho, rho_n, rho_hat_adv
+    type( field_type ) :: rho_constant_1, rho_adv_np1, rho_constant_np1
+    type( field_type ) :: mass_flux
+
+    type(function_space_type) :: fs
+    type(function_space_type), pointer :: rho_fs   => null()
+    type(function_space_type), pointer :: u_fs     => null()
+
+    rho_fs   => function_space_collection%get_fs( mesh_id, element_order, rho_in%which_function_space()   )
+    u_fs   => function_space_collection%get_fs( mesh_id, element_order, u%which_function_space()   )
+
+    a0 = field_type( vector_space = rho_fs )
+    a1 = field_type( vector_space = rho_fs )
+    a2 = field_type( vector_space = rho_fs )
+
+    rho_adv           = field_type( vector_space = rho_fs )
+    rho_hat_adv       = field_type( vector_space = rho_fs )
+    rho_adv_np1       = field_type( vector_space = rho_fs )
+    rho_constant_np1  = field_type( vector_space = rho_fs )
+    rho_constant_1    = field_type( vector_space = rho_fs )
+    mass_flux         = field_type( vector_space = u_fs )
+
+    ! Calculate the conservative fluxes and update rho
+    call invoke_set_field_scalar(0.0_r_def,mass_flux)
+    call invoke_set_field_scalar(0.0_r_def,a0)
+    call invoke_set_field_scalar(0.0_r_def,a1)
+    call invoke_set_field_scalar(0.0_r_def,a2)
+    call invoke_subgrid_coeffs(a0,a1,a2,rho_in,direction,rho_stencil_length)
+
+    call invoke_conservative_fluxes(  rho_in, dep_pts, u, mass_flux,  &
+                                      a0, a1, a2, direction, transport_stencil_length )
+    call density_update_alg(rho_in, mass_flux, rho_adv_np1, mesh_id)
+
+    ! Calculate the fluxes for rho=1
+    call invoke_set_field_scalar(0.0_r_def,mass_flux)
+    call invoke_set_field_scalar(1.0_r_def,rho_constant_1)
+    call invoke_set_field_scalar(0.0_r_def,a0)
+    call invoke_set_field_scalar(0.0_r_def,a1)
+    call invoke_set_field_scalar(0.0_r_def,a2)
+    call invoke_subgrid_coeffs(a0,a1,a2,rho_constant_1,direction,rho_stencil_length)
+
+    call invoke_conservative_fluxes(  rho_constant_1, dep_pts, u, mass_flux,  &
+                                      a0, a1, a2, direction, transport_stencil_length )
+
+    call density_update_alg(rho_constant_1, mass_flux, rho_constant_np1, mesh_id)
+
+    ! Perform multiplicative correction to obtain the advective update of density
+    call invoke_divide_field(rho_adv_np1,rho_constant_np1,rho_out)
+
+  end subroutine oned_advective_density_update_alg
+
+end module oned_advective_density_update_alg_mod

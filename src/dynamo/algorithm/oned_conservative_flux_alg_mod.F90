@@ -1,0 +1,102 @@
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown,
+! Met Office and NERC 2014.
+! However, it has been created with the help of the GungHo Consortium,
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+!> @brief Algorithm which calculates conservative mass fluxes in one direction only
+!> @details This algorithm calculates the conservative mass fluxes in a specified
+!>          direction. The PPM technique is used which allows conservative mass
+!>          mass fluxes for Courant numbers greater than 1 to be calculated.
+!>          The subgrid representation of rho is first calculated for all cells
+!>          in the direction which we are interested in, then the fluxes are
+!>          calculated for each W2 nodal point at lowest order. The departure
+!>          points are an input variable as well as the density. Output variable
+!>          is the mass flux in one direction.
+module oned_conservative_flux_alg_mod
+
+  use constants_mod,                     only: r_def, i_def
+  use field_mod,                         only: field_type
+  use function_space_mod,                only: function_space_type
+  use function_space_collection_mod,     only: function_space_collection
+  use quadrature_mod,                    only: quadrature_type, GAUSSIAN
+  use psykal_lite_mod,                   only: invoke_set_field_scalar
+  use fs_continuity_mod,                 only: W0, W3
+  use log_mod,                           only: log_event,            &
+                                               log_scratch_space,    &
+                                               LOG_LEVEL_INFO,       &
+                                               LOG_LEVEL_TRACE
+  use finite_element_config_mod,         only: element_order
+  use subgrid_config_mod,                only: transport_stencil_length,       &
+                                               rho_stencil_length
+
+  use psykal_lite_mod,                   only: invoke_set_field_scalar,        &
+                                               invoke_subgrid_coeffs,          &
+                                               invoke_conservative_fluxes
+
+  implicit none
+
+  private
+  public :: oned_conservative_flux_alg
+
+contains
+
+!> @brief Algorithm which calculates conservative mass fluxes in one direction only
+!> @details This algorithm calculates the conservative mass fluxes in a specified
+!>          direction. The PPM technique is used which allows conservative mass
+!>          mass fluxes for Courant numbers greater than 1 to be calculated.
+!>          The subgrid representation of rho is first calculated for all cells
+!>          in the direction which we are interested in, then the fluxes are
+!>          calculated for each W2 nodal point at lowest order. The departure
+!>          points is an input variable as well as the density. Output variable
+!>          is the mass flux in one direction.
+!> @param[in] direction   direction in which to calculate the mass fluxes
+!> @param[in] u           wind values
+!> @param[in] dep_pts     departure points
+!> @param[in] rho_in   density values
+!> @param[inout] mass_flux   1D conservative mass flux values in the specified direction
+!> @param[in] mesh        mesh object on which the model runs
+  subroutine oned_conservative_flux_alg( direction,    &
+                                         u,            &
+                                         dep_pts,      &
+                                         rho_in,       &
+                                         mass_flux,    &
+                                         mesh_id )
+
+    implicit none
+
+    integer(i_def), intent(in)          :: direction
+    type(field_type),    intent(in)     :: u
+    type(field_type),    intent(in)     :: dep_pts
+    type(field_type),    intent(in)     :: rho_in
+    type(field_type),    intent(inout)  :: mass_flux
+    integer(i_def),      intent(in)     :: mesh_id
+
+    type( field_type ) :: a0, a1, a2
+
+    type(function_space_type) :: fs
+    type(function_space_type), pointer :: rho_fs   => null()
+    type(function_space_type), pointer :: u_fs     => null()
+
+    rho_fs => function_space_collection%get_fs( mesh_id, element_order,      &
+                                              rho_in%which_function_space() )
+    u_fs => function_space_collection%get_fs( mesh_id, element_order,        &
+                                              u%which_function_space() )
+
+    a0 = field_type( vector_space = rho_fs )
+    a1 = field_type( vector_space = rho_fs )
+    a2 = field_type( vector_space = rho_fs )
+
+    call invoke_set_field_scalar(0.0_r_def,mass_flux)
+    call invoke_set_field_scalar(0.0_r_def,a0)
+    call invoke_set_field_scalar(0.0_r_def,a1)
+    call invoke_set_field_scalar(0.0_r_def,a2)
+
+    call invoke_subgrid_coeffs(a0,a1,a2,rho_in,direction,rho_stencil_length)
+
+    call invoke_conservative_fluxes(  rho_in, dep_pts, u, mass_flux,  &
+                                      a0, a1, a2, direction, transport_stencil_length )
+
+  end subroutine oned_conservative_flux_alg
+
+end module oned_conservative_flux_alg_mod

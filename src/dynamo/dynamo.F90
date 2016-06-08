@@ -54,6 +54,9 @@ program dynamo
                                            timestepping_method_semi_implicit, &
                                            timestepping_method_rk
   use derived_config_mod,             only : set_derived_config
+  use transport_config_mod,           only : scheme, transport_scheme_rk,     &
+                                             transport_scheme_cosmic
+  use cosmic_transport_alg_mod,       only : cosmic_transport_alg
 
   use runge_kutta_init_mod,    only: runge_kutta_init
   implicit none
@@ -126,10 +129,19 @@ program dynamo
   call init_prognostic_fields_alg( mesh_id, chi, u, rho, theta, xi, restart)
 
   ! Run timestepping algorithms
-  if ( transport_only ) then
+  if ( transport_only ) then    ! Transport test options
 
-    call runge_kutta_init()
-    call rk_transport( mesh_id, chi, u, rho, restart)
+    select case( scheme )
+      case ( transport_scheme_rk)
+          call runge_kutta_init()
+          call rk_transport( mesh_id, chi, u, rho, restart)
+      case ( transport_scheme_cosmic)
+          call cosmic_transport_alg(mesh_id, chi, u, rho, restart)
+      case default
+          call log_event("Dynamo: Incorrect transport option chosen, "// &
+                         "stopping program! ",LOG_LEVEL_ERROR)
+          stop
+    end select
 
   else
 

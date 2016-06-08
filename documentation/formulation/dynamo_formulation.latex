@@ -751,6 +751,170 @@ which is the residual error in the $\theta$ equation tested by the
 upwind component of the test function.
 
 
+\section{Directionally split advection scheme\label{sub:COSMIC-Advection}}
+This section describes the directionally split advection scheme, commonly known as COSMIC (Conservative Operator Splitting in Multi-dimensions with Inherent Constancy), and its implementation within Dynamo. References for the scheme include \cite{Leonard_etal_1996}, \cite{putlin07} and \cite{lin_rood_96}. The scheme is currently coded assuming that $\rho\in \mathbb{W}_3$ and velocity ${\bf u}\in \mathbb{W}_2$ are both at lowest order, $k=0$, and has been implemented as a finite-volume transport method. The scheme has also only initially been written for the two horizontal directions on the orthogonal biperiodic domain. Within this section we refer to $\chi_1$ and $\chi_2$ coordinate directions as $x$ and $y$ directions respectively since this is simpler and consistent with the COSMIC literature.
+
+Since the density field is at lowest order then the density values can be thought of as being the cell-volume mean. Formally though we introduce $\bar{\rho}$  which is
+\begin{equation}
+\bar{\rho} = \frac{1}{\Delta A} \iint_{\Delta A} \rho dA
+\end{equation}
+and is the cell-area mean. We consider an area mean rather than volume mean since the scheme is coded initially to work in the two horizontal directions only and there is no flow in the vertical.
+
+The continuous differential form of the transport equation for density is
+\begin{equation}
+\frac{\partial \rho}{\partial t} + \nabla \cdot {\bf F} = 0
+\end{equation}
+where ${\bf F} = {\bf u}\rho$.
+
+
+Integrating over a cell and averaging w.r.t $\Delta A$ gives the following discrete in space equation
+\begin{equation}
+\frac{\partial }{\partial t} \frac{1}{\Delta A}\iint_{\Delta A} \rho d A + \frac{1}{\Delta A} \iint_{\Delta A} \nabla \cdot {\bf F} dA = 0.
+\end{equation}
+Using the Divergence Theorem and substitution of $\bar{\rho}$ then gives
+\begin{equation}
+\frac{\partial \bar{\rho}}{\partial t} + \frac{1}{\Delta A} \oint_{\partial A} {\bf F}\cdot{\bf n} dl = 0.
+\end{equation}
+Integrating analytically in time between timesteps $t_n$ and $t_{n+1}$ and dividing by $\Delta t = t_{n+1}-t_n$ gives a discrete in time equation
+\begin{equation}
+\frac{\bar{\rho}^{n+1} - \bar{\rho}^{n}}{\Delta t} + \frac{1}{\Delta A} \frac{1}{\Delta t} \int_{t_n}^{t_{n+1}} \left[ \oint_{\partial A} {\bf F}\cdot{\bf n} dl \right] dt = 0.
+\end{equation}
+Letting $\tilde{{\bf F}}$ be defined as
+\begin{equation}
+\tilde{{\bf F}} := \frac{1}{\Delta t} \int_{t_n}^{t_{n+1}} {\bf F} dt
+\end{equation}
+this simplifies to become
+\begin{equation}
+\frac{\bar{\rho}^{n+1} - \bar{\rho}^{n}}{\Delta t} + \frac{1}{\Delta A}  \oint_{\partial A} \tilde{\bf F}\cdot{\bf n} dl = 0
+\end{equation}
+or as a two-dimensional update equation as
+\begin{equation}\label{eq:cosmic:sum_of_fluxes}
+\bar{\rho}^{n+1} = \bar{\rho}^{n} - \frac{\Delta t}{\Delta A}  \oint_{\partial A} \tilde{\bf F}\cdot{\bf n} dl.
+\end{equation}
+
+COSMIC is a scheme which uses one-dimensional updates and the equations for this are now discussed.
+
+We first consider what is referred to as an $x$ update of the $\bar{\rho}_n$ field. This is simply equation (\ref{eq:cosmic:sum_of_fluxes}) but with the flux contributions from the $y$ direction neglected. Working still in physical coordinates and considering an orthogonal cell, we denote the width of the cell in the $x$ direction as $\Delta x$ and the width in the $y$ direction as $\Delta y$ giving us
+\begin{equation}
+\Delta A = \Delta x \Delta y.
+\end{equation}
+Therefore, neglecting the $y$ direction flux contributions in equation (\ref{eq:cosmic:sum_of_fluxes}) gives
+\begin{equation}\label{eq:cosmic:dimensional_density_update}
+\bar{\rho}_X = \bar{\rho}^{n} - \frac{\Delta t}{\Delta A} \left[ {\tilde F}_3(\bar{\rho}^n) \Delta y - {\tilde F}_1(\bar{\rho}^n) \Delta y \right]
+\end{equation}
+where $\bar{\rho}_X$ is the resulting density after an $x$ update.
+Here we have used ${\tilde F}_1$ to denote the time averaged flux at the left-hand cell wall with ${\tilde F}_1(\bar{\rho}^n) = \tilde{u}\bar{\rho}^n$ where ${\bf u} = (u,v)$ and $\tilde{u}$ denotes the time averaged $x$ direction velocity between $t_n$ and $t_{n+1}$ at the cell wall. The subscript 3 denotes values located at the right-hand cell wall of the orthogonal cell and subscript 1 values at the left-hand cell wall.
+
+Recalling the definition of $\tilde{F}$ we have
+\begin{eqnarray}
+{\tilde F}_1 &:=& \frac{1}{\Delta t} \int_{t_n}^{t_{n+1}} F dt \\
+&=& \frac{1}{\Delta t} \int_{t_n}^{t_{n+1}} u \rho dt \\
+&=& \frac{sign(u_1)}{\Delta t} \int_{0}^{\Delta x_1}  \rho dx
+\end{eqnarray}
+where $\Delta x_1$ is denoting the departure distance calculated for the left-hand cell wall.
+
+We now wish to write equation (\ref{eq:cosmic:dimensional_density_update}) in non-dimensional form such that the update equation is applicable to the computational grid where cells have width 1 in the $x$ and $y$ directions.
+
+We note that using the current rehabilitated form of the computational coordinates and using Table \ref{tab:Transformations-summary} we have $\bar{\rho} = \hat{\bar{\rho}}$. That is the density values are the same in both the physical and computational coordinate system. Thus we concentrate on the flux terms in (\ref{eq:cosmic:dimensional_density_update}) and the equivalence of these on the computational grid. Since we are assuming that the physical grid is orthogonal then certain terms cancel and the flux terms can be rewritten as follows:
+\begin{eqnarray}
+\frac{1}{\Delta A}  {\tilde F}_3(\bar{\rho}^n) \Delta y &=& \frac{\Delta y}{\Delta A} \frac{sign(u_3)}{\Delta t} \int_{0}^{\Delta x_3}  \bar{\rho}^n dx \\
+& = & \frac{\Delta y}{\Delta A} \frac{sign(u_3)}{\Delta t} \Delta x \int_{0}^{\Delta \hat{x}_3}  \hat{\bar{\rho}}^n d\hat{x} \\
+& = &  \frac{sign(u_3)}{\Delta t} \int_{0}^{\Delta \hat{x}_3}  \hat{\bar{\rho}}^n d\hat{x}. \label{eq:cosmic:flux_calcultion}
+\end{eqnarray}
+Therefore equation (\ref{eq:cosmic:dimensional_density_update}) can be re-written in non-dimensional form as
+\begin{equation}\label{eq:cosmic:one_d_update}
+\hat{\bar{\rho}}_X = \hat{\bar{\rho}}^{n} - \Delta t \left[ \frac{sign(u_3)}{\Delta t} \int_{0}^{\Delta \hat{x}_3}  \hat{\bar{\rho}}^n d\hat{x}  - \frac{sign(u_1)}{\Delta t} \int_{0}^{\Delta \hat{x}_1}  \hat{\bar{\rho}}^n d\hat{x}  \right]
+\end{equation}
+or as
+\begin{equation}
+\hat{\bar{\rho}}_X = \hat{\bar{\rho}}^{n} - \Delta t \left[ \hat{F}_3 - \hat{F}_1 \right]
+\end{equation}
+which is equivalent to
+\begin{equation}\label{eq:cosmic:one_d_div_equation}
+\hat{\bar{\rho}}_X = \hat{\bar{\rho}}^{n} - \Delta t \hat{\nabla}\cdot \hat{F}_X
+\end{equation}
+where $\hat{F}_X$ denotes the $x$ direction flux components of the flux.
+
+
+Equation (\ref{eq:cosmic:one_d_div_equation}) is now in the computational coordinate domain with $(\hat{x},\hat{y})$ denoting the coordinate system where cells are orthogonal and have sides of length 1. Note that the above formulation holds only for orthogonal cells where cancellation of terms occurs due to $\Delta A = \Delta x \Delta y$ with the width of the cells not changing at either of the opposing faces.
+
+Here we have calculated what is referred to as the $x$ update with input field $\hat{\bar{\rho}}_n$. For simplicity, and for use in the next subsection, we denote equation (\ref{eq:cosmic:one_d_update}) more simply as,
+\begin{equation}\label{eq:cosmic:x_operator}
+\hat{\bar{\rho}}_X = (I + X)(\hat{\bar{\rho}}^n)
+\end{equation}
+with $I$ the identity operator and $X$ containing the remaining terms in equation (\ref{eq:cosmic:one_d_update}).
+
+
+\subsection{Directionally split advection scheme in flux form}
+
+To calculate the updated field ${\hat{\bar \rho}}^{n+1}$ at timestep $t_{n+1}$ a combination of one-dimensional $x$ and $y$ updates are used and also advective and conservative updates to ensure constancy and mass conservation. A conservative update uses velocities which are unique to each cell face whereas an advective update uses velocities that are unique to that cell. A more detailed description of the conservative and advective updates can be found in \cite{Leonard_etal_1996}. Using the notation in \cite{Leonard_etal_1996} we denote an advective $x$ direction update followed by a conservative $y$ direction update as ${\hat{\bar \rho}}_{YX}$ and the symmetric opposite as ${\hat{\bar \rho}}_{XY}$. Using the operator $(I+X)$ and its equivalent $(I+Y)$ with subscript $A$ and $C$ denoting advective and conservative updates respectively we can write ${\hat{\bar \rho}}_{XY}$ and ${\hat{\bar \rho}}_{YX}$ as
+\begin{eqnarray}
+{\hat{\bar \rho}}_{YX} &:=& (I+Y_C)(I+X_A)({\hat{\bar \rho}}^n) \label{eq:density_XY} \\
+{\hat{\bar \rho}}_{XY} &:=& (I+X_C)(I+Y_A)({\hat{\bar \rho}}^n) \label{eq:density_YX}.
+\end{eqnarray}
+
+
+The density at the next timestep ${\hat{\bar \rho}}^{n+1}$ is the average of the two updates and is
+\begin{equation}\label{eq:rho_update}
+{\hat{\bar \rho}}^{n+1} = \frac{1}{2}\left( {\hat{\bar \rho}}_{XY} + {\hat{\bar \rho}}_{YX} \right).
+\end{equation}
+
+
+
+It is possible to write equation (\ref{eq:rho_update}) in an alternative form where the update of density is performed using the following equation
+\begin{equation}\label{eq:div_update}
+{\hat{\bar \rho}}^{n+1} = {\hat{\bar \rho}}^n - \Delta t {\hat \nabla} \cdot {\bf {\hat F}}
+\end{equation}
+where ${\bf {\hat F}}\in \mathbb{W}_2$ and is the flux such that equation (\ref{eq:rho_update}) is satisfied with the divergence operator ${\hat \nabla} \cdot ()$ being the discrete finite-element operator used in Dynamo. We now show that equation (\ref{eq:rho_update}) can be written in the form of equation (\ref{eq:div_update}).
+
+Substituting equations (\ref{eq:density_XY}) and (\ref{eq:density_YX}) into equation (\ref{eq:rho_update}) gives ${\hat{ \bar{\rho}}}^{n+1}$ as
+\begin{equation}\label{eq:cosmic_form}
+{\hat{\bar \rho}}^{n+1} = \frac{1}{2}(I+Y_C)(I+X_A)({\hat{\bar \rho}}^n) + \frac{1}{2}(I+X_C)(I+Y_A)({\hat{\bar \rho}}^n).
+\end{equation}
+Defining ${\hat{\bar \rho}}_X^{adv}$ and ${\hat{\bar \rho}}_Y^{adv}$ as
+\begin{eqnarray}
+{\hat{\bar \rho}}_X^{adv} &:=& \left( I+X_A \right) {\hat{\bar \rho}}^n \\
+{\hat{\bar \rho}}_Y^{adv} &:=& \left( I+Y_A \right) {\hat{\bar \rho}}^n
+\end{eqnarray}
+it is then possible after some rearrangement to write equation (\ref{eq:cosmic_form}) as
+\begin{equation}
+{\hat{\bar \rho}}^{n+1} = {\hat{\bar \rho}}^n + X_C\left( \frac{1}{2}I + \frac{1}{2}{\hat{\bar \rho}}_Y^{adv} \right) + Y_C\left( \frac{1}{2}I + \frac{1}{2}{\hat{\bar \rho}}_X^{adv} \right).
+\end{equation}
+Again, introducing new variables $\hat{\bar{\rho}}_X^{adv}$ and $\hat{\bar{\rho}}_Y^{adv}$ defined as
+\begin{eqnarray}
+\hat{\bar{\rho}}_X^{adv} &:=& \frac{1}{2}I + \frac{1}{2}{\hat{\bar \rho}}_X^{adv} \\
+\hat{\bar{\rho}}_Y^{adv} &:=& \frac{1}{2}I + \frac{1}{2}{\hat{\bar \rho}}_Y^{adv}
+\end{eqnarray}
+gives the following equation
+\begin{equation}
+{\hat{\bar \rho}}^{n+1} = {\hat{\bar \rho}}^n + X_C\left( \hat{\bar{\rho}}_Y^{adv} \right) + Y_C\left( \hat{\bar{\rho}}_X^{adv} \right).
+\end{equation}
+Using equations (\ref{eq:cosmic:one_d_div_equation}) and (\ref{eq:cosmic:x_operator}) then gives us
+\begin{equation}\label{eq:cosmic:density_update}
+{\hat{\bar \rho}}^{n+1} = {\hat{\bar \rho}}^n - \Delta t {\hat \nabla} \cdot {\bf {\hat F}}
+\end{equation}
+where
+\begin{equation}
+{\bf {\hat F}} = \left( {\hat F}_X( \hat{\bar{\rho}}_Y^{adv}), {\hat F}_Y( \hat{\bar{\rho}}_X^{adv}) \right).
+\end{equation}
+
+
+
+\subsection{Calculation of mass fluxes}
+Fluxes are evaluated by calculating the mass swept through a cell face in a single direction ($x$ or $y$) in a single timestep. The method is Courant number unlimited and if the Courant number is greater than one then the sum of mass passing through the cell face is accumulated. The density profile within a cell can be represented either by a constant profile, linear profile or a quadratic profile as is the case for the Piecewise Parabolic Method (PPM). For a reference on PPM see \cite{colella_woodward_84}.
+
+Calculation of the departure points for the flux calculation is required to be performed on the computational mesh, see equation (\ref{eq:cosmic:flux_calcultion}). Denoting the velocity used for calculating the departure points by $\tilde{\mathbf{v}}$ which, with reference to Table \ref{tab:Transformations-summary}, then $\tilde{\mathbf{v}}$ satisfies the relationship $\mathbf{v}=J\tilde{\mathbf{v}}=J\hat{\mathbf{v}}/\det\left(J\right)$.
+
+
+\subsection{Advective update}
+
+To perform the advective update it is possible to use the conservative operators $(I+X_C)$ and $(I+Y_C)$ but with a correction factor to ensure that it is an advective update. The advective update used is taken from equations (17) and (18) of \cite{putlin07} and has a multiplicative correction factor. The advective update used in Dynamo is given by the equation
+\begin{equation}
+{\hat{\bar \rho}}_X^{adv} = (I+X_A)({\hat{\bar \rho}}^{n}) := \frac{(I+X_C)({\hat{\bar \rho}}^{n})}{(I+X_C)({\hat{\bar \rho}}=1)}.
+\end{equation}
+
+
+
 \section{Conservation\label{sec:Conservation}}
 
 The numerical conservation of a number of quantities that are conserved
