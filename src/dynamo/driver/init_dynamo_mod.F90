@@ -12,8 +12,8 @@
 module init_dynamo_mod
 
   use assign_coordinate_field_mod,    only : assign_coordinate_field
-  use base_mesh_config_mod,          only: geometry, &
-                                         base_mesh_geometry_spherical
+  use base_mesh_config_mod,           only : geometry, &
+                                             base_mesh_geometry_spherical
   use constants_mod,                  only : i_def
   use field_mod,                      only : field_type
   use finite_element_config_mod,      only : element_order, coordinate_order, wtheta_on
@@ -44,29 +44,23 @@ module init_dynamo_mod
     type(restart_type), intent(in)           :: restart
 
     integer(i_def)                           :: coord
-
+    integer(i_def)                           :: chi_space
 
     call log_event( 'Dynamo: initialisation...', LOG_LEVEL_INFO )
 
 
     ! Calculate coordinates
-    if ( geometry == base_mesh_geometry_spherical ) then
-      do coord = 1,3
-          chi(coord) = field_type (vector_space =                                    &
-                         function_space_collection%get_fs(mesh_id,element_order,W0) )
-      end do
-      ! Assign coordinate field
+    if ( coordinate_order == 0 ) then
+      chi_space = W0
       call log_event( "Dynamo: Computing W0 coordinate fields", LOG_LEVEL_INFO )
     else
-      do coord = 1,3
-          chi(coord) = field_type (vector_space =                                    &
-                         function_space_collection%get_fs(mesh_id,coordinate_order,Wchi) )
-      end do
-      ! Assign coordinate field
+      chi_space = Wchi
       call log_event( "Dynamo: Computing Wchi coordinate fields", LOG_LEVEL_INFO )
-
     end if
-
+    do coord = 1,3
+      chi(coord) = field_type (vector_space =                                    &
+                   function_space_collection%get_fs(mesh_id,coordinate_order,chi_space) )
+    end do
     call assign_coordinate_field(chi, mesh_id)
 
 
