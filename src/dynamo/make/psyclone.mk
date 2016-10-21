@@ -16,6 +16,11 @@ PSY_OPTIMISATION_PATH = $(ROOT)/optimisation
 PSY_AUTO_ALGORITHM_PATH = $(OBJ_DIR)/algorithm
 PSY_AUTO_PSY_PATH       = $(OBJ_DIR)/psy
 
+PSY_ALGORITHM_ONLY_FILES := ${shell grep -EiL '[^!]\s*call\s+invoke\s*[(]' $(PSY_ALGORITHM_PATH)/*.x90}
+PSY_ADDITIONAL_ALGORITHM_FILES := $(patsubst $(PSY_ALGORITHM_PATH)/%.x90, \
+                                             $(PSY_AUTO_ALGORITHM_PATH)/%.f90, \
+                                             $(PSY_ALGORITHM_ONLY_FILES) )
+
 PSY_AUTO_FILES   := $(patsubst $(PSY_ALGORITHM_PATH)/%.x90, \
                                $(PSY_AUTO_PSY_PATH)/psy_%.f90, \
                                $(wildcard $(PSY_ALGORITHM_PATH)/*.x90) )
@@ -23,17 +28,24 @@ PSY_MANUAL_FILES := $(wildcard $(PSY_PSY_PATH)/*.[Ff]90 )
 PSY_AUTO_FILES   := $(filter-out $(patsubst $(PSY_PSY_PATH)/%, \
                                         $(PSY_AUTO_PSY_PATH)/%, \
                                         $(PSY_MANUAL_FILES) ), \
-                             $(PSY_AUTO_FILES) )
+                                 $(PSY_AUTO_FILES) )
+
+PSY_AUTO_FILES   := $(filter-out $(patsubst $(PSY_ALGORITHM_PATH)/%.x90, \
+                                            $(PSY_AUTO_PSY_PATH)/psy_%.f90, \
+                                            $(PSY_ALGORITHM_ONLY_FILES) ), \
+                                 $(PSY_AUTO_FILES) )
+
 PSY_MANUAL_FILES := $(patsubst $(PSY_PSY_PATH)/psy_%, \
                            $(PSY_AUTO_ALGORITHM_PATH)/%, \
                            $(PSY_MANUAL_FILES) )
 
 .PHONY: generate-psykal
-generate-psykal: $(PSY_AUTO_FILES) $(PSY_MANUAL_FILES) $(PSY_ALGORITHM_FILES)
+generate-psykal: $(PSY_AUTO_FILES) $(PSY_MANUAL_FILES) \
+                 $(PSY_ADDITIONAL_ALGORITHM_FILES)
 
 $(PSY_AUTO_ALGORITHM_PATH)/%.f90: $(PSY_ALGORITHM_PATH)/%.x90 \
                                   | $(PSY_AUTO_ALGORITHM_PATH)
-	@echo -e $(VT_BOLD)Overridden PSyclone$(VT_RESET) $<
+	@echo -e $(VT_BOLD)Algorithm only$(VT_RESET) $<
 	$(PSYCLONE) -api dynamo0.3 -l -d $(PSY_KERNEL_PATH) \
 	            -oalg $@ \
 	            $<
