@@ -14,9 +14,9 @@ module init_gravity_wave_mod
   use assign_coordinate_field_mod,    only : assign_coordinate_field
   use constants_mod,                  only : i_def
   use field_mod,                      only : field_type
-  use finite_element_config_mod,      only : element_order
+  use finite_element_config_mod,      only : element_order, coordinate_order
   use function_space_collection_mod,  only : function_space_collection
-  use fs_continuity_mod,              only : W0, W2, W3, Wtheta
+  use fs_continuity_mod,              only : W0, W2, W3, Wtheta, Wchi
   use gw_init_fields_alg_mod,         only : gw_init_fields_alg
   use log_mod,                        only : log_event,         &
                                              LOG_LEVEL_INFO
@@ -37,16 +37,22 @@ module init_gravity_wave_mod
     type(restart_type), intent(in)           :: restart
 
     integer(i_def)                           :: coord
+    integer(i_def)                           :: chi_space
 
     call log_event( 'gravity wave: initialisation...', LOG_LEVEL_INFO )
 
     ! Calculate coordinates
+    if ( coordinate_order == 0 ) then
+      chi_space = W0
+      call log_event( "gravity wave: Computing W0 coordinate fields", LOG_LEVEL_INFO )
+    else
+      chi_space = Wchi
+      call log_event( "gravity wave: Computing Wchi coordinate fields", LOG_LEVEL_INFO )
+    end if
     do coord = 1,3
       chi(coord) = field_type (vector_space =                                    &
-                       function_space_collection%get_fs(mesh_id,element_order,W0) )
+                   function_space_collection%get_fs(mesh_id,coordinate_order,chi_space) )
     end do
-    ! Assign coordinate field
-    call log_event( "buondary test: Computing W0 coordinate fields", LOG_LEVEL_INFO )
     call assign_coordinate_field(chi, mesh_id)
 
 

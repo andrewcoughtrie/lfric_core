@@ -36,7 +36,7 @@ contains
 
     character(*), parameter :: filename = 'gravity_wave_configuration.nml'
     character(*), parameter :: &
-                            required_configuration(10) = ['finite_element      ', &
+                            required_configuration(11) = ['finite_element      ', &
                                                           'base_mesh           ', &
                                                           'planet              ', &
                                                           'restart             ', &
@@ -45,7 +45,8 @@ contains
                                                           'initial_wind        ', &
                                                           'output              ', &
                                                           'timestepping        ', &
-                                                          'gw_miniapp_constants']
+                                                          'gw_miniapp_constants', &
+                                                          'domain_size         ']
 
     logical              :: okay
     logical, allocatable :: success_map(:)
