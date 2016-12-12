@@ -16,7 +16,7 @@
 module rtheta_bd_kernel_mod
     use kernel_mod,              only : kernel_type
     use argument_mod,            only : arg_type, func_type,                       &
-                                        GH_FIELD, GH_READ, GH_INC, GH_ORIENTATION, &
+                                        GH_FIELD, GH_READ, GH_INC, &
                                         W2, W3, Wtheta, GH_BASIS,                  &
                                         GH_DIFF_BASIS, CELLS
     use constants_mod,           only : r_def, i_def
