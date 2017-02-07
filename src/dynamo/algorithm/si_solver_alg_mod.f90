@@ -32,10 +32,13 @@ module si_solver_alg_mod
                                        LOG_LEVEL_INFO
   use operator_mod,              only: operator_type
   use solver_config_mod,         only: maximum_iterations, &
-                                       tolerance, &
-                                       preconditioner, &
-                                       solver_preconditioner_none, &
-                                       solver_preconditioner_diagonal, &
+                                       si_tolerance, &
+                                       si_preconditioner, &
+                                       si_postconditioner, &
+                                       solver_si_preconditioner_none, &
+                                       solver_si_preconditioner_diagonal, &
+                                       solver_si_postconditioner_none, &
+                                       solver_si_postconditioner_diagonal, &
                                        gcrk
 
   use timestepping_config_mod,   only: dt
@@ -188,12 +191,10 @@ contains
     ! others
     real(kind=r_def)               :: err, sc_err, init_err
     integer(kind=i_def)            :: iter, i, j, k, m
-    integer(kind=i_def), parameter :: MAX_GMRES_ITER = 20
-
-    integer(kind=i_def)            :: precon = solver_preconditioner_none
-    integer(kind=i_def)            :: postcon = solver_preconditioner_diagonal
+    integer(kind=i_def)            :: max_gmres_iter
 
 
+    max_gmres_iter = maximum_iterations
     call rhs0(1)%log_minmax(LOG_LEVEL_DEBUG,'max/min r_u = ')
     call rhs0(2)%log_minmax(LOG_LEVEL_DEBUG,'max/min r_t = ')
     call rhs0(3)%log_minmax(LOG_LEVEL_DEBUG,'max/min r_r = ')
@@ -204,7 +205,7 @@ contains
     sc_err = max( sqrt(err), 1.0e-5_r_def )
     init_err = sc_err
 
-    if (err < tolerance) then
+    if (err < si_tolerance) then
       write( log_scratch_space, '(A, I2, A, E12.4, A, E15.8)' ) &
            "gmres solver_algorithm:converged in ", 0,           &
            " iters, init=", init_err,                           &
@@ -224,7 +225,7 @@ contains
 
     call minus_bundle( rhs0, Ax, residual, si_bundle_size )
 
-    call bundle_preconditioner(s, residual, precon, mm_diagonal, si_bundle_size )
+    call bundle_preconditioner(s, residual, si_preconditioner, mm_diagonal, si_bundle_size )
 
     beta = sqrt(bundle_inner_product(s, s, si_bundle_size)) 
 
@@ -234,14 +235,14 @@ contains
     g(:)   = 0.0_r_def
     g(1)   = beta
 
-    do iter = 1, MAX_GMRES_ITER
+    do iter = 1, max_gmres_iter
 
       do j = 1, gcrk
 
-        call bundle_preconditioner(w, v(:,j), postcon, mm_diagonal, si_bundle_size)
+        call bundle_preconditioner(w, v(:,j), si_postconditioner, mm_diagonal, si_bundle_size)
 
         call lhs_alg(s, w, x_ref, tau_dt)
-        call bundle_preconditioner(w, s, precon, mm_diagonal, si_bundle_size )
+        call bundle_preconditioner(w, s, si_preconditioner, mm_diagonal, si_bundle_size )
         do k = 1, j
           h(k,j) =  bundle_inner_product( v(:,k), w, si_bundle_size )
           call bundle_axpy( -h(k,j), v(:,k), w, w, si_bundle_size )
@@ -279,7 +280,7 @@ contains
       end do
 
       do i = 1, gcrk
-        call bundle_preconditioner(s, v(:,i), postcon, mm_diagonal, si_bundle_size)
+        call bundle_preconditioner(s, v(:,i), si_postconditioner, mm_diagonal, si_bundle_size)
         call bundle_axpy( u(i), s, dx, dx, si_bundle_size )
       end do
 
@@ -295,7 +296,7 @@ contains
                                                     "]: residual = ", err
       call log_event(log_scratch_space, LOG_LEVEL_INFO)
 
-      if( err <  tolerance ) then
+      if( err <  si_tolerance ) then
         write( log_scratch_space, '(A, I2, A, E12.4, A, E15.8)' ) &
              "GMRES solver_algorithm:converged in ", iter,        &
              " iters, init=", init_err,                           &
@@ -304,7 +305,7 @@ contains
         exit
       end if
 
-      call bundle_preconditioner(s, residual, precon, mm_diagonal, si_bundle_size)
+      call bundle_preconditioner(s, residual, si_preconditioner, mm_diagonal, si_bundle_size)
       call bundle_ax(1.0_r_def/beta, s, v(:,1), si_bundle_size)
 
       g(:) = 0.0_r_def
@@ -312,10 +313,10 @@ contains
 
     end do
 
-    if ((iter >= MAX_GMRES_ITER .and. err >  tolerance) &
+    if ((iter >= max_gmres_iter .and. err >  si_tolerance) &
         .or. ieee_is_nan(err)) then
       write( log_scratch_space, '(A, I3, A, E15.8)') &
-           "GMRES solver_algorithm: NOT converged in", MAX_GMRES_ITER, &
+           "GMRES solver_algorithm: NOT converged in", max_gmres_iter, &
            " iters, Res=", err
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end if
@@ -340,17 +341,19 @@ contains
     integer(kind=i_def), intent(in)    :: option
     integer(kind=i_def)                :: i
 
-
-    if ( option == solver_preconditioner_none ) then
-      do i = 1,si_bundle_size
-        call invoke_copy_field_data( x(i), y(i) )
-      end do
-    elseif ( option == solver_preconditioner_diagonal ) then
-      do i = 1,si_bundle_size
-        call invoke_copy_field_data( x(i), y(i) )
-      end do
-      call bundle_divide(y, mm, si_bundle_size)
-    end if
+    select case ( option)
+      case( solver_si_preconditioner_none, solver_si_postconditioner_none )
+        do i = 1,si_bundle_size
+          call invoke_copy_field_data( x(i), y(i) )
+        end do
+      case( solver_si_preconditioner_diagonal, solver_si_postconditioner_diagonal )
+        do i = 1,si_bundle_size
+          call invoke_copy_field_data( x(i), y(i) )
+        end do
+        call bundle_divide(y, mm, si_bundle_size)
+      case default
+        call log_event( 'Invalid si pre/postconditioner', LOG_LEVEL_ERROR )
+    end select
   end subroutine bundle_preconditioner
 !=============================================================================!
 end module si_solver_alg_mod

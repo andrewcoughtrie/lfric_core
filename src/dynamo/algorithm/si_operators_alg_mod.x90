@@ -14,8 +14,8 @@ module si_operators_alg_mod
   use log_mod,                   only: log_event, &
                                        LOG_LEVEL_INFO, &
                                        LOG_LEVEL_ERROR
-  use solver_config_mod,         only: preconditioner, &
-                                       solver_preconditioner_tridiagonal, &
+  use solver_config_mod,         only: si_preconditioner, &
+                                       solver_si_preconditioner_tridiagonal, &
                                        normalise
   implicit none
   private
@@ -88,7 +88,7 @@ subroutine create_si_operators(mesh_id)
   rho_at_u  = field_type(vector_space = w2_fs)
   mt_lumped = field_type(vector_space = wtheta_fs)
 
-  if ( preconditioner == solver_preconditioner_tridiagonal ) then
+  if ( si_preconditioner == solver_si_preconditioner_tridiagonal ) then
     if ( element_order /= 0 ) then
       call log_event( "tridiagonal precon only valid for order 0", &
                       LOG_LEVEL_ERROR )
@@ -190,14 +190,14 @@ subroutine compute_si_operators(ref_state)
   call invoke(matrix_vector_kernel_type(mt_lumped, ones, mt) )
 
   ! compute terms for tridiagonal preconditioner
-  if ( preconditioner == solver_preconditioner_tridiagonal ) then
+  if ( si_preconditioner == solver_si_preconditioner_tridiagonal ) then
     fs_handle = ref_state(3)%which_function_space()
     rho_fs => function_space_collection%get_fs(mesh, element_order, fs_handle)
     evaluator = evaluator_xyz_type( rho_fs%get_ndf( ), rho_fs%get_nodes( ) )
     call invoke_compute_tri_precon_kernel(tri_precon, theta, rho, chi, evaluator)
   end if
   if ( normalise ) then
-    if ( preconditioner == solver_preconditioner_tridiagonal) then
+    if ( si_preconditioner == solver_si_preconditioner_tridiagonal) then
       Helm_diag = tri_precon(1)
       call invoke_divide_field_data(tri_precon(1), Helm_diag)
       call invoke_divide_field_data(tri_precon(2), Helm_diag)

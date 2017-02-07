@@ -224,7 +224,6 @@ contains
   call invoke_set_field_scalar( 0.0_r_def, lhs(2) )
   if(wtheta_on) then
     call invoke_rtheta_bd_kernel ( lhs_tmp(2), theta_ref, u, ones, qr )
-    ! Use full mass matrix
     call invoke( rtheta_wtheta_kernel_type( lhs_tmp(2), theta_ref, u, qr), &
                  matrix_vector_kernel_type( lhs(2), theta, mm_wtheta ) )
   else

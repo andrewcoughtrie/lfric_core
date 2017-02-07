@@ -82,7 +82,10 @@
   method             = 'bicgstab'
   maximum_iterations = 99
   tolerance          = 1.0e-4
-  preconditioner     = 'tridiagonal'
+  preconditioner     = 'diagonal'
+  si_tolerance       = 1.0e-4
+  si_preconditioner  = 'tridiagonal'
+  si_postconditioner = 'none'
   gcrk               = 32
   helmholtz_solve    = .true.
   use_operators      = .true.

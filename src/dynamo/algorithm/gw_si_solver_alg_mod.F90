@@ -33,9 +33,12 @@ module gw_si_solver_alg_mod
   use operator_mod,            only: operator_type
   use solver_config_mod,       only: maximum_iterations, &
                                      tolerance, &
-                                     preconditioner, &
-                                     solver_preconditioner_none, &
-                                     solver_preconditioner_diagonal, &
+                                     si_preconditioner, &
+                                     si_postconditioner, &
+                                     solver_si_preconditioner_none, &
+                                     solver_si_preconditioner_diagonal, &
+                                     solver_si_postconditioner_none, &
+                                     solver_si_postconditioner_diagonal, &
                                      gcrk
 
   use timestepping_config_mod, only: dt
@@ -113,10 +116,6 @@ contains
     integer(kind=i_def)            :: iter, i, j, k, m
     integer(kind=i_def), parameter :: MAX_GMRES_ITER = 20
 
-    integer(kind=i_def)            :: precon  = solver_preconditioner_none
-    integer(kind=i_def)            :: postcon = solver_preconditioner_diagonal
-
-
     call rhs0(1)%log_minmax(LOG_LEVEL_INFO,'max/min r_u = ')
     call rhs0(2)%log_minmax(LOG_LEVEL_INFO,'max/min r_p = ')
     call rhs0(3)%log_minmax(LOG_LEVEL_INFO,'max/min r_b = ')
@@ -145,7 +144,7 @@ contains
 
     call minus_bundle( rhs0, Ax, residual, bundle_size )
 
-    call bundle_preconditioner(s, residual, precon, mm_diagonal, bundle_size )
+    call bundle_preconditioner(s, residual, si_preconditioner, mm_diagonal, bundle_size )
 
     beta = sqrt(bundle_inner_product(s, s, bundle_size)) 
 
@@ -159,10 +158,10 @@ contains
 
       do j = 1, gcrk
 
-        call bundle_preconditioner(w, v(:,j), postcon, mm_diagonal, bundle_size)
+        call bundle_preconditioner(w, v(:,j), si_postconditioner, mm_diagonal, bundle_size)
 
         call gw_lhs_alg(s, w) 
-        call bundle_preconditioner(w, s, precon, mm_diagonal, bundle_size )
+        call bundle_preconditioner(w, s, si_preconditioner, mm_diagonal, bundle_size )
         do k = 1, j
           h(k,j) =  bundle_inner_product( v(:,k), w, bundle_size )
           call bundle_axpy( -h(k,j), v(:,k), w, w, bundle_size )
@@ -200,7 +199,7 @@ contains
       end do
 
       do i = 1, gcrk
-        call bundle_preconditioner(s, v(:,i), postcon, mm_diagonal, bundle_size)
+        call bundle_preconditioner(s, v(:,i), si_postconditioner, mm_diagonal, bundle_size)
         call bundle_axpy( u(i), s, dx, dx, bundle_size )
       end do
 
@@ -225,7 +224,7 @@ contains
         exit
       end if
 
-      call bundle_preconditioner(s, residual, precon, mm_diagonal, bundle_size)
+      call bundle_preconditioner(s, residual, si_preconditioner, mm_diagonal, bundle_size)
       call bundle_ax(1.0_r_def/beta, s, v(:,1), bundle_size)
 
       g(:) = 0.0_r_def
@@ -265,7 +264,8 @@ contains
     do i = 1,bundle_size
       call invoke_copy_field_data( x(i), y(i) )
     end do
-    if ( option == solver_preconditioner_diagonal ) then
+    if ( option == solver_si_preconditioner_diagonal .or. &
+         option == solver_si_postconditioner_diagonal) then
       call bundle_divide(y, mm, bundle_size)
     end if
   end subroutine bundle_preconditioner

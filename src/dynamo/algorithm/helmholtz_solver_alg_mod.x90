@@ -461,7 +461,8 @@ contains
 !=============================================================================!
 !>@brief Krylov solver specifically for solving the Helmholtz equation 
   subroutine bicgstab(lhs, rhs)
-    use solver_config_mod,     only: maximum_iterations
+    use solver_config_mod,     only: maximum_iterations, &
+                                     si_tolerance
     use psykal_lite_mod,       only: invoke_inner_prod, &
                                      invoke_set_field_scalar, &
                                      invoke_copy_field_data, &
@@ -485,8 +486,6 @@ contains
     real(kind=r_def)                   :: err,sc_err, init_err
     integer(kind=i_def)                :: iter
     
-    real(kind=r_def), parameter :: tolerance = 1.0e-4
-
     ! compute the residual this is a global sum to the PSy ---
     call invoke_inner_prod(rhs,rhs,sc_err)
     sc_err = max(sqrt(sc_err), 0.001_r_def)
@@ -504,7 +503,7 @@ contains
     call invoke_inner_prod(res,res,err)
     err = sqrt(err)/sc_err
     init_err=err
-    if (err < tolerance) then
+    if (err < si_tolerance) then
       write( log_scratch_space, '(A, I2,A,E12.4,A,E15.8)') &
            "helmholtz solver_algorithm:converged in ", 0,  &
            " iters, init=", init_err,                      &
@@ -552,7 +551,7 @@ contains
                                                     "]: res = ", err
       call log_event(log_scratch_space, LOG_LEVEL_INFO)
 
-      if (err < tolerance) then
+      if (err < si_tolerance) then
         write( log_scratch_space, '(A, I2, A, E12.4, A, E15.8)' ) &
              "Helmholtz solver_algorithm:converged in ", iter,    &
              " iters, init=", init_err,                           &
@@ -668,9 +667,9 @@ contains
     use dg_matrix_vector_kernel_mod, only: dg_matrix_vector_kernel_type
     use operator_mod,             only: operator_type 
     use tri_solve_kernel_mod,     only: tri_solve_kernel_type
-    use solver_config_mod,        only: preconditioner, &
-                                        solver_preconditioner_tridiagonal, & 
-                                        solver_preconditioner_diagonal 
+    use solver_config_mod,        only: si_preconditioner, &
+                                        solver_si_preconditioner_tridiagonal, & 
+                                        solver_si_preconditioner_diagonal 
 
     implicit none
     type(field_type),             intent(inout) :: y
@@ -683,15 +682,15 @@ contains
     type(field_type),   pointer  :: tri(:) => null()
 
     if ( .not. present(prec) ) then
-      precon = preconditioner
+      precon = si_preconditioner
     else
       precon = prec
     end if
     select case ( precon )
-      case ( solver_preconditioner_diagonal )       
+      case ( solver_si_preconditioner_diagonal )       
         m3_inv   => get_mass_matrix(4)
         call invoke( dg_matrix_vector_kernel_type( y, x, m3_inv) )     
-      case ( solver_preconditioner_tridiagonal )
+      case ( solver_si_preconditioner_tridiagonal )
         z = y
         tri => get_tri_precon()
         m3_inv   => get_mass_matrix(4)

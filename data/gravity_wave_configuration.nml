@@ -62,6 +62,9 @@
   maximum_iterations = 99
   tolerance          = 1.0e-4
   preconditioner     = 'diagonal'
+  si_tolerance       = 1.0e-4
+  si_preconditioner  = 'diagonal'
+  si_postconditioner = 'none'
   gcrk               = 32
   helmholtz_solve    = .false.
   use_operators      = .true.

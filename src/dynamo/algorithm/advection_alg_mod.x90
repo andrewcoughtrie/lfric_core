@@ -57,9 +57,9 @@ module advection_alg_mod
   use log_mod,                        only: log_event,         &
                                             LOG_LEVEL_ERROR
   use evaluator_xyz_mod,              only: evaluator_xyz_type
-  use mr_indices_mod,                    only: nummr
-  use timestepping_config_mod,   only: dt
-  use runge_kutta_init_mod,              only: num_rk_stage, ak
+  use mr_indices_mod,                 only: nummr
+  use timestepping_config_mod,        only: dt
+  use runge_kutta_init_mod,           only: num_rk_stage, ak
   implicit none
 
   private
