@@ -9,6 +9,7 @@ program donothing
   use columnwise_op_scaledadd_kernel_mod, only : columnwise_op_scaledadd_kernel_type
   use field_vector_mod
   use function_space_chain_mod
+  use calc_cell_orientation_kernel_mod, only : calc_cell_orientation_code
 
   implicit none
 
