@@ -21,6 +21,8 @@ use idealised_config_mod,       only : idealised_test_cold_bubble_x, &
                                        idealised_test_gaussian_hill, &
                                        idealised_test_cosine_hill,   &
                                        idealised_test_slotted_cylinder, &
+                                       idealised_test_constant_field,   &
+                                       idealised_test_cosine_stripe,    &
                                        idealised_test_gravity_wave, &
                                        idealised_test_solid_body_rotation, &
                                        idealised_test_deep_baroclinic_wave
@@ -142,7 +144,18 @@ function analytic_density(chi, choice) result(density)
       h2 = tracer_background
     end if
     density = h1 + h2
-  
+
+  case( idealised_test_constant_field )
+    density = tracer_background
+
+  case( idealised_test_cosine_stripe )
+    l1 = sqrt((long-x1)**2)
+    if ( l1 < r1 ) then
+      density = tracer_background + (tracer_max/2.0_r_def)*(1.0_r_def+cos((l1/r1)*PI))
+    else
+      density = tracer_background
+    end if
+
   case( idealised_test_solid_body_rotation )
     t0 = 280.0_r_def
     chi_surf = (/chi(1),chi(2),scaled_radius/)
