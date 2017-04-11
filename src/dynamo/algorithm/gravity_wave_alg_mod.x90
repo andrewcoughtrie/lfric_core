@@ -9,37 +9,35 @@
 !>       gravity wave equations
 module gravity_wave_alg_mod
 
-  use constants_mod,                     only: i_def,r_def
-  use log_mod,                           only: log_event,         &
-                                               log_scratch_space, &
-                                               LOG_LEVEL_INFO,    &
-                                               LOG_LEVEL_TRACE
+  use constants_mod,                   only: i_def,r_def
+  use log_mod,                         only: log_event,         &
+                                             log_scratch_space, &
+                                             LOG_LEVEL_INFO,    &
+                                             LOG_LEVEL_TRACE
 
   ! Configuration options
-  use finite_element_config_mod,      only: element_order
-  use timestepping_config_mod,        only: dt, alpha
-  use derived_config_mod,             only: bundle_size
-  use runtime_constants_mod,          only: get_div, &
-                                            get_mass_matrix
-  use initial_temperature_config_mod, only: bvf_square  
-  use gw_miniapp_constants_config_mod,only: cs_square
+  use finite_element_config_mod,       only: element_order
+  use timestepping_config_mod,         only: dt, alpha
+  use derived_config_mod,              only: bundle_size
+  use runtime_constants_mod,           only: get_div, &
+                                             get_mass_matrix
+  use initial_temperature_config_mod,  only: bvf_square  
+  use gw_miniapp_constants_config_mod, only: cs_square
 
   ! PsyKAl-lite kernels
-  use psykal_lite_mod,                   only: invoke_copy_field_data,  &
-                                               invoke_set_field_scalar, &
-                                               invoke_scale_field_data
-  use field_bundle_mod,                  only: clone_bundle, & 
+  use psykal_lite_mod,                 only: invoke_scale_field_data
+  use field_bundle_mod,                only: clone_bundle, & 
                                                copy_bundle
 
   ! Derived Types
-  use function_space_collection_mod,     only: function_space_collection
-  use field_mod,                         only: field_type
-  use function_space_mod,                only: function_space_type
-  use operator_mod,                      only: operator_type
+  use function_space_collection_mod,   only: function_space_collection
+  use field_mod,                       only: field_type
+  use function_space_mod,              only: function_space_type
+  use operator_mod,                    only: operator_type
 
   ! Algorithms
-  use gw_si_solver_alg_mod,              only: gw_si_solver_alg, &
-                                               gw_si_solver_init
+  use gw_si_solver_alg_mod,            only: gw_si_solver_alg, &
+                                             gw_si_solver_init
   implicit none
 
   private
@@ -93,9 +91,9 @@ contains
     !=== Initialise internal state field objects =============================!
     u_fs => function_space_collection%get_fs ( mesh_id, element_order,   &
                                                wind%which_function_space() )
-    p_fs => function_space_collection%get_fs ( mesh_id, element_order,  &
+    p_fs => function_space_collection%get_fs ( mesh_id, element_order,   &
                                                pressure%which_function_space() )
-    b_fs => function_space_collection%get_fs ( mesh_id, element_order,  &
+    b_fs => function_space_collection%get_fs ( mesh_id, element_order,   &
                                                buoyancy%which_function_space() )
 
     state(1) = field_type( vector_space = u_fs )
@@ -108,9 +106,9 @@ contains
     rhs_p =  field_type( vector_space = p_fs )
 
     !=== Copy prognostic field data to state arrays ===========================!
-    call invoke_copy_field_data(wind,     state(1))
-    call invoke_copy_field_data(pressure, state(2))
-    call invoke_copy_field_data(buoyancy, state(3))
+    call invoke( copy_field(wind,     state(1)), &
+                 copy_field(pressure, state(2)), & 
+                 copy_field(buoyancy, state(3)) )
 
     ! Create Q operator
     Q = operator_type( u_fs, b_fs)
@@ -150,17 +148,17 @@ contains
     !=== Do a single timestep ==============================================!
     div => get_div()
     m3_inv => get_mass_matrix(4)
-    call invoke_copy_field_data(wind,     state(1))
-    call invoke_copy_field_data(pressure, state(2))
-    call invoke_copy_field_data(buoyancy, state(3))
+    call invoke( copy_field(wind,     state(1)), &
+                 copy_field(pressure, state(2)), &
+                 copy_field(buoyancy, state(3)) )
     call copy_bundle(state, state_n, bundle_size)
 
     ! Compute rhs
-    call invoke_set_field_scalar( 0.0_r_def, rhs_n(1) )
-    call invoke_set_field_scalar( 0.0_r_def, rhs_n(3) )
-    call invoke( transpose_matrix_vector_kernel_type(rhs_n(1), state_n(2), div), &
-                 matrix_vector_kernel_type          (rhs_n(1), state_n(3), Q), &
-                 dg_matrix_vector_kernel_type       (rhs_p,    state_n(1), div), &
+    call invoke( set_field_scalar(0.0_r_def, rhs_n(1)), &
+                 set_field_scalar(0.0_r_def, rhs_n(3)) )
+    call invoke( transpose_matrix_vector_kernel_type(rhs_n(1), state_n(2), div),    &
+                 matrix_vector_kernel_type          (rhs_n(1), state_n(3), Q),      &
+                 dg_matrix_vector_kernel_type       (rhs_p,    state_n(1), div),    &
                  dg_matrix_vector_kernel_type       (rhs_n(2), rhs_p,      m3_inv), &
                  transpose_matrix_vector_kernel_type(rhs_n(3), state_n(1), Q) )
 
@@ -175,9 +173,9 @@ contains
     call gw_si_solver_alg(state, rhs_n)
        
     ! Return fields
-    call invoke_copy_field_data(state(1), wind)
-    call invoke_copy_field_data(state(2), pressure)
-    call invoke_copy_field_data(state(3), buoyancy)
+    call invoke( copy_field(state(1), wind),     &
+                 copy_field(state(2), pressure), &
+                 copy_field(state(3), buoyancy) )
 
   end subroutine gravity_wave_alg_step
 

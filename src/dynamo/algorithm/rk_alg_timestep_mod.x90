@@ -26,25 +26,23 @@ module rk_alg_timestep_mod
                                        outer_iterations, inner_iterations
   use idealised_config_mod,      only: test, idealised_test_held_suarez
   use derived_config_mod,        only: bundle_size
-  use runtime_constants_mod,     only: get_geopotential, &
-                                       get_mass_matrix, &
+  use runtime_constants_mod,     only: get_geopotential,         &
+                                       get_mass_matrix,          &
                                        get_mass_matrix_diagonal, &
                                        get_qr
   use transport_config_mod,      only: operators, &
                                        transport_operators_fv
   use mixing_config_mod,         only: viscosity
   ! PsyKAl-lite kernels
-  use psykal_lite_mod,                   only: invoke_copy_field_data,  &
-                                               invoke_set_field_scalar, &
-                                               invoke_ru_bd_kernel, &
+  use psykal_lite_mod,                   only: invoke_ru_bd_kernel, &
                                                invoke_divide_field, &
                                                invoke_viscosity
 
   use field_bundle_mod,                  only: clone_bundle, &
-                                               bundle_axpy, & 
+                                               bundle_axpy,  & 
                                                bundle_axpby, &
-                                               add_bundle, &
-                                               copy_bundle, &
+                                               add_bundle,   &
+                                               copy_bundle,  &
                                                set_bundle_scalar
 
   ! PsyKAl PSYClone kernels
@@ -148,18 +146,18 @@ contains
 
 
     !=== Copy prognostic field data to state arrays ===========================!
-    call invoke_copy_field_data(u,     state(1))
-    call invoke_copy_field_data(theta, state(2))
-    call invoke_copy_field_data(rho,   state(3))
+    call invoke( copy_field(u,     state(1)), &
+                 copy_field(theta, state(2)), &
+                 copy_field(rho,   state(3)) )
 
     call advection_alg_init(mesh_id)
 
     mm_wt = get_mass_matrix(5)
     ones  = field_type( vector_space = theta_fs )
     mt_lumped  = field_type( vector_space = theta_fs )
-    call invoke_set_field_scalar( 1.0_r_def, ones )
-    call invoke_set_field_scalar( 0.0_r_def, mt_lumped )
-    call invoke(matrix_vector_kernel_type( mt_lumped, ones, mm_wt ) )
+    call invoke( set_field_scalar(1.0_r_def, ones), & 
+                 set_field_scalar(0.0_r_def, mt_lumped) )
+    call invoke( matrix_vector_kernel_type(mt_lumped, ones, mm_wt) )
 
     call log_event( "Dynamo: initialised timestepping algorithm", LOG_LEVEL_INFO )
 
@@ -229,20 +227,20 @@ contains
                           state_n, xi, state(1))
       ! Compute new rhs
       if ( rotating ) &
-        call invoke( rotation_kernel_type( rhs_prediction(1,stage), state(1), chi, qr ) )
+        call invoke( rotation_kernel_type(rhs_prediction(1,stage), state(1), chi, qr) )
         if( wtheta_on ) then
-          call invoke (pressure_gradient_wtheta_kernel_type ( rhs_prediction(1, stage), state(3), state(2), qr ))
+          call invoke ( pressure_gradient_wtheta_kernel_type(rhs_prediction(1, stage), state(3), state(2), qr) )
           call invoke_ru_bd_kernel ( rhs_prediction(1, stage), state(3), state(2), qr )
         else
           call invoke( pressure_gradient_kernel_type       &
-             ( rhs_prediction(1,stage), state(3), state(2), qr ) )
+             (rhs_prediction(1,stage), state(3), state(2), qr) )
         end if
 
         call invoke( kinetic_energy_gradient_kernel_type &
-             ( rhs_prediction(1,stage), state(1), chi, qr ) )
+             (rhs_prediction(1,stage), state(1), chi, qr) )
         call invoke( geopotential_gradient_kernel_type   &
-             ( rhs_prediction(1,stage), geopotential, qr ) )
-        call invoke( enforce_bc_kernel_type( rhs_prediction(1,stage) ) ) 
+             (rhs_prediction(1,stage), geopotential, qr) )
+        call invoke( enforce_bc_kernel_type(rhs_prediction(1,stage)) ) 
         call set_bundle_scalar(0.0_r_def, rhs, 3)
 
       do st = 1, stage
@@ -271,7 +269,7 @@ contains
                              mesh_id, chi, method, mm=mm_w2, &
                              mmd=mm_diagonal_w2, & 
                              preconditioner_choice=preconditioner )
-      call invoke_copy_field_data(rhs(3),inc(3))
+      call invoke( copy_field(rhs(3), inc(3)) )
 
       ! Add increments
       call bundle_axpy(dt, inc, state_n, state, 3)
@@ -290,15 +288,14 @@ contains
     if ( viscosity ) then
       call log_event( 'Applying Viscosity', LOG_LEVEL_INFO )      
       call invoke_viscosity(inc(2), theta, inc(1), u, chi)
-      call invoke_set_field_scalar( 0.0_r_def, inc(3) )
+      call invoke( set_field_scalar(0.0_r_def, inc(3)) )
       call bundle_axpy(dt, inc, state, state, 3)
     end if
 
     ! Return fields in u, theta, rho arrays
-    call invoke_copy_field_data(state(1), u)
-    call invoke_copy_field_data(state(2), theta)
-    call invoke_copy_field_data(state(3), rho)
-
+    call invoke( copy_field(state(1), u),     &
+                 copy_field(state(2), theta), &
+                 copy_field(state(3), rho) )
 
   end subroutine rk_alg_step
 

@@ -59,6 +59,8 @@ contains
  
     do i = 1,bundle_size
       call invoke_set_field_scalar(a, x(i))
+! A placeholder for PSyclone built-ins support (to be agreed on implementation)
+!       call invoke( set_field_scalar(a, x(i)) )
     end do
   end subroutine set_bundle_scalar
 !=============================================================================!
@@ -120,6 +122,8 @@ contains
     
     do i = 1,bundle_size
       call invoke_copy_field_data(x(i), y(i))
+! A placeholder for PSyclone built-ins support (to be agreed on implementation)
+!       call invoke( copy_field(x(i), y(i)) )
     end do
   end subroutine copy_bundle
 !=============================================================================!
@@ -202,6 +206,8 @@ contains
                function_space_collection%get_fs(mesh_id,element_order,fs_handle) )
 
       call invoke_copy_field_data( x(1), y ) 
+! A placeholder for PSyclone built-ins support (to be agreed on implementation)
+!       call invoke( copy_field(x(1), y) )
       call y%log_minmax(LOG_LEVEL_INFO, 'field')
     end do
   end subroutine bundle_minmax

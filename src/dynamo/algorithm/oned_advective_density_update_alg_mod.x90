@@ -26,8 +26,7 @@ module oned_advective_density_update_alg_mod
   use subgrid_config_mod,                only: dep_pt_stencil_extent,          &
                                                rho_approximation_stencil_extent
 
-  use psykal_lite_mod,                   only: invoke_set_field_scalar,        &
-                                               invoke_subgrid_coeffs,          &
+  use psykal_lite_mod,                   only: invoke_subgrid_coeffs,          &
                                                invoke_conservative_fluxes,     &
                                                invoke_divide_field
 
@@ -89,10 +88,10 @@ contains
     mass_flux         = field_type( vector_space = u_fs )
 
     ! Calculate the conservative fluxes and update rho
-    call invoke_set_field_scalar(0.0_r_def,mass_flux)
-    call invoke_set_field_scalar(0.0_r_def,a0)
-    call invoke_set_field_scalar(0.0_r_def,a1)
-    call invoke_set_field_scalar(0.0_r_def,a2)
+    call invoke( set_field_scalar(0.0_r_def, mass_flux), &
+                 set_field_scalar(0.0_r_def, a0),        & 
+                 set_field_scalar(0.0_r_def, a1),        &
+                 set_field_scalar(0.0_r_def, a2) )
     call invoke_subgrid_coeffs(a0,a1,a2,rho_in,direction,rho_approximation_stencil_extent)
 
     call invoke_conservative_fluxes(  rho_in, dep_pts, u, mass_flux,  &
@@ -100,11 +99,11 @@ contains
     call density_update_alg(rho_in, mass_flux, rho_adv_np1, mesh_id)
 
     ! Calculate the fluxes for rho=1
-    call invoke_set_field_scalar(0.0_r_def,mass_flux)
-    call invoke_set_field_scalar(1.0_r_def,rho_constant_1)
-    call invoke_set_field_scalar(0.0_r_def,a0)
-    call invoke_set_field_scalar(0.0_r_def,a1)
-    call invoke_set_field_scalar(0.0_r_def,a2)
+    call invoke( set_field_scalar(0.0_r_def, mass_flux),      &
+                 set_field_scalar(1.0_r_def, rho_constant_1), & 
+                 set_field_scalar(0.0_r_def, a0),             &
+                 set_field_scalar(0.0_r_def, a1),             &
+                 set_field_scalar(0.0_r_def, a2) )
     call invoke_subgrid_coeffs(a0,a1,a2,rho_constant_1,direction,rho_approximation_stencil_extent)
 
     call invoke_conservative_fluxes(  rho_constant_1, dep_pts, u, mass_flux,  &

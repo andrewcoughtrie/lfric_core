@@ -27,16 +27,14 @@ module rk_transport_mod
   use runtime_constants_mod,             only: get_mass_matrix, &
                                                get_mass_matrix_diagonal, &
                                                get_qr
-  use transport_config_mod,              only: operators, &
-                                               fv_flux_order, &
-                                               fv_advective_order, &
+  use transport_config_mod,              only: operators,              &
+                                               fv_flux_order,          &
+                                               fv_advective_order,     &
                                                transport_operators_fv, &
                                                transport_operators_fem
 
   ! PsyKAl-lite kernels
   use psykal_lite_mod,                   only: invoke_axpy,                   &
-                                               invoke_copy_field_data,        &
-                                               invoke_set_field_scalar,       &
                                                invoke_sample_poly_flux,       &
                                                invoke_sample_poly_adv,        &
                                                invoke_divide_field
@@ -139,8 +137,7 @@ contains
       rt_prediction(stage) = field_type( vector_space = theta_fs )
     end do
 
-
-    call invoke_set_field_scalar(0.0_r_def, mass_flux)
+    call invoke( set_field_scalar(0.0_r_def, mass_flux) )
 
     if ( operators == transport_operators_fv ) then
       if ( element_order == 0 ) then
@@ -156,12 +153,12 @@ contains
       mm_wt = get_mass_matrix(5)
       ones  = field_type( vector_space = theta_fs )
       mt_lumped  = field_type( vector_space = theta_fs )
-      call invoke_set_field_scalar( 1.0_r_def, ones )
-      call invoke_set_field_scalar( 0.0_r_def, mt_lumped)
-      call invoke(matrix_vector_kernel_type(mt_lumped, ones, mm_wt) )
+      call invoke( set_field_scalar(1.0_r_def, ones), &
+                   set_field_scalar(0.0_r_def, mt_lumped) )
+      call invoke( matrix_vector_kernel_type(mt_lumped, ones, mm_wt) )
     else
       ones  = field_type( vector_space = rho_fs)
-      call invoke_set_field_scalar( 1.0_r_def, ones )
+      call invoke( set_field_scalar(1.0_r_def, ones) )
     end if
 
     ! Store initial values for computing errors
@@ -208,8 +205,8 @@ contains
     ! Create operators needed for timestepping
     mm_w2     => get_mass_matrix(2)
     mm_w3_inv => get_mass_matrix(4)
-    call invoke_copy_field_data(rho,   rho_n)
-    call invoke_copy_field_data(theta, theta_n)
+    call invoke( copy_field(rho,   rho_n), &
+                 copy_field(theta, theta_n) )
 
 
     ! Runge-Kutta algorithm
@@ -225,28 +222,29 @@ contains
                                        advective_stencil_extent )
         case(transport_operators_fem)      
           ! Use FEM projection
-          ! Rho advection, compute mass flux
-          call invoke_set_field_scalar(0.0_r_def, r_u)
-          call invoke(flux_rhs_kernel_type( r_u, u, rho, chi, qr ) )
-          call invoke(enforce_bc_kernel_type( r_u ) )
+          ! Initialise fields
+          call invoke( set_field_scalar(0.0_r_def, r_u),       &
+                       set_field_scalar(0.0_r_def, mass_flux), &
+                       set_field_scalar(0.0_r_def, rt_prediction(stage)) )
 
-          call invoke_set_field_scalar(0.0_r_def, mass_flux)
+          ! Rho advection, compute mass flux 
+          call invoke( flux_rhs_kernel_type(r_u, u, rho, chi, qr) )
+          call invoke( enforce_bc_kernel_type(r_u) )
           call solver_algorithm( mass_flux, r_u, mesh_id, chi, method, mm=mm_w2 )
 
           ! theta advection
-          call invoke_set_field_scalar( 0.0_r_def, rt_prediction(stage) )
           call invoke( rtheta_kernel_type( rt_prediction(stage), theta, u, qr) )
           if ( supg ) &
-            call invoke( rtheta_supg_kernel_type( rt_prediction(stage),     &
+            call invoke( rtheta_supg_kernel_type(rt_prediction(stage),     &
                                 theta, theta_n, u, ones, chi, qr) )
         case default
           call log_event( "Dynamo: Invalid advection method", LOG_LEVEL_ERROR )
-     end select
+      end select
       ! Compute rrho = div(F)
       call invoke( rrho_kernel_type  ( rr_prediction(stage), mass_flux, qr ) )
 
-      call invoke_set_field_scalar(0.0_r_def, r_rho)
-      call invoke_set_field_scalar(0.0_r_def, r_theta)
+      call invoke( set_field_scalar(0.0_r_def, r_rho), &
+                   set_field_scalar(0.0_r_def, r_theta) )
 
       do st = 1, stage
         call invoke_axpy(ak(stage,st), rr_prediction(st), r_rho,   r_rho)
@@ -255,7 +253,7 @@ contains
 
       ! Invert mass matrices and add increments
       ! Rho
-      call invoke_set_field_scalar( 0.0_r_def, rho_inc )
+      call invoke( set_field_scalar(0.0_r_def, rho_inc) )
       call invoke( matrix_vector_kernel_type( rho_inc, r_rho, mm_w3_inv) )
       call invoke_axpy(dt, rho_inc, rho_n,   rho)
 
@@ -290,7 +288,6 @@ contains
   !> @param[in] theta Potential temperature field
   subroutine rk_transport_final( mesh_id, rho, theta)
     use psykal_lite_mod,          only: invoke_minus_field_data, &
-                                        invoke_set_field_scalar, &
                                         invoke_inner_prod
     use matrix_vector_kernel_mod, only: matrix_vector_kernel_type
 
@@ -325,10 +322,10 @@ contains
     end if
     l2_theta = field_type( vector_space = theta_fs )
     l2_rho   = field_type( vector_space = rho_fs )
-    call invoke_set_field_scalar( 0.0_r_def, l2_theta )
-    call invoke_set_field_scalar( 0.0_r_def, l2_rho )
-    call invoke(matrix_vector_kernel_type(l2_theta, dtheta, mm_wt))
-    call invoke(matrix_vector_kernel_type(l2_rho,   drho,   mm_w3) )
+    call invoke( set_field_scalar(0.0_r_def, l2_theta), &
+                 set_field_scalar(0.0_r_def, l2_rho) )
+    call invoke( matrix_vector_kernel_type(l2_theta, dtheta, mm_wt) )
+    call invoke( matrix_vector_kernel_type(l2_rho,   drho,   mm_w3) )
 
     call invoke_inner_prod(dtheta, l2_theta, l2)
     write( log_scratch_space, '(A, E15.8)' ) "L2 theta = ", sqrt(l2)

@@ -14,8 +14,6 @@ module boundary_test_init_fields_alg_mod
                                              LOG_LEVEL_TRACE
   use constants_mod,                   only: r_def, i_def
 
-  ! PsyKAl-lite kernels
-  use psykal_lite_mod,                 only: invoke_set_field_scalar
 
   ! Derived Types
   use field_mod,                       only: field_type
@@ -42,10 +40,11 @@ contains
 
     call log_event( "Boundary test: Initialising fields", LOG_LEVEL_INFO )
 
-    call invoke_set_field_scalar(0.0_r_def, xi) 
-    call invoke_set_field_scalar(0.0_r_def, u) 
-    call invoke_set_field_scalar(0.0_r_def, rho) 
-    call invoke_set_field_scalar(0.0_r_def, theta) 
+    call invoke( set_field_scalar(0.0_r_def, xi),  &
+                 set_field_scalar(0.0_r_def, u),   &
+                 set_field_scalar(0.0_r_def, rho), & 
+                 set_field_scalar(0.0_r_def, theta) )
+
     call log_event( "Boundary test: Initialised fields", LOG_LEVEL_INFO )
 
     !==========================================================================!

@@ -65,8 +65,8 @@ contains
 !>@param[in]    rhs0 Fixed rhs forcing for the solver
 !>@param[in]    x_ref A reference state used for computing a proscribed L
   subroutine si_solver_alg(x0, rhs0, x_ref)
-    use psykal_lite_mod,           only: invoke_set_field_scalar, &
-                                         invoke_copy_field_data
+    use psykal_lite_mod,           only: invoke_set_field_scalar
+    use psykal_lite_mod,           only: invoke_copy_field_data
     implicit none
 
     type(field_type), intent(inout)          :: x0(bundle_size)
@@ -80,21 +80,26 @@ contains
     ! Set up tau_dt: to be used here and in subsequent algorithms
     tau_dt = 0.5_r_def*dt
 
-
+! PSyclone built-ins support (v.1.3.1) fails for changing index in a loop, so the
+! calls below are placeholders for when it becomes available
     if ( eliminate_p ) then
       call mixed_gmres_alg(x0, rhs0, x_ref, tau_dt)      
     else
       do i = 1,bundle_size
         call invoke_copy_field_data(rhs0(i), rhs0_ext(i))
         call invoke_copy_field_data(x0(i), x0_ext(i))
+!         call invoke( copy_field(rhs0(i), rhs0_ext(i)), &
+!                      copy_field(x0(i), x0_ext(i)) )
       end do
       ! Set initial guess to exner' and r_exner = 0
       call invoke_set_field_scalar(0.0_r_def, x0_ext(si_bundle_size))      
-      call invoke_set_field_scalar(0.0_r_def, rhs0_ext(si_bundle_size))      
-
+      call invoke_set_field_scalar(0.0_r_def, rhs0_ext(si_bundle_size)) 
+!       call invoke( set_field_scalar(0.0_r_def, x0_ext(si_bundle_size)), &     
+!                    set_field_scalar(0.0_r_def, rhs0_ext(si_bundle_size)) )     
       call mixed_gmres_alg(x0_ext, rhs0_ext, x_ref, tau_dt)
       do i = 1,bundle_size
         call invoke_copy_field_data(x0_ext(i), x0(i))
+!         call invoke( copy_field(x0_ext(i), x0(i)) )
       end do
     end if
 
@@ -185,10 +190,10 @@ contains
                                                    x_ref(bundle_size)
     real(kind=r_def),             intent(in)    :: tau_dt
 
-    ! the scalars
+    ! The scalars
     real(kind=r_def)         :: h(gcrk+1, gcrk), u(gcrk), g(gcrk+1)
     real(kind=r_def)         :: beta,si, ci, nrm, h1, h2, p, q
-    ! others
+    ! Others
     real(kind=r_def)               :: err, sc_err, init_err
     integer(kind=i_def)            :: iter, i, j, k, m
     integer(kind=i_def)            :: max_gmres_iter
@@ -341,14 +346,18 @@ contains
     integer(kind=i_def), intent(in)    :: option
     integer(kind=i_def)                :: i
 
+! PSyclone built-ins support (v.1.3.1) fails for changing index in a loop, so the
+! callS below are placeholders for when it becomes available
     select case ( option)
       case( solver_si_preconditioner_none, solver_si_postconditioner_none )
         do i = 1,si_bundle_size
           call invoke_copy_field_data( x(i), y(i) )
+!           call invoke( copy_field(x(i), y(i)) )
         end do
       case( solver_si_preconditioner_diagonal, solver_si_postconditioner_diagonal )
         do i = 1,si_bundle_size
           call invoke_copy_field_data( x(i), y(i) )
+!           call invoke( copy_field(x(i), y(i)) )
         end do
         call bundle_divide(y, mm, si_bundle_size)
       case default

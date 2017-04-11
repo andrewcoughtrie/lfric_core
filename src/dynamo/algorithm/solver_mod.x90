@@ -31,8 +31,6 @@ module solver_mod
   use psykal_lite_mod,           only : invoke_inner_prod,              &
                                         invoke_axpy,                    &
                                         invoke_minus_field_data,        &
-                                        invoke_copy_field_data,         &
-                                        invoke_set_field_scalar,        &
                                         invoke_divide_field,            &
                                         invoke_copy_scaled_field_data
   use quadrature_mod,            only : quadrature_type
@@ -113,7 +111,7 @@ contains
        ! quadrature present, only for W3
        if( (fs_l == W3) .and. (fs_r == W3) ) then
           ! we are on the right space
-          call invoke( w3_solver_kernel_type(lhs,rhs,chi,qr) )
+          call invoke( w3_solver_kernel_type(lhs, rhs, chi, qr) )
        else
           write( log_scratch_space, '(A,I3,",",I3)' ) 'quadrature required for w3 solver, stopping',fs_l,fs_r
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
@@ -123,7 +121,7 @@ contains
 
        if(fs_l == W3) then
          ! mm is inverse mass matrix
-         call invoke( matrix_vector_kernel_type(rhs,lhs,mm) )
+         call invoke( matrix_vector_kernel_type(rhs, lhs, mm) )
        else
        select case ( solver_type )
           case ( solver_method_cg )
@@ -210,8 +208,8 @@ contains
     y   = field_type( vector_space = rhs_fs )
     res = field_type( vector_space = rhs_fs )
 
-    call invoke_set_field_scalar(0.0_r_def, lhs)
-    call invoke_copy_field_data(rhs,res)
+    call invoke( set_field_scalar(0.0_r_def, lhs), &
+                 copy_field(rhs, res) )
 
     call invoke_inner_prod(res,res,err)
     err = sqrt(err)/sc_err
@@ -226,8 +224,8 @@ contains
       return
    end if
 
-    call invoke_set_field_scalar(0.0_r_def, v)
-    call invoke_set_field_scalar(0.0_r_def, p)
+    call invoke( set_field_scalar(0.0_r_def, v), & 
+                 set_field_scalar(0.0_r_def, p) )
 
     do iter = 1, maximum_iterations
 
@@ -237,15 +235,15 @@ contains
       call invoke_axpy(beta,p,res,p)
       call invoke_axpy((-beta*omega),v,p,p)
       call precondition( y, p, precond_option, diagonal=mmd )
-      call invoke_set_field_scalar(0.0_r_def, v)
-      call invoke( matrix_vector_kernel_type(v,y,mm) )
+      call invoke( set_field_scalar(0.0_r_def, v) )
+      call invoke( matrix_vector_kernel_type(v, y, mm) )
 
       call invoke_inner_prod(rhs,v,norm)
       alpha = rho/norm
       call invoke_axpy(-alpha,v,res,s)
       call precondition( z, s, precond_option, diagonal=mmd )
-      call invoke_set_field_scalar(0.0_r_def, t)
-      call invoke( matrix_vector_kernel_type(t,z,mm) )
+      call invoke( set_field_scalar(0.0_r_def, t) )
+      call invoke( matrix_vector_kernel_type(t, z, mm) )
 
       call invoke_inner_prod(t,t,tt)
       call invoke_inner_prod(t,s,ts)
@@ -258,8 +256,8 @@ contains
       call invoke_axpy(-omega,t,s,res)
       norm = rho
 
-      ! check for convergence
-      call invoke_inner_prod(res,res,err)
+      ! Check for convergence
+      call invoke_inner_prod(res, res, err)
       err = sqrt(err)/sc_err
 
       write( log_scratch_space, '(A,I2,A, E15.8)' ) "solver_algorithm[", iter, &
@@ -310,10 +308,10 @@ contains
     ! The temporary fields
     type(field_type)                   :: res, p, Ap, z
 
-    ! the scalars
+    ! The scalars
     real(kind=r_def)                   :: alpha, beta
     real(kind=r_def)                   :: rs_new, rs_old
-    ! others
+    ! Others
     real(kind=r_def)                   :: err,sc_err, init_err
     integer(i_def)                     :: iter
 
@@ -335,13 +333,13 @@ contains
       call invoke_divide_field(rhs,mmd,lhs)
     else
     ! First guess: lhs = 0
-      call invoke_set_field_scalar(0.0_r_def, lhs)
+      call invoke( set_field_scalar(0.0_r_def, lhs) )
     end if
-    call invoke( matrix_vector_kernel_type(Ap,lhs,mm) )
+    call invoke( matrix_vector_kernel_type(Ap, lhs, mm) )
 
     call invoke_minus_field_data( rhs, Ap, res )
     call precondition( z, res, precond_option, diagonal=mmd )
-    call invoke_copy_field_data( z, p )
+    call invoke( copy_field(z, p) )
 
     call invoke_inner_prod( res, z, rs_old )
     err = sqrt(rs_old)
@@ -360,8 +358,8 @@ contains
     end if
 
     do iter = 1, maximum_iterations
-       call invoke_set_field_scalar(0.0_r_def, Ap)
-       call invoke( matrix_vector_kernel_type(Ap,p,mm) )
+       call invoke( set_field_scalar(0.0_r_def, Ap) )
+       call invoke( matrix_vector_kernel_type(Ap, p, mm) )
 
       call invoke_inner_prod( p, Ap, rs_new )
       alpha = rs_old/rs_new
@@ -369,7 +367,7 @@ contains
       call invoke_axpy( alpha, p, lhs, lhs )
       call invoke_axpy( -alpha, Ap, res, res )
 
-      ! check for convergence
+      ! Check for convergence
       call invoke_inner_prod(res,res,rs_new)
       err = sqrt(rs_new)/sc_err
 
@@ -442,12 +440,12 @@ contains
   call invoke( mm_diagonal_kernel_type(diagonal, mm) )
   call invoke_divide_field( rhs, diagonal, lhs )
 
-! initial guess
-  call invoke_set_field_scalar(0.0_r_def, lhs)
+! Initial guess
+  call invoke( set_field_scalar(0.0_r_def, lhs) )
 
   do iter = 1,n_iter
-    call invoke_set_field_scalar(0.0_r_def, Ax)
-    call invoke( matrix_vector_kernel_type(Ax,lhs,mm) )
+    call invoke( set_field_scalar(0.0_r_def, Ax) )
+    call invoke( matrix_vector_kernel_type(Ax, lhs, mm) )
 
     call invoke_minus_field_data( rhs, Ax, res )
     call invoke_divide_field( res, diagonal, res )
@@ -486,10 +484,10 @@ contains
     ! The temporary fields
     type(field_type)                   :: Ax, r, s, w, v(GCRK)
 
-    ! the scalars
+    ! The scalars
     real(kind=r_def)                   :: h(GCRK+1, GCRK), u(GCRK), g(GCRK+1)
     real(kind=r_def)                   :: beta, si, ci, nrm, h1, h2, p, q
-    ! others
+    ! Others
     real(kind=r_def)                   :: err, sc_err, init_err
     integer(i_def)                     :: iter, i, j, k, m
 
@@ -521,8 +519,8 @@ contains
       call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
       return
     end if
-    call invoke_set_field_scalar(0.0_r_def, Ax)
-    call invoke( matrix_vector_kernel_type(Ax,lhs,mm) )
+    call invoke( set_field_scalar(0.0_r_def, Ax) )
+    call invoke( matrix_vector_kernel_type(Ax, lhs, mm) )
 
     call invoke_minus_field_data( rhs, Ax, r )
 
@@ -543,8 +541,8 @@ contains
       do j = 1, GCRk
 
         call precondition( w, v(j), pstcond_option, diagonal=mmd )
-        call invoke_set_field_scalar(0.0_r_def, s)
-        call invoke( matrix_vector_kernel_type(s,w,mm) )
+        call invoke( set_field_scalar(0.0_r_def, s) )
+        call invoke( matrix_vector_kernel_type(s, w, mm) )
 
         call precondition( w, s, precond_option, diagonal=mmd )
 
@@ -591,8 +589,8 @@ contains
       end do
 
 ! Check for convergence
-      call invoke_set_field_scalar(0.0_r_def, Ax)
-      call invoke( matrix_vector_kernel_type(Ax,lhs,mm) )
+      call invoke( set_field_scalar(0.0_r_def, Ax) )
+      call invoke( matrix_vector_kernel_type(Ax, lhs, mm) )
       call invoke_minus_field_data( rhs, Ax, r )
 
       call invoke_inner_prod(r, r, err )
@@ -652,9 +650,9 @@ contains
     ! The temporary fields
     type(field_type)                   :: Ax, r, s(GCRK), v(GCRK)
 
-    ! the scalars
+    ! The scalars
     real(kind=r_def)                   :: alpha
-    ! others
+    ! Others
     real(kind=r_def)                   :: err, sc_err, init_err
     integer(i_def)                     :: iter, m, n
 
@@ -683,8 +681,8 @@ contains
       call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
       return
     end if
-    call invoke_set_field_scalar(0.0_r_def, Ax)
-    call invoke( matrix_vector_kernel_type(Ax,lhs,mm) )
+    call invoke( set_field_scalar(0.0_r_def, Ax) )
+    call invoke( matrix_vector_kernel_type(Ax, lhs, mm) )
 
     call invoke_minus_field_data( rhs, Ax, r )
 
@@ -692,8 +690,8 @@ contains
       do m = 1, GCRk
 ! This is the correct settings -> call Precon(s(:,:,m),r,prit,prec)
         call precondition( s(m), r, precond_option, diagonal=mmd )
-        call invoke_set_field_scalar(0.0_r_def, v(m))
-        call invoke( matrix_vector_kernel_type(v(m),s(m),mm) )
+        call invoke( set_field_scalar(0.0_r_def, v(m)) )
+        call invoke( matrix_vector_kernel_type(v(m), s(m), mm) )
 
 
         do n = 1, m-1
@@ -760,7 +758,7 @@ end subroutine gcr_solver_algorithm
           call log_event( 'No mass matrix diagonal present', LOG_LEVEL_ERROR )
         end if
       case default ! Do nothing
-        call invoke_copy_field_data( x, y )
+        call invoke( copy_field(x, y) )
     end select
 
   end subroutine precondition

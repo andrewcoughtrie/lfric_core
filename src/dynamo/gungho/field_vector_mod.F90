@@ -16,8 +16,10 @@ module field_vector_mod
   use finite_element_config_mod,     only : element_order
   use log_mod,                       only : log_event, LOG_LEVEL_ERROR, &
                                             log_scratch_space
-  use psykal_lite_mod,               only : invoke_set_field_scalar, invoke_axpy, &
-                                            invoke_inner_prod, invoke_scale_field_data
+  use psykal_lite_mod,               only : invoke_set_field_scalar, &
+                                            invoke_axpy,             &
+                                            invoke_inner_prod,       &
+                                            invoke_scale_field_data
 
   implicit none
   private 
@@ -220,6 +222,8 @@ contains
           call log_event(log_scratch_space,LOG_LEVEL_ERROR)
        end if
        call invoke_set_field_scalar(scalar, self%vector(fctr))
+! A placeholder for PSyclone built-ins support (to be agreed on implementation)
+!        call invoke( set_field_scalar(scalar, self%vector(fctr)) )
        self%field_set(fctr) = .true.
     end do
     

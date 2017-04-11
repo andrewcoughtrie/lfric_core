@@ -30,8 +30,6 @@ module rhs_alg_mod
   use pressure_gradient_wtheta_kernel_mod, only: pressure_gradient_wtheta_kernel_type
   use psykal_lite_mod,                     only: invoke_axpy,               &
                                                  invoke_multiply_field,     &
-                                                 invoke_set_field_scalar,   &
-                                                 invoke_copy_field_data,    &
                                                  invoke_ru_bd_kernel
   use quadrature_mod,                      only: quadrature_type, GAUSSIAN
   use rotation_kernel_mod,                 only: rotation_kernel_type
@@ -95,36 +93,37 @@ contains
 
   qr = quadrature_type(element_order+2, GAUSSIAN)
 
+  ! Initialise RHS u and theta fields
+  call invoke( set_field_scalar(0.0_r_def, rhs_tmp(1)), & 
+               set_field_scalar(0.0_r_def, rhs(1)),     &
+               set_field_scalar(0.0_r_def, rhs_tmp(2)), &
+               set_field_scalar(0.0_r_def, rhs(2)) )
+
   ! Compute rhs_u
-  call invoke_set_field_scalar( 0.0_r_def, rhs_tmp(1) )
   if(wtheta_on) then
     call invoke_ru_bd_kernel (rhs_tmp(1), rho, theta, qr)
-    call invoke( pressure_gradient_wtheta_kernel_type( rhs_tmp(1), rho, theta, qr ) )
+    call invoke( pressure_gradient_wtheta_kernel_type(rhs_tmp(1), rho, theta, qr) )
   else
-    call invoke( pressure_gradient_kernel_type( rhs_tmp(1), rho, theta, qr ) )
+    call invoke( pressure_gradient_kernel_type(rhs_tmp(1), rho, theta, qr) )
   end if
-  call invoke( kinetic_energy_gradient_kernel_type( rhs_tmp(1), u, chi, qr ) )
-  call invoke( geopotential_gradient_kernel_type( rhs_tmp(1), &
-                                                  geopotential, qr ) )
+  call invoke( kinetic_energy_gradient_kernel_type(rhs_tmp(1), u, chi, qr) )
+  call invoke( geopotential_gradient_kernel_type(rhs_tmp(1), geopotential, qr) )
   if ( rotating ) &
-    call invoke( rotation_kernel_type( rhs_tmp(1), u, chi, qr ) )
-  call invoke(enforce_bc_kernel_type(rhs_tmp(1)) )
-  call invoke_set_field_scalar( 0.0_r_def, rhs(1) )
-  call invoke( matrix_vector_kernel_type( rhs(1), u, mm_w2) )
+      call invoke( rotation_kernel_type(rhs_tmp(1), u, chi, qr) )
+  call invoke( enforce_bc_kernel_type(rhs_tmp(1)) )
+  call invoke( matrix_vector_kernel_type(rhs(1), u, mm_w2) )
   call invoke_axpy( alpha_dt, rhs_tmp(1), rhs(1), rhs(1) ) 
  
   ! Compute rhs_theta
-  call invoke_set_field_scalar( 0.0_r_def, rhs_tmp(2) )
-  call invoke_set_field_scalar( 0.0_r_def, rhs(2) )
   if (wtheta_on) then
-    call invoke( matrix_vector_kernel_type( rhs(2), theta, mm_wtheta) )
+    call invoke( matrix_vector_kernel_type(rhs(2), theta, mm_wtheta) )
   else
-    call invoke( matrix_vector_kernel_type( rhs(2), theta, mm_w0) )
+    call invoke( matrix_vector_kernel_type(rhs(2), theta, mm_w0) )
   end if
   call invoke_axpy( alpha_dt, rhs_tmp(2), rhs(2), rhs(2) ) 
 
   ! Compute rhs_rho
-  call invoke_copy_field_data( rho, rhs(3) )
+  call invoke( copy_field(rho, rhs(3)) )
 
   end subroutine rhs_alg
 

@@ -23,8 +23,6 @@ module cosmic_transport_alg_mod
                                                LOG_LEVEL_INFO,    &
                                                LOG_LEVEL_TRACE
 
-  use psykal_lite_mod,                   only: invoke_copy_field_data
-
   use density_update_alg_mod,            only: density_update_alg
   use split_transport_alg_mod,           only: split_transport_alg
 
@@ -68,8 +66,8 @@ contains
     u_np1     = field_type( vector_space = w2_fs )
     mass_flux = field_type( vector_space = w2_fs )
 
-    call invoke_copy_field_data(u,u_n)
-    call invoke_copy_field_data(u,u_np1)
+    call invoke( copy_field(u, u_n) )
+    call invoke( copy_field(u, u_np1) )
 
   end subroutine cosmic_transport_init
 
@@ -90,7 +88,7 @@ contains
     type(field_type),    intent(inout) :: rho, chi(3)
 
 
-    call invoke_copy_field_data(rho,rho_n)
+    call invoke( copy_field(rho, rho_n) )
 
     ! Call algorithm to calculate mass fluxes using COSMIC scheme
     call split_transport_alg( u_n, u_np1, rho_n, chi, mesh_id, mass_flux)
@@ -100,7 +98,7 @@ contains
 
     call rho_np1%log_minmax(LOG_LEVEL_INFO, 'min max rho_np1')
 
-    call invoke_copy_field_data(rho_np1,rho)
+    call invoke( copy_field(rho_np1, rho) )
 
   end subroutine cosmic_transport_step
 

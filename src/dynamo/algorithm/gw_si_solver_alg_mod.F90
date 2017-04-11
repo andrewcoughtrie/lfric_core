@@ -72,7 +72,6 @@ contains
                                                gw_miniapp_constants_b_space_w3, &
                                                gw_miniapp_constants_b_space_wtheta
     use mm_diagonal_kernel_mod,          only: mm_diagonal_kernel_type
-    use psykal_lite_mod,                 only: invoke_set_field_scalar
     use runtime_constants_mod,           only: get_mass_matrix
     use gw_pressure_solver_alg_mod,      only: gw_pressure_solver_init
     implicit none
@@ -180,7 +179,6 @@ contains
 !>@param[inout] x0 State to increment 
 !>@param[in]    rhs0 Fixed rhs to solve for
   subroutine gmres(x0, rhs0)
-    use psykal_lite_mod, only: invoke_inner_prod
 
     implicit none
 
@@ -345,6 +343,9 @@ contains
     else
       do i = 1,bundle_size
         call invoke_copy_field_data( x(i), y(i) )
+! PSyclone built-ins support (v.1.3.1) fails for changing index in a loop, so the
+! call below is a placeholder for when it becomes available
+!        call invoke( copy_field(x(i), y(i)) )
       end do
       if ( option == solver_si_preconditioner_diagonal .or. &
            option == solver_si_postconditioner_diagonal) then

@@ -24,7 +24,7 @@ module lhs_alg_mod
 
   type(field_type),              private :: w2_multiplicity, f_star, r_rho
   type(field_type), allocatable, private :: lhs_tmp(:)
-  type( field_type )                     :: mt_lumped
+  type(field_type)                       :: mt_lumped
   type(function_space_type), pointer     :: u_fs => null()
 
   private
@@ -37,7 +37,6 @@ contains
 !>@brief Initialise fields to be used for computing the lhs
   subroutine lhs_init(state)
     use field_bundle_mod,          only: clone_bundle
-    use psykal_lite_mod,           only: invoke_set_field_scalar
     use mesh_mod,                  only: mesh_type
     use multiplicity_kernel_mod,   only: multiplicity_kernel_type
     use derived_config_mod,        only: si_bundle_size
@@ -52,7 +51,7 @@ contains
     integer(i_def),                    :: mesh_id
     integer                            :: fs_handle
     type(operator_type)                :: mm_wt
-    type( field_type )                 :: ones
+    type(field_type)                   :: ones
 
     allocate( lhs_tmp(si_bundle_size) )
     call clone_bundle(state, lhs_tmp, si_bundle_size)
@@ -64,7 +63,7 @@ contains
     fs_handle = state(3)%which_function_space()
     rho_fs => function_space_collection%get_fs(mesh_id, element_order, fs_handle)
     ones = field_type( vector_space = rho_fs )
-    call invoke_set_field_scalar( 1.0_r_def, ones )
+    call invoke( set_field_scalar(1.0_r_def, ones) )
     r_rho = field_type( vector_space = rho_fs )
 
     if ( wtheta_on .and.  operators == transport_operators_fv) then
@@ -73,17 +72,17 @@ contains
       mm_wt = get_mass_matrix(5)
       ones  = field_type( vector_space = theta_fs )
       mt_lumped  = field_type( vector_space = theta_fs )
-      call invoke_set_field_scalar( 1.0_r_def, ones )
-      call invoke_set_field_scalar( 0.0_r_def, mt_lumped)
+      call invoke( set_field_scalar(1.0_r_def, ones), &
+                   set_field_scalar(0.0_r_def, mt_lumped) )
       call invoke( matrix_vector_kernel_type(mt_lumped, ones, mm_wt) )
     end if
 
-    ! for computing lhs rho
+    ! For computing lhs rho
     fs_handle = state(1)%which_function_space()
     u_fs => function_space_collection%get_fs(mesh_id, element_order, fs_handle)
     w2_multiplicity = field_type( vector_space = u_fs )
-    call invoke_set_field_scalar( 0.0_r_def, w2_multiplicity )
-    call invoke ( multiplicity_kernel_type( w2_multiplicity ) )
+    call invoke( set_field_scalar(0.0_r_def, w2_multiplicity) )
+    call invoke( multiplicity_kernel_type(w2_multiplicity) )
     f_star = field_type( vector_space = u_fs )
 
   end subroutine lhs_init
@@ -134,13 +133,11 @@ contains
   use rtheta_wtheta_kernel_mod,          only: rtheta_wtheta_kernel_type
   use pert_pressure_gradient_kernel_mod, only: pert_pressure_gradient_kernel_type
   use exner_gradient_kernel_mod,         only: exner_gradient_kernel_type
-  use psykal_lite_mod,                   only: invoke_axpy,               &
-                                               invoke_copy_field_data,    &
-                                               invoke_multiply_field,     &
-                                               invoke_sample_flux_kernel, &
-                                               invoke_set_field_scalar,   &
-                                               invoke_rtheta_bd_kernel,   &
-                                               invoke_exner_gradient_bd_kernel, &
+  use psykal_lite_mod,                   only: invoke_axpy,                             &
+                                               invoke_multiply_field,                   &
+                                               invoke_sample_flux_kernel,               &
+                                               invoke_rtheta_bd_kernel,                 &
+                                               invoke_exner_gradient_bd_kernel,         &
                                                invoke_pert_pressure_gradient_bd_kernel, &
                                                invoke_multiply_field_data
   use matrix_vector_kernel_mod,          only: matrix_vector_kernel_type
@@ -185,8 +182,8 @@ contains
   qr = quadrature_type(element_order+2, GAUSSIAN)
 
   ! Compute lhs_u
-  call invoke_set_field_scalar( 0.0_r_def, lhs_tmp(1) )
-  call invoke_set_field_scalar( 0.0_r_def, lhs(1) )
+  call invoke( set_field_scalar(0.0_r_def, lhs_tmp(1)), &
+               set_field_scalar(0.0_r_def, lhs(1)) )
   if ( eliminate_p ) then
     if(wtheta_on) then
       call invoke_pert_pressure_gradient_bd_kernel( lhs_tmp(1), rho, rho_ref, &
@@ -197,7 +194,7 @@ contains
                  matrix_vector_kernel_type( lhs(1), u, mm_w2) )
   else 
     ! Use r_rho as a zero field so that exner' = 0 in pert_pressure_gradient_kernel
-    call invoke_set_field_scalar( 0.0_r_def, r_rho )
+    call invoke( set_field_scalar(0.0_r_def, r_rho) )
     exner => state(4)
 
     if(wtheta_on) then
@@ -217,8 +214,8 @@ contains
   qr = quadrature_type(element_order+1, GAUSSIAN)
 
   ! Compute lhs_theta
-  call invoke_set_field_scalar( 0.0_r_def, lhs_tmp(2) )
-  call invoke_set_field_scalar( 0.0_r_def, lhs(2) )
+  call invoke( set_field_scalar(0.0_r_def, lhs_tmp(2)), &
+               set_field_scalar(0.0_r_def, lhs(2)) )
   if(wtheta_on) then
     call invoke_rtheta_bd_kernel ( lhs_tmp(2), theta_ref, u, qr )
     call invoke( rtheta_wtheta_kernel_type( lhs_tmp(2), theta_ref, u, qr), &
@@ -231,23 +228,25 @@ contains
 
   ! Compute lhs_rho
   ! Need to create u*rho^ref \in W2 for lhs_tmp(3) kernel -> sampled mass flux
-  call invoke_set_field_scalar( 0.0_r_def, f_star )
+  ! First initialise fields
+  call invoke( set_field_scalar(0.0_r_def, f_star), &
+               set_field_scalar(0.0_r_def, r_rho),  &
+               set_field_scalar(0.0_r_def, lhs_tmp(3)) )
+  ! Then compute all lhs
   call invoke_sample_flux_kernel( f_star, u, w2_multiplicity, rho_ref )
-  call invoke_set_field_scalar( 0.0_r_def, r_rho )
-  call invoke( matrix_vector_kernel_type( r_rho, f_star, div) )
+  call invoke( matrix_vector_kernel_type(r_rho, f_star, div) )
   call invoke_multiply_field(-1.0_r_def, r_rho, r_rho) 
-  call invoke_set_field_scalar( 0.0_r_def, lhs_tmp(3) )
-  call invoke( matrix_vector_kernel_type( lhs_tmp(3), r_rho, mm_w3_inv) )
+  call invoke( matrix_vector_kernel_type(lhs_tmp(3), r_rho, mm_w3_inv) )
   call invoke_axpy( -tau_dt, lhs_tmp(3), rho, lhs(3) )
 
   ! Compute lhs exner
   if ( .not. eliminate_p ) then
     exner => state(4)
-    call invoke_set_field_scalar( 0.0_r_def, lhs(4) )
-    call invoke_set_field_scalar( 0.0_r_def, lhs_tmp(4) )
+    call invoke( set_field_scalar(0.0_r_def, lhs(4)), &
+                 set_field_scalar(0.0_r_def, lhs_tmp(4)) )
     call invoke( lhs_exner_kernel_type(lhs_tmp(4), theta, rho, exner, &
-                                       theta_ref, rho_ref, chi, qr ) )
-    call invoke( matrix_vector_kernel_type( lhs(4), lhs_tmp(4), mm_w3_inv) )
+                                       theta_ref, rho_ref, chi, qr) )
+    call invoke( matrix_vector_kernel_type(lhs(4), lhs_tmp(4), mm_w3_inv) )
 
   end if
 
@@ -262,15 +261,14 @@ contains
   use derived_config_mod,                 only: si_bundle_size
   use finite_element_config_mod,          only: wtheta_on
   use psykal_lite_mod,                    only: invoke_multiply_field_data, &
-                                                invoke_inc_axpy, &
-                                                invoke_inc_axpby, &
-                                                invoke_set_field_scalar
-  use si_operators_alg_mod,               only: get_p2theta, &
-                                                get_div_star, &
-                                                get_ptheta2, &
-                                                get_m3_rho_star, &
+                                                invoke_inc_axpy,            &
+                                                invoke_inc_axpby
+  use si_operators_alg_mod,               only: get_p2theta,       &
+                                                get_div_star,      &
+                                                get_ptheta2,       &
+                                                get_m3_rho_star,   &
                                                 get_m3_exner_star, &
-                                                get_p3theta, &
+                                                get_p3theta,       &
                                                 get_rho_at_u
   use planet_config_mod,                  only: cp, kappa
   use transpose_matrix_vector_kernel_mod, only: transpose_matrix_vector_kernel_type
@@ -313,17 +311,18 @@ contains
   rho_at_u      => get_rho_at_u()
 
   ! Use operators
+  ! Initialise lhs_u and lhs_theta to 0
+  call invoke( set_field_scalar(0.0_r_def, lhs_tmp(1)), &
+               set_field_scalar(0.0_r_def, lhs(1)),     &
+               set_field_scalar(0.0_r_def, lhs_tmp(2)), &
+               set_field_scalar(0.0_r_def, lhs(2)) )
   ! L_u
-  call invoke_set_field_scalar( 0.0_r_def, lhs_tmp(1) )
-  call invoke_set_field_scalar( 0.0_r_def, lhs(1) )
   call invoke( matrix_vector_kernel_type(lhs(1), theta, p2theta) )
   call invoke( transpose_matrix_vector_kernel_type(lhs(1), exner, div_star) )
   call invoke( enforce_bc_kernel_type( lhs(1) ) )
   call invoke( matrix_vector_kernel_type(lhs_tmp(1), u, mm_w2) )
   call invoke_inc_axpy(-tau_dt*cp, lhs(1), lhs_tmp(1))
   ! L_theta
-  call invoke_set_field_scalar( 0.0_r_def, lhs_tmp(2) )
-  call invoke_set_field_scalar( 0.0_r_def, lhs(2) )
   call invoke( matrix_vector_kernel_type(lhs(2), u, ptheta2) )
   call invoke( matrix_vector_kernel_type(lhs_tmp(2), theta, mm_wtheta) )
   call invoke_inc_axpy(tau_dt, lhs(2), lhs_tmp(2))  
@@ -335,7 +334,7 @@ contains
   ! L_pi 
   call invoke( dg_matrix_vector_kernel_type(lhs(4), rho, m3_rho_star) )
   call invoke( matrix_vector_kernel_type(lhs(4), theta, p3theta) )
-  call invoke( dg_matrix_vector_kernel_type(lhs_tmp(4), exner, m3_exner_star))
+  call invoke( dg_matrix_vector_kernel_type(lhs_tmp(4), exner, m3_exner_star) )
   call invoke_inc_axpby(((1.0_r_def-kappa)/kappa), lhs_tmp(4), -1.0_r_def, lhs(4))
   call invoke( dg_matrix_vector_kernel_type( lhs(4), lhs_tmp(4), mm_w3_inv) )
 

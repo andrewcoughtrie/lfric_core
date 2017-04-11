@@ -11,16 +11,16 @@ module si_operators_alg_mod
   use operator_mod,              only: operator_type
   use field_mod,                 only: field_type
   use finite_element_config_mod, only: wtheta_on
-  use log_mod,                   only: log_event, &
+  use log_mod,                   only: log_event,      &
                                        LOG_LEVEL_INFO, &
                                        LOG_LEVEL_ERROR
-  use solver_config_mod,         only: si_preconditioner, &
+  use solver_config_mod,         only: si_preconditioner,                    &
                                        solver_si_preconditioner_tridiagonal, &
                                        normalise
   implicit none
   private
 
-  ! variables private to this module that can only be accessed by public
+  ! Variables private to this module that can only be accessed by public
   ! functions returning pointers to them 
   type(operator_type), target :: m3_rho_star
   type(operator_type), target :: m3_exner_star
@@ -111,11 +111,10 @@ subroutine compute_si_operators(ref_state)
   use weighted_proj_theta2_kernel_mod, only: weighted_proj_theta2_kernel_type
   use weighted_proj_3theta_kernel_mod, only: weighted_proj_3theta_kernel_type
   use compound_operator_kernel_mod,    only: compound_operator_kernel_type
-  use psykal_lite_mod,                 only: invoke_sample_flux_kernel, &
-                                             invoke_set_field_scalar, &
-                                             invoke_compute_tri_precon_kernel, &
-                                             invoke_divide_field_data, &
-                                             invoke_weighted_div_bd_kernel_type, &
+  use psykal_lite_mod,                 only: invoke_sample_flux_kernel,                  &
+                                             invoke_compute_tri_precon_kernel,           &
+                                             invoke_divide_field_data,                   &
+                                             invoke_weighted_div_bd_kernel_type,         &
                                              invoke_weighted_proj_2theta_bd_kernel_type, &
                                              invoke_weighted_proj_theta2_bd_kernel_type
   use multiplicity_kernel_mod,         only: multiplicity_kernel_type
@@ -180,11 +179,12 @@ subroutine compute_si_operators(ref_state)
   u_fs => function_space_collection%get_fs(mesh, element_order, fs_handle)
   w2_multiplicity = field_type( vector_space = u_fs )
   ones            = field_type( vector_space = u_fs )
-  call invoke_set_field_scalar( 0.0_r_def, w2_multiplicity )
-  call invoke ( multiplicity_kernel_type( w2_multiplicity ) )
-  call invoke_set_field_scalar( 1.0_r_def, ones )
-  call invoke_set_field_scalar( 0.0_r_def, rho_at_u )
-
+  ! Initialise fields
+  call invoke( set_field_scalar(0.0_r_def, w2_multiplicity), &
+               set_field_scalar(1.0_r_def, ones),            &
+               set_field_scalar(0.0_r_def, rho_at_u) )
+  ! Calculate rho^ref
+  call invoke( multiplicity_kernel_type(w2_multiplicity) )
   call invoke_sample_flux_kernel( rho_at_u, ones, w2_multiplicity, rho)
 
   if(wtheta_on) then
@@ -195,11 +195,11 @@ subroutine compute_si_operators(ref_state)
   fs_handle = ref_state(2)%which_function_space()
   theta_fs => function_space_collection%get_fs(mesh, element_order, fs_handle)
   ones  = field_type( vector_space = theta_fs )
-  call invoke_set_field_scalar( 1.0_r_def, ones )
-  call invoke_set_field_scalar( 0.0_r_def,  mt_lumped)
-  call invoke(matrix_vector_kernel_type(mt_lumped, ones, mt) )
+  call invoke( set_field_scalar(1.0_r_def, ones), &
+               set_field_scalar(0.0_r_def,  mt_lumped) )
+  call invoke( matrix_vector_kernel_type(mt_lumped, ones, mt) )
 
-  ! compute terms for tridiagonal preconditioner
+  ! Compute terms for tridiagonal preconditioner
   if ( si_preconditioner == solver_si_preconditioner_tridiagonal ) then
     fs_handle = ref_state(3)%which_function_space()
     call invoke_compute_tri_precon_kernel(tri_precon, theta, rho, chi)
@@ -211,10 +211,10 @@ subroutine compute_si_operators(ref_state)
       call invoke_divide_field_data(tri_precon(2), Helm_diag)
       call invoke_divide_field_data(tri_precon(3), Helm_diag)
     else
-      call invoke_set_field_scalar( 1.0_r_def, Helm_diag)
+      call invoke( set_field_scalar(1.0_r_def, Helm_diag) )
     end if
   else
-    call invoke_set_field_scalar( 1.0_r_def, Helm_diag)
+    call invoke( set_field_scalar(1.0_r_def, Helm_diag) )
   end if
 
 end subroutine compute_si_operators

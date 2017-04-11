@@ -32,10 +32,8 @@ module iter_timestep_alg_mod
                                        get_qr
 
   ! PsyKAl-lite kernels
-  use psykal_lite_mod,                   only: invoke_copy_field_data,  &
-                                               invoke_set_field_scalar, &
-                                               invoke_axpby,            &
-                                               invoke_viscosity
+use psykal_lite_mod,                   only: invoke_axpby, &
+                                             invoke_viscosity
 
 
 
@@ -148,10 +146,12 @@ contains
     ! Operators for si solves
     if ( helmholtz_solve ) call helmholtz_solver_init(state)
     if ( helmholtz_solve .or. use_operators ) call create_si_operators(mesh_id)
+
     !=== Copy prognostic field data to state arrays ===========================!
-    call invoke_copy_field_data(u,     state(1))
-    call invoke_copy_field_data(theta, state(2))
-    call invoke_copy_field_data(rho,   state(3))
+    call invoke( copy_field(u,     state(1)), &
+                 copy_field(theta, state(2)), &
+                 copy_field(rho,   state(3)) )
+    !=== Initialise fields ====================================================!
     call si_solver_init(state)
     call advection_alg_init(mesh_id)
 
@@ -206,9 +206,9 @@ contains
 
     !Pass updated fields into state
     if (spinup_winds .and. timestep <= spinup_period)then
-      call invoke_copy_field_data(u,     state(1))
-      call invoke_copy_field_data(theta, state(2))
-      call invoke_copy_field_data(rho,   state(3))
+      call invoke( copy_field(u,     state(1)), &
+                   copy_field(theta, state(2)), &
+                   copy_field(rho,   state(3)) )
     end if
 
     if (spinup_alpha .and. timestep <= spinup_period)then
@@ -230,7 +230,7 @@ contains
         call set_bundle_scalar(0.0_r_def, rhs_heldsuarez, 3)
         call invoke(held_suarez_kernel_type(rhs_heldsuarez(1), rhs_heldsuarez(2), &
                     state_n(1), state_n(2), state_n(3), chi, qr))
-        call invoke( enforce_bc_kernel_type( rhs_heldsuarez(1) ) )
+        call invoke( enforce_bc_kernel_type(rhs_heldsuarez(1)) )
       end if
 
       ! Set advecting velocity & terms
@@ -267,20 +267,19 @@ contains
     if ( viscosity ) then
       call log_event( 'Applying Viscosity', LOG_LEVEL_INFO )      
       call invoke_viscosity(inc(2), theta, inc(1), u, chi)
-      call invoke_set_field_scalar( 0.0_r_def, inc(3) )
+      call invoke( set_field_scalar(0.0_r_def, inc(3)) )
       call bundle_axpy(dt, inc, state, state, 3)
     end if    
     
     ! Return fields in u, theta, rho arrays
     ! The if statement prevents this update if spinup_winds is true
     if (.not. (spinup_winds .and. timestep <= spinup_period))then
-      call invoke_copy_field_data(state(1), u)
+      call invoke( copy_field(state(1), u) )
     end if
-    call invoke_copy_field_data(state(2), theta)
-    call invoke_copy_field_data(state(3), rho)
 
+    call invoke( copy_field(state(2), theta), &
+                 copy_field(state(3), rho) )
 
   end subroutine iter_alg_step
-
 
 end module iter_timestep_alg_mod

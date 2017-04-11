@@ -8,16 +8,15 @@
 !>@brief A wrapper to enable invoke of kernels with long names
 module map_rho_to_theta_mod
        			     
-  use constants_mod,                   only: r_def, i_def
-  use operator_mod,                    only: operator_type
-  use field_mod,                       only: field_type
-  use function_space_mod,              only: function_space_type
-  use function_space_collection_mod,   only: function_space_collection
-  use quadrature_mod,                  only: quadrature_type, GAUSSIAN 
+  use constants_mod,                         only: r_def, i_def
+  use operator_mod,                          only: operator_type
+  use field_mod,                             only: field_type
+  use function_space_mod,                    only: function_space_type
+  use function_space_collection_mod,         only: function_space_collection
+  use quadrature_mod,                        only: quadrature_type, GAUSSIAN 
   use finite_element_config_mod,             only: element_order, wtheta_on
   use galerkin_projection_algorithm_mod,     only: galerkin_projection_algorithm
   ! PsyKAl-lite kernels
-  use psykal_lite_mod,                 only: invoke_copy_field_data
   use compute_mass_matrix_kernel_wtheta_mod, only: compute_mass_matrix_kernel_wtheta_type
   use compute_mass_matrix_kernel_w0_mod,     only: compute_mass_matrix_kernel_w0_type
 
@@ -52,13 +51,13 @@ contains
     projected_field(1) = field_type( vector_space = theta_fs)
     mm_wtheta = operator_type( theta_fs, theta_fs )
     if (wtheta_on)then
-      call invoke(compute_mass_matrix_kernel_wtheta_type(mm_wtheta, chi, qr))
+      call invoke( compute_mass_matrix_kernel_wtheta_type(mm_wtheta, chi, qr) )
     else
-      call invoke(compute_mass_matrix_kernel_w0_type(mm_wtheta, chi, qr))
+      call invoke( compute_mass_matrix_kernel_w0_type(mm_wtheta, chi, qr) )
     end if
     call galerkin_projection_algorithm(projected_field, rho, mesh_id, chi, &
        1, qr, mm=mm_wtheta) 
-    call invoke_copy_field_data(projected_field(1), rho_in_wth)
+    call invoke( copy_field(projected_field(1), rho_in_wth) )
 
   end subroutine map_rho_to_theta
   

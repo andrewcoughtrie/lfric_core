@@ -15,8 +15,8 @@ module gw_pressure_solver_alg_mod
                                                 get_div
   use initial_temperature_config_mod,     only: bvf_square  
   use timestepping_config_mod,            only: dt
-  use gw_miniapp_constants_config_mod,    only: cs_square, &
-                                                b_space, &
+  use gw_miniapp_constants_config_mod,    only: cs_square,                       &
+                                                b_space,                         &
                                                 gw_miniapp_constants_b_space_w0, &
                                                 gw_miniapp_constants_b_space_w3, &
                                                 gw_miniapp_constants_b_space_wtheta
@@ -74,9 +74,8 @@ contains
     use log_mod,                       only: log_event,         &
                                              LOG_LEVEL_INFO
 
-    use psykal_lite_mod,               only: invoke_set_field_scalar, &
-                                             invoke_multiply_field_data, &   
-                                             invoke_divide_field, &
+    use psykal_lite_mod,               only: invoke_multiply_field_data, &   
+                                             invoke_divide_field,        &
                                              invoke_scale_field_data
     implicit none
 
@@ -139,9 +138,9 @@ contains
       case(gw_miniapp_constants_b_space_wtheta)  
         Mb => get_mass_matrix(5)
     end select
-    call invoke_set_field_scalar(1.0_r_def, ones)
-    call invoke_set_field_scalar(0.0_r_def, M_lumped)
-    call invoke(matrix_vector_kernel_type(M_lumped, ones, Mb))
+    call invoke( set_field_scalar(1.0_r_def, ones), &
+                 set_field_scalar(0.0_r_def, M_lumped) )
+    call invoke( matrix_vector_kernel_type(M_lumped, ones, Mb) )
     call invoke_divide_field(ones, M_lumped, Mb_lumped_inv)
     
     ! Compute Q operator 
@@ -156,14 +155,14 @@ contains
     Hb_lumped_inv = field_type(vector_space = wu)
     Mu => get_mass_matrix(2)
 
-    call invoke_set_field_scalar(1.0_r_def, ones)
-    call invoke_set_field_scalar(0.0_r_def, M_lumped)
-    call invoke_set_field_scalar(0.0_r_def, QT1)
-    call invoke(transpose_matrix_vector_kernel_type(QT1, ones, Q))
+    call invoke( set_field_scalar(1.0_r_def, ones),     &
+                 set_field_scalar(0.0_r_def, M_lumped), & 
+                 set_field_scalar(0.0_r_def, QT1) )
+    call invoke( transpose_matrix_vector_kernel_type(QT1, ones, Q) )
     call invoke_multiply_field_data(QT1, Mb_lumped_inv, QT1)
-    call invoke(matrix_vector_nobc_kernel_type(M_lumped, QT1, Q))
-    call invoke_scale_field_data( tau_u*tau_b*dt**2*bvf_square,M_lumped)    
-    call invoke(matrix_vector_nobc_kernel_type(M_lumped, ones, Mu))
+    call invoke( matrix_vector_nobc_kernel_type(M_lumped, QT1, Q) )
+    call invoke_scale_field_data(tau_u*tau_b*dt**2*bvf_square,M_lumped)    
+    call invoke( matrix_vector_nobc_kernel_type(M_lumped, ones, Mu) )
     call invoke_divide_field(ones, M_lumped, HB_lumped_inv)
 
     call log_event( 'done', LOG_LEVEL_INFO )
@@ -198,7 +197,6 @@ contains
 !>@brief Compute the rhs to the gw_pressure equation for the pressure increment
   subroutine build_gw_pressure_rhs(gw_pressure_rhs, rhs0)
     use psykal_lite_mod,             only: invoke_multiply_field_data, &
-                                           invoke_set_field_scalar, &
                                            invoke_inc_axpy
     use matrix_vector_kernel_mod,    only: matrix_vector_kernel_type
     use dg_matrix_vector_kernel_mod, only: dg_matrix_vector_kernel_type
@@ -216,17 +214,17 @@ contains
 
     ! Compute rhs_u    
     call invoke_multiply_field_data(rhs0(3), Mb_lumped_inv, mb_rb)
-    call invoke_set_field_scalar(0.0_r_def, rhs_u)
-    call invoke(matrix_vector_kernel_type(rhs_u, mb_rb, Q))
+    call invoke( set_field_scalar(0.0_r_def, rhs_u) )
+    call invoke( matrix_vector_kernel_type(rhs_u, mb_rb, Q) )
     call invoke_inc_axpy(tau_u*dt, rhs_u ,rhs0(1))
-    call invoke( enforce_bc_kernel_type( rhs_u ) )
+    call invoke( enforce_bc_kernel_type(rhs_u) )
 
     ! Compute rhs
     div    => get_div()
     M3_inv => get_mass_matrix(4)
     call invoke_multiply_field_data(rhs_u, Hb_lumped_inv, hb_ru)
-    call invoke(dg_matrix_vector_kernel_type(rhs_p, hb_ru, div), &
-                dg_matrix_vector_kernel_type(gw_pressure_rhs, rhs_p, M3_inv))
+    call invoke( dg_matrix_vector_kernel_type(rhs_p, hb_ru, div), &
+                 dg_matrix_vector_kernel_type(gw_pressure_rhs, rhs_p, M3_inv) )
     call invoke_inc_axpy(-tau_p*dt*cs_square, gw_pressure_rhs, rhs0(2))
 
     call gw_pressure_rhs%log_minmax(LOG_LEVEL_DEBUG,  'gw_pressure_rhs ')
@@ -239,8 +237,7 @@ contains
   subroutine apply_gw_pressure_lhs(Hp, p)
     use dg_matrix_vector_kernel_mod,        only: dg_matrix_vector_kernel_type
     use transpose_matrix_vector_kernel_mod, only: transpose_matrix_vector_kernel_type
-    use psykal_lite_mod,                    only: invoke_set_field_scalar, &
-                                                  invoke_multiply_field_data, &
+    use psykal_lite_mod,                    only: invoke_multiply_field_data, &
                                                   invoke_inc_axpy
     use enforce_bc_kernel_mod,              only: enforce_bc_kernel_type
 
@@ -253,13 +250,13 @@ contains
     ! lhs = (I + tau_p*tau_u*dt^2*cs^2*M3^-1 * D * HB^-1 * D^T)*p
     div    => get_div()
     M3_inv => get_mass_matrix(4)
-    call invoke_set_field_scalar(0.0_r_def, grad_p)
-    call invoke(transpose_matrix_vector_kernel_type(grad_p, p, div))
-    call invoke( enforce_bc_kernel_type( grad_p ) )
+    call invoke( set_field_scalar(0.0_r_def, grad_p) )
+    call invoke( transpose_matrix_vector_kernel_type(grad_p, p, div) )
+    call invoke( enforce_bc_kernel_type(grad_p) )
     
     call invoke_multiply_field_data(grad_p, Hb_lumped_inv, grad_p)
-    call invoke(dg_matrix_vector_kernel_type(div_grad_p, grad_p, div), &
-                dg_matrix_vector_kernel_type(Hp, div_grad_p, M3_inv))
+    call invoke( dg_matrix_vector_kernel_type(div_grad_p, grad_p, div), &
+                 dg_matrix_vector_kernel_type(Hp, div_grad_p, M3_inv) )
     call invoke_inc_axpy(tau_p*tau_u*dt**2*cs_square, Hp, p)
     
   end subroutine apply_gw_pressure_lhs
@@ -269,30 +266,28 @@ contains
   subroutine bicgstab(lhs, rhs)
     use solver_config_mod,     only: maximum_iterations, &
                                      si_tolerance
-    use psykal_lite_mod,       only: invoke_inner_prod, &
-                                     invoke_set_field_scalar, &
-                                     invoke_copy_field_data, &
-                                     invoke_axpy, &
-                                     invoke_inc_axpy, &
+    use psykal_lite_mod,       only: invoke_inner_prod,  &
+                                     invoke_axpy,        &
+                                     invoke_inc_axpy,    &
                                      invoke_inc_xpby
-    use log_mod,               only: log_event,         &
-                                     log_scratch_space, &
-                                     LOG_LEVEL_ERROR,   &
-                                     LOG_LEVEL_INFO,    &
-                                     LOG_LEVEL_DEBUG,   &
+    use log_mod,               only: log_event,          &
+                                     log_scratch_space,  &
+                                     LOG_LEVEL_ERROR,    &
+                                     LOG_LEVEL_INFO,     &
+                                     LOG_LEVEL_DEBUG,    &
                                      LOG_LEVEL_TRACE
     implicit none
     type(field_type),             intent(inout) :: lhs
     type(field_type),             intent(in)    :: rhs
 
-    ! the scalars
+    ! The scalars
     real(kind=r_def)                   :: rho,alpha,omega,beta, norm
     real(kind=r_def)                   :: ts,tt
-    ! others
+    ! Others
     real(kind=r_def)                   :: err,sc_err, init_err
     integer(kind=i_def)                :: iter
     
-    ! compute the residual this is a global sum to the PSy ---
+    ! Compute the residual this is a global sum to the PSy ---
     call invoke_inner_prod(rhs,rhs,sc_err)
     sc_err = max(sqrt(sc_err), 0.001_r_def)
     write( log_scratch_space, '(A,E15.8)' ) &
@@ -303,8 +298,8 @@ contains
     omega  = 1.0_r_def
     norm   = 1.0_r_def
 
-    call invoke_set_field_scalar(0.0_r_def, lhs)
-    call invoke_copy_field_data(rhs,res)
+    call invoke( set_field_scalar(0.0_r_def, lhs), &
+                 copy_field(rhs,res) )
 
     call invoke_inner_prod(res,res,err)
     err = sqrt(err)/sc_err
@@ -316,10 +311,10 @@ contains
            " final=", err
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
       return
-   end if
+    end if
 
-    call invoke_set_field_scalar(0.0_r_def, v)
-    call invoke_set_field_scalar(0.0_r_def, p)
+    call invoke( set_field_scalar(0.0_r_def, v), &
+                 set_field_scalar(0.0_r_def, p) )
 
     do iter = 1, maximum_iterations
 
@@ -378,8 +373,8 @@ contains
 !>@brief Obtain the increments to each field from the pressure field given by
 !>       the gw_pressure equation
   subroutine back_substitute( state, rhs)
-    use psykal_lite_mod,          only: invoke_set_field_scalar, &
-                                        invoke_inc_axpy, &
+
+    use psykal_lite_mod,          only: invoke_inc_axpy,            &
                                         invoke_multiply_field_data, &
                                         invoke_increment_field
     use transpose_matrix_vector_kernel_mod, &
@@ -393,17 +388,18 @@ contains
 
     type(operator_type), pointer :: div => null()
 
+    ! Initialise increment fields
+    call invoke( set_field_scalar(0.0_r_def, u_inc), &
+                 set_field_scalar(0.0_r_def, b_inc) )
     ! U increment
     div => get_div()
-    call invoke_set_field_scalar(0.0_r_def, u_inc)
-    call invoke(transpose_matrix_vector_kernel_type(u_inc, p_inc, div))
+    call invoke( transpose_matrix_vector_kernel_type(u_inc, p_inc, div) )
     call invoke_inc_axpy(tau_u*dt, u_inc, rhs_u)
     call invoke_multiply_field_data( u_inc, Hb_lumped_inv, u_inc )
-    call invoke( enforce_bc_kernel_type( u_inc ) )
+    call invoke( enforce_bc_kernel_type(u_inc) )
 
     ! b increment
-    call invoke_set_field_scalar(0.0_r_def, b_inc)
-    call invoke(transpose_matrix_vector_kernel_type(b_inc, u_inc, Q))
+    call invoke( transpose_matrix_vector_kernel_type(b_inc, u_inc, Q) )
     call invoke_inc_axpy(-tau_b*dt*bvf_square, b_inc, rhs(3))
     call invoke_multiply_field_data( b_inc, Mb_lumped_inv, b_inc )
 
@@ -421,8 +417,7 @@ contains
 !>@details Options to precondition the gw_pressure equation, currently allows only
 !>         preconditioning with the inverse mass matrix or no preconditioner
   subroutine gw_pressure_precondition( y, x, prec)
-    use psykal_lite_mod,          only: invoke_set_field_scalar, &
-                                        invoke_copy_field_data
+
     implicit none
     type(field_type),             intent(inout) :: y
     type(field_type),             intent(in)    :: x
@@ -431,9 +426,10 @@ contains
 
     if ( present(prec) ) precon = prec
 
-    call invoke_copy_field_data( x, y )
+    call invoke( copy_field(x, y) )
 
   end subroutine gw_pressure_precondition
 !=============================================================================!
+
 end module gw_pressure_solver_alg_mod
 

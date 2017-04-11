@@ -33,9 +33,8 @@ module runtime_constants_mod
   use quadrature_mod,                    only: quadrature_type, GAUSSIAN
 
   ! PsyKAl-lite kernels
-  use psykal_lite_mod,                   only: invoke_set_field_scalar,  &
-                                               invoke_compute_geopotential_kernel_type, &
-                                               invoke_raise_field, &
+  use psykal_lite_mod,                   only: invoke_compute_geopotential_kernel_type, &
+                                               invoke_raise_field,                      &
                                                invoke_mpi_calc_cell_orientation
 
   ! PsyKAl PSYClone kernels
@@ -138,8 +137,8 @@ contains
     if ( transport_only .and. scheme == transport_scheme_cusph_cosmic ) then
       temp_w2_field = field_type( vector_space = w2_fs )
       cell_orientation = field_type( vector_space = w3_fs )
-      call invoke_set_field_scalar( 9999.0_r_def, temp_w2_field)
-      call invoke_set_field_scalar( 9999.0_r_def, cell_orientation)
+      call invoke( set_field_scalar(9999.0_r_def, temp_w2_field), &
+                   set_field_scalar(9999.0_r_def, cell_orientation) )
       call invoke_mpi_calc_cell_orientation( temp_w2_field, cell_orientation )
     end if
 
@@ -181,27 +180,28 @@ contains
     mmtheta_diag   = field_type( vector_space = wtheta_fs )
     eye            = field_type( vector_space = w3_fs )
 
-    call invoke_set_field_scalar(0.0_r_def,mm0_diag)
-    call invoke_set_field_scalar(0.0_r_def,mm1_diag)
-    call invoke_set_field_scalar(0.0_r_def,mm2_diag)
-    call invoke_set_field_scalar(0.0_r_def,mmtheta_diag)
+    ! Initialise fields
+    call invoke( set_field_scalar(0.0_r_def, mm0_diag), &
+                 set_field_scalar(0.0_r_def, mm1_diag), &
+                 set_field_scalar(0.0_r_def, mm2_diag), &
+                 set_field_scalar(0.0_r_def, mmtheta_diag) )
 
-    call invoke( mm_diagonal_kernel_type(mm0_diag, mm_w0))
-    call invoke( mm_diagonal_kernel_type(mm1_diag, mm_w1))
-    call invoke( mm_diagonal_kernel_type(mm2_diag, mm_w2))
-    call invoke( mm_diagonal_kernel_type(mm3_diag, mm_w3))
-    call invoke( mm_diagonal_kernel_type(mmtheta_diag, mm_wtheta))
+    call invoke( mm_diagonal_kernel_type(mm0_diag, mm_w0) )
+    call invoke( mm_diagonal_kernel_type(mm1_diag, mm_w1) )
+    call invoke( mm_diagonal_kernel_type(mm2_diag, mm_w2) )
+    call invoke( mm_diagonal_kernel_type(mm3_diag, mm_w3) )
+    call invoke( mm_diagonal_kernel_type(mmtheta_diag, mm_wtheta) )
 
     ! W3 equations are solved pointwise and so the mass matrix is inverted
     ! exactly, therefore the diagonal, where used should be 1
-    call invoke_set_field_scalar(1.0_r_def,eye)
+    call invoke( set_field_scalar(1.0_r_def, eye) )
 
 
     !================= Create inverse lumped mass matrices =====================!
     ones           = field_type( vector_space = w1_fs )
     m1_lumped_inv  = field_type( vector_space = w1_fs )
-    call invoke_set_field_scalar( 1.0_r_def, ones )
-    call invoke_set_field_scalar( 0.0_r_def, m1_lumped_inv)
+    call invoke( set_field_scalar(1.0_r_def, ones), &
+                 set_field_scalar(0.0_r_def, m1_lumped_inv) )
     ! Use a special version of matrix vector to avoid psyclone generating the
     ! enforce_bc call, otherwise the invoke_divide_field below will divide by zero
     ! See #678
@@ -210,16 +210,16 @@ contains
 
     ones           = field_type( vector_space = w0_fs )
     m0_lumped_inv  = field_type( vector_space = w0_fs )
-    call invoke_set_field_scalar( 1.0_r_def, ones )
-    call invoke_set_field_scalar( 0.0_r_def, m0_lumped_inv)
+    call invoke( set_field_scalar(1.0_r_def, ones), &
+                 set_field_scalar(0.0_r_def, m0_lumped_inv) )
     call invoke( matrix_vector_kernel_type(m0_lumped_inv, ones, mm_w0) )
     call invoke_raise_field( m0_lumped_inv, -1_i_def)
 
     ones           = field_type( vector_space = wtheta_fs )
     mt_lumped_inv  = field_type( vector_space = wtheta_fs )
-    call invoke_set_field_scalar( 1.0_r_def, ones )
-    call invoke_set_field_scalar( 0.0_r_def, mt_lumped_inv)
-    call invoke(matrix_vector_kernel_type( mt_lumped_inv, ones, mm_wtheta ) )
+    call invoke( set_field_scalar(1.0_r_def, ones), &
+                 set_field_scalar(0.0_r_def, mt_lumped_inv) )
+    call invoke( matrix_vector_kernel_type(mt_lumped_inv, ones, mm_wtheta) )
     call invoke_raise_field( mt_lumped_inv, -1_i_def )
  
     call log_event( "Dynamo: created runtime_constants", LOG_LEVEL_INFO )

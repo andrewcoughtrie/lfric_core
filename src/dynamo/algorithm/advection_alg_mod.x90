@@ -5,17 +5,17 @@
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
 
-!>@brief wrapper algorithm to compute the advection of the prognostic
+!>@brief Wrapper algorithm to compute the advection of the prognostic
 !>       equations
 module advection_alg_mod
 
   use constants_mod,                  only: r_def, i_def
   use enforce_bc_kernel_mod,          only: enforce_bc_kernel_type
   use function_space_collection_mod,  only: function_space_collection
-  use runtime_constants_mod,          only: get_coordinates, &
-                                            get_div, &
-                                            get_curl, &
-                                            get_mass_matrix, &
+  use runtime_constants_mod,          only: get_coordinates,          &
+                                            get_div,                  &
+                                            get_curl,                 &
+                                            get_mass_matrix,          &
                                             get_mass_matrix_diagonal, &
                                             get_inverse_lumped_mass_matrix
   use field_bundle_mod,               only: bundle_ax
@@ -27,13 +27,11 @@ module advection_alg_mod
   use matrix_vector_nobc_kernel_mod,  only: matrix_vector_nobc_kernel_type
   use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
   use operator_mod,                   only: operator_type
-  use psykal_lite_mod,                only: invoke_set_field_scalar,    &
-                                            invoke_multiply_field,      &
+  use psykal_lite_mod,                only: invoke_multiply_field,      &
                                             invoke_sample_poly_flux,    &
                                             invoke_sample_poly_adv,     &
                                             invoke_rtheta_bd_kernel,    &
                                             invoke_axpy,                &
-                                            invoke_copy_field_data,     &
                                             invoke_multiply_field_data, &
                                             invoke_divide_field
   use quadrature_mod,                 only: quadrature_type, GAUSSIAN
@@ -41,8 +39,8 @@ module advection_alg_mod
   use rtheta_wtheta_kernel_mod,       only: rtheta_wtheta_kernel_type
   use rtheta_supg_kernel_mod,         only: rtheta_supg_kernel_type
   use flux_rhs_kernel_mod,            only: flux_rhs_kernel_type
-  use solver_config_mod,              only: solver_method => method,         &
-                                            preconditioner, &
+  use solver_config_mod,              only: solver_method => method, &
+                                            preconditioner,          &
                                             solver_preconditioner_diagonal
   use solver_mod,                     only: solver_algorithm
   use transpose_matrix_vector_kernel_mod, &
@@ -51,9 +49,9 @@ module advection_alg_mod
   use vorticity_rhs_kernel_mod,       only: vorticity_rhs_kernel_type
   use derived_config_mod,             only: bundle_size 
 
-  use transport_config_mod,           only: operators, &
-                                            fv_flux_order, &
-                                            fv_advective_order, &
+  use transport_config_mod,           only: operators,              &
+                                            fv_flux_order,          &
+                                            fv_advective_order,     &
                                             transport_operators_fv, &
                                             transport_operators_fem
   use log_mod,                        only: log_event,         &
@@ -78,7 +76,7 @@ module advection_alg_mod
   private :: advective_inc_alg
 
 contains
-!>@brief Initialisation routine to advection algortithm
+!>@brief Initialisation routine to advection algorithm
   subroutine advection_alg_init(mesh_id)
     use mesh_mod,                          only: mesh_type
     use mesh_collection_mod,               only: mesh_collection
@@ -214,16 +212,16 @@ contains
   div       => get_div()
 
   ! Runge-Kutta algorithm
-  call invoke_copy_field_data(rho, rho_adv)
-  call invoke_set_field_scalar(0.0_r_def, mass_flux)
+  call invoke( copy_field(rho, rho_adv), &
+               set_field_scalar(0.0_r_def, mass_flux) )
   do stage = 1,nstage_adv
     ! Compute the mass flux using desired spatial reconstruction
     call mass_flux_alg(mf, rho_adv, advecting_wind)
     ! Compute m3^-1 * div * mass flux
-    call invoke( dg_matrix_vector_kernel_type( r_rho, mf, div), &
-                 dg_matrix_vector_kernel_type( rrho_prediction(stage), r_rho, mm_w3_inv) )
+    call invoke( dg_matrix_vector_kernel_type(r_rho, mf, div), &
+                 dg_matrix_vector_kernel_type(rrho_prediction(stage), r_rho, mm_w3_inv) )
     ! Build the rhs of the RK scheme at this stage: sum_s -ak(s)*r_rho(s)
-    call invoke_set_field_scalar(0.0_r_def, r_rho)
+    call invoke( set_field_scalar(0.0_r_def, r_rho) )
     do st = 1, stage
       call invoke_axpy(-ak_adv(stage,st), rrho_prediction(st), r_rho,  r_rho)
     end do
@@ -242,14 +240,14 @@ contains
   u_grad_theta = field_type( vector_space = theta_fs )
 
   ! Runge-Kutta algorithm  
-  call invoke_set_field_scalar(0.0_r_def, u_grad_theta)
-  call invoke_copy_field_data(theta, theta_adv)
+  call invoke( set_field_scalar(0.0_r_def, u_grad_theta), &
+               copy_field(theta, theta_adv) )
   do stage = 1,nstage_adv
     ! Compute u.grad(theta) using desired spatial reconstruction of gtad(theta)
     call advective_inc_alg(r_theta, theta_adv, advecting_wind)
     ! If using FEM operators and SUPG scheme add correction
-    if ( supg ) call invoke( rtheta_supg_kernel_type( r_theta,     &
-                              theta_adv, theta, mass_flux, rho, chi, qr) )   
+    if ( supg ) call invoke( rtheta_supg_kernel_type(r_theta,     &
+                             theta_adv, theta, mass_flux, rho, chi, qr) )   
 
     ! Obtain lumped inverse and full mass matrices for the correct space (Wtheta
     ! or W0) 
@@ -273,7 +271,7 @@ contains
                              preconditioner_choice=solver_preconditioner_diagonal)
     end if
     ! Build the rhs of the RK scheme at this stage: sum_s -ak(s)*r_theta(s)
-    call invoke_set_field_scalar(0.0_r_def, r_theta)
+    call invoke( set_field_scalar(0.0_r_def, r_theta) )
     do st = 1, stage
       call invoke_axpy(-ak_adv(stage,st), rtheta_prediction(st), r_theta,  r_theta)
     end do
@@ -288,9 +286,9 @@ contains
   ! FEM field in the correct space.
   ! If FEM operators are used we need to cancel out the mt_lumped_inv factor
   ! used to update the theta_adv field.
-  call invoke_set_field_scalar( 0.0_r_def, advection(2))
+  call invoke( set_field_scalar(0.0_r_def, advection(2)) )
   if ( operators == transport_operators_fv ) then    
-    call invoke(matrix_vector_kernel_type(advection(2), u_grad_theta, mm_wt))
+    call invoke( matrix_vector_kernel_type(advection(2), u_grad_theta, mm_wt) )
   else
     call invoke_divide_field(u_grad_theta, mt_lumped_inv, advection(2)) 
   end if
@@ -300,13 +298,13 @@ contains
   ! updated to use a RK scheme for the vorticity
   call log_event( "Computing advective vorticity...", LOG_LEVEL_INFO)
   curl   => get_curl()
-  call invoke_set_field_scalar( 0.0_r_def, r_xi )
+  call invoke( set_field_scalar(0.0_r_def, r_xi) )
   call invoke( transpose_matrix_vector_kernel_type(r_xi, advecting_wind, curl) )
-  call invoke( enforce_bc_kernel_type( r_xi ) )
+  call invoke( enforce_bc_kernel_type(r_xi) )
   if ( lumped_m1 ) then
     m1_lumped_inv => get_inverse_lumped_mass_matrix(1)
     call invoke_multiply_field_data(r_xi, m1_lumped_inv, xi)
-    call invoke( enforce_bc_kernel_type( xi ) )
+    call invoke( enforce_bc_kernel_type(xi) )
   else
     mm_w1  => get_mass_matrix(1)
     mmd_w1 => get_mass_matrix_diagonal(1)
@@ -317,16 +315,16 @@ contains
 
   ! 4) Vorticity advection of u ( F/rho \cross curl(u))
   call log_event( "Computing advective wind increment...", LOG_LEVEL_INFO)
-  call invoke_set_field_scalar( 0.0_r_def, advection(1) ) 
-  call invoke( vorticity_advection_kernel_type( advection(1), mass_flux, rho, xi, chi, qr ) )
-  call invoke( enforce_bc_kernel_type( advection(1) ) )
+  call invoke( set_field_scalar(0.0_r_def, advection(1)) )
+  call invoke( vorticity_advection_kernel_type(advection(1), mass_flux, rho, xi, chi, qr) )
+  call invoke( enforce_bc_kernel_type(advection(1)) )
 
   ! 5) advection update for the continuity equation divergence of mass flux: M3^-1(div(F))
   call log_event( "Computing advective density increment...", LOG_LEVEL_INFO)
-  call invoke_set_field_scalar( 0.0_r_def, r_rho )
-  call invoke( matrix_vector_kernel_type( r_rho, mass_flux, div) )
+  call invoke( set_field_scalar(0.0_r_def, r_rho) )
+  call invoke( matrix_vector_kernel_type(r_rho, mass_flux, div) )
   call invoke_multiply_field(-1.0_r_def, r_rho, r_rho)
-  call invoke( dg_matrix_vector_kernel_type( advection(3), r_rho, mm_w3_inv) )
+  call invoke( dg_matrix_vector_kernel_type(advection(3), r_rho, mm_w3_inv) )
 
   end subroutine advection_alg
 
@@ -365,11 +363,11 @@ contains
     end do
 
     ! Runge-Kutta algorithm
-    do imr=1,nummr
-      call invoke_copy_field_data(mr(imr), mr_n)
+    do imr = 1,nummr
+      call invoke( copy_field(mr(imr), mr_n) )
       do stage = 1,nstage_adv
         call advective_inc_alg(mr_prediction(stage), mr(imr), wind)
-        call invoke_set_field_scalar(0.0_r_def, mr_adv)
+        call invoke( set_field_scalar(0.0_r_def, mr_adv) )
         do st = 1, stage
           call invoke_axpy(-ak_adv(stage,st), mr_prediction(st), mr_adv,  mr_adv)
         end do
@@ -387,9 +385,9 @@ contains
   end subroutine advection_mr_alg
 
 !>@brief Compute the mass flux, f = rho*u using desired spatial reconstruction
-!>@param[inout] mass_flux mass flux field: f = density*wind
-!>@param[in]    density field to advect
-!>@param[in]    wind advecting wind field
+!>@param[inout] mass_flux Mass flux field: f = density*wind
+!>@param[in]    density Field to advect
+!>@param[in]    wind Advecting wind field
   subroutine mass_flux_alg(mass_flux, density, wind)
   implicit none
   
@@ -424,10 +422,10 @@ contains
       mmd_w2 => get_mass_matrix_diagonal(2)
       chi    => get_coordinates()
       rhs_f = field_type( vector_space = u_fs )
-      call invoke_set_field_scalar( 0.0_r_def, rhs_f )
-      call invoke(flux_rhs_kernel_type( rhs_f, wind, density, chi, qr ) )
-      call invoke(enforce_bc_kernel_type( rhs_f ) )
-      call invoke_set_field_scalar( 0.0_r_def, mass_flux ) 
+      call invoke( set_field_scalar(0.0_r_def, rhs_f) )
+      call invoke( flux_rhs_kernel_type(rhs_f, wind, density, chi, qr) )
+      call invoke( enforce_bc_kernel_type(rhs_f) )
+      call invoke( set_field_scalar(0.0_r_def, mass_flux) )
       call solver_algorithm( mass_flux, rhs_f, mesh_id, chi, solver_method, &
                              mm=mm_w2, mmd=mmd_w2, &
                              preconditioner_choice=solver_preconditioner_diagonal)
@@ -437,9 +435,9 @@ contains
 
 
 !>@brief Compute advective update u.grad(theta) using desired spatial reconstruction
-!>@param[inout] rtheta advective increment
-!>@param[in]    theta field to advect
-!>@param[in]    wind advecting wind field
+!>@param[inout] rtheta Advective increment
+!>@param[in]    theta Field to advect
+!>@param[in]    wind Advecting wind field
   subroutine advective_inc_alg(rtheta, theta, wind)
   implicit none
   type(field_type), intent(in)    :: theta, wind
@@ -456,16 +454,17 @@ contains
     case(transport_operators_fem)
      ! Use project u.grad(theta) into the theta function space
       qr = quadrature_type(element_order+3, GAUSSIAN)
-      call invoke_set_field_scalar( 0.0_r_def, rtheta )
+      call invoke( set_field_scalar(0.0_r_def, rtheta) )
       if ( wtheta_on ) then
-        call invoke (rtheta_wtheta_kernel_type ( rtheta, theta, wind, qr))
+        call invoke ( rtheta_wtheta_kernel_type (rtheta, theta, wind, qr) )
         call invoke_rtheta_bd_kernel ( rtheta, theta, wind, qr )
       else
-        call invoke( rtheta_kernel_type( rtheta, theta, wind, qr) )
+        call invoke( rtheta_kernel_type(rtheta, theta, wind, qr) )
       end if
    end select
 
   end subroutine advective_inc_alg
+
 end module advection_alg_mod
 
 

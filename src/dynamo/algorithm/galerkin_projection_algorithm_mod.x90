@@ -17,12 +17,11 @@ module galerkin_projection_algorithm_mod
   use fs_continuity_mod,               only: W2, W3
   use gp_rhs_kernel_mod,               only: gp_rhs_kernel_type
   use gp_vector_rhs_kernel_mod,        only: gp_vector_rhs_kernel_type
-  use log_mod,                   only: log_event, log_scratch_space, LOG_LEVEL_INFO
-  use operator_mod,              only: operator_type
-  use psykal_lite_mod,           only: invoke_copy_field_data, invoke_set_field_scalar
-  use quadrature_mod,            only: quadrature_type
-  use solver_config_mod,         only: method
-  use solver_mod,                only: solver_algorithm
+  use log_mod,                         only: log_event, log_scratch_space, LOG_LEVEL_INFO
+  use operator_mod,                    only: operator_type
+  use quadrature_mod,                  only: quadrature_type
+  use solver_config_mod,               only: method
+  use solver_mod,                      only: solver_algorithm
 
   implicit none
 
@@ -40,7 +39,7 @@ contains
 !>          component is computed.
 !> @param[out] f_out A field to project to
 !> @param[in]  f_in  Field to project
-!> @param[in]  mesh id of the mesh object the model for fields
+!> @param[in]  mesh Id of the mesh object the model for fields
 !> @param[in]  chi   3D coordinate field
 !> @param[in]  space_dimension Dimension of the space f_in (scalar or vector)
 !> @param[in]  qr Quadrature rule to perform integrations
@@ -55,7 +54,7 @@ contains
     
     implicit none
 
-! dimension of space to project
+! Dimension of space to project
     integer,            intent(in)    :: space_dimension
 ! Field to output
     type( field_type ), intent(inout) :: f_out(space_dimension)
@@ -63,8 +62,8 @@ contains
     type( field_type ), intent(inout) :: f_in  
     integer( i_def ),   intent(in)    :: mesh
 ! Coordinate fields
-    type( field_type ), intent(inout) :: chi(3)  
-    type( quadrature_type ), intent(in) :: qr
+    type( field_type ),              intent(inout) :: chi(3)  
+    type( quadrature_type ),         intent(in)    :: qr
     type( operator_type ), optional, intent(inout) :: mm
 
     integer                          :: out_fs
@@ -81,7 +80,7 @@ contains
                vector_space = function_space_collection%get_fs(mesh, &
                                                                element_order, &
                                                                out_fs) )
-      call invoke_set_field_scalar(0.0_r_def, rhs(dir))
+      call invoke( set_field_scalar(0.0_r_def, rhs(dir)) )
     end do
     
 ! Project field into continuous space
@@ -90,7 +89,7 @@ contains
     if ( f_in%which_function_space() == out_fs ) then
        write( log_scratch_space, '(A)' ) '   function spaces match, no projection needed'
        call log_event( log_scratch_space, LOG_LEVEL_INFO )
-       call invoke_copy_field_data(f_in, f_out(1))
+       call invoke( copy_field(f_in, f_out(1)) )
     else
        if ( space_dimension == 1 ) then
           write( log_scratch_space, '(A)' ) '    scalar field ... '
