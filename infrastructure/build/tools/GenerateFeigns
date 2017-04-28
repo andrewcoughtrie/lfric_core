@@ -1,0 +1,55 @@
+#!/usr/bin/env python2.7
+# -*- coding: utf-8 -*-
+##############################################################################
+# (c) The copyright relating to this work is owned jointly by the Crown,
+# Met Office and NERC 2014. However, it has been created with the help of the
+# GungHo Consortium, whose members are identified at
+# https://puma.nerc.ac.uk/trac/GungHo/wiki
+##############################################################################
+'''
+Reads in a set of namelist description files, produces a Fortran module of frig
+functions for use in unit testing.
+'''
+
+from __future__ import print_function;
+
+import argparse
+import os.path
+
+from configurator import __version__
+import configurator.namelistdescription as namelist
+import configurator.namelistfeigner
+import utilities.logging as logging
+
+if __name__ == '__main__':
+  parser = argparse.ArgumentParser( add_help=False, \
+                                    description=__doc__ )
+  parser.add_argument( '-help', '-h', '--help', action='help', \
+                        help='Show this help message and exit' )
+  parser.add_argument( '-version', action='version', \
+                        version='%(prog)s {}'.format( __version__ ) )
+  parser.add_argument( '-verbose', action='store_true', \
+                        help='Provide a running commentry' )
+  parser.add_argument( '-output', metavar='path', \
+                        default='feign_config_mod.f90', \
+                        help='Resulting output file' )
+  parser.add_argument( 'descriptionFiles', metavar='description-file', \
+                        nargs='*', \
+                        help='Configuration description files' )
+  args = parser.parse_args()
+
+  if args.verbose:
+    logger = logging.PrintLogger( sys.stdout )
+  else:
+    logger = logging.NoLogger()
+
+  moduleName, junk = os.path.splitext( os.path.basename( args.output ) )
+
+  parser = namelist.NamelistDescriptionParser()
+  feigner = configurator.namelistfeigner.NamelistFeigner( moduleName )
+  for descriptionFilename in args.descriptionFiles:
+    with open(descriptionFilename, 'r') as descriptionFile:
+      feigner.addNamelist( parser.parseFile( descriptionFile ) )
+
+  with open( args.output, 'w' ) as moduleFile:
+    feigner.writeModule( moduleFile )

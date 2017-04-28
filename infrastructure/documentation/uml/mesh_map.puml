@@ -1,0 +1,29 @@
+' (c) The copyright relating to this work is owned jointly by the Crown,
+' Met Office and NERC 2014. However, it has been created with the help of the
+' GungHo Consortium, whose members are identified at
+' https://puma.nerc.ac.uk/trac/GungHo/wiki
+
+@startuml
+
+!include look.iuml
+!include mesh/global_mesh_map_collection_mod.iuml
+!include mesh/global_mesh_map_mod.iuml
+
+class global_mesh_collection_mod::global_mesh_collection_type {
+}
+class global_mesh_mod::global_mesh_type {
+}
+class mesh_collection_mod::mesh_collection_type {
+}
+class mesh_mod::mesh_type {
+}
+
+global_mesh_collection_mod::global_mesh_collection_type o-> "*" global_mesh_mod::global_mesh_type
+global_mesh_mod::global_mesh_type o-> global_mesh_map_collection_mod::global_mesh_map_collection_type
+global_mesh_map_collection_mod::global_mesh_map_collection_type o-> "*" global_mesh_map_mod::global_mesh_map_type
+
+mesh_collection_mod::mesh_collection_type o-> "*" mesh_mod::mesh_type
+mesh_mod::mesh_type o-> mesh_map_collection_mod::mesh_map_collection_type
+mesh_map_collection_mod::mesh_map_collection_type o-> "*" mesh_map_mod::mesh_map_type
+
+@enduml

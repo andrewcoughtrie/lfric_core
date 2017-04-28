@@ -1,0 +1,98 @@
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown, 
+! Met Office and NERC 2014. 
+! However, it has been created with the help of the GungHo Consortium, 
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+!
+!-------------------------------------------------------------------------------
+module assign_coordinate_field_mod_test
+
+  use constants_mod,     only : r_def
+  use pFUnit_Mod
+
+  implicit none
+
+  private
+  public :: assign_coordinate_file_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: assign_coordinate_file_test_type
+    private
+  contains
+    procedure setUp
+    procedure test_all
+  end type assign_coordinate_file_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use base_mesh_config_mod,    only : base_mesh_geometry_planar, &
+                                        base_mesh_partitioner_planar
+    use gungho_feign_config_mod, only : feign_base_mesh_config, &
+                                        feign_domain_size_config
+
+    implicit none
+
+    class(assign_coordinate_file_test_type), intent(inout) :: this
+
+    call feign_base_mesh_config( 'foo',                        &
+                                 base_mesh_geometry_planar,    &
+                                 base_mesh_partitioner_planar, &
+                                 .false., 0.0_r_def)          
+ 
+    call feign_domain_size_config(0.0_r_def, 2.0_r_def,         &
+                                  0.0_r_def, 2.0_r_def )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all( this )
+
+    use assign_coordinate_field_mod, only : assign_coordinate
+
+    implicit none
+
+    class(assign_coordinate_file_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-3_r_def, &
+                              one = 1.0_r_def
+
+    integer :: nlayers, ndf, nverts, i, undf
+    integer :: map(1)
+    real(kind=r_def) :: x(1),y(1),z(1), dz(1)
+    real(kind=r_def) :: vertices_phys(3,8,1), vertices_comp(8,3), nodal_coord(3,1)
+
+    nlayers = 1
+    ndf     = 1
+    nverts  = 8
+    map(1)  = 1
+    undf    = 1
+    dz      = 2.0_r_def
+
+    vertices_phys(1,:,1) = (/ 0.0_r_def, 2.0_r_def, 2.0_r_def, 0.0_r_def, 0.0_r_def, 2.0_r_def, 2.0_r_def, 0.0_r_def /)
+    vertices_phys(2,:,1) = (/ 0.0_r_def, 0.0_r_def, 2.0_r_def, 2.0_r_def, 0.0_r_def, 0.0_r_def, 2.0_r_def, 2.0_r_def /)
+    vertices_phys(3,:,1) = (/ 0.0_r_def, 0.0_r_def, 0.0_r_def, 0.0_r_def, 2.0_r_def, 2.0_r_def, 2.0_r_def, 2.0_r_def /)
+
+    do i=1,nverts
+      vertices_comp(i,1) =  vertices_phys(1,i,1)/2.0_r_def
+      vertices_comp(i,2) =  vertices_phys(2,i,1)/2.0_r_def
+      vertices_comp(i,3) =  vertices_phys(3,i,1)/2.0_r_def
+    end do
+
+    nodal_coord(:,1) = (/ 0.5_r_def, 0.5_r_def, 0.5_r_def /)
+
+    call assign_coordinate(nlayers,ndf,nverts,undf,map,dz,x,y,z, &
+                           vertices_phys,nodal_coord,vertices_comp, &
+                           2.0_r_def, 0.0_r_def)
+
+    @assertEqual( one, x(1), tol )
+    @assertEqual( one, y(1), tol )
+    @assertEqual( one, z(1), tol )
+
+  end subroutine test_all
+
+end module assign_coordinate_field_mod_test

@@ -1,0 +1,57 @@
+##############################################################################
+# (c) The copyright relating to this work is owned jointly by the Crown,
+# Met Office and NERC 2014.
+# However, it has been created with the help of the GungHo Consortium,
+# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+##############################################################################
+#
+# Run this make file to generate PsyKAl source in WORKING_DIR from algorithms
+# and kernels in SOURCE_DIR.
+#
+.PHONY: psykal-source
+psykal-source: jump
+
+include $(LFRIC_BUILD)/lfric.mk
+
+ALGORITHM_ONLY_FILES := ${shell find $(SOURCE_DIR) -name '*.x90' -exec grep -EiL '[^!]\s*call\s+invoke\s*[$(OPEN_PAREN)]' {} \; }
+HAND_WRITTEN_FILES := $(shell find $(SOURCE_DIR) -path '*/psy/*' -a -name '*_psy.[Ff]90' -print)
+OVERRIDDEN_FILES = $(patsubst %_psy.f90,%.x90,$(subst /psy/,/algorithm/,$(HAND_WRITTEN_FILES)))
+ALGORITHM_ONLY_SOURCE = $(patsubst $(SOURCE_DIR)/%.x90,$(WORKING_DIR)/%.f90,$(ALGORITHM_ONLY_FILES) $(OVERRIDDEN_FILES))
+PSY_SOURCE := $(patsubst $(SOURCE_DIR)/%.x90,$(WORKING_DIR)/%_psy.f90,$(filter-out $(ALGORITHM_ONLY_FILES) $(OVERRIDDEN_FILES),$(shell find $(SOURCE_DIR) -name '*.x90')))
+KERNEL_SOURCE := $(patsubst ./%,$(WORKING_DIR)/%,$(shell find $(SOURCE_DIR) -path '*/kernel/*' -a -name '*.[Ff]90' -print))
+
+.PHONY: jump
+jump: $(PSY_SOURCE) $(ALGORITHM_ONLY_SOURCE)
+
+ifdef OPTIMISATION_PATH
+  GLOBAL_OPTIMISATION_FILE = $(OPTIMISATION_PATH)/global.py
+  LOCAL_OPTIMISATION_FILE = $(OPTIMISATION_PATH)/$*.py
+
+$(WORKING_DIR)/%_psy.f90: $(SOURCE_DIR)/%.x90 $$(LOCAL_OPTIMISATION_FILE) \
+                          | $(KERNEL_SOURCE)
+	$(call MESSAGE,Full psyclone - local optimisations,$@)
+	$(Q)mkdir -p $(dir $@)
+	$(Q)psyclone -api dynamo0.3 -l -d $(WORKING_DIR) \
+	             -s $(LOCAL_OPTIMISATION_FILE) \
+	             -opsy $@ -oalg $(WORKING_DIR)/$*.f90 $<
+
+$(WORKING_DIR)/%_psy.f90: $(SOURCE_DIR)/%.x90 $(GLOBAL_OPTIMISATION_FILE) \
+                          | $(KERNEL_SOURCE)
+	$(call MESSAGE,Full psyclone - global optimisations,$@)
+	$(Q)mkdir -p $(dir $@)
+	$(Q)psyclone -api dynamo0.3 -l -d $(WORKING_DIR) \
+	             -s $(GLOBAL_OPTIMISATION_FILE) \
+	             -opsy $@ -oalg $(WORKING_DIR)/$*.f90 $<
+else
+$(WORKING_DIR)/%_psy.f90: $(SOURCE_DIR)/%.x90 | $(KERNEL_SOURCE)
+	$(call MESSAGE,Full psyclone,$@)
+	$(Q)mkdir -p $(dir $@)
+	$(Q)psyclone -api dynamo0.3 -l -d $(WORKING_DIR) \
+	             -opsy $@ -oalg $(WORKING_DIR)/$*.f90 $<
+endif
+
+$(WORKING_DIR)/%.f90: $(SOURCE_DIR)/%.x90
+	$(call MESSAGE,Algorithm only,$@)
+	$(Q)mkdir -p $(dir $@)
+	$(Q)psyclone -api dynamo0.3 -l -d $(WORKING_DIR) \
+	             -oalg $@ -opsy /dev/null $<

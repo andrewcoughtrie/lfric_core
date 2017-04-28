@@ -1,0 +1,118 @@
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown,
+! Met Office and NERC 2014.
+! However, it has been created with the help of the GungHo Consortium,
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+!
+!-------------------------------------------------------------------------------
+
+module deep_baroclinic_wave_mod_test
+
+  use constants_mod, only : r_def
+  use pFUnit_Mod
+
+  implicit none
+
+  private
+  public :: deep_baroclinic_wave_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: deep_baroclinic_wave_test_type
+    private
+  contains
+    procedure setUp
+    procedure test_all
+  end type deep_baroclinic_wave_test_type
+
+  real(r_def), parameter :: gravity = 10.0_r_def
+  real(r_def), parameter :: radius  = 6000000.0_r_def
+  real(r_def), parameter :: omega   = 8.0E-5_r_def
+  real(r_def), parameter :: p_zero  = 100000.0_r_def
+  real(r_def), parameter :: rd      = 300.0_r_def
+  real(r_def), parameter :: cp      = 1000.0_r_def
+  real(r_def), parameter :: scaling = 1.0_r_def
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use gungho_feign_config_mod, only : feign_base_mesh_config,       &
+                                        feign_planet_config,          &
+                                        feign_initial_wind_config,    &
+                                        feign_formulation_config
+    use initial_wind_config_mod, only : initial_wind_profile_deep_baroclinic_steady
+
+    use base_mesh_config_mod, only : base_mesh_geometry_spherical, &
+                                     base_mesh_partitioner_cubedsphere
+
+    implicit none
+
+    class(deep_baroclinic_wave_test_type), intent(inout) :: this
+
+    call feign_planet_config( gravity=gravity, radius=radius, omega=omega, &
+                              rd=rd, cp=cp, p_zero=p_zero,                 &
+                              scaling_factor=scaling )
+
+    call feign_base_mesh_config( 'foo',                             &
+                                 base_mesh_geometry_spherical,      &
+                                 base_mesh_partitioner_cubedsphere, &
+                                 .false., 0.0_r_def )
+    call feign_initial_wind_config( &
+                              initial_wind_profile_deep_baroclinic_steady, &
+                              0.0_r_def, 0.0_r_def, 0.0_r_def )
+
+    call feign_formulation_config(transport_only=.false., rotating=.true., &
+                                  eliminate_p=.false., use_moisture=.false., &
+                                  shallow=.false.)
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all( this )
+
+    use deep_baroclinic_wave_mod,       only: deep_baroclinic_wave, evaluate_streamfunction
+    use constants_mod,                  only: pi
+    use planet_config_mod,              only: scaled_radius, p_zero, Rd, scaled_omega
+    implicit none
+
+    class(deep_baroclinic_wave_test_type), intent(inout) :: this
+
+    real(kind=r_def) :: llr(3)
+    real(r_def)      :: exner, theta, rho
+    real(r_def)      :: analytic_exner, analytic_theta, analytic_rho
+    real(r_def)      :: wind(3), analytic_wind(3)
+    real(r_def)      :: psi, analytic_psi
+    real(r_def)      :: A, B, C, tau1, intt
+
+    real(r_def), parameter :: tol = 1.0e-14
+
+    llr = (/ pi/9.0_r_def, 2.0*pi/9.0_r_def, scaled_radius/)
+    call deep_baroclinic_wave(llr(1), llr(2), 0.0_r_def, &
+                              exner, theta, rho, &
+                              wind(1), wind(2), wind(3))    
+
+    analytic_wind(:) = 0.0_r_def
+    @assertEqual(analytic_wind, wind, tol)
+
+    A = 1.0_r_def/0.005_r_def
+    B = 35.0_r_def/66000.0_r_def
+    C = 5.0_r_def/2.0_r_def * (70.0_r_def/74400.0_r_def)
+    tau1 = 1.0_r_def/275.0_r_def + B
+    intt = cos(llr(2))**3 - 3.0_r_def/5.0_r_def*cos(llr(2))**5   
+
+    analytic_exner = 1.0_r_def
+    analytic_theta = 1.0_r_def/(tau1 - C*intt)
+    analytic_rho   = p_zero / (Rd * analytic_theta)
+    @assertEqual(analytic_exner, exner, tol)
+    @assertEqual(analytic_theta, theta, tol)
+    @assertEqual(analytic_rho,   rho,   tol)
+
+    psi = evaluate_streamfunction(llr(1), llr(2), 0.0_r_def)
+    analytic_psi = -1.0_r_def/12.0_r_def
+    @assertEqual(analytic_psi,   psi,   tol) 
+
+  end subroutine test_all
+
+end module deep_baroclinic_wave_mod_test

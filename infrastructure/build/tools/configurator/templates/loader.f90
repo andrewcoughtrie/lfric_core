@@ -1,0 +1,217 @@
+{#- This is the skeleton of the configuration loading module.              -#}
+{#- The Jinja templating library is used to insert the actual code.        -#}
+!------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown,
+! Met Office and NERC 2014.
+! However, it has been created with the help of the GungHo Consortium,
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!------------------------------------------------------------------------------
+! Handles the loading of namelists.
+!
+module {{moduleName}}
+
+  use constants_mod, only : i_native, l_def, str_def, str_max_filename
+  use log_mod,       only : log_scratch_space, log_event, LOG_LEVEL_ERROR
+  use ESMF,          only : ESMF_VM, ESMF_VMGet, ESMF_SUCCESS, &
+                            ESMF_VMGetCurrent, ESMF_VMBroadcast
+{%- if namelists %}
+{{-'\n'}}
+{%-   for listname in namelists %}
+  use {{listname}}_config_mod, only : read_{{listname}}_namelist, {{listname}}_is_loadable, {{listname}}_is_loaded
+{%-   endfor %}
+{%- endif %}
+
+  implicit none
+
+  private
+  public :: read_configuration, ensure_configuration
+
+contains
+
+  ! Reads configuration namelists from a file.
+  !
+  ! [in] filename File holding the namelists.
+  !
+  ! TODO: Assumes namelist tags come at the start of lines.
+  ! TODO: Support "namelist file" namelists which recursively call this
+  !       procedure to load other namelist files.
+  !
+  subroutine read_configuration( filename )
+
+    use io_utility_mod, only : open_file, close_file
+
+    implicit none
+
+    character(*), intent(in) :: filename
+
+    integer(i_native) :: local_rank
+    type(ESMF_VM)     :: vm
+
+    character(str_def), allocatable :: namelists(:)
+    integer(i_native) :: i
+    integer(i_native) :: unit = -1
+    integer(i_native) :: condition
+
+
+    call ESMF_VMGetCurrent( vm=vm, rc=condition )
+    if (condition /= ESMF_SUCCESS) then
+      write(log_scratch_space, "(A)") &
+          "Failed to get VM when trying to read configuration, file: "//filename
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+    call ESMF_VMGet( vm, localPet=local_rank, rc=condition )
+    if (condition /= ESMF_SUCCESS) then
+      write(log_scratch_space, "(A)") &
+          "Failed to query VM when trying to read configuration, file: "//filename
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+    if (local_rank == 0) unit = open_file( filename )
+
+    call get_namelist_names( unit, vm, local_rank, namelists )
+
+    do i = 1, size(namelists)
+      select case (trim(namelists(i)))
+{%- for listname in namelists %}
+        case ('{{listname}}')
+          if ({{listname}}_is_loadable()) then
+            call read_{{listname}}_namelist( unit, vm, local_rank )
+          else
+            write( log_scratch_space, '(A, A, A)' ) &
+                 "Namelist """,                     &
+                 trim(namelists(i)),                &
+                 """ can not be read. Too many instances?"
+            call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+          end if
+{%- endfor %}
+        case default
+          write( log_scratch_space, '(A, A, A, A)' ) &
+               "Unrecognised namelist """,           &
+               trim(namelists(i)),                   &
+               """ found in file ",                  &
+               trim(filename)
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end select
+    end do
+
+    if (local_rank == 0) call close_file( unit )
+    
+  end subroutine read_configuration
+
+  ! Finds names of all namelists present in file.
+  !
+  ! [in] unit File holding namelists.
+  ! [out] names of namelist in file (in order).
+  !
+  ! TODO: Assumes namelist tags are at the start of lines.
+  !
+  subroutine get_namelist_names( unit, vm, local_rank, names )
+  
+    use io_utility_mod, only : read_line
+
+    implicit none
+
+    integer(i_native),  intent(in)                 :: unit
+    type(esmf_vm),      intent(in)                 :: vm
+    integer(i_native),  intent(in)                 :: local_rank
+    character(str_def), intent(inout), allocatable :: names(:)
+
+    character(str_def), allocatable :: names_temp(:)
+    integer(i_native)  :: condition
+    character(str_def) :: buffer
+    logical(l_def)     :: continue_read
+    ! Number of names - technically a scalar but must be defined as a
+    ! single element array to be broadcast-able
+    integer(i_native)  :: namecount(1)
+
+    namecount = 0
+    if (local_rank == 0) then
+      text_line_loop: do
+
+        continue_read = read_line( unit, buffer )
+        if ( .not. continue_read ) exit text_line_loop
+
+        if (buffer(1:1) == '&') then
+          namecount = namecount + 1
+          allocate(names_temp(namecount(1)))
+          if (namecount(1) > 1) then
+            names_temp(1:namecount(1)-1) = names
+          end if
+          names_temp(namecount(1)) = trim(buffer(2:))
+          call move_alloc(names_temp, names)
+        end if
+      end do text_line_loop
+      rewind(unit)
+    end if
+
+    call ESMF_VMBroadcast( vm, namecount, 1, 0, rc=condition )
+    if (condition /= ESMF_SUCCESS) then
+      write(log_scratch_space, "(A)") &
+          "Failed to broadcast number of namelists"
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if    
+
+    if (local_rank /= 0) then
+      allocate(names(namecount(1)))
+    end if
+
+    call ESMF_VMBroadcast( vm, names, namecount(1)*str_def, 0, rc=condition )
+    if (condition /= ESMF_SUCCESS) then
+      write(log_scratch_space, "(A)") &
+          "Failed to broadcast list of namelist names"
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if    
+
+  end subroutine get_namelist_names
+
+  ! Checks that the requested namelists have been loaded.
+  !
+  ! [in]  names List of namelists.
+  ! [out] success_mask Marks corresponding namelists as having failed.
+  !
+  ! [return] Overall success.
+  !
+  function ensure_configuration( names, success_mask )
+
+    implicit none
+
+    character(*),             intent(in)  :: names(:)
+    logical(l_def), optional, intent(out) :: success_mask(:)
+    logical(l_def)                        :: ensure_configuration
+
+    integer(i_native) :: i
+    logical           :: configuration_found = .True.
+
+    if (present(success_mask) &
+        .and. (size(success_mask, 1) /= size(names, 1))) then
+      call log_event( 'Arguments "names" and "success_mask" to function' &
+                      // '"ensure_configuration" are different shapes',  &
+                      LOG_LEVEL_ERROR )
+    end if
+
+    ensure_configuration = .True.
+
+    name_loop: do i = 1, size(names)
+      select case(trim( names(i) ))
+{%- for listname in namelists %}
+        case ('{{listname}}')
+          configuration_found = {{listname}}_is_loaded()
+{%- endfor %}
+        case default
+          write( log_scratch_space, '(A, A, A)' )          &
+               "Tried to ensure unrecognised namelist """, &
+               trim(names(i)),                             &
+               """ was loaded"
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end select
+
+      ensure_configuration = ensure_configuration .and. configuration_found
+
+      if (present(success_mask)) success_mask(i) = configuration_found
+
+    end do name_loop
+
+  end function ensure_configuration
+
+end module {{moduleName}}

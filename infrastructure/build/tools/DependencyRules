@@ -1,0 +1,99 @@
+#!/usr/bin/env python2.7
+# -*- coding: utf-8 -*-
+##############################################################################
+# (c) The copyright relating to this work is owned jointly by the Crown,
+# Met Office and NERC 2014. However, it has been created with the help of the
+# GungHo Consortium, whose members are identified at
+# https://puma.nerc.ac.uk/trac/GungHo/wiki
+##############################################################################
+'''
+Generate a make file snippet holding dependency information about a Fortran
+program.
+
+This snippet may then be "include"ed into other make files.
+'''
+
+from __future__ import print_function;
+
+import argparse
+import os
+import sys
+import traceback
+
+from dependerator import __version__
+import dependerator.database as database
+import dependerator.process  as process
+import utilities.logging  as logging
+from utilities.path import replaceExtension
+
+###############################################################################
+# Entry point
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser( add_help=False, \
+                                      description=__doc__ )
+    parser.add_argument( '-help', '-h', '--help', action='help', \
+                         help='Show this help message and exit' )
+    parser.add_argument( '-version', action='version', \
+                         version='%(prog)s {}'.format( __version__ ) )
+    parser.add_argument( '-verbose', action='store_true', \
+                         help='Provide a running commentry' )
+    parser.add_argument( '-database', metavar='database-file', \
+                         help='Database file to use' )
+    parser.add_argument( '-moduledir', metavar='module-directory', \
+                         help='Fortran module files are here.' \
+                              + 'Defaults to the output directory. ' )
+    parser.add_argument( '-objectdir', metavar='object-directory', \
+                         help='Object files are here. ' \
+                              + 'Defaults to the output directory.' )
+    parser.add_argument( '-moduleobjects', action='store_true', \
+                 help='The compiler puts module information in object files.' )
+    parser.add_argument( 'output', metavar='output-file', \
+                         help='Dependency details are put here' )
+    args = parser.parse_args()
+
+    if args.verbose:
+        logger = logging.PrintLogger( sys.stdout )
+    else:
+        logger = logging.NoLogger()
+
+    if os.path.exists( args.output ):
+        os.unlink( args.output )
+
+    outputDirectory = os.path.dirname( args.output )
+    if outputDirectory and not os.path.exists( outputDirectory ):
+        os.makedirs( outputDirectory )
+
+    if not args.database: args.database = os.path.join( outputDirectory, \
+                                                        dependencies.db )
+    if not args.moduledir: args.moduledir = outputDirectory
+    if not args.objectdir: args.objectdir = outputDirectory
+
+    backend = database.SQLiteDatabase( args.database )
+    fortranStore = database.FortranDependencies( backend )
+    processor = process.FortranProcessor( logger, fortranStore, \
+                                          args.objectdir, args.moduledir )
+
+    fileStore = database.FileDependencies( backend )
+    processor.determineCompileDependencies( fileStore )
+
+    try:
+        with open( args.output, 'w' ) as listFile:
+            print( '# Object dependendencies', file=listFile )
+
+            for filename, potentialPrerequisites in fileStore.getDependencies():
+                if args.moduleobjects:
+                    modulename = ''
+                    prerequisites = [os.path.splitext( prereq )[0] + '.o' \
+                                     for prereq in potentialPrerequisites]
+                else:
+                    modulename = replaceExtension( filename, 'mod' )
+                    prerequisites = potentialPrerequisites
+
+                print( '{} {} : {}'.format( filename, modulename, \
+                                        ' '.join( prerequisites ) ), \
+                    file=listFile )
+    except:
+        os.unlink( args.output )
+        traceback.print_exc( file=sys.stdout )
+        sys.exit(1)

@@ -1,0 +1,109 @@
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown, 
+! Met Office and NERC 2014. 
+! However, it has been created with the help of the GungHo Consortium, 
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+!
+!-------------------------------------------------------------------------------
+module compute_geopotential_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use pFUnit_Mod
+
+  implicit none
+
+  private
+  public :: compute_geopotential_kernel_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: compute_geopotential_kernel_test_type
+    private
+    integer(i_def), allocatable :: map(:)
+    real(r_def),    allocatable :: x(:), y(:), z(:), phi(:), basis(:,:,:)
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type compute_geopotential_kernel_test_type
+
+  integer,parameter :: nlayers = 1, &
+                       ndf     = 1, &
+                       undf    = 1
+
+  real(r_def), parameter :: gravity = 10.0_r_def
+  real(r_def), parameter :: radius  = 6000000_r_def
+  real(r_def), parameter :: omega   = 8.0E-5_r_def
+  real(r_def), parameter :: p_zero  = 100000.0_r_def
+  real(r_def), parameter :: rd      = 300.0_r_def
+  real(r_def), parameter :: cp      = 1000.0_r_def
+  real(r_def), parameter :: scaling = 1.0_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use gungho_feign_config_mod, only : feign_planet_config
+
+    implicit none
+
+    class(compute_geopotential_kernel_test_type), intent(inout) :: this
+
+    call feign_planet_config( gravity=gravity, radius=radius, omega=omega, &
+                              rd=rd, cp=cp, p_zero=p_zero,                 &
+                              scaling_factor=scaling )
+
+    allocate( this%map(ndf), &
+              this%x(undf),  &
+              this%y(undf),  &
+              this%z(undf),  &
+              this%phi(undf) )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(compute_geopotential_kernel_test_type), intent(inout) :: this
+
+    deallocate( this%map, this%x, this%y, this%z, this%phi, this%basis )
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all( this )
+
+    use compute_geopotential_kernel_mod, only : compute_geopotential_code
+
+    implicit none
+
+    class(compute_geopotential_kernel_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-12_r_def
+
+    real(r_def) :: answer
+
+    allocate(this%basis(1,ndf,ndf))
+
+    this%map(1) = 1
+    this%x(1) = 0.0_r_def
+    this%y(1) = 0.0_r_def
+    this%z(1) = radius
+    this%basis(1,1,1) = 1.0_r_def
+
+    call compute_geopotential_code( nlayers,                         &
+                                   this%phi, this%x, this%y, this%z, &
+                                   ndf, undf,                        &
+                                   this%map, ndf, undf, this%map, this%basis )
+
+    answer = radius * gravity
+
+    @assertEqual( answer, this%phi(1), tol )
+
+  end subroutine test_all
+
+end module compute_geopotential_kernel_mod_test
