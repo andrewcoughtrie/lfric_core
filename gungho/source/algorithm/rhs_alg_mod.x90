@@ -105,9 +105,9 @@ contains
                                                   geopotential, qr ) )
   if ( rotating ) &
     call invoke( rotation_kernel_type( rhs_tmp(igh_u), u, chi, qr ) )
-  call invoke(enforce_bc_kernel_type(rhs_tmp(igh_u)) )
   call invoke( matrix_vector_kernel_type( rhs(igh_u), u, mm_w2) )
   call invoke_axpy( alpha_dt, rhs_tmp(igh_u), rhs(igh_u), rhs(igh_u) ) 
+  call invoke(enforce_bc_kernel_type(rhs(igh_u)) )
  
   ! Compute rhs_theta
   call invoke( matrix_vector_kernel_type( rhs(igh_t), theta, mm_wtheta) )

@@ -15,7 +15,7 @@ module solver_mod
 
   use constants_mod,                 only : r_def, str_def, i_def
   use field_mod,                     only : field_type
-  use fs_continuity_mod,             only : W0, W1, W2, W3, Wtheta, fs_name
+  use fs_continuity_mod,             only : W0, W1, W2, W3, Wtheta, W2v, W2h, fs_name
   use function_space_mod,            only : function_space_type
   use log_mod,                   only : log_event,         &
                                         log_scratch_space, &
@@ -24,6 +24,7 @@ module solver_mod
                                         LOG_LEVEL_DEBUG,   &
                                         LOG_LEVEL_TRACE
   use matrix_vector_kernel_mod,  only : matrix_vector_kernel_type
+  use enforce_bc_kernel_mod,     only : enforce_bc_kernel_type
   use operator_mod,              only : operator_type
   use psykal_lite_mod,           only : invoke_inner_prod,              &
                                         invoke_axpy,                    &
@@ -157,6 +158,9 @@ contains
     ! others
     real(kind=r_def)                   :: err,sc_err, init_err
     integer(i_def)                     :: iter
+    integer(i_def)                     :: fs
+
+    fs = lhs%which_function_space()
 
     ! compute the residual this is a global sum to the PSy ---
     call invoke_inner_prod(rhs,rhs,sc_err)
@@ -208,13 +212,16 @@ contains
       call precondition( y, p, preconditioner, mmd )
       call invoke( set_field_scalar(0.0_r_def, v) )
       call invoke( matrix_vector_kernel_type(v, y, mm) )
-
+      if (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) &
+        call invoke( enforce_bc_kernel_type( v ) )
       call invoke_inner_prod(rhs,v,norm)
       alpha = rho/norm
       call invoke_axpy(-alpha,v,res,s)
       call precondition( z, s, preconditioner, mmd )
       call invoke( set_field_scalar(0.0_r_def, t) )
       call invoke( matrix_vector_kernel_type(t, z, mm) )
+      if (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) &
+        call invoke( enforce_bc_kernel_type( t ) )
 
       call invoke_inner_prod(t,t,tt)
       call invoke_inner_prod(t,s,ts)
@@ -281,6 +288,9 @@ contains
     ! Others
     real(kind=r_def)                   :: err,sc_err, init_err
     integer(i_def)                     :: iter
+    integer(i_def)                     :: fs
+
+    fs = lhs%which_function_space()
 
     call invoke_inner_prod( rhs, rhs, rs_old )
 
@@ -295,6 +305,8 @@ contains
 
     call invoke( set_field_scalar(0.0_r_def, lhs) )
     call invoke( matrix_vector_kernel_type(Ap,lhs,mm) )
+    if (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) &
+      call invoke( enforce_bc_kernel_type( Ap ) )
 
     call invoke_minus_field_data( rhs, Ap, res )
     call precondition( z, res, preconditioner, mmd )
@@ -319,6 +331,8 @@ contains
     do iter = 1, maximum_iterations
        call invoke( set_field_scalar(0.0_r_def, Ap) )
        call invoke( matrix_vector_kernel_type(Ap, p, mm) )
+       if (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) &
+          call invoke( enforce_bc_kernel_type( Ap ) )
 
       call invoke_inner_prod( p, Ap, rs_new )
       alpha = rs_old/rs_new
@@ -384,6 +398,9 @@ contains
   integer(i_def) :: iter
 
   type(function_space_type), pointer :: rhs_fs => null()
+  integer(i_def)                     :: fs
+
+  fs = lhs%which_function_space()
 
   rhs_fs => rhs%get_function_space()
 
@@ -399,6 +416,8 @@ contains
   do iter = 1,maximum_iterations
     call invoke( set_field_scalar(0.0_r_def, Ax) )
     call invoke( matrix_vector_kernel_type(Ax, lhs, mm) )
+    if (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) &
+      call invoke( enforce_bc_kernel_type( Ax ) )
 
     call invoke_minus_field_data( rhs, Ax, res )
     call invoke_divide_field( res, diagonal, res )
@@ -441,6 +460,9 @@ contains
 
     type(function_space_type), pointer :: rhs_fs => null()
     integer(i_def) :: precond_option, postcond_option
+    integer(i_def) :: fs
+
+    fs = lhs%which_function_space()
 
     precond_option  = solver_preconditioner_none
     postcond_option = preconditioner
@@ -470,6 +492,8 @@ contains
     end if
     call invoke( set_field_scalar(0.0_r_def, Ax) )
     call invoke( matrix_vector_kernel_type(Ax, lhs, mm) )
+    if (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) &
+      call invoke( enforce_bc_kernel_type( Ax ) )
 
     call invoke_minus_field_data( rhs, Ax, r )
 
@@ -492,7 +516,9 @@ contains
         call precondition( w, v(j), postcond_option, mmd )
         call invoke( set_field_scalar(0.0_r_def, s) )
         call invoke( matrix_vector_kernel_type(s, w, mm) )
-
+        if (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) &
+          call invoke( enforce_bc_kernel_type( s ) )
+ 
         call precondition( w, s, precond_option, mmd )
 
         do k = 1, j
@@ -540,6 +566,8 @@ contains
 ! Check for convergence
       call invoke( set_field_scalar(0.0_r_def, Ax) )
       call invoke( matrix_vector_kernel_type(Ax, lhs, mm) )
+      if (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) &
+        call invoke( enforce_bc_kernel_type( Ax ) )
       call invoke_minus_field_data( rhs, Ax, r )
 
       call invoke_inner_prod(r, r, err )
@@ -602,6 +630,9 @@ contains
     integer(i_def)                     :: iter, m, n
 
     type(function_space_type), pointer :: rhs_fs => null()
+    integer(i_def)                     :: fs
+
+    fs = lhs%which_function_space()
 
     rhs_fs =>  rhs%get_function_space()
 
@@ -626,6 +657,8 @@ contains
     end if
     call invoke( set_field_scalar(0.0_r_def, Ax) )
     call invoke( matrix_vector_kernel_type(Ax, lhs, mm) )
+    if (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) &
+      call invoke( enforce_bc_kernel_type( Ax ) )
 
     call invoke_minus_field_data( rhs, Ax, r )
 
@@ -635,6 +668,8 @@ contains
         call precondition( s(m), r, preconditioner, mmd )
         call invoke( set_field_scalar(0.0_r_def, v(m)) )
         call invoke( matrix_vector_kernel_type(v(m), s(m), mm) )
+        if (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) &
+          call invoke( enforce_bc_kernel_type( v(m) ) )
 
 
         do n = 1, m-1

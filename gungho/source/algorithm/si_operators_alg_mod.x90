@@ -125,7 +125,6 @@ subroutine compute_si_operators(ref_state)
   use multiplicity_kernel_mod,         only: multiplicity_kernel_type
   use finite_element_config_mod,       only: element_order, wtheta_on
   use function_space_mod,              only: function_space_type
-  use matrix_vector_kernel_mod,        only: matrix_vector_kernel_type
   use runtime_constants_mod,           only: get_coordinates, &
                                              get_div, &
                                              get_mass_matrix, &
