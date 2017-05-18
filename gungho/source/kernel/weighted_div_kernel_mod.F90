@@ -27,12 +27,12 @@ implicit none
 type, public, extends(kernel_type) :: weighted_div_kernel_type
   private
   type(arg_type) :: meta_args(2) = (/                                  &
-       arg_type(GH_OPERATOR, GH_WRITE, W3, W2),                        &
+       arg_type(GH_OPERATOR, GH_WRITE, W2, W3),                        &
        arg_type(GH_FIELD,    GH_READ,  ANY_SPACE_9)                    &
        /)
   type(func_type) :: meta_funcs(3) = (/                                &
-       func_type(W3, GH_BASIS),                                        &
        func_type(W2, GH_BASIS, GH_DIFF_BASIS),                         &
+       func_type(W3, GH_BASIS),                                        &
        func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                 &
        /)
   integer :: iterates_over = CELLS
@@ -83,8 +83,8 @@ end function weighted_div_kernel_constructor
 subroutine weighted_div_code(cell, nlayers, ncell_3d,             &
                              div,                                 &
                              theta,                               &
-                             ndf_w3, basis_w3,                    &
                              ndf_w2, basis_w2, diff_basis_w2,     &
+                             ndf_w3, basis_w3,                    &
                              ndf_wtheta, undf_wtheta, map_wtheta, &
                              basis_wtheta, diff_basis_wtheta,     &
                              nqp_h, nqp_v, wqp_h, wqp_v )
@@ -102,7 +102,7 @@ subroutine weighted_div_code(cell, nlayers, ncell_3d,             &
   real(kind=r_def), dimension(1,ndf_wtheta,nqp_h,nqp_v),   intent(in) :: basis_wtheta
   real(kind=r_def), dimension(3,ndf_wtheta,nqp_h,nqp_v),   intent(in) :: diff_basis_wtheta
 
-  real(kind=r_def), dimension(ndf_w3,ndf_w2,ncell_3d), intent(inout) :: div
+  real(kind=r_def), dimension(ndf_w2,ndf_w3,ncell_3d), intent(inout) :: div
   real(kind=r_def), dimension(undf_wtheta),            intent(in)    :: theta
   real(kind=r_def), dimension(nqp_h),                  intent(in)    :: wqp_h
   real(kind=r_def), dimension(nqp_v),                  intent(in)    :: wqp_v
@@ -120,24 +120,23 @@ subroutine weighted_div_code(cell, nlayers, ncell_3d,             &
     do df = 1,ndf_wtheta
       theta_e(df) = theta(map_wtheta(df) + k)
     end do
-    do df2 = 1, ndf_w2
-      do df3 = 1, ndf_w3
-        div(df3,df2,ik) = 0.0_r_def
-        do qp2 = 1, nqp_v
-          do qp1 = 1, nqp_h
-            theta_quad         = 0.0_r_def
-            grad_theta_quad(:) = 0.0_r_def
-            do df = 1, ndf_wtheta
-              theta_quad = theta_quad                                      &
-                         + theta_e(df)*basis_wtheta(1,df,qp1,qp2)
-              grad_theta_quad(:) = grad_theta_quad(:) &
-                                 + theta_e(df)*diff_basis_wtheta(:,df,qp1,qp2)
-            end do
+    div(:,:,ik) = 0.0_r_def
+    do qp2 = 1, nqp_v
+      do qp1 = 1, nqp_h
+        theta_quad         = 0.0_r_def
+        grad_theta_quad(:) = 0.0_r_def
+        do df = 1, ndf_wtheta
+          theta_quad = theta_quad                                      &
+                     + theta_e(df)*basis_wtheta(1,df,qp1,qp2)
+          grad_theta_quad(:) = grad_theta_quad(:) &
+                             + theta_e(df)*diff_basis_wtheta(:,df,qp1,qp2)
+        end do
+        do df3 = 1, ndf_w3
+          integrand = wqp_h(qp1)*wqp_v(qp2)*basis_w3(1,df3,qp1,qp2)
+          do df2 = 1, ndf_w2
             div_theta_v = diff_basis_w2(1,df2,qp1,qp2)*theta_quad &
                         + dot_product(basis_w2(:,df2,qp1,qp2),grad_theta_quad)
-            integrand = wqp_h(qp1)*wqp_v(qp2)*basis_w3(1,df3,qp1,qp2) &
-                       *div_theta_v
-            div(df3,df2,ik) = div(df3,df2,ik) + integrand
+            div(df2,df3,ik) = div(df2,df3,ik) + integrand*div_theta_v
           end do
         end do
       end do

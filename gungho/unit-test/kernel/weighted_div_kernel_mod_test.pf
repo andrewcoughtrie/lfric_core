@@ -93,7 +93,7 @@ contains
     this%w2_fs => function_space_collection%get_fs( this%mesh_id, element_order, W2 )
     this%w3_fs => function_space_collection%get_fs( this%mesh_id, element_order, W3 )
 
-    this%div = operator_type(this%w3_fs,this%w2_fs)
+    this%div = operator_type(this%w2_fs,this%w3_fs)
 
     this%theta = field_type( vector_space = this%w0_fs )
     theta_p    = this%theta%get_proxy()
@@ -106,14 +106,14 @@ contains
 
     div_p = this%div%get_proxy()   
  
-    ndf_w2  = div_p%fs_from%get_ndf()
-    dim_w2 = div_p%fs_from%get_dim_space( )
-    diff_dim_w2 = div_p%fs_from%get_dim_space_diff( )
+    ndf_w2  = div_p%fs_to%get_ndf()
+    dim_w2 = div_p%fs_to%get_dim_space( )
+    diff_dim_w2 = div_p%fs_to%get_dim_space_diff( )
     allocate(this%diff_basis_w2(diff_dim_w2 ,ndf_w2, nqp_h, nqp_v) )
     allocate(this%basis_w2(dim_w2 ,ndf_w2, nqp_h, nqp_v) )
 
-    ndf_w3 = div_p%fs_to%get_ndf()
-    dim_w3 = div_p%fs_to%get_dim_space( )
+    ndf_w3 = div_p%fs_from%get_ndf()
+    dim_w3 = div_p%fs_from%get_dim_space( )
     allocate(this%basis_w3(dim_w3, ndf_w3, nqp_h, nqp_v) )
 
   end subroutine setUp
@@ -183,15 +183,15 @@ contains
     call theta_p%vspace%compute_diff_basis_function(                    &
          this%diff_basis_w0,ndf_w0, nqp_h, nqp_v, xp, zp )
 
-    nlayers = div_p%fs_from%get_nlayers()
-    ndf_w2  = div_p%fs_from%get_ndf()
-    call div_p%fs_from%compute_basis_function(                     &
+    nlayers = div_p%fs_to%get_nlayers()
+    ndf_w2  = div_p%fs_to%get_ndf()
+    call div_p%fs_to%compute_basis_function(                     &
          this%basis_w2, ndf_w2, nqp_h, nqp_v, xp, zp ) 
-    call div_p%fs_from%compute_diff_basis_function(                     &
+    call div_p%fs_to%compute_diff_basis_function(                     &
          this%diff_basis_w2, ndf_w2, nqp_h, nqp_v, xp, zp ) 
 
-    ndf_w3 = div_p%fs_to%get_ndf()
-    call div_p%fs_to%compute_basis_function(                            &
+    ndf_w3 = div_p%fs_from%get_ndf()
+    call div_p%fs_from%compute_basis_function(                            &
          this%basis_w3, ndf_w3, nqp_h, nqp_v, xp, zp ) 
 
     cell = 1
@@ -203,11 +203,11 @@ contains
                             div_p%ncell_3d,                    &
                             div_p%local_stencil,               &
                             theta_p%data,                      &
-                            ndf_w3,                            &
-                            this%basis_w3,                     &
                             ndf_w2,                            &
                             this%basis_w2,                     &
                             this%diff_basis_w2,                &
+                            ndf_w3,                            &
+                            this%basis_w3,                     &
                             ndf_w0,                            &
                             undf_w0,                           &
                             map_w0,                            &
@@ -220,7 +220,7 @@ contains
                             )
 
     call div_operator(answer)
-    @assertEqual(answer, div_p%local_stencil(:, :, 1 ), tol)
+    @assertEqual(answer, transpose(div_p%local_stencil(:, :, 1 )), tol)
 
   end subroutine test_all
 

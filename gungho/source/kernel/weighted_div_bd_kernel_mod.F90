@@ -37,12 +37,12 @@ module weighted_div_bd_kernel_mod
   type, public, extends(kernel_type) :: weighted_div_bd_kernel_type
     private
     type(arg_type) :: meta_args(2) = (/                               &
-       arg_type(GH_OPERATOR, GH_INC,  W3, W2),                        &
+       arg_type(GH_OPERATOR, GH_INC,  W2, W3),                        &
        arg_type(GH_FIELD,    GH_READ, Wtheta)                         &
       /)
     type(func_type) :: meta_funcs(3) = (/                             &
-       func_type(W3, GH_BASIS),                                       &
        func_type(W2, GH_BASIS),                                       &
+       func_type(W3, GH_BASIS),                                       &
        func_type(Wtheta, GH_BASIS)                                    &
       /)
     integer :: iterates_over = CELLS
@@ -111,7 +111,7 @@ contains
     real(kind=r_def), dimension(4,1,ndf_w3,nqp_h_1d,nqp_v), intent(in)     :: w3_basis_face
     real(kind=r_def), dimension(4,1,ndf_wtheta,nqp_h_1d,nqp_v), intent(in) :: wtheta_basis_face
 
-    real(kind=r_def), dimension(ndf_w3,ndf_w2,ncell_3d), intent(inout) :: div
+    real(kind=r_def), dimension(ndf_w2,ndf_w3,ncell_3d), intent(inout) :: div
     real(kind=r_def), dimension(undf_wtheta), intent(in)    :: theta
 
     real(kind=r_def), dimension(nqp_v), intent(in)      ::  wqp_v
@@ -139,26 +139,26 @@ contains
           theta_e(df)      = theta(stencil_wtheta_map(df, 1)      + k)
           theta_next_e(df) = theta(stencil_wtheta_map(df, face+1) + k)
         end do
-        do df2 = 1, ndf_w2
-          do df3 = 1, ndf_w3
-            do qp2 = 1, nqp_v
-              do qp1 = 1, nqp_h_1d
-                theta_at_fquad      = 0.0_r_def 
-                theta_next_at_fquad = 0.0_r_def               
-                do df = 1, ndf_wtheta
-                  theta_at_fquad       = theta_at_fquad      + theta_e(df)     *wtheta_basis_face(face,1,df,qp1,qp2)
-                  theta_next_at_fquad  = theta_next_at_fquad + theta_next_e(df)*wtheta_basis_face(face_next,1,df,qp1,qp2)
-                end do                
+        do qp2 = 1, nqp_v
+          do qp1 = 1, nqp_h_1d
+            theta_at_fquad      = 0.0_r_def 
+            theta_next_at_fquad = 0.0_r_def               
+            do df = 1, ndf_wtheta
+              theta_at_fquad       = theta_at_fquad      + theta_e(df)     *wtheta_basis_face(face,1,df,qp1,qp2)
+              theta_next_at_fquad  = theta_next_at_fquad + theta_next_e(df)*wtheta_basis_face(face_next,1,df,qp1,qp2)
+            end do                
+            do df3 = 1, ndf_w3
+              do df2 = 1, ndf_w2
                 v  = w2_basis_face(face,:,df2,qp1,qp2)
                 this_bd_term =  dot_product(v, out_face_normal(:,face))*theta_at_fquad
                 next_bd_term = -dot_product(v, out_face_normal(:,face))*theta_next_at_fquad
                 integrand = wqp_v(qp1)*wqp_v(qp2)*w3_basis_face(face,1,df3,qp1,qp2) &
                              * 0.5_r_def*(this_bd_term + next_bd_term)
-                div(df3,df2,ik) = div(df3,df2,ik) - integrand
-              end do ! qp1
-            end do ! qp2
-          end do ! df3
-        end do ! df2
+                div(df2,df3,ik) = div(df2,df3,ik) - integrand
+              end do ! df2
+            end do ! df3
+          end do ! qp1
+        end do ! qp2
       end do ! faces
     end do ! layers
 

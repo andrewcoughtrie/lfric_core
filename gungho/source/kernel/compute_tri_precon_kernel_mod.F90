@@ -30,11 +30,12 @@ implicit none
 !-------------------------------------------------------------------------------
 type, public, extends(kernel_type) :: compute_tri_precon_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                                  &
+  type(arg_type) :: meta_args(5) = (/                                  &
        arg_type(GH_FIELD*3,  GH_WRITE, W3),                            &
        arg_type(GH_FIELD,    GH_READ,  ANY_SPACE_9),                   &
        arg_type(GH_FIELD,    GH_READ,  W3),                            &
-       arg_type(GH_FIELD*3,  GH_READ,  ANY_SPACE_1)                    &
+       arg_type(GH_FIELD*3,  GH_READ,  ANY_SPACE_1),                   &
+       arg_type(GH_OPERATOR, GH_READ,  W3, W3)                         &
        /)
   type(func_type) :: meta_funcs(1) = (/                                &
        func_type(ANY_SPACE_1, GH_DIFF_BASIS)                           &
@@ -65,7 +66,8 @@ type(compute_tri_precon_kernel_type) function compute_tri_precon_constructor() r
 end function compute_tri_precon_constructor
   
 !> @brief Compute the tridiagonal vertical only terms for the helmholtz matrix 
-!!        for lowest order elements 
+!!        for lowest order elements
+!! @param[in] cell  Id of 2d cell
 !! @param[in] nlayers Number of layers.
 !! @param[out] tri_0 Diagonal of the tridiagonal matrix
 !! @param[out] tri_plus Upper diagonal of the tridiagonal matrix
@@ -75,6 +77,8 @@ end function compute_tri_precon_constructor
 !! @param[in]  chi1 First coordinate component
 !! @param[in]  chi2 Second coordinate component
 !! @param[in]  chi3 Third coordinate component
+!! @param[in]  ncell_3d total number of cells
+!! @param[in]  m3_inv Inverse mass matrix for w3 space
 !! @param[in]  ndf_w3 Number of degrees of freedom per cell for the operator space.
 !! @param[in]  undf_w3 Number of unique degrees of freedum for the w3 space
 !! @param[in]  map_w3 Dofmap for the cell at the base of the column.
@@ -82,10 +86,11 @@ end function compute_tri_precon_constructor
 !! @param[in]  undf_wtheta Number of unique degrees of freedum for the wtheta space
 !! @param[in]  map_wtheta Dofmap for the cell at the base of the column.
 !! @param[in]  diff_basis_chi Differential basis functions evaluated at W3 nodal points.
-subroutine compute_tri_precon_code(nlayers,                             &
+subroutine compute_tri_precon_code(cell, nlayers,                       &
                                    tri_0, tri_plus, tri_minus,          &
                                    theta, rho,                          &
                                    chi1, chi2, chi3,                    &
+                                   ncell_3d, m3_inv,                    &
                                    ndf_w3, undf_w3, map_w3,             &
                                    ndf_wtheta, undf_wtheta, map_wtheta, &
                                    ndf_chi, undf_chi, map_chi,          &
@@ -99,6 +104,7 @@ subroutine compute_tri_precon_code(nlayers,                             &
   integer(kind=i_def), intent(in) :: ndf_w3, ndf_wtheta, ndf_chi
   integer(kind=i_def), intent(in) :: undf_w3, undf_wtheta, undf_chi
   integer(kind=i_def), intent(in) :: nlayers
+  integer(kind=i_def), intent(in) :: cell, ncell_3d
 
   integer, dimension(ndf_chi), intent(in) :: map_chi
   integer, dimension(ndf_wtheta),  intent(in) :: map_wtheta
@@ -113,10 +119,12 @@ subroutine compute_tri_precon_code(nlayers,                             &
   real(kind=r_def), dimension(undf_chi),     intent(in)  :: chi2
   real(kind=r_def), dimension(undf_chi),     intent(in)  :: chi3
 
+  real(kind=r_def), dimension(ndf_w3,ndf_w3,ncell_3d), intent(in)  :: m3_inv
+
   real(kind=r_def), dimension(3,ndf_chi,ndf_w3,1), intent(in) :: diff_basis_chi
 
   !Internal variables
-  integer(kind=i_def)                        :: k, kp, km, df
+  integer(kind=i_def)                        :: k, kp, km, df, ik
   real(kind=r_def)                           :: theta_ref, dpdz, theta_m, theta_p, rho_p, rho_m
   real(kind=r_def)                           :: kappa_term
   real(kind=r_def), dimension(0:nlayers-1)   :: exner, dj
@@ -205,6 +213,11 @@ subroutine compute_tri_precon_code(nlayers,                             &
     tri_plus(map_w3(1)+k)  = alpha*dt*Pw(k+1)*rho_p/(rho(map_w3(1)+k)*dj(k)) - 0.5_r_def*Pt(k+1)/theta_p
     tri_minus(map_w3(1)+k) = alpha*dt*Pw(k)  *rho_m/(rho(map_w3(1)+k)*dj(k)) + 0.5_r_def*Pt(k)  /theta_m
     tri_0(map_w3(1)+k) = kappa_term/exner(k) - tri_plus(map_w3(1)+k) - tri_minus(map_w3(1)+k)
+
+    ik = (cell-1)*nlayers + k + 1
+    tri_plus (map_w3(1)+k)  = tri_plus (map_w3(1)+k)*m3_inv(1,1,ik)
+    tri_minus(map_w3(1)+k)  = tri_minus(map_w3(1)+k)*m3_inv(1,1,ik)
+    tri_0    (map_w3(1)+k)  = tri_0    (map_w3(1)+k)*m3_inv(1,1,ik)
   end do
 
 end subroutine compute_tri_precon_code

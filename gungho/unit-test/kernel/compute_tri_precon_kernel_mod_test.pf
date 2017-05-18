@@ -182,8 +182,9 @@ contains
     integer                   :: element_order
     integer, pointer          :: map_w3(:), map_w0(:) => null()
     real(kind=r_def), pointer :: nodes_w3(:,:) => null()
+    type(field_proxy_type)    :: rho_proxy, theta_proxy, A0_proxy, AM_proxy, AP_proxy
 
-    type(field_proxy_type)  :: rho_proxy, theta_proxy, A0_proxy, AM_proxy, AP_proxy
+    real(kind=r_def), allocatable :: m3_inv(:,:,:)
 
     ! Make a coordinate field with a function space
     do i = 1,3
@@ -238,7 +239,9 @@ contains
     rho_proxy%data(:) = 1.5_r_def
     theta_proxy%data(:) = 300.0_r_def
 
-    call compute_tri_precon_code( nlayers,                                   &
+    allocate( m3_inv(1,1,cell*nlayers) )
+    m3_inv(:,:,:) = 2.0_r_def
+    call compute_tri_precon_code( cell, nlayers,                             &
                                   A0_proxy%data,                             &
                                   AP_proxy%data,                             &
                                   Am_proxy%data,                             &
@@ -247,6 +250,8 @@ contains
                                   chi_p(1)%data,                             &
                                   chi_p(2)%data,                             &
                                   chi_p(3)%data,                             &
+                                  cell*nlayers,                              &
+                                  m3_inv,                                    &
                                   ndf_w3, undf_w3, map_w3,                   &
                                   ndf_w0, undf_w0, map_w0,                   &
                                   ndf_w0, undf_w0, map_w0,                   &
@@ -259,13 +264,13 @@ contains
     k = nlayers - 1
     @assertEqual(answer, AP_proxy%data(map_w3(1)+k), tol)
     
-    answer = - (alpha*dt/dz)**2*cp*theta_proxy%data(map_w0(1))   
+    answer = - (alpha*dt/dz)**2*cp*theta_proxy%data(map_w0(1))*m3_inv(1,1,1)
     k = 1
     @assertEqual(answer, AP_proxy%data(map_w3(1)+k), tol)
     @assertEqual(answer, AM_proxy%data(map_w3(1)+k), tol)
     
     exner = calc_exner_pointwise(rho_proxy%data(1), theta_proxy%data(1))
-    answer = (1.0_r_def- kappa)/kappa * 1.0_r_def/exner - 2.0_r_def*answer
+    answer = ((1.0_r_def- kappa)/kappa * 1.0_r_def/exner*m3_inv(1,1,1) - 2.0_r_def*answer)
     @assertEqual(answer, A0_proxy%data(map_w3(1)+k), tol)
 
   end subroutine test_all

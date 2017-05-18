@@ -11,7 +11,7 @@ module compound_operator_kernel_mod
 use constants_mod,           only: r_def, i_def
 use kernel_mod,              only: kernel_type
 use argument_mod,            only: arg_type, func_type,            &
-                                   GH_OPERATOR,                    &
+                                   GH_OPERATOR, GH_FIELD, GH_REAL, &
                                    GH_READ, GH_WRITE,              &
                                    ANY_SPACE_1, ANY_SPACE_2,       &
                                    CELLS
@@ -23,11 +23,13 @@ implicit none
 
 type, public, extends(kernel_type) :: compound_operator_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                                  &
+  type(arg_type) :: meta_args(6) = (/                                  &
        arg_type(GH_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2),      &
        arg_type(GH_OPERATOR, GH_READ,  ANY_SPACE_1, ANY_SPACE_1),      &
        arg_type(GH_OPERATOR, GH_READ,  ANY_SPACE_1, ANY_SPACE_1),      &
-       arg_type(GH_OPERATOR, GH_READ,  ANY_SPACE_1, ANY_SPACE_2)       &
+       arg_type(GH_OPERATOR, GH_READ,  ANY_SPACE_1, ANY_SPACE_2),      &
+       arg_type(GH_FIELD,    GH_READ,  ANY_SPACE_2),                   &
+       arg_type(GH_REAL,     GH_READ)                                  &
        /)
   integer :: iterates_over = CELLS
 
@@ -65,8 +67,14 @@ end function compound_operator_kernel_constructor
 !! @param[in] mass_matrix1 First mass matrix
 !! @param[in] mass_matrix2 Second mass matrix
 !! @param[in] differential_matrix Third operator
+!! @param[in] field weighting field
+!! @param[in] tau scalar weighting
 !! @param[in] ndf1 Number of dofs per cell for space 1
 !! @param[in] ndf2 Number of dofs per cell for space 2
+!! @param[in] undf2 total Number of dofs per cell for space 2
+!! @param[in] map2 dofmap for space 2
+
+
 subroutine compound_operator_kernel_code(cell, nlayers, &
                                          ncell_3d_1,  &
                                          compound_operator, &
@@ -76,27 +84,35 @@ subroutine compound_operator_kernel_code(cell, nlayers, &
                                          mass_matrix2, & 
                                          ncell_3d_4,  &
                                          differential_matrix, &
-                                         ndf1, ndf2)
+                                         field, &
+                                         tau, &
+                                         ndf1, ndf2, undf2, map2)
   implicit none
   !Arguments
   integer(kind=i_def),                     intent(in) :: cell
   integer(kind=i_def),                     intent(in) :: nlayers
   integer(kind=i_def),                     intent(in) :: ncell_3d_1, ncell_3d_2, ncell_3d_3, ncell_3d_4
-  integer(kind=i_def),                     intent(in) :: ndf1, ndf2
+  integer(kind=i_def),                     intent(in) :: ndf1, ndf2, undf2
+  integer(kind=i_def), dimension(ndf2),    intent(in) :: map2
+
 
   real(kind=r_def), dimension(ndf1,ndf2,ncell_3d_1), intent(inout) :: compound_operator
-  real(kind=r_def), dimension(ndf1,ndf1,ncell_3d_2), intent(inout) :: mass_matrix1
-  real(kind=r_def), dimension(ndf1,ndf1,ncell_3d_3), intent(inout) :: mass_matrix2
-  real(kind=r_def), dimension(ndf1,ndf2,ncell_3d_4), intent(inout) :: differential_matrix
-
+  real(kind=r_def), dimension(ndf1,ndf1,ncell_3d_2), intent(in)    :: mass_matrix1
+  real(kind=r_def), dimension(ndf1,ndf1,ncell_3d_3), intent(in)    :: mass_matrix2
+  real(kind=r_def), dimension(ndf1,ndf2,ncell_3d_4), intent(in)    :: differential_matrix
+  real(kind=r_def), dimension(undf2),                intent(in)    :: field
+  real(kind=r_def),                                  intent(in)    :: tau
   !Internal variables
-  integer(kind=i_def)                          :: k, ik
+  integer(kind=i_def)                     :: k, ik, df
+  real(kind=r_def),  dimension(ndf1,ndf2) :: d
 
   do k = 0, nlayers - 1
     ik = k + 1 + (cell-1)*nlayers
-    compound_operator(:,:,ik) = matmul(mass_matrix1(:,:,ik), &
-                                       matmul(mass_matrix2(:,:,ik),&
-                                              differential_matrix(:,:,ik)))
+    d = matmul(mass_matrix1(:,:,ik),matmul(mass_matrix2(:,:,ik),&
+                                          differential_matrix(:,:,ik)))
+    do df = 1,ndf2
+      compound_operator(:,df,ik) = tau*d(:,df)*field(map2(df)+k)
+    end do
   end do 
 end subroutine compound_operator_kernel_code
 

@@ -319,7 +319,7 @@ contains
                set_field_scalar(0.0_r_def, lhs(igh_t)) )
   ! L_u
   call invoke( matrix_vector_kernel_type(lhs(igh_u), theta, p2theta), &
-               transpose_matrix_vector_kernel_type(lhs(igh_u), exner, div_star), &
+               matrix_vector_kernel_type(lhs(igh_u), exner, div_star), &
                matrix_vector_kernel_type(lhs_tmp(igh_u), u, mm_w2) )
   call invoke_inc_axpy(-tau_dt*cp, lhs(igh_u), lhs_tmp(igh_u))
   call invoke( enforce_bc_kernel_type( lhs(igh_u) ) )

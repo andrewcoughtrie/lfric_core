@@ -22,6 +22,8 @@ module si_operators_alg_mod
   implicit none
   private
 
+  real(kind=r_def),    private, parameter :: tau_r = 0.5_r_def
+
   ! Variables private to this module that can only be accessed by public
   ! functions returning pointers to them 
   type(operator_type), target :: m3_rho_star
@@ -82,7 +84,7 @@ subroutine create_si_operators(mesh_id)
   m3_rho_star       = operator_type( w3_fs, w3_fs )
   m3_exner_star     = operator_type( w3_fs, w3_fs )
   m3_exner_star_inv = operator_type( w3_fs, w3_fs )
-  div_star          = operator_type( w3_fs, w2_fs )
+  div_star          = operator_type( w2_fs, w3_fs )
   p2theta           = operator_type( w2_fs, wt_fs )
   ptheta2           = operator_type( wt_fs, w2_fs )
   p3theta           = operator_type( w3_fs, wt_fs )
@@ -118,10 +120,11 @@ subroutine compute_si_operators(ref_state)
   use compound_operator_kernel_mod,    only: compound_operator_kernel_type
   use psykal_lite_mod,                 only: invoke_sample_flux_kernel,                  &
                                              invoke_compute_tri_precon_kernel,           &
-                                             invoke_divide_field_data,                   &
+                                             invoke_inc_X_times_Y,                       &
                                              invoke_weighted_div_bd_kernel_type,         &
                                              invoke_weighted_proj_2theta_bd_kernel_type, &
-                                             invoke_weighted_proj_theta2_bd_kernel_type
+                                             invoke_weighted_proj_theta2_bd_kernel_type, &
+                                             invoke_raise_field
   use multiplicity_kernel_mod,         only: multiplicity_kernel_type
   use finite_element_config_mod,       only: element_order, wtheta_on
   use function_space_mod,              only: function_space_type
@@ -179,7 +182,6 @@ subroutine compute_si_operators(ref_state)
     call invoke_weighted_proj_2theta_bd_kernel_type(p2theta, theta, rho, qr)
   end if
   call invoke( weighted_proj_3theta_kernel_type(p3theta, theta, chi, qr) )
-  call invoke( compound_operator_kernel_type(compound_div, m3_rho_star, m3_inv, div) )
 
   ! Compute rho^ref at u nodal points
   u_fs => ref_state(igh_u)%get_function_space()
@@ -193,17 +195,20 @@ subroutine compute_si_operators(ref_state)
   call invoke( multiplicity_kernel_type(w2_multiplicity) )
   call invoke_sample_flux_kernel( rho_at_u, ones, w2_multiplicity, rho)
 
+  call invoke( compound_operator_kernel_type(compound_div, m3_rho_star, m3_inv, div, &
+                                             rho_at_u, tau_r) )
 
   ! compute terms for tridiagonal preconditioner
   if ( si_pressure_preconditioner == solver_si_pressure_preconditioner_tridiagonal ) then
-    call invoke_compute_tri_precon_kernel(tri_precon, theta, rho, chi)
+    call invoke_compute_tri_precon_kernel(tri_precon, theta, rho, chi, m3_inv)
   end if
   if ( normalise ) then
     if ( si_pressure_preconditioner == solver_si_pressure_preconditioner_tridiagonal) then
       Helm_diag = tri_precon(1)
-      call invoke_divide_field_data(tri_precon(1), Helm_diag)
-      call invoke_divide_field_data(tri_precon(2), Helm_diag)
-      call invoke_divide_field_data(tri_precon(3), Helm_diag)
+      call invoke_raise_field(Helm_diag, -1_i_def)
+      call invoke_inc_X_times_Y(tri_precon(1), Helm_diag)
+      call invoke_inc_X_times_Y(tri_precon(2), Helm_diag)
+      call invoke_inc_X_times_Y(tri_precon(3), Helm_diag)
     else
       call invoke( set_field_scalar(1.0_r_def, Helm_diag) )
     end if

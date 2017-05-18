@@ -87,7 +87,7 @@ subroutine dg_matrix_vector_code(cell,        &
   integer                           :: df, k, ik 
   real(kind=r_def), dimension(ndf2) :: x_e
   real(kind=r_def), dimension(ndf1) :: lhs_e
- 
+
   do k = 0, nlayers-1
     do df = 1, ndf2  
       x_e(df) = x(map2(df)+k)
@@ -98,7 +98,6 @@ subroutine dg_matrix_vector_code(cell,        &
        lhs(map1(df)+k) = lhs_e(df) 
     end do
   end do
- 
 end subroutine dg_matrix_vector_code
 
 end module dg_matrix_vector_kernel_mod

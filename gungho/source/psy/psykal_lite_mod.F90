@@ -1028,12 +1028,12 @@ contains
 
       allocate(xp_f(nfaces_h, nqp_h_1d, 2))
 
-      ndf_w2      = div_star_proxy%fs_from%get_ndf( )
-      dim_w2      = div_star_proxy%fs_from%get_dim_space( )
+      ndf_w2      = div_star_proxy%fs_to%get_ndf( )
+      dim_w2      = div_star_proxy%fs_to%get_dim_space( )
       allocate(basis_w2_face(nfaces_h,dim_w2,ndf_w2,nqp_h_1d,nqp_v))
 
-      ndf_w3  = div_star_proxy%fs_to%get_ndf( )
-      dim_w3  = div_star_proxy%fs_to%get_dim_space( )
+      ndf_w3  = div_star_proxy%fs_from%get_ndf( )
+      dim_w3  = div_star_proxy%fs_from%get_dim_space( )
       allocate(basis_w3_face(nfaces_h,dim_w3,ndf_w3,nqp_h_1d,nqp_v))
 
       ndf_wtheta      = theta_proxy%vspace%get_ndf( )
@@ -1064,10 +1064,10 @@ contains
 
       do ff = 1, nfaces_h
 
-        call div_star_proxy%fs_from%compute_basis_function( &
+        call div_star_proxy%fs_to%compute_basis_function( &
           basis_w2_face(ff,:,:,:,:), ndf_w2, nqp_h_1d, nqp_v, xp_f(ff, :, :), zp)
 
-        call div_star_proxy%fs_to%compute_basis_function( &
+        call div_star_proxy%fs_from%compute_basis_function( &
           basis_w3_face(ff,:,:,:,:), ndf_w3, nqp_h_1d, nqp_v, xp_f(ff, :,:), zp)
 
         call theta_proxy%vspace%compute_basis_function( &
@@ -3518,11 +3518,12 @@ end subroutine invoke_sample_poly_adv
 !> (not quadrature) will be removed and the functionality will be implemented via
 !> PSY using kernal meta data. 
 !> PSyclone support is required - documented in #942
-    subroutine invoke_compute_tri_precon_kernel(tri_precon, theta, rho, chi )
+    subroutine invoke_compute_tri_precon_kernel(tri_precon, theta, rho, chi, m3_inv )
       use compute_tri_precon_kernel_mod, only: compute_tri_precon_code
       use mesh_mod, only: mesh_type
       type(field_type), intent(inout) :: tri_precon(3)
       type(field_type), intent(in) :: theta, rho, chi(3)
+      type(operator_type), intent(in) :: m3_inv
 
       integer, pointer :: map_w3(:) => null(), map_wtheta(:) => null(), map_any_space_1_chi(:) => null()
       real(kind=r_def), pointer :: nodes_w3(:,:) => null()
@@ -3532,6 +3533,7 @@ end subroutine invoke_sample_poly_adv
       type(mesh_type), pointer :: mesh => null()
       integer :: nlayers
       type(field_proxy_type) :: tri_precon_proxy(3), theta_proxy, rho_proxy, chi_proxy(3)
+      type(operator_proxy_type) :: m3_inv_proxy
       real(kind=r_def), allocatable :: diff_basis_chi(:,:,:)
       integer :: diff_dim_chi
       !
@@ -3545,6 +3547,7 @@ end subroutine invoke_sample_poly_adv
       chi_proxy(1) = chi(1)%get_proxy()
       chi_proxy(2) = chi(2)%get_proxy()
       chi_proxy(3) = chi(3)%get_proxy()
+      m3_inv_proxy = m3_inv%get_proxy()
       !
       ! Initialise number of layers
       !
@@ -3610,7 +3613,7 @@ end subroutine invoke_sample_poly_adv
         map_wtheta => theta_proxy%vspace%get_cell_dofmap(cell)
         map_any_space_1_chi => chi_proxy(1)%vspace%get_cell_dofmap(cell)
         !
-        CALL compute_tri_precon_code(nlayers, &
+        CALL compute_tri_precon_code(cell, nlayers, &
                                      tri_precon_proxy(1)%data, &
                                      tri_precon_proxy(2)%data, &
                                      tri_precon_proxy(3)%data, &
@@ -3619,6 +3622,8 @@ end subroutine invoke_sample_poly_adv
                                      chi_proxy(1)%data, &
                                      chi_proxy(2)%data, &
                                      chi_proxy(3)%data, &
+                                     m3_inv_proxy%ncell_3d, &
+                                     m3_inv_proxy%local_stencil, &
                                      ndf_w3, &
                                      undf_w3, &
                                      map_w3, &
@@ -3981,5 +3986,92 @@ end subroutine invoke_sample_poly_adv
     end do 
   end subroutine invoke_enforce_operator_bc_kernel_type
 
+!-------------------------------------------------------------------------------   
+!> invoke_inc_aX_times_Y: x = a * x * y ; a-scalar, x,y-vector     
+  subroutine invoke_inc_aX_times_Y(scalar, field1, field2)
+    use log_mod, only : log_event, LOG_LEVEL_ERROR
+    use mesh_mod,only : mesh_type
+    implicit none
+    type( field_type ), intent(inout)  :: field1
+    type( field_type ), intent(in)     :: field2
+    real(kind=r_def),   intent(in)     :: scalar
+    type( field_proxy_type)            :: field1_proxy,field2_proxy
+    integer(kind=i_def)                :: i,undf
+    integer(kind=i_def)                :: depth, dplp
+    type(mesh_type), pointer           :: mesh => null()
+
+    field1_proxy = field1%get_proxy()
+    field2_proxy = field2%get_proxy()
+
+    !sanity check
+    undf = field1_proxy%vspace%get_undf()
+    if(undf /= field2_proxy%vspace%get_undf() ) then
+      ! they are not on the same function space
+      call log_event("Psy:inc_aX_times_Y:field1 and field2 live on different w-spaces" &
+                    , LOG_LEVEL_ERROR)
+      !abort
+      stop
+    endif
+    !$omp parallel do schedule(static), default(none), shared(field1_proxy, field2_proxy, undf, scalar),  private(i)
+    do i = 1,undf
+      field1_proxy%data(i) = scalar * field1_proxy%data(i) * field2_proxy%data(i)
+    end do
+    !$omp end parallel do
+
+    mesh => field1%get_mesh()
+    depth = mesh%get_halo_depth()
+
+    do dplp = 1, depth
+      if( field1_proxy%is_dirty(depth=dplp) .or. &
+          field2_proxy%is_dirty(depth=dplp) ) then
+        call field1_proxy%set_dirty()
+      else
+        call field1_proxy%set_clean(dplp)
+      end if
+    end do
+  end subroutine invoke_inc_aX_times_Y
+!-------------------------------------------------------------------------------   
+!> invoke_inc_X_times_Y: x = x * y ; x,y-vector     
+  subroutine invoke_inc_X_times_Y(field1, field2)
+    use log_mod, only : log_event, LOG_LEVEL_ERROR
+    use mesh_mod,only : mesh_type
+    implicit none
+    type( field_type ), intent(inout)  :: field1
+    type( field_type ), intent(in)     :: field2
+    type( field_proxy_type)            :: field1_proxy,field2_proxy
+    integer(kind=i_def)                :: i,undf
+    integer(kind=i_def)                :: depth, dplp
+    type(mesh_type), pointer           :: mesh => null()
+
+    field1_proxy = field1%get_proxy()
+    field2_proxy = field2%get_proxy()
+
+    !sanity check
+    undf = field1_proxy%vspace%get_undf()
+    if(undf /= field2_proxy%vspace%get_undf() ) then
+      ! they are not on the same function space
+      call log_event("Psy:inc_X_times_Y:field1 and field2 live on different w-spaces" &
+                    , LOG_LEVEL_ERROR)
+      !abort
+      stop
+    endif
+    !$omp parallel do schedule(static), default(none), shared(field1_proxy, field2_proxy, undf),  private(i)
+    do i = 1,undf
+      field1_proxy%data(i) = field1_proxy%data(i) * field2_proxy%data(i)
+    end do
+    !$omp end parallel do
+
+    mesh => field1%get_mesh()
+    depth = mesh%get_halo_depth()
+
+    do dplp = 1, depth
+      if( field1_proxy%is_dirty(depth=dplp) .or. &
+          field2_proxy%is_dirty(depth=dplp) ) then
+        call field1_proxy%set_dirty()
+      else
+        call field1_proxy%set_clean(dplp)
+      end if
+    end do
+  end subroutine invoke_inc_X_times_Y
 
 end module psykal_lite_mod

@@ -109,16 +109,19 @@ contains
     type(operator_proxy_type) :: div_p, m_w3_1_p, m_w3_2_p, dstar_p
 
     real(kind=r_def), parameter :: tol = 1.0e-12_r_def
-
+    real(kind=r_def), parameter :: tau = 0.5_r_def
     integer :: cell, i, j
     integer(i_def) :: err
 
     integer :: nlayers
-    integer :: ndf_w2, ndf_w3
-
+    integer :: ndf_w2, ndf_w3, undf_w2
+    integer, dimension(6) :: map_w2
+    
     real(kind=r_def), dimension(1,6) :: answer
     real(kind=r_def), dimension(1,6) :: d
     real(kind=r_def), dimension(1,1) :: m3_1, m3_2
+
+    real(kind=r_def), allocatable, dimension(:) :: rho
 
     ! Test the operator kernel
     dstar_p = this%dstar%get_proxy()
@@ -133,6 +136,11 @@ contains
     div_p%local_stencil(:,:,:)    = 0.0_r_def
     m_w3_1_p%local_stencil(:,:,:) = 0.0_r_def
     m_w3_2_p%local_stencil(:,:,:) = 0.0_r_def
+
+    map_w2(:) = 1_i_def
+    undf_w2 = nlayers
+    allocate( rho(undf_w2) )
+    rho(:) = 2.0_r_def
 
     do i = 1,ndf_w2
       do j = 1,ndf_w3
@@ -151,6 +159,7 @@ contains
       m_w3_2_p%local_stencil(:,:,cell) = m3_2
     end do
     cell = 1
+    
     call compound_operator_kernel_code( cell,                              &
                                         nlayers,                           &
                                         dstar_p%ncell_3d,                  & 
@@ -161,8 +170,10 @@ contains
                                         m_w3_2_p%local_stencil,            &
                                         div_p%ncell_3d,                    &
                                         div_p%local_stencil,               &
+                                        rho,                               &
+                                        tau,                               &
                                         ndf_w3,                            &
-                                        ndf_w2)
+                                        ndf_w2, undf_w2, map_w2)
 
     answer = matmul(m3_1,matmul(m3_2,d))
     @assertEqual(answer, dstar_p%local_stencil(:, :, 1 ), tol)
