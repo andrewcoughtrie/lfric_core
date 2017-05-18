@@ -23,6 +23,8 @@ module cusph_split_transport_alg_mod
 
   use oned_advective_density_update_alg_mod,  only: oned_advective_density_update_alg
   use oned_conservative_flux_alg_mod,         only: oned_conservative_flux_alg
+  use cosmic_halo_exchange_x_kernel_mod,      only: cosmic_halo_exchange_x_kernel_type
+  use cosmic_halo_exchange_y_kernel_mod,      only: cosmic_halo_exchange_y_kernel_type
 
   implicit none
 
@@ -64,6 +66,7 @@ contains
     type( field_type ) :: departure_wind_n, departure_wind_np1, dep_pts_x, dep_pts_y
     type( field_type ) :: mass_flux_x, mass_flux_y
     type( field_type ) :: rho_n, rho_adv_x, rho_adv_y, rho_hat_adv_x, rho_hat_adv_y
+    type( field_type ) :: rho_x, rho_y
 
     type(function_space_type), pointer :: w2_fs     => null()
     type(function_space_type), pointer :: w3_fs     => null()
@@ -82,6 +85,8 @@ contains
     rho_adv_y          = field_type( vector_space = w3_fs )
     rho_hat_adv_x      = field_type( vector_space = w3_fs )
     rho_hat_adv_y      = field_type( vector_space = w3_fs )
+    rho_x              = field_type( vector_space = w3_fs )
+    rho_y              = field_type( vector_space = w3_fs )
 
     ! Calculate the departure wind used for calculating departure points
     call invoke_calc_departure_wind(departure_wind_n,u_n,chi)
@@ -97,20 +102,23 @@ contains
     call oned_advective_density_update_alg(x_direction,u_n, dep_pts_x, cell_orientation, rho, rho_adv_x)
     call oned_advective_density_update_alg(y_direction,u_n, dep_pts_y, cell_orientation, rho, rho_adv_y)
 
-    ! Place here code to perform halo exchange for rho_adv_x and rho_adv_y which takes into
-    ! account the direction of density updates and the cell orientation of halo cells
-
     ! Average the two advective density updates with the density at timestep level n
     call invoke_axpby(0.5_r_def,rho,0.5_r_def,rho_adv_x,rho_hat_adv_x)
     call invoke_axpby(0.5_r_def,rho,0.5_r_def,rho_adv_y,rho_hat_adv_y)
+
+    ! Halo exchange density fields
+    call invoke( cosmic_halo_exchange_x_kernel_type(rho_x,rho_hat_adv_x,rho_hat_adv_y,     &
+                   cell_orientation),                                                      &
+                 cosmic_halo_exchange_y_kernel_type(rho_y,rho_hat_adv_x,rho_hat_adv_y,     &
+                   cell_orientation) )
 
     ! Calculate separately the conservative fluxes in the x and y directions (horizontal)
     call invoke( set_field_scalar(0.0_r_def,mass_flux_x), &
                  set_field_scalar(0.0_r_def,mass_flux_y), &
                  set_field_scalar(0.0_r_def,mass_flux) )
 
-    call oned_conservative_flux_alg(x_direction,u_n, dep_pts_x, cell_orientation, rho_hat_adv_y, mass_flux_x)
-    call oned_conservative_flux_alg(y_direction,u_n, dep_pts_y, cell_orientation, rho_hat_adv_x, mass_flux_y)
+    call oned_conservative_flux_alg(x_direction,u_n, dep_pts_x, cell_orientation, rho_y, mass_flux_x)
+    call oned_conservative_flux_alg(y_direction,u_n, dep_pts_y, cell_orientation, rho_x, mass_flux_y)
 
     ! Combine the mass fluxes in the x and y directions
     call invoke_plus_field_data(mass_flux_x,mass_flux_y,mass_flux)

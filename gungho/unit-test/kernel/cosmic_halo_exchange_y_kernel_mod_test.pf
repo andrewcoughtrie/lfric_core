@@ -1,0 +1,77 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2017 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+module cosmic_halo_exchange_y_kernel_mod_test
+
+  use pFUnit_Mod
+  use constants_mod,      only : i_def, r_def
+
+  implicit none
+
+contains
+
+  @test
+  subroutine test_of_cosmic_halo_exchange_y()
+
+    use cosmic_halo_exchange_y_kernel_mod, only : cosmic_halo_exchange_y_code
+
+    implicit none
+
+    real(r_def), parameter :: tol    = 1.0e-6_r_def
+
+    integer          :: nlayers
+    integer          :: ndf_w3, undf_w3
+    integer, allocatable :: map_w3(:)
+    real(kind=r_def),allocatable :: rho_x_in(:),rho_y_in(:),rho_out(:)
+    real(kind=r_def),allocatable :: cell_orientation(:)
+
+    undf_w3 = 1
+    ndf_w3 = 1
+
+    allocate(map_w3(1:ndf_w3))
+
+    allocate(cell_orientation(1:undf_w3))
+
+    map_w3(:) = 1
+    cell_orientation(:) = 3
+    nlayers = 1
+
+    allocate(rho_x_in(1:undf_w3))
+    allocate(rho_y_in(1:undf_w3))
+    allocate(rho_out(1:undf_w3))
+
+    rho_x_in(:) = 1.0_r_def
+    rho_y_in(:) = 2.0_r_def
+    call cosmic_halo_exchange_y_code( nlayers,              &
+                                    rho_out,              &
+                                    rho_x_in,             &
+                                    rho_y_in,             &
+                                    cell_orientation,     &
+                                    ndf_w3,               &
+                                    undf_w3,              &
+                                    map_w3 )
+
+    @assertEqual(2.0_r_def, rho_out(1), tol)
+
+    cell_orientation(:) = 4
+
+    rho_x_in(:) = 1.0_r_def
+    rho_y_in(:) = 2.0_r_def
+    call cosmic_halo_exchange_y_code( nlayers,              &
+                                    rho_out,              &
+                                    rho_x_in,             &
+                                    rho_y_in,             &
+                                    cell_orientation,     &
+                                    ndf_w3,               &
+                                    undf_w3,              &
+                                    map_w3 )
+
+    @assertEqual(1.0_r_def, rho_out(1), tol)
+
+
+  end subroutine test_of_cosmic_halo_exchange_y
+
+end module cosmic_halo_exchange_y_kernel_mod_test
