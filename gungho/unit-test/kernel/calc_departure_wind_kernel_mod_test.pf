@@ -119,7 +119,8 @@ contains
   subroutine test_all( this )
 
     use calc_departure_wind_kernel_mod, only: calc_departure_wind_code
-    use evaluate_function_mod,          only: BASIS, DIFF_BASIS
+    use function_space_mod,             only: BASIS, DIFF_BASIS
+
     implicit none
 
     class(calc_departure_wind_test_type), intent(inout) :: this
@@ -180,14 +181,14 @@ contains
     ! Evaluate the basis function
     do df_udep = 1, ndf_udep
       do df_chi = 1, ndf_chi
-        this%diff_basis_chi(:,df_chi,df_udep) = chi_p(1)%vspace%evaluate_function(DIFF_BASIS,df_chi,nodes_udep(:,df_udep))
+        this%diff_basis_chi(:,df_chi,df_udep) = chi_p(1)%vspace%call_function(DIFF_BASIS,df_chi,nodes_udep(:,df_udep))
       end do
     end do
 
     ! Evaluate the basis function
     do df_udep = 1, ndf_udep
       do df_u = 1, ndf_u
-        this%nodal_basis_u(:,df_u,df_udep) = u_piola%vspace%evaluate_function(BASIS,df_u,nodes_udep(:,df_udep))
+        this%nodal_basis_u(:,df_u,df_udep) = u_piola%vspace%call_function(BASIS,df_u,nodes_udep(:,df_udep))
       end do
     end do
 

@@ -12,9 +12,9 @@
 !> 
 !> This type contains points and weights stored in 1D for horizontal (x & y) 
 !> and vertical (z). A proxy is used to access the data. A type bound procedure 
-!> 'compute_evaluate' is also available. This method uses the evaluate_function 
-!> defined in objects of class evaluate_function_type (e.g. function space) for 
-!> the xoyoz data points.
+!> 'compute_function' is also available. This method uses
+!> call_function defined in function_space_type. The function is evaluated for
+!> the xoyoz arrangement
 !>
 !> There are two constructors:
 !> init_quadrature_symmetrical(np, rule),
@@ -29,7 +29,6 @@ use log_mod,                 only: LOG_LEVEL_ERROR, log_event, log_scratch_space
 use quadrature_rule_mod,     only: quadrature_rule_type
 use abstract_quadrature_mod, only: abstract_quadrature_type
 use function_space_mod,      only: function_space_type
-use evaluate_function_mod,   only: evaluate_function_type
 
 implicit none
 
@@ -58,7 +57,7 @@ contains
   procedure, public :: get_quadrature_proxy
 
   ! Evaluates the function provided for given set of 3d points
-  procedure, public :: compute_evaluate
+  procedure, public :: compute_function
 
   ! Destroy the quadrature object
   final :: quadrature_destructor
@@ -138,7 +137,8 @@ function init_quadrature_variable(np_x, np_y, np_z, rule) result (self)
   self%np_x = np_x
   self%np_y = np_y
   self%np_z = np_z
-  call create_quadrature( self, points_weights_x, points_weights_y, points_weights_z )
+  call create_quadrature( self, points_weights_x, points_weights_y, &
+                          points_weights_z )
 
   ! Tidy memory
   deallocate( points_weights_x )
@@ -180,7 +180,8 @@ function init_quadrature_symmetrical(np, rule) result (self)
   self%np_y = np
   self%np_z = np
 
-  call create_quadrature( self, points_weights_x, points_weights_y, points_weights_z )
+  call create_quadrature( self, points_weights_x, points_weights_y, &
+                          points_weights_z )
 
   ! Tidy memory
   deallocate( points_weights_x )
@@ -194,7 +195,8 @@ end function init_quadrature_symmetrical
 !> @param[in] points_weights_x real, 1D points and weights in x-direction
 !> @param[in] points_weights_y real, 1D points and weights in y-direction
 !> @param[in] points_weights_z real, 1D points and weights in z-direction
-subroutine create_quadrature(self, points_weights_x, points_weights_y, points_weights_z)
+subroutine create_quadrature(self, points_weights_x, points_weights_y, &
+                             points_weights_z)
 
   implicit none
 
@@ -202,8 +204,6 @@ subroutine create_quadrature(self, points_weights_x, points_weights_y, points_we
   real(kind=r_def), intent(in) :: points_weights_x(:,:)
   real(kind=r_def), intent(in) :: points_weights_y(:,:)
   real(kind=r_def), intent(in) :: points_weights_z(:,:)
-
-  integer(kind=i_def)          :: i, j, ic
 
   ! Allocate space for the points of points weights in the quad type
   allocate( self%points_x(self%np_x) )
@@ -222,7 +222,8 @@ subroutine create_quadrature(self, points_weights_x, points_weights_y, points_we
   self%weights_z(:) = 0.0_r_def
 
   ! Distribute the 1D points and weights
-  ! We can't use xoyoz for non quads as they do not have the threefold symmetry necessary for xoyoz rules
+  ! We can't use xoyoz for non quads as they do not have the threefold 
+  ! symmetry necessary for xoyoz rules
   self%points_x  = points_weights_x(:,1)
   self%points_y  = points_weights_y(:,1)
   self%points_z  = points_weights_z(:,1)
@@ -263,22 +264,24 @@ end function get_quadrature_proxy
 !--------------------------------------------------------------------------------
 !> @brief Evaluates the a given function for on a set of 3d points.
 !> @param[in] self, The calling quadrature_type
-!> @param[in] func_to_call integer, Enumerator defining the function to call
-!> @param[in] ef evaluate_function_type, Object containing the function to evaluate
-!> @param[in] ef_dim integer, Size of the evaluated function
+!> @param[in] function_to_call integer, Enumerator defining the function to call
+!> @param[in] function_space function_space_type, Function space containing the 
+!> function to evaluate 
 !> @param[in] ndf integer, Number of dofs
 !> @param[out] basis real, 3 dimensional array holding the evaluated
 !> function
-subroutine compute_evaluate(self, func_to_call, ef, ef_dim, ndf, basis)
+subroutine compute_function(self, function_to_call, function_space, &
+                            fspace_dim, ndf, basis)
 
   implicit none
 
-  class(quadrature_xoyoz_type), intent(in)                                           :: self
-  class(evaluate_function_type), intent(in)                                          :: ef
-  integer(kind=i_def), intent(in)                                                    :: func_to_call
-  integer(kind=i_def), intent(in)                                                    :: ef_dim
-  integer(kind=i_def), intent(in)                                                    :: ndf
-  real(kind=r_def), dimension(ef_dim,ndf,self%np_x,self%np_y,self%np_z), intent(out) :: basis
+  class(quadrature_xoyoz_type),                  intent(in)  :: self
+  type(function_space_type),                     intent(in)  :: function_space
+  integer(kind=i_def),                           intent(in)  :: function_to_call
+  integer(kind=i_def),                           intent(in)  :: fspace_dim
+  integer(kind=i_def),                           intent(in)  :: ndf
+  real(kind=r_def), dimension(fspace_dim,ndf, & 
+       self%np_x, self%np_y,self%np_z),          intent(out) :: basis
 
   ! Local variables - loop counters
   integer(kind=i_def) :: df
@@ -294,13 +297,14 @@ subroutine compute_evaluate(self, func_to_call, ef, ef_dim, ndf, basis)
       do qp1 = 1, self%np_x
         xyz(1) = self%points_x(qp1)
         do df = 1, ndf
-          basis(:,df,qp1,qp2,qp3) = ef%evaluate_function(func_to_call,df,xyz)
+          basis(:,df,qp1,qp2,qp3) = function_space%call_function(&
+                                    function_to_call,df,xyz)
         end do
       end do
     end do
   end do
 
-end subroutine compute_evaluate
+end subroutine compute_function
 !--------------------------------------------------------------------------------
 
 !--------------------------------------------------------------------------------

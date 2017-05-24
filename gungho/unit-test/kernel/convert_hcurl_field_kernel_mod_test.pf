@@ -112,7 +112,7 @@ contains
   subroutine test_all( this )
 
     use convert_hcurl_field_kernel_mod, only: convert_hcurl_field_code
-    use evaluate_function_mod,          only : BASIS, DIFF_BASIS
+    use function_space_mod,             only: BASIS, DIFF_BASIS
 
     implicit none
 
@@ -184,14 +184,14 @@ contains
     ! Evaluate the diff basis function
     do df_phys = 1, ndf_phys
       do df_chi = 1, ndf_chi
-        this%diff_basis_chi(:,df_chi,df_phys) = chi_p(1)%vspace%evaluate_function(DIFF_BASIS,df_chi,nodes_phys(:,df_phys))
+        this%diff_basis_chi(:,df_chi,df_phys) = chi_p(1)%vspace%call_function(DIFF_BASIS,df_chi,nodes_phys(:,df_phys))
       end do
     end do
 
     ! Evaluate the basis function
     do df_phys = 1, ndf_phys
       do df_comp = 1, ndf_comp
-        this%basis(:,df_comp,df_phys) = comp_p%vspace%evaluate_function(BASIS,df_comp,nodes_phys(:,df_phys))
+        this%basis(:,df_comp,df_phys) = comp_p%vspace%call_function(BASIS,df_comp,nodes_phys(:,df_phys))
       end do
     end do
 

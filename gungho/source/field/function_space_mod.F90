@@ -37,21 +37,27 @@ use fs_continuity_mod,     only: W0, W1, W2, W3, Wtheta, W2V, W2H, Wchi
 use function_space_constructor_helper_functions_mod, &
                            only: ndof_setup, basis_setup, dofmap_setup
 
-use evaluate_function_mod, only : evaluate_function_type, BASIS, DIFF_BASIS
+use linked_list_data_mod,  only : linked_list_data_type
 use linked_list_mod,       only : linked_list_type, &
                                   linked_list_item_type
+
 use mesh_collection_mod,   only : mesh_collection
 
 implicit none
 
 private
+
 public :: W0, W1, W2, W3, Wtheta, W2V, W2H, Wchi
+
+integer(i_def), public, parameter :: BASIS      = 100
+integer(i_def), public, parameter :: DIFF_BASIS = 101
+
 
 !-------------------------------------------------------------------------------
 ! Public types
 !-------------------------------------------------------------------------------
 
-type, extends(evaluate_function_type), public :: function_space_type
+type, extends(linked_list_data_type), public :: function_space_type
 
   private
 
@@ -197,25 +203,25 @@ contains
   procedure, public :: get_boundary_dofs
 
   !> @brief Calls an available function at a point
-  !> @param[in] func_to_call The function to call
+  !> @param[in] function_to_call The function to call
   !> @param[in] df The dof to compute the basis function of
   !> @param[in] xi The (x,y,z) coodinates to evaluate the basis function
-  procedure, public :: evaluate_function
+  procedure, public :: call_function
 
   !> @brief Evaluates the basis function at a point
   !> @param[in] df The dof to compute the basis function of
   !> @param[in] xi The (x,y,z) coodinates to evaluate the basis function
-  !> @TODO once the new evaluator is implemented via evaluate_function then
+  !> @TODO once the new quadrature object is implemented via call_function then
   !>       this function could be made private as its accessed from
-  !>       evaluate_function
+  !>       call_function
   procedure, public :: evaluate_basis
 
   !> @brief Evaluates the differential of a basis function
   !> @param[in] df The dof to compute the basis function of
   !> @param[in] xi The (x,y,z) coodinates to evaluate the basis function
-  !> @TODO once the new evaluator is implemented via evaluate_function then
+  !> @TODO once the new quadrature object is implemented via call_function then
   !>       this function could be made private as its accessed from
-  !>       evaluate_function
+  !>       call_function
   procedure, public :: evaluate_diff_basis
 
   !> @brief Evaluates the basis function for a given quadrature.
@@ -695,17 +701,17 @@ function get_dim_space_diff(self) result(dim)
 end function get_dim_space_diff
 
 !-----------------------------------------------------------------------------
-! Evaluates one of the listed (func_to_call) functions
+! Evaluates one of the listed (function_to_call) functions
 !-----------------------------------------------------------------------------
-function evaluate_function(self, func_to_call, df, xi) result(evaluate)
+function call_function(self, function_to_call, df, xi) result(evaluate)
 
   class(function_space_type)  :: self
-  integer(i_def), intent(in)  :: func_to_call
+  integer(i_def), intent(in)  :: function_to_call
   integer(i_def), intent(in)  :: df
   real(r_def),    intent(in)  :: xi(3)
   real(r_def),   allocatable  :: evaluate(:)
 
-  select case ( func_to_call )
+  select case ( function_to_call )
 
     case( BASIS )
       allocate( evaluate(self%dim_space) )
@@ -717,12 +723,12 @@ function evaluate_function(self, func_to_call, df, xi) result(evaluate)
 
     case default
       call log_event( &
-      'func_to_call does not match the available enumerators', &
+      'function_to_call does not match the available enumerators', &
       LOG_LEVEL_ERROR )
   
   end select
 
-end function evaluate_function
+end function call_function
 
 !-----------------------------------------------------------------------------
 ! Evaluates a basis function at a point

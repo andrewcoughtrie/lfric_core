@@ -19,7 +19,7 @@ module psykal_lite_mod
   use quadrature_mod,        only : quadrature_type
   use constants_mod,         only : r_def, i_def, cache_block
   use mesh_mod,              only : mesh_type
-  use evaluate_function_mod, only : BASIS, DIFF_BASIS
+  use function_space_mod,    only : BASIS, DIFF_BASIS
 
   ! The following modules are not currently implemented as part of the main
   ! code but they do have unit tests so need to be declared here so they are
@@ -86,10 +86,9 @@ contains
       allocate( basis_chi(dim_chi, ndf_chi, ndf_w0) )
       do df_w0 = 1, ndf_w0
         do df_chi = 1, ndf_chi
-          basis_chi(:,df_chi,df_w0) = chi_proxy(1)%vspace%evaluate_function(BASIS,df_chi,nodes_w0(:,df_w0))
+          basis_chi(:,df_chi,df_w0) = chi_proxy(1)%vspace%call_function(BASIS,df_chi,nodes_w0(:,df_w0))
         end do
       end do
-
 
       DO cell=1, geopotential_proxy%vspace%get_ncell()
 
@@ -148,7 +147,7 @@ contains
     do df_wtheta = 1, ndf_wtheta
       do df_chi = 1, ndf_chi
         basis_chi(:,df_chi,df_wtheta) = &
-                  chi_proxy(1)%vspace%evaluate_function(BASIS,df_chi,nodes_wtheta(:,df_wtheta))
+                  chi_proxy(1)%vspace%call_function(BASIS,df_chi,nodes_wtheta(:,df_wtheta))
       end do
     end do
 
@@ -231,7 +230,7 @@ contains
     do df_w3 = 1, ndf_w3
       do df_chi = 1, ndf_chi
         basis_chi(:,df_chi,df_w3) = &
-                  chi_proxy(1)%vspace%evaluate_function(BASIS,df_chi,nodes_w3(:,df_w3))
+                  chi_proxy(1)%vspace%call_function(BASIS,df_chi,nodes_w3(:,df_w3))
       end do
     end do
 
@@ -2068,7 +2067,7 @@ contains
     allocate(basis_q(dim_q, ndf_q, ndf_f))
     do df_f = 1, ndf_f
       do df_q = 1, ndf_q
-        basis_q(:,df_q,df_f) = q_p%vspace%evaluate_function(BASIS,df_q,nodes_f(:,df_f))
+        basis_q(:,df_q,df_f) = q_p%vspace%call_function(BASIS,df_q,nodes_f(:,df_f))
       end do
     end do
 
@@ -2149,7 +2148,7 @@ contains
     allocate(basis_chi(dim_chi, ndf_chi, ndf_x))
     do df_x = 1, ndf_x
       do df_chi = 1, ndf_chi
-        basis_chi(:,df_chi,df_x) = chi_p(1)%vspace%evaluate_function(BASIS,df_chi,nodes_x(:,df_x))
+        basis_chi(:,df_chi,df_x) = chi_p(1)%vspace%call_function(BASIS,df_chi,nodes_x(:,df_x))
       end do
     end do
 
@@ -2241,7 +2240,7 @@ contains
     allocate(diff_basis_chi(diff_dim_chi, ndf_chi, ndf_phys))
     do df_phys = 1, ndf_phys
       do df_chi = 1, ndf_chi
-        diff_basis_chi(:,df_chi,df_phys) = chi_p(1)%vspace%evaluate_function(DIFF_BASIS,df_chi,nodes_phys(:,df_phys))
+        diff_basis_chi(:,df_chi,df_phys) = chi_p(1)%vspace%call_function(DIFF_BASIS,df_chi,nodes_phys(:,df_phys))
       end do
     end do
 
@@ -2249,7 +2248,7 @@ contains
     allocate(basis_comp(dim_comp, ndf_comp, ndf_phys))
     do df_phys = 1, ndf_phys
       do df_comp = 1, ndf_comp
-        basis_comp(:,df_comp,df_phys) = comp_p%vspace%evaluate_function(BASIS,df_comp,nodes_phys(:,df_phys))
+        basis_comp(:,df_comp,df_phys) = comp_p%vspace%call_function(BASIS,df_comp,nodes_phys(:,df_phys))
       end do
     end do
 
@@ -2352,7 +2351,7 @@ contains
     allocate(diff_basis_chi(diff_dim_chi, ndf_chi, ndf_comp))
     do df_comp2 = 1, ndf_comp
       do df_chi = 1, ndf_chi
-        diff_basis_chi(:,df_chi,df_comp2) = chi_p(1)%vspace%evaluate_function(DIFF_BASIS,df_chi,nodes_phys(:,df_comp2))
+        diff_basis_chi(:,df_chi,df_comp2) = chi_p(1)%vspace%call_function(DIFF_BASIS,df_chi,nodes_phys(:,df_comp2))
       end do
     end do
 
@@ -2360,7 +2359,7 @@ contains
     allocate(basis_comp(dim_comp, ndf_comp, ndf_comp) )
     do df_comp2 = 1, ndf_comp
       do df_comp1 = 1, ndf_comp
-        basis_comp(:,df_comp1,df_comp2) = comp_p%vspace%evaluate_function(BASIS,df_comp1,nodes_phys(:,df_comp2))
+        basis_comp(:,df_comp1,df_comp2) = comp_p%vspace%call_function(BASIS,df_comp1,nodes_phys(:,df_comp2))
       end do
     end do
 
@@ -2809,7 +2808,7 @@ subroutine invoke_calc_departure_wind(u_departure_wind, u_piola, chi )
   allocate(diff_basis_chi(diff_dim_chi, ndf_chi, ndf_u))
   do df_udep = 1, ndf_udep
     do df_chi = 1, ndf_chi
-      diff_basis_chi(:,df_chi,df_udep) = chi_p(1)%vspace%evaluate_function(DIFF_BASIS,df_chi,nodes_udep(:,df_udep))
+      diff_basis_chi(:,df_chi,df_udep) = chi_p(1)%vspace%call_function(DIFF_BASIS,df_chi,nodes_udep(:,df_udep))
     end do
   end do
 
@@ -2817,7 +2816,7 @@ subroutine invoke_calc_departure_wind(u_departure_wind, u_piola, chi )
   allocate(nodal_basis_u(dim_u, ndf_u, ndf_u))
   do df_udep = 1, ndf_udep
     do df_u = 1, ndf_u
-      nodal_basis_u(:,df_u,df_udep) = u_piola_p%vspace%evaluate_function(BASIS,df_u,nodes_udep(:,df_udep))
+      nodal_basis_u(:,df_u,df_udep) = u_piola_p%vspace%call_function(BASIS,df_u,nodes_udep(:,df_udep))
     end do
   end do
 
@@ -3366,7 +3365,7 @@ subroutine invoke_sample_poly_flux( flux, wind, density, stencil_extent )
   allocate (basis_w2(dim_w2, ndf_w2, ndf_w2))
   do df_w2 = 1, ndf_w2
     do df_wind = 1, ndf_w2
-      basis_w2(:,df_wind,df_w2) = wind_proxy%vspace%evaluate_function(BASIS,df_wind,nodes_w2(:,df_w2))
+      basis_w2(:,df_wind,df_w2) = wind_proxy%vspace%call_function(BASIS,df_wind,nodes_w2(:,df_w2))
     end do
   end do
 
@@ -3470,7 +3469,7 @@ subroutine invoke_sample_poly_adv( adv, tracer, wind, stencil_extent )
   allocate (basis_w2(dim_w2, ndf_w2, ndf_adv))
   do df_adv = 1, ndf_adv
     do df_w2 = 1, ndf_w2
-      basis_w2(:,df_w2,df_adv) = wind_proxy%vspace%evaluate_function(BASIS,df_w2,nodes_adv(:,df_adv))
+      basis_w2(:,df_w2,df_adv) = wind_proxy%vspace%call_function(BASIS,df_w2,nodes_adv(:,df_adv))
     end do
   end do
 
@@ -3580,7 +3579,7 @@ end subroutine invoke_sample_poly_adv
       allocate( diff_basis_chi(diff_dim_chi, ndf_any_space_1_chi, ndf_w3) )
       do df_w3 = 1, ndf_w3
         do df_chi = 1, ndf_any_space_1_chi
-          diff_basis_chi(:,df_chi,df_w3) = chi_proxy(1)%vspace%evaluate_function(DIFF_BASIS,df_chi,nodes_w3(:,df_w3))
+          diff_basis_chi(:,df_chi,df_w3) = chi_proxy(1)%vspace%call_function(DIFF_BASIS,df_chi,nodes_w3(:,df_w3))
         end do
       end do
 
@@ -3697,7 +3696,7 @@ end subroutine invoke_sample_poly_adv
     allocate( basis_chi(dim_chi, ndf_chi, ndf_wt) )
     do df_wt = 1, ndf_wt
       do df_chi = 1, ndf_chi
-        basis_chi(:,df_chi,df_wt) = chi_proxy(1)%vspace%evaluate_function(BASIS,df_chi,nodes_wt(:,df_wt))
+        basis_chi(:,df_chi,df_wt) = chi_proxy(1)%vspace%call_function(BASIS,df_chi,nodes_wt(:,df_wt))
       end do
     end do
 

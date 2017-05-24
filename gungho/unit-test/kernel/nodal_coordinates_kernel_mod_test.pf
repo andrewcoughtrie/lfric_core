@@ -106,7 +106,7 @@ contains
   subroutine test_all( this )
 
     use nodal_coordinates_kernel_mod, only: nodal_coordinates_code
-    use evaluate_function_mod,        only: BASIS
+    use function_space_mod,           only: BASIS
 
     implicit none
 
@@ -165,7 +165,7 @@ contains
     ! Evaluate the basis function
     do df_x = 1, ndf_x
       do df_chi = 1, ndf_chi
-        this%basis_chi(:,df_chi,df_x) = chi_p(1)%vspace%evaluate_function(BASIS,df_chi,nodes_x(:,df_x))
+        this%basis_chi(:,df_chi,df_x) = chi_p(1)%vspace%call_function(BASIS,df_chi,nodes_x(:,df_x))
       end do
     end do
 

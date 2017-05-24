@@ -147,7 +147,7 @@ contains
 
     use initial_buoyancy_kernel_mod, only : initial_buoyancy_code
     use mesh_mod,                    only : mesh_type
-    use evaluate_function_mod,       only : BASIS
+    use function_space_mod,          only : BASIS
 
     implicit none
 
@@ -215,7 +215,7 @@ contains
     ! Evaluate the basis function
     do df_wt = 1, ndf_buoyancy
       do df_chi = 1, ndf_chi
-        this%basis_chi(:,df_chi,df_wt) = chi_p(1)%vspace%evaluate_function(BASIS,df_chi,nodes_buoyancy(:,df_wt))
+        this%basis_chi(:,df_chi,df_wt) = chi_p(1)%vspace%call_function(BASIS,df_chi,nodes_buoyancy(:,df_wt))
       end do
     end do
 

@@ -106,7 +106,7 @@ contains
   subroutine test_all( this )
 
     use sample_flux_kernel_mod,     only : sample_flux_code
-    use evaluate_function_mod,      only : BASIS
+    use function_space_mod,         only : BASIS
 
     implicit none
 
@@ -154,7 +154,7 @@ contains
     ! Evaluate the basis function
     do df_flux = 1, ndf_flux
       do df_rho = 1, ndf_rho
-        this%basis_rho(:,df_rho,df_flux) = rho_p%vspace%evaluate_function(BASIS,df_rho,nodes_flux(:,df_flux))
+        this%basis_rho(:,df_rho,df_flux) = rho_p%vspace%call_function(BASIS,df_rho,nodes_flux(:,df_flux))
       end do
     end do
 

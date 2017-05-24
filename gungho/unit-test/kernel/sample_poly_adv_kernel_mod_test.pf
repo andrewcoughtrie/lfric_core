@@ -113,7 +113,7 @@ contains
 
     use sample_poly_adv_kernel_mod,     only : sample_poly_adv_code, &
                                                sample_poly_adv_init
-    use evaluate_function_mod,          only : BASIS
+    use function_space_mod,             only : BASIS
 
     implicit none
 
@@ -156,7 +156,7 @@ contains
     ! Evaluate the basis function
     do df_adv = 1, ndf_adv
       do df_u = 1, ndf_u
-        this%basis_u(:,df_u,df_adv) = u_p%vspace%evaluate_function(BASIS,df_u,nodes_adv(:,df_adv))
+        this%basis_u(:,df_u,df_adv) = u_p%vspace%call_function(BASIS,df_u,nodes_adv(:,df_adv))
       end do
     end do
 

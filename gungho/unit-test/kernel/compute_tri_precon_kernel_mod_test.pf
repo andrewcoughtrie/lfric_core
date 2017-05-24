@@ -157,7 +157,8 @@ contains
     use compute_tri_precon_kernel_mod, only: compute_tri_precon_code
     use calc_exner_pointwise_mod,      only: calc_exner_pointwise
     use planet_config_mod,             only: kappa
-    use evaluate_function_mod,         only: DIFF_BASIS
+    use function_space_mod,            only: DIFF_BASIS
+
     implicit none
 
     class(compute_tri_precon_test_type), intent(inout) :: this
@@ -226,7 +227,7 @@ contains
     ! Evaluate the basis function
     do df_w3 = 1, ndf_w3
       do df_chi = 1, ndf_chi
-        this%diff_basis_chi(:,df_chi,df_w3) = chi_p(1)%vspace%evaluate_function(DIFF_BASIS,df_chi,nodes_w3(:,df_w3))
+        this%diff_basis_chi(:,df_chi,df_w3) = chi_p(1)%vspace%call_function(DIFF_BASIS,df_chi,nodes_w3(:,df_w3))
       end do
     end do
 

@@ -11,10 +11,9 @@
 !> @details This module contains the quadrature_xyz_type.
 
 !> This type contains points and weights stored in 3D (x-y-z). A proxy  
-!> is used to access the data. A type bound procedure 'compute_evaluate' 
-!> is also available. This method uses the evaluate_function defined in 
-!> objects of class evaluate_function_type (e.g. function space) for the 
-!> xyz data points.
+!> is used to access the data. A type bound procedure 'compute_function' 
+!> is also available. This method uses the call_function defined in 
+!> function_space_type. The function is evaluated for the xyz arrangement
 !>
 !> There are two constructors:
 !> init_quadrature_symmetrical(np, rule),
@@ -30,7 +29,6 @@ use log_mod,                 only: LOG_LEVEL_ERROR, log_event, log_scratch_space
 use quadrature_rule_mod,     only: quadrature_rule_type
 use abstract_quadrature_mod, only: abstract_quadrature_type
 use function_space_mod,      only: function_space_type
-use evaluate_function_mod,   only: evaluate_function_type
 
 implicit none
 
@@ -63,7 +61,7 @@ contains
   procedure, public :: get_quadrature_proxy
 
   ! Evaluates the a function for given set of 3d points
-  procedure, public :: compute_evaluate
+  procedure, public :: compute_function
 
   ! Destroy the quadrature object
   final :: quadrature_destructor
@@ -137,7 +135,8 @@ function init_quadrature_variable(np_x, np_y, np_z, rule) result (self)
 
   ! Initialise object data
   self%np_xyz = np_x*np_y*np_z
-  call create_quadrature( self, points_weights_x, points_weights_y, points_weights_z )
+  call create_quadrature( self, points_weights_x, points_weights_y, &
+                          points_weights_z )
 
   ! Tidy memory
   deallocate( points_weights_x )
@@ -177,7 +176,8 @@ function init_quadrature_symmetrical(np, rule) result (self)
   ! Initialise object data
   self%np_xyz = np*np*np
 
-  call create_quadrature( self, points_weights_x, points_weights_y, points_weights_z )
+  call create_quadrature( self, points_weights_x, points_weights_y, &
+                          points_weights_z )
 
   ! Tidy memory
   deallocate( points_weights_x )
@@ -192,7 +192,8 @@ end function init_quadrature_symmetrical
 !> @param[in] points_weights_z real, 1D points and weights in z-direction
 !> @todo This code is correct for quads but will need modification for
 !>       hexes/triangles)
-subroutine create_quadrature(self, points_weights_x, points_weights_y, points_weights_z)
+subroutine create_quadrature(self, points_weights_x, points_weights_y, &
+                             points_weights_z)
 
   implicit none
 
@@ -219,7 +220,8 @@ subroutine create_quadrature(self, points_weights_x, points_weights_y, points_we
         self%points_xyz(1,ic) = points_weights_x(i,1)
         self%points_xyz(2,ic) = points_weights_y(j,1)
         self%points_xyz(3,ic) = points_weights_z(k,1)
-        self%weights_xyz(ic)  = points_weights_x(i,2)*points_weights_y(j,2)*points_weights_z(k,2)
+        self%weights_xyz(ic)  = points_weights_x(i,2)*points_weights_y(j,2)*&
+                                points_weights_z(k,2)
         ic = ic + 1
       end do
     end do
@@ -252,20 +254,23 @@ end function get_quadrature_proxy
 !--------------------------------------------------------------------------------
 !> @brief Evaluates the a given function for on a set of 3d points.
 !> @param[in] self, The calling quadrature_type
-!> @param[in] func_to_call integer, Enumerator defining the function to call
-!> @param[in] ef evaluate_function_type, Object containing the function to evaluate
-!> @param[in] ef_dim integer, Size of the evaluated function
+!> @param[in] function_to_call integer, Enumerator defining the function to call
+!> @param[in] function_space function_space_type, Function space containing the 
+!> function to evaluate 
+!> @param[in] fspace_dim integer, Size of the function to be evaluated
 !> @param[in] ndf integer, Number of dofs
 !> @param[out] basis real, 3 dimensional array holding the evaluated function
-subroutine compute_evaluate(self, func_to_call, ef, ef_dim, ndf, basis)
+subroutine compute_function(self, function_to_call, function_space, &
+                            fspace_dim, ndf, basis)
   implicit none
 
-  class(quadrature_xyz_type),                           intent(in)  :: self
-  class(evaluate_function_type),                        intent(in)  :: ef
-  integer(kind=i_def),                                  intent(in)  :: func_to_call
-  integer(kind=i_def),                                  intent(in)  :: ef_dim
-  integer(kind=i_def),                                  intent(in)  :: ndf
-  real(kind=r_def), dimension(ef_dim,ndf,self%np_xyz),  intent(out) :: basis
+  class(quadrature_xyz_type),                    intent(in)  :: self
+  type(function_space_type),                     intent(in)  :: function_space
+  integer(kind=i_def),                           intent(in)  :: function_to_call
+  integer(kind=i_def),                           intent(in)  :: fspace_dim
+  integer(kind=i_def),                           intent(in)  :: ndf
+  real(kind=r_def), dimension(&
+                    fspace_dim,ndf,self%np_xyz), intent(out) :: basis
 
   ! Local variables - loop counters
   integer(kind=i_def) :: df
@@ -273,11 +278,12 @@ subroutine compute_evaluate(self, func_to_call, ef, ef_dim, ndf, basis)
 
   do qp1 = 1, self%np_xyz
     do df = 1, ndf
-      basis(:,df,qp1) = ef%evaluate_function(func_to_call,df,self%points_xyz(:,qp1))
+      basis(:,df,qp1) = function_space%call_function(function_to_call,df,&
+                                                         self%points_xyz(:,qp1))
     end do
   end do
 
-end subroutine compute_evaluate
+end subroutine compute_function
 
 !-------------------------------------------------------------------------------
 !> @brief Routine to destroy quadrature.

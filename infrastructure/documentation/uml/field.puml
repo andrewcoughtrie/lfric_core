@@ -5,7 +5,6 @@
 @startuml
 
 !include look.iuml
-!include field/evaluate_function_mod.iuml
 !include field/quadrature_mod.iuml
 !include field/scalar_mod.iuml
 

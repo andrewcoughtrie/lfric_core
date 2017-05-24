@@ -5,11 +5,11 @@
 @startuml
 
 !include look.iuml
-!include field/abstract_quadrature_mod.iuml
+!include quadrature/abstract_quadrature_mod.iuml
 
-!include field/quadrature_xoyoz_mod.iuml
-!include field/quadrature_xyz_mod.iuml
-!include field/quadrature_xyoz_mod.iuml
+!include quadrature/quadrature_xoyoz_mod.iuml
+!include quadrature/quadrature_xyz_mod.iuml
+!include quadrature/quadrature_xyoz_mod.iuml
 
 quadrature_xoyoz_mod -[hidden]- quadrature_xyz_mod
 quadrature_xyz_mod -[hidden]- quadrature_xyoz_mod

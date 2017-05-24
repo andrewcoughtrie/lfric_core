@@ -15,7 +15,7 @@ class quadrature_xoyoz_mod::quadrature_xoyoz_type {
 
   +<<create>>init_quadrature_variable( <<in>>np_x: integer, <<in>>np_y: integer, <<in>>np_z: integer, <<in>>rule: quadrature_rule ) : quadrature_xoyoz_type
   +<<create>>init_quadrature_symmetrical( <<in>>np: integer, <<in>>rule: quadrature_rule ) : quadrature_xoyoz_type
-  +compute_evaluate( <<in>>func_to_call: integer, <<in>>ef: evaluate_function_type, <<in>>ef_dim: integer, <<in>>ndf: integer, <<out>>basis: real[:::::] )
+  +compute_function( <<in>>function_to_call: integer, <<in>>function_space: function_space_type, <<in>>fspace_dim: integer, <<in>>ndf: integer, <<out>>basis: real[:::::] )
   +get_quadrature_proxy() : quadrature_xoyoz_proxy_type
   +<<destroy>>quadrature_destructor()
 }
