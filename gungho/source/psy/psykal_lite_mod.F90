@@ -4101,4 +4101,90 @@ end subroutine invoke_sample_poly_adv
     end do
   end subroutine invoke_inc_X_times_Y
 
+
+
+  !-------------------------------------------------------------------------------
+  !> In #937, the evaluator was removed in the PSy-lite layer. In #938, evaluator
+  !> (not quadrature) will be removed and the functionality will be implemented via
+  !> PSY using kernal meta data. 
+  !> PSyclone support is required - documented in #942
+  subroutine invoke_get_height_kernel(height, chi )
+    use get_height_kernel_mod, only: get_height_code
+    use mesh_mod,              only: mesh_type
+    implicit none
+    
+    type(field_type), intent(inout)      :: height
+    type(field_type), intent(in)         :: chi(3) 
+
+    type(field_proxy_type) :: x_p, chi_p(3)
+   
+    integer                 :: cell, nlayers
+    integer                 :: ndf_chi, ndf_x
+    integer                 :: undf_chi, undf_x
+    integer                 :: dim_chi
+    integer                 :: df_x, df_chi
+
+    integer, pointer        :: map_chi(:) => null()
+    integer, pointer        :: map_x(:) => null()
+    real(kind=r_def), pointer :: nodes_x(:,:) => null()
+
+    real(kind=r_def), allocatable  :: basis_chi(:,:,:)
+    integer :: i
+    type(mesh_type), pointer :: mesh => null()
+
+    x_p   = height%get_proxy()
+    do i = 1,3
+      chi_p(i) = chi(i)%get_proxy()
+    end do
+
+    nlayers = x_p%vspace%get_nlayers()
+
+    ndf_x  = x_p%vspace%get_ndf( )
+    undf_x = x_p%vspace%get_undf()
+    nodes_x => x_p%vspace%get_nodes()
+
+    ndf_chi  = chi_p(1)%vspace%get_ndf( )
+    undf_chi = chi_p(1)%vspace%get_undf()
+    dim_chi = chi_p(1)%vspace%get_dim_space( )
+
+    ! Evaluate the basis function
+    allocate(basis_chi(dim_chi, ndf_chi, ndf_x))
+    do df_x = 1, ndf_x
+      do df_chi = 1, ndf_chi
+        basis_chi(:,df_chi,df_x) = chi_p(1)%vspace%call_function(BASIS,df_chi,nodes_x(:,df_x))
+      end do
+    end do
+
+    if (chi_p(1)%is_dirty(depth=1)) then
+       call chi_p(1)%halo_exchange(depth=1)
+    end if
+      !
+    if (chi_p(2)%is_dirty(depth=1)) then
+       call chi_p(2)%halo_exchange(depth=1)
+    end if
+      !
+    if (chi_p(3)%is_dirty(depth=1)) then
+       call chi_p(3)%halo_exchange(depth=1)
+    end if
+    mesh => height%get_mesh()
+
+    do cell = 1, mesh%get_last_halo_cell(1)
+       map_x   => x_p%vspace%get_cell_dofmap( cell )
+       map_chi => chi_p(1)%vspace%get_cell_dofmap( cell )
+       call get_height_code(nlayers, &
+                            x_p%data, &
+                            chi_p(1)%data, &
+                            chi_p(2)%data, &
+                            chi_p(3)%data, &
+                            ndf_x, undf_x, map_x, &
+                            ndf_chi, undf_chi, map_chi, &
+                            basis_chi &
+                            )
+    end do
+
+    call x_p%set_dirty()
+
+    deallocate(basis_chi)
+  end subroutine invoke_get_height_kernel
+
 end module psykal_lite_mod

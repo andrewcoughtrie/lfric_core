@@ -426,8 +426,6 @@ contains
   !> Sends field contents to the log.
   !!
   !! @param[in] dump_level The level to use when sending the dump to the log.
-  !! @param[in] checksum_level The level to use when sending the checksum to
-  !!                           the log.
   !! @param[in] label A title added to the log before the data is written out
   !>
   subroutine log_field( self, dump_level, label )

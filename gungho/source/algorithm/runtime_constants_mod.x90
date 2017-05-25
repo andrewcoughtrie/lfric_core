@@ -36,7 +36,8 @@ module runtime_constants_mod
   ! PsyKAl-lite kernels
   use psykal_lite_mod,                   only: invoke_compute_geopotential_kernel_type, &
                                                invoke_raise_field,                      &
-                                               invoke_mpi_calc_cell_orientation
+                                               invoke_mpi_calc_cell_orientation,        &
+                                               invoke_get_height_kernel
 
   ! PsyKAl PSYClone kernels
   use compute_mass_matrix_kernel_w0_mod,     only: compute_mass_matrix_kernel_w0_type
@@ -52,6 +53,7 @@ module runtime_constants_mod
   use compute_div_operator_kernel_mod,       only: compute_div_operator_kernel_type
   use matrix_vector_kernel_mod,              only: matrix_vector_kernel_type
   use matrix_vector_nobc_kernel_mod,         only: matrix_vector_nobc_kernel_type
+  use get_height_kernel_mod,                 only: get_height_kernel_type
 
   use output_config_mod,                     only: subroutine_timers 
   use timer_mod,                             only: timer
@@ -83,6 +85,7 @@ module runtime_constants_mod
   type(field_type), target        :: m1_lumped_inv
   type(field_type), target        :: mt_lumped_inv
   type(field_type), target, dimension(3) :: chi
+  type(field_type), target        :: height_wth, height_w3
 
   ! Enumerated types
   integer(i_def), parameter, public :: w0_id    = 0_i_def
@@ -108,6 +111,7 @@ module runtime_constants_mod
   public :: get_div
   public :: get_qr
   public :: get_inverse_lumped_mass_matrix
+  public :: get_height
 
 contains
   !> Subroutine to create the runtime constants
@@ -122,6 +126,8 @@ contains
     type(function_space_type), pointer :: w2_fs     => null()
     type(function_space_type), pointer :: w3_fs     => null()
     type(function_space_type), pointer :: wtheta_fs => null()
+    type(function_space_type), pointer :: wth_k0_fs => null() ! lowest order wth fs 
+    type(function_space_type), pointer :: w3_k0_fs  => null() ! lowest order w3 fs 
     type(field_type)                   :: ones
     integer(i_def)                     :: chi_space
     integer(i_def)                     :: coord
@@ -137,6 +143,8 @@ contains
     w2_fs     => function_space_collection%get_fs( mesh_id, element_order, W2 )
     w3_fs     => function_space_collection%get_fs( mesh_id, element_order, W3 )
     wtheta_fs => function_space_collection%get_fs( mesh_id, element_order, Wtheta )
+    w3_k0_fs  => function_space_collection%get_fs( mesh_id,             0, W3 )
+    wth_k0_fs => function_space_collection%get_fs( mesh_id,             0, Wtheta )
 
     !================= Compute coordinates =====================!
     ! Compute coordinates
@@ -251,6 +259,17 @@ contains
     call invoke( matrix_vector_kernel_type(mt_lumped_inv, ones, mm_wtheta) )
     call invoke_raise_field( mt_lumped_inv, -1_i_def )
  
+
+    !================= Create a height field =====================!
+    ! Note that these fields represent the height relative to 
+    ! the surface as represented by a sphere.  With the current
+    ! representation of chi, this will result in the lowest
+    ! levels being -ve. This should be reviewed with ticket #562
+    height_w3  = field_type( vector_space = w3_k0_fs )
+    height_wth = field_type( vector_space = wth_k0_fs )
+    call invoke_get_height_kernel(height_w3, chi) 
+    call invoke_get_height_kernel(height_wth, chi) 
+    
     call log_event( "Gungho: created runtime_constants", LOG_LEVEL_INFO )
     if ( subroutine_timers ) call timer('runtime_constants_alg')
 
@@ -265,6 +284,26 @@ contains
     coords => chi
 
   end function get_coordinates
+
+  !> Function to return a pointer to a height field
+  !> @param[in] i the space of the desired height field
+  !> @return A height field
+  function get_height(space) result(height)
+
+    integer, intent(in) :: space
+    type(field_type), pointer :: height
+
+    select case (space)
+    case (W3)
+      height => height_w3
+    case (Wtheta)
+      height => height_wth
+    case default
+      height => null()
+      call log_event( "Height not available on requested space", LOG_LEVEL_ERROR)
+    end select
+
+  end function get_height
 
   !> Function to return a pointer to the geopotential field
   !> @return The geopotential field

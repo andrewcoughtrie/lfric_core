@@ -24,7 +24,8 @@ module iter_timestep_alg_mod
                                        spinup_period, spinup_alpha, spinup_winds
   use idealised_config_mod,      only: test, idealised_test_held_suarez
   use derived_config_mod,        only: bundle_size
-  use runtime_constants_mod,     only: get_qr, get_coordinates
+  use runtime_constants_mod,     only: get_qr, get_coordinates, get_height
+  use fs_continuity_mod,         only: W3, Wtheta
 
   ! PsyKAl-lite kernels
   use psykal_lite_mod,           only: invoke_axpby, &
@@ -198,6 +199,9 @@ contains
     ! Coordinate fields
     type( field_type ), pointer :: chi(:) => null()
 
+    type( field_type ), pointer :: height_w3  => null()
+    type( field_type ), pointer :: height_wth => null()
+
     integer            :: outer, inner
     real(kind=r_def)   :: varalpha, varbeta ! alpha, beta weight to use
                                             ! these may differ from input values
@@ -209,6 +213,8 @@ contains
 
     qr = get_qr()
     chi => get_coordinates()
+    height_w3  => get_height(W3)
+    height_wth => get_height(Wtheta)
     !Pass updated fields into state
     if (spinup_winds .and. timestep <= spinup_period)then
       call invoke( copy_field(u,     state(igh_u)), &
