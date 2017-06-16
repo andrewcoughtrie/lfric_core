@@ -76,37 +76,6 @@ class FortranAnalyserTest(unittest.TestCase):
     ##########################################################################
     # Includes disparate case to ensure case insensitivity.
     #
-    def testAnalyseProgram( self ):
-        testFilename = os.path.join( self._scratchDirectory, 'test.f90' )
-        with open(testFilename, 'w') as fortranFile:
-            print( '''
-program fOo
-
-  use constAnts_mod, only : i_def
-  use trumpton_Mod, only : hew, pew, barney, mcgrey, cuthbirt, dibble, grub
-
-  implicit none
-
-end program fOo
-                   '''.strip(), file=fortranFile )
-
-        uut = dependerator.analyser.FortranAnalyser( self._logger, \
-                                                     [],           \
-                                                     self._dependencies )
-        uut.analyse( testFilename )
-
-        programs = list( self._dependencies.getPrograms() )
-        self.assertEqual( [u'foo'], programs )
-
-        dependencies = list(self._dependencies.getCompileDependencies())
-        self.assertEqual( [], dependencies )
-
-        dependencies = list(self._dependencies.getLinkDependencies( 'foo' ))
-        self.assertEqual( [], dependencies )
-
-    ##########################################################################
-    # Includes disparate case to ensure case insensitivity.
-    #
     def testAnalyseModule( self ):
         uut = dependerator.analyser.FortranAnalyser( self._logger, \
                                                      [],           \
@@ -158,6 +127,58 @@ end module coNstants_mod
                             u'constants_mod', otherFilename), \
                            (u'foo', testFilename,             \
                             u'trumpton_mod', testFilename)], dependencies )
+
+    ##########################################################################
+    # Includes disparate case to ensure case insensitivity.
+    #
+    def testAnalyseProgram( self ):
+        testFilename = os.path.join( self._scratchDirectory, 'test.f90' )
+        with open(testFilename, 'w') as fortranFile:
+            print( '''
+module constants_mod
+
+  implicit none
+
+  integer, parameter :: i_def = selected_int_kind(5)
+
+end module constants_mod
+
+module trumpton_mod
+
+  implicit none
+
+  integer, parameter :: hew = 1
+  integer, parameter :: pew = 2
+  integer, parameter :: barney_mcgrew = 3
+  integer, parameter :: cuthbirt = 4
+  integer, parameter :: dibble = 5
+  integer, parameter :: grub = 6
+
+end module trumpton_mod
+
+program fOo
+
+  use constAnts_mod, only : i_def
+  use trumpton_Mod, only : hew, pew, barney_mcgrew, cuthbirt, dibble, grub
+
+  implicit none
+
+end program fOo
+                   '''.strip(), file=fortranFile )
+
+        uut = dependerator.analyser.FortranAnalyser( self._logger, \
+                                                     [],           \
+                                                     self._dependencies )
+        uut.analyse( testFilename )
+
+        programs = list( self._dependencies.getPrograms() )
+        self.assertEqual( [u'foo'], programs )
+
+        dependencies = list(self._dependencies.getCompileDependencies())
+        self.assertEqual( [], dependencies )
+
+        dependencies = list(self._dependencies.getLinkDependencies( 'foo' ))
+        self.assertEqual( [], dependencies )
 
     ##########################################################################
     # This test also includes disperate case to ensure case insensitivity is

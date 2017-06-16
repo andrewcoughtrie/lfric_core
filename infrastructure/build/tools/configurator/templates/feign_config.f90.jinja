@@ -16,7 +16,7 @@ module {{modulename}}
   implicit none
 
   private
-  public :: {{ namelists.keys() | sort | decorate( 'feign_', '_config' ) | join( ', &\n' + ' '*12 ) }}
+  public :: {{ namelists | sort | decorate( 'feign_', '_config' ) | join( ', &\n' + ' '*12 ) }}
 
   integer(i_native) :: local_rank = -1
   type(ESMF_VM)     :: vm
@@ -24,30 +24,34 @@ module {{modulename}}
 
 contains
 
-{%- for name, description in namelists | dictsort %}
-{%-   set parameters   = description.getParameters() %}
-{%-   set enumerations = description.getEnumerations() %}
+{%- for name in namelists | sort %}
+
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 {%-   set procedureName = 'feign_' + name + '_config' %}
-  subroutine {{procedureName}}( {{arguments[name] | join( ', &\n' + ' '*(15 + procedureName|length) )}} )
-{{-'\n'}}
+  subroutine {{procedureName}}({{' '}}
+{%- for param in parameters[name] %}
+{%-   if not loop.first %}{{ ', &\n' }}{{ ' '*(15 + procedureName|length) }}{% endif %}
+{{-   param.name }}
+{%- endfor %} )
+
 {%- set onlies = ['read_' + name + '_namelist'] %}
 {%- if enumerations %}
-{%-   for enum, keys in enumerations|dictsort -%}
+{%-   for enum in enumerations[name]|sort -%}
 {%-     do onlies.extend( ['key_from_' + enum, enum + '_from_key'] ) %}
 {%-   endfor %}
 {%- endif %}
 {%- set moduleName = name + '_config_mod' %}
+
     use {{moduleName}}, only : {{onlies | join( ', &\n' + ' '*(17 + moduleName|length) )}}
 
     implicit none
-{{-'\n'}}
-{%- for param in arguments[name] %}
-{%-   set fortranType = parameters[param] %}
-{%-   if fortranType.typex == 'character' %}
-    character(*), intent(in) :: {{param}}
+
+{%- for param in parameters[name] %}
+{%-   if loop.first %}{{'\n'}}{% endif %}
+{%-   if param.fortranType.intrinsicType == 'character' %}
+    character(*), intent(in) :: {{param.name}}
 {%-   else %}
-    {{fortranType.typex}}({{fortranType.kind}}), intent(in) :: {{param}}
+    {{param.fortranType.declaration()}}, intent(in) :: {{param.name}}
 {%-   endif %}
 {%- endfor %}
 
@@ -57,7 +61,7 @@ contains
       call ESMF_VMGetCurrent( vm=vm, rc=condition )
       if (condition /= ESMF_SUCCESS) then
         write(log_scratch_space, "(A)") &
-            "Failed to get VM when trying to feign {{procedureName}}" 
+            "Failed to get VM when trying to feign {{procedureName}}"
         call log_event( log_scratch_space, LOG_LEVEL_ERROR )
       end if
 
@@ -77,21 +81,13 @@ contains
     end if
 
     write( temporary_unit, '("&{{name}}")' )
-{%- for param in arguments[name] %}
-{%-   set fortranType = parameters[param] %}
-{%-   if param in enumerations %}
-    write( temporary_unit, '("{{param}} = ''", A, "''")' ) key_from_{{param}}( {{param}} )
+{%- for param in parameters[name] %}
+{%-   if param.getConfigureType() == 'enumeration' %}
+    write( temporary_unit, '("{{param.name}} = ''", A, "''")' ) key_from_{{param.name}}( {{param.name}} )
+{%-   elif param.fortranType.intrinsicType == 'character' %}
+    write( temporary_unit, '("{{param.name}} = ''", {{param.fortranType.writeFormat}}, "''")' ) {{param.name}}
 {%-   else %}
-{%-     if fortranType.typex=='logical' %}
-{%-       set formatString = '", L' %}
-{%-     elif fortranType.typex=='integer' %}
-{%-       set formatString = '", I0' %}
-{%-     elif fortranType.typex=='real' %}
-{%-       set formatString = '", E14.7' %}
-{%-     elif fortranType.typex=='character' %}
-{%-       set formatString = '\'\'", A, "\'\'"' %}
-{%-     endif %}
-    write( temporary_unit, '("{{param}} = {{formatString}})' ) {{param}}
+    write( temporary_unit, '("{{param.name}} = ", {{param.fortranType.writeFormat}})' ) {{param.name}}
 {%-   endif %}
 {%- endfor %}
     write( temporary_unit, '("/")' )

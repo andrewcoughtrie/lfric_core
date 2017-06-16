@@ -26,5 +26,5 @@ class ConfigurationLoader():
         inserts = { 'moduleName': self._moduleName, \
                     'namelists' : self._namelists }
 
-        template = self._engine.get_template( 'loader.f90' )
+        template = self._engine.get_template( 'loader.f90.jinja' )
         print( template.render( inserts ), file=moduleFile )

@@ -12,11 +12,12 @@
 !
 program biperiodic_mesh_generator
 
-  use biperiodic_mesh_generator_config_mod,                              &
-                         only : read_biperiodic_mesh_generator_namelist, &
-                                mesh_name, cells_in_x, cells_in_y,       &
-                                cell_width, cell_height,                 &
-                                mesh_filename
+  use biperiodic_mesh_generator_config_mod,                                  &
+                      only : read_biperiodic_mesh_generator_namelist,        &
+                             postprocess_biperiodic_mesh_generator_namelist, &
+                             mesh_name, cells_in_x, cells_in_y,              &
+                             cell_width, cell_height,                        &
+                             mesh_filename
   use cli_mod,           only : get_initial_filename
   use constants_mod,     only : i_def
   use ESMF
@@ -49,6 +50,7 @@ program biperiodic_mesh_generator
   call get_initial_filename( filename )
   namelist_unit = open_file( filename )
   call read_biperiodic_mesh_generator_namelist( namelist_unit, vm, 0 )
+  call postprocess_biperiodic_mesh_generator_namelist( )
   call close_file( namelist_unit )
   deallocate( filename )
 

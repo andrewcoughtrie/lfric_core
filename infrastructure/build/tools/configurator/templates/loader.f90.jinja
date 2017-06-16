@@ -16,7 +16,12 @@ module {{moduleName}}
 {%- if namelists %}
 {{-'\n'}}
 {%-   for listname in namelists %}
-  use {{listname}}_config_mod, only : read_{{listname}}_namelist, {{listname}}_is_loadable, {{listname}}_is_loaded
+  use {{listname}}_config_mod, only : read_{{listname}}_namelist, &
+{%-   set indent = '  use '+listname+'_config_mod, only : ' %}
+{%-   set indent = indent | length() %}
+{{' '*indent}}postprocess_{{listname}}_namelist, &
+{{' '*indent}}{{listname}}_is_loadable, &
+{{' '*indent}}{{listname}}_is_loaded
 {%-   endfor %}
 {%- endif %}
 
@@ -47,10 +52,8 @@ contains
     type(ESMF_VM)     :: vm
 
     character(str_def), allocatable :: namelists(:)
-    integer(i_native) :: i
     integer(i_native) :: unit = -1
     integer(i_native) :: condition
-
 
     call ESMF_VMGetCurrent( vm=vm, rc=condition )
     if (condition /= ESMF_SUCCESS) then
@@ -70,32 +73,11 @@ contains
 
     call get_namelist_names( unit, vm, local_rank, namelists )
 
-    do i = 1, size(namelists)
-      select case (trim(namelists(i)))
-{%- for listname in namelists %}
-        case ('{{listname}}')
-          if ({{listname}}_is_loadable()) then
-            call read_{{listname}}_namelist( unit, vm, local_rank )
-          else
-            write( log_scratch_space, '(A, A, A)' ) &
-                 "Namelist """,                     &
-                 trim(namelists(i)),                &
-                 """ can not be read. Too many instances?"
-            call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-          end if
-{%- endfor %}
-        case default
-          write( log_scratch_space, '(A, A, A, A)' ) &
-               "Unrecognised namelist """,           &
-               trim(namelists(i)),                   &
-               """ found in file ",                  &
-               trim(filename)
-          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-      end select
-    end do
+    call read_configuration_namelists( unit, vm, local_rank, &
+                                       namelists, filename )
 
     if (local_rank == 0) call close_file( unit )
-    
+
   end subroutine read_configuration
 
   ! Finds names of all namelists present in file.
@@ -106,7 +88,7 @@ contains
   ! TODO: Assumes namelist tags are at the start of lines.
   !
   subroutine get_namelist_names( unit, vm, local_rank, names )
-  
+
     use io_utility_mod, only : read_line
 
     implicit none
@@ -149,7 +131,7 @@ contains
       write(log_scratch_space, "(A)") &
           "Failed to broadcast number of namelists"
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-    end if    
+    end if
 
     if (local_rank /= 0) then
       allocate(names(namecount(1)))
@@ -160,7 +142,7 @@ contains
       write(log_scratch_space, "(A)") &
           "Failed to broadcast list of namelist names"
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-    end if    
+    end if
 
   end subroutine get_namelist_names
 
@@ -212,5 +194,61 @@ contains
     end do name_loop
 
   end function ensure_configuration
+
+  subroutine read_configuration_namelists( unit, vm, local_rank, &
+                                           namelists, filename )
+    implicit none
+
+    integer(i_native),  intent(in) :: unit
+    type(ESMF_VM),      intent(in) :: vm
+    integer(i_native),  intent(in) :: local_rank
+    character(str_def), intent(in) :: namelists(:)
+    character(*),       intent(in) :: filename
+
+    integer(i_native) :: i
+
+    ! Read the namelists
+    do i = 1, size(namelists)
+      select case (trim(namelists(i)))
+{%- for listname in namelists %}
+        case ('{{listname}}')
+          if ({{listname}}_is_loadable()) then
+            call read_{{listname}}_namelist( unit, vm, local_rank )
+          else
+            write( log_scratch_space, '(A)' )      &
+                  "Namelist """//                   &
+                  trim(namelists(i))//              &
+                  """ can not be read. Too many instances?"
+            call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+          end if
+{%- endfor %}
+        case default
+          write( log_scratch_space, '(A)' )        &
+                "Unrecognised namelist """//        &
+                trim(namelists(i))//                &
+                """ found in file "//               &
+                trim(filename)
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end select
+    end do
+
+    ! Perform post load actions
+    do i = 1, size(namelists)
+      select case (trim(namelists(i)))
+{%- for listname in namelists %}
+        case ('{{listname}}')
+          call postprocess_{{listname}}_namelist()
+{%- endfor %}
+        case default
+          write( log_scratch_space, '(A)' )        &
+                "Unrecognised namelist """//        &
+                trim(namelists(i))//                &
+                """ found in file "//               &
+                trim(filename)
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end select
+    end do
+
+  end subroutine read_configuration_namelists
 
 end module {{moduleName}}

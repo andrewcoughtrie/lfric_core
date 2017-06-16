@@ -14,10 +14,11 @@ program cubedsphere_mesh_generator
 
   use cli_mod,         only : get_initial_filename
   use constants_mod,   only : i_def, str_def
-  use cubedsphere_mesh_generator_config_mod,                            &
-                       only : read_cubedsphere_mesh_generator_namelist, &
-                              mesh_name, edge_cells, smooth_passes,     &
-                              mesh_filename
+  use cubedsphere_mesh_generator_config_mod,                                 &
+                     only : read_cubedsphere_mesh_generator_namelist,        &
+                            postprocess_cubedsphere_mesh_generator_namelist, &
+                            mesh_name, edge_cells, smooth_passes,            &
+                            mesh_filename
   use ESMF
   use gencube_ps_mod,  only : gencube_ps_type
   use io_utility_mod,  only : open_file, close_file
@@ -49,6 +50,7 @@ program cubedsphere_mesh_generator
   call get_initial_filename( filename )
   namelist_unit = open_file( filename )
   call read_cubedsphere_mesh_generator_namelist( namelist_unit, vm, 0 )
+  call postprocess_cubedsphere_mesh_generator_namelist( )
   call close_file( namelist_unit )
   deallocate( filename )
 

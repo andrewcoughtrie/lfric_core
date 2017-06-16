@@ -1,0 +1,362 @@
+{#- This is the skeleton of the namelist loading module.                   -#}
+{#- The Jinja templating library is used to insert the actual code.        -#}
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+!> Manages the {{listname}} namelist.
+!>
+module {{listname}}_config_mod
+
+  use constants_mod, only : {{all_kinds | sort | join( ', &\n' + ' '*28 )}}
+  use log_mod,       only : log_event, log_scratch_space, LOG_LEVEL_ERROR
+  use ESMF,          only : ESMF_VM, ESMF_VMBroadcast, ESMF_SUCCESS
+
+  implicit none
+
+  private
+  public ::
+{%- for name in enumerations | sort %}
+{{- ' '}}{{name}}_from_key, key_from_{{name}}, &{{'\n'}}{{' ' * 11}}
+{%- endfor %}
+{{- ' '}}read_{{listname}}_namelist, postprocess_{{listname}}_namelist, &
+{{' '*12}}{{listname}}_is_loadable, {{listname}}_is_loaded
+
+{%- for name in enumerations | sort %}
+{%-   if loop.first %}{{'\n'}}{%- endif %}
+{%-   for value, key in parameters[name].inverseMapping | dictsort %}
+  integer(i_native), public, parameter :: {{listname}}_{{name}}_{{key}} = {{value}}
+{%-   endfor %}
+{%- endfor %}
+
+{%- for name, parameter in  parameters | dictsort %}
+{%-   if loop.first %}{{'\n'}}{%- endif %}
+{%-   if parameter.getConfigureType() == 'enumeration' %}
+  integer(i_native), public, protected :: {{parameter.name}}
+{%-   elif parameter.getConfigureType() == 'array' %}
+{%-     if parameter.isImmediateSize() %}
+  {{parameter.fortranType.declaration()}}, public, protected :: {{parameter.name}}({{parameter.bounds[0]}})
+{%-     else %}
+  {{parameter.fortranType.declaration()}}, public, protected, allocatable :: {{parameter.name}}(:)
+{%-     endif %}
+{%-   else %}
+  {{parameter.fortranType.declaration()}}, public, protected :: {{parameter.name}}
+{%-   endif %}
+{%- endfor %}
+
+  logical :: namelist_loaded = .false.
+
+{%- for name in enumerations | sort %}
+{%-   if loop.first %}{{'\n'}}{%- endif %}
+  character(str_def), parameter :: {{name}}_key({{parameters[name].mapping | length()}}) &
+{%    set indent = '          = [character(len=str_def) :: ' %}
+{%-   for value, key in parameters[name].inverseMapping | dictsort %}
+{%-     if not loop.first %}, &{{'\n'}}{% endif %}
+{{- indent }}'{{ key }}'
+{%-     set indent = ' ' * indent | length() %}
+{%-   endfor %}]
+{%- endfor %}
+
+contains
+
+{%- for name in enumerations | sort %}
+{%-   if loop.first %}{{'\n'}}{%- endif %}
+  !> Gets the enumeration value from the key string.
+  !>
+  !> An error is reported if the key is not actually a key.
+  !>
+  !> @param[in] key Enumeration key.
+  !>
+  integer(i_native) function {{name}}_from_key( key )
+
+    implicit none
+
+    character(*), intent(in) :: key
+
+    integer(i_native) :: key_index
+
+    key_index = 1
+    do
+      if (trim({{name}}_key(key_index)) == trim(key)) then
+        {{name}}_from_key = key_index + {{listname}}_{{name}}_{{parameters[name].firstKey}} - 1
+        return
+      else
+        key_index = key_index + 1
+        if (key_index > ubound({{name}}_key, 1)) then
+          write( log_scratch_space, &
+                 '("Key ''", A, "'' not recognised for {{listname}} {{name}}")' ) key
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+      end if
+    end do
+
+  end function {{name}}_from_key
+
+  !> Gets the enumeration key corresponding to a particular value.
+  !>
+  !> An error is reported if the value is not within range.
+  !>
+  !> @param[in] value Enumeration value.
+  !>
+  character(str_def) function key_from_{{name}}( value )
+
+    implicit none
+
+    integer(i_native), intent(in) :: value
+
+    integer(i_native) :: key_index
+
+    key_index = value - {{listname}}_{{name}}_{{parameters[name].firstKey}} + 1
+    if (key_index < lbound({{name}}_key, 1) &
+        .or. key_index > ubound({{name}}_key, 1)) then
+      write( log_scratch_space, &
+             '("Value ", I0, " is not in {{listname}} {{name}}")' ) value
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+    key_from_{{name}} = {{name}}_key( key_index )
+
+  end function key_from_{{name}}
+{%-   if not loop.last %}{{'\n'}}{% endif %}
+{%- endfor %}
+
+  !> Populates this module from a namelist file.
+  !>
+  !> An error is reported if the namelist could not be read.
+  !>
+  !> @param [in] file_unit Unit number of the file to read from.
+  !> @param [in] vm ESMF VM object of current run.
+  !> @param [in] local_rank Rank of current ESMF process.
+  !>
+  subroutine read_{{listname}}_namelist( file_unit, vm, local_rank )
+    implicit none
+    integer(i_native), intent(in) :: file_unit
+    type(ESMF_VM),     intent(in) :: vm
+    integer(i_native), intent(in) :: local_rank
+    call read_namelist( file_unit, vm, local_rank
+{%- if enumerations -%}
+    , {{enumerations | sort | join( ', ' )}}
+{%- endif %} )
+  end subroutine read_{{listname}}_namelist
+
+  ! Reads the namelist file.
+  !
+  subroutine read_namelist( file_unit, vm, local_rank
+{%- if enumerations -%}
+    , {{ enumerations | sort | decorate( 'dummy_' ) | join( ', ' ) }}
+{%- endif %} )
+
+    use constants_mod, only : {{use_from['constants_mod'] | sort | join(', ')}}
+
+    implicit none
+
+    integer(i_native), intent(in) :: file_unit
+    type(ESMF_VM),     intent(in) :: vm
+    integer(i_native), intent(in) :: local_rank
+{%- for name in enumerations | sort %}
+    integer(i_native), intent(out) :: dummy_{{name}}
+{%- endfor %}
+
+{%- if arrays %}{{ '\n' }}
+    integer(i_native), parameter :: initial_size = 100
+{%- endif %}
+
+{%- for ftype, count in lonekindtally|dictsort %}
+{%-   if loop.first %}{{'\n'}}{% endif %}
+{%-   if ftype.intrinsicType == 'logical' %}
+    integer(i_native) :: buffer_{{ftype.label()}}({{count}})
+{%-   else %}
+    {{ftype.declaration()}} :: buffer_{{ftype.label()}}({{count}})
+{%-   endif %}
+{%- endfor %}
+
+{%- for name in enumerations | sort %}
+{%-   if loop.first %}{{'\n'}}{%- endif %}
+    character(str_def) :: {{name}}
+{%- endfor %}
+
+    namelist /{{listname}}/ {{namelist|sort|join(', &\n' + ' '*(16+listname|length))}}
+
+    integer(i_native) :: condition
+
+{%- if arrays %}
+{{-   '\n'}}
+{%-   for name in arrays %}
+{%-     if not parameters[name].isImmediateSize() %}
+    allocate( {{name}}(initial_size), stat=condition )
+    if (condition /= 0) then
+      write( log_scratch_space, '(A)' ) &
+            'Unable to allocate temporary array for "{{name}}"'
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+{%-     endif %}
+{%-   endfor %}
+{%- endif %}
+
+{%- for name, parameter in parameters | dictsort %}
+{%-   if loop.first %}{{'\n'}}{%- endif %}
+{%-   if parameter.fortranType.intrinsicType == "integer" and parameter.getConfigureType() != 'enumeration' %}
+    {{name}} = imdi
+{%-   elif parameter.fortranType.intrinsicType == "real" %}
+    {{name}} = rmdi
+{%-   elif parameter.fortranType.intrinsicType == "logical" %}
+    {{name}} = .false.
+{%-   elif parameter.fortranType.intrinsicType == "character" or parameter.getConfigureType() == 'enumeration' %}
+    {{name}} = ""
+{%-   endif %}
+{%- endfor %}
+
+    if (local_rank == 0) then
+
+      read( file_unit, nml={{listname}}, iostat=condition, iomsg=log_scratch_space )
+      if (condition /= 0) then
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end if
+
+{%- for name in enumerations | sort %}
+{%-   if loop.first %}{{'\n'}}{%- endif %}
+      dummy_{{name}} = {{name}}_from_key( {{name}} )
+{%- endfor %}
+
+    end if
+
+{%- for name, index in lonekindindex|dictsort %}
+{%-   if loop.first %}{{'\n'}}{% endif %}
+{%-   if parameters[name].getConfigureType() == 'enumeration' %}
+    buffer_{{parameters[name].fortranType.label()}}({{index}}) = dummy_{{name}}
+{%-   elif parameters[name].fortranType.intrinsicType == 'logical' %}
+    buffer_{{parameters[name].fortranType.label()}}({{index}}) = merge( 1, 0, {{name}} )
+{%-   else %}
+    buffer_{{parameters[name].fortranType.label()}}({{index}}) = {{name}}
+{%-   endif %}
+{%- endfor %}
+
+{%- for ftype, count in lonekindtally|dictsort %}
+{%-   if loop.first %}{{'\n'}}{%- endif %}
+    call ESMF_VMBroadcast( vm
+{{-   ', buffer_' + ftype.intrinsicType + '_' + ftype.kind }}
+{{-   ', '}}{{count}}
+{%-   if ftype.intrinsicType == 'character' %}
+{{-     '*' + ftype.kind }}
+{%-   endif %}
+{{-   ', 0, rc=condition )'}}
+    if (condition /= ESMF_SUCCESS) then
+      write(log_scratch_space, "(A)") &
+          "Failed to broadcast 'buffer_{{ftype.label()}}'"
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+{%- endfor %}
+
+{%- for name, index in lonekindindex|dictsort %}
+{%-   if loop.first %}{{'\n'}}{%- endif %}
+{%-   if parameters[name].getConfigureType() == 'enumeration' %}
+    dummy_{{name}} = buffer_{{parameters[name].fortranType.label()}}({{index}})
+{%-   elif parameters[name].fortranType.intrinsicType == 'logical' %}
+    {{name}} = buffer_{{parameters[name].fortranType.label()}}({{index}}) /= 0
+{%-   else %}
+    {{name}} = buffer_{{parameters[name].fortranType.label()}}({{index}})
+{%-   endif %}
+{%- endfor %}
+
+{% for name, parameter in parameters | dictsort %}
+{%-   if parameter.getConfigureType() == 'computed' %}
+    {{parameter.name}} = {{parameter.computation}}
+{%-   endif %}
+{%- endfor %}
+
+{%- for name in arrays|sort %}
+{%-   if loop.first %}{{'\n'}}{% endif %}
+    call ESMF_VMBroadcast( vm, {{name}}, size({{name}}, 1)
+{%-   if parameters[name].fortranType.intrinsicType == 'character' %}
+{{-   '*' + parameters[name].fortranType.kind }}
+{%-  endif %}
+{{-   ', 0, rc=condition )' }}
+    if (condition /= ESMF_SUCCESS) then
+      write(log_scratch_space, "(A)") &
+          "Failed to broadcast '{{name}}'"
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+{%- endfor %}
+
+    namelist_loaded = .true.
+
+  end subroutine read_namelist
+
+  !> Performs any processing to be done once all namelists are loaded
+  !>
+  subroutine postprocess_{{listname}}_namelist()
+
+{%- for module, symbols in use_from | dictsort %}
+{%-   if loop.first %}{{'\n'}}{% endif %}
+    use {{module}}, only : {{symbols | sort | join(', ')}}
+{%- endfor %}
+
+    implicit none
+
+{%- if arrays %}{{'\n'}}
+    integer(i_native) :: condition
+    integer(i_native) :: index
+    integer(i_native) :: size
+{%- endif %}
+
+{%- for name in arrays %}
+{%-   set parameter = parameters[name] %}
+{%-   if not parameter.isImmediateSize() %}
+    {{parameter.fortranType.declaration()}} :: new_{{name}}(:)
+{%-   endif %}
+{%- endfor %}
+{{- '\n'}}
+{%-  for name in arrays %}
+{%-   set parameter = parameters[name] %}
+{%-   if parameter.isArbitrarySize() %}
+    do index=ubound({{name}}, 1), 1, -1
+      if {{name}}(index) /= {{parameter.content.getMissingDataIndicator()}} exit
+    end do
+    size = index + 1
+{%-   endif %}
+{%-   if parameter.isDeferredSize() %}
+    size = {{parameter.bounds[0]}}
+{%-   endif %}
+{%-   if not parameter.isImmediateSize() %}
+    allocate( new_{{name}}(size), stat=condition )
+    if (condition /= 0) then
+      write(log_scratch_space, '(A)') 'Unable to allocate "{{name}}"'
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+    new_{{name}}(:size) = {{name}}(:size)
+    call move_alloc( new_{{name}}, {{name}} )
+{%-   endif %}
+{%- endfor %}
+
+  end subroutine postprocess_{{listname}}_namelist
+
+  !> Can this namelist be loaded?
+  !>
+  !> @return True if it is possible to load the namelist.
+  !>
+  function {{listname}}_is_loadable()
+
+    implicit none
+
+    logical :: {{listname}}_is_loadable
+
+    {{listname}}_is_loadable = .not. namelist_loaded
+
+  end function {{listname}}_is_loadable
+
+  !> Has this namelist been loaded?
+  !>
+  !> @return True if the namelist has been loaded.
+  !>
+  function {{listname}}_is_loaded()
+
+    implicit none
+
+    logical :: {{listname}}_is_loaded
+
+    {{listname}}_is_loaded = namelist_loaded
+
+  end function {{listname}}_is_loaded
+
+end module {{listname}}_config_mod
