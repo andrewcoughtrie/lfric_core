@@ -9,14 +9,14 @@
 
 &extrusion
   method           = 'uniform'
-  domain_top       = 10000.0
-  number_of_layers = 5
+  domain_top       = 30000.0
+  number_of_layers = 30
 /
 
 &finite_element
   shape         = 'quadrilateral'
   element_order = 0
-  coordinate_order = 0
+  coordinate_order = 2
   rehabilitate  = .true.
   wtheta_on = .true.
   supg = .false. 
@@ -33,11 +33,11 @@
 /
 
 &idealised
-  test = 'gravity_wave'
+  test = 'deep_baroclinic_wave'
 /
 
 &initial_density
-  sample_init_rho = .true.
+  sample_init_rho = .false.
   tracer_max = 2.0
   tracer_background = 0.1
   r1 = 0.4
@@ -53,7 +53,7 @@
 /
 
 &initial_wind
-  profile        = 'none'
+  profile        = 'deep_baroclinic_perturbed'
   u0             = 0.0
   v0             = 0.0
   rotation_angle = 0.0
@@ -61,9 +61,9 @@
 
 &output
   diag_stem_name            = 'diagDynamo'
-  write_interpolated_output = .true.
+  write_interpolated_output = .false.
   write_nodal_output        = .true.
-  diagnostic_frequency      = 3
+  diagnostic_frequency      = 10
   output_projections_on_w3  = .false.
   subroutine_timers         = .true.
 /
@@ -75,7 +75,7 @@
   rd             = 287.05
   cp             = 1005.0
   p_zero         = 100000.0
-  scaling_factor = 125.0
+  scaling_factor = 1.0
 /
 
 &restart
@@ -84,7 +84,7 @@
 
 &solver
   method                     = 'bicgstab'
-  maximum_iterations         = 99
+  maximum_iterations         = 399
   tolerance                  = 1.0e-6
   preconditioner             = 'diagonal'
   si_tolerance               = 1.0e-6
@@ -92,9 +92,9 @@
   si_postconditioner         = 'pressure'
   si_pressure_preconditioner = 'tridiagonal'
   si_pressure_tolerance      = 1.0e-6
-  gcrk                       = 20
+  gcrk                       = 10
   helmholtz_solve            = .true.
-  use_operators              = .false.
+  use_operators              = .true.
   normalise                  = .true.
 /
 
@@ -106,7 +106,7 @@
 
 &timestepping
   method             = 'semi_implicit'
-  dt                 = 10.0
+  dt                 = 600.0
   alpha              = 0.5
   outer_iterations   = 4
   inner_iterations   = 1
@@ -123,7 +123,7 @@
 
 &transport
   scheme = 'method_of_lines'
-  operators = 'fem'
+  operators = 'fv'
   fv_flux_order = 2
   fv_advective_order = 3
 /

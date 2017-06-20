@@ -1,7 +1,7 @@
 &RESTART_NML
 checkpoint_read = .F
 timestep_start = 1
-timestep_end = 3
+timestep_end = 10
 checkpoint_write = .F
 restart_stem_name="restartDynamo"
 /
