@@ -19,7 +19,8 @@ module cusph_split_transport_alg_mod
   use psykal_lite_mod,                   only: invoke_calc_departure_wind,     &
                                                invoke_calc_deppts,             &
                                                invoke_axpby,                   &
-                                               invoke_plus_field_data
+                                               invoke_plus_field_data,         &
+                                               invoke_extract_xy
 
   use oned_advective_density_update_alg_mod,  only: oned_advective_density_update_alg
   use oned_conservative_flux_alg_mod,         only: oned_conservative_flux_alg
@@ -69,6 +70,7 @@ contains
     type( field_type ) :: mass_flux_x, mass_flux_y
     type( field_type ) :: rho_n, rho_adv_x, rho_adv_y, rho_hat_adv_x, rho_hat_adv_y
     type( field_type ) :: rho_x, rho_y
+    type( field_type ) :: u_x_fem, u_y_fem
 
     type(function_space_type), pointer :: w2_fs     => null()
     type(function_space_type), pointer :: w3_fs     => null()
@@ -82,6 +84,8 @@ contains
     dep_pts_y          = field_type( vector_space = w2_fs )
     mass_flux_x        = field_type( vector_space = w2_fs )
     mass_flux_y        = field_type( vector_space = w2_fs )
+    u_x_fem            = field_type( vector_space = w2_fs )
+    u_y_fem            = field_type( vector_space = w2_fs )
 
     rho_adv_x          = field_type( vector_space = w3_fs )
     rho_adv_y          = field_type( vector_space = w3_fs )
@@ -93,6 +97,11 @@ contains
     ! Calculate the departure wind used for calculating departure points
     call invoke_calc_departure_wind(departure_wind_n,u_n,chi)
     call invoke_calc_departure_wind(departure_wind_np1,u_np1,chi)
+
+    ! Separate finite-element wind field into x and y components
+    call invoke( set_field_scalar(0.0_r_def,u_x_fem), &
+                 set_field_scalar(0.0_r_def,u_y_fem) )
+    call invoke_extract_xy(u_x_fem,u_y_fem,u_n,cell_orientation)
 
     ! Calculate the departure points for W2 nodal points at lowest order
     call invoke( set_field_scalar(0.0_r_def,dep_pts_x), &

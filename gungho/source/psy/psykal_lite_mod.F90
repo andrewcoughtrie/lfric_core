@@ -4410,4 +4410,85 @@ end subroutine invoke_sample_poly_adv
 
   end subroutine invoke_fv_divergence
 
+  !-------------------------------------------------------------------------------
+  !> This kernel routine is in psykal_lite due to the use of cell_orientation
+  !> variable which cannot be halo exchanged and also the depth of the halos to
+  !> loop over includes all halo depths, i.e. all cells in the core and halo.
+  subroutine invoke_extract_xy(x_field_out,y_field_out,w2_field_in,cell_orientation)
+
+    use extract_x_kernel_mod,        only : extract_x_code
+    use extract_y_kernel_mod,        only : extract_y_code
+    use log_mod,                     only : log_event, log_scratch_space,     &
+                                            LOG_LEVEL_INFO
+    use mesh_mod,                    only : mesh_type
+
+    implicit none
+
+    type(field_type), intent(inout)    :: x_field_out
+    type(field_type), intent(inout)    :: y_field_out
+    type(field_type), intent(in)       :: w2_field_in
+    type(field_type), intent(in)       :: cell_orientation
+
+    type(field_proxy_type)             :: cell_orientation_proxy
+    type(field_proxy_type)             :: x_field_out_proxy
+    type(field_proxy_type)             :: y_field_out_proxy
+    type(field_proxy_type)             :: w2_field_in_proxy
+
+    integer                            :: cell, nlayers
+    integer                            :: ndf_w3, undf_w3
+    integer                            :: ndf_w2, undf_w2
+    integer, pointer                   :: map_w3(:,:) => null()
+    integer, pointer                   :: map_w2(:,:) => null()
+
+    type(mesh_type), pointer           :: mesh => null()
+
+    cell_orientation_proxy = cell_orientation%get_proxy()
+    x_field_out_proxy      = x_field_out%get_proxy()
+    y_field_out_proxy      = y_field_out%get_proxy()
+    w2_field_in_proxy      = w2_field_in%get_proxy()
+
+    nlayers = cell_orientation_proxy%vspace%get_nlayers()
+    ndf_w3  = cell_orientation_proxy%vspace%get_ndf( )
+    undf_w3 = cell_orientation_proxy%vspace%get_undf()
+    ndf_w2  = x_field_out_proxy%vspace%get_ndf( )
+    undf_w2 = x_field_out_proxy%vspace%get_undf()
+
+    mesh   => x_field_out%get_mesh()
+    map_w2 => x_field_out_proxy%vspace%get_whole_dofmap()
+    map_w3 => cell_orientation_proxy%vspace%get_whole_dofmap()
+
+    ! Do not perform a halo exchange on purpose
+
+    ! Extract the x-component of the W2 field
+    do cell = 1, mesh%get_ncells_2d() ! Loop over core and halo cells
+
+      call extract_x_code(  nlayers,                             &
+                            cell_orientation_proxy%data,         &
+                            w2_field_in_proxy%data,              &
+                            x_field_out_proxy%data,              &
+                            undf_w3,                             &
+                            ndf_w3,                              &
+                            map_w3(:,cell),                      &
+                            undf_w2,                             &
+                            ndf_w2,                              &
+                            map_w2(:,cell) )
+    end do
+
+    ! Extract the y-component of the W2 field
+    do cell = 1, mesh%get_ncells_2d() ! Loop over core and halo cells
+
+      call extract_y_code(  nlayers,                             &
+                            cell_orientation_proxy%data,         &
+                            w2_field_in_proxy%data,              &
+                            y_field_out_proxy%data,              &
+                            undf_w3,                             &
+                            ndf_w3,                              &
+                            map_w3(:,cell),                      &
+                            undf_w2,                             &
+                            ndf_w2,                              &
+                            map_w2(:,cell) )
+    end do
+
+  end subroutine invoke_extract_xy
+
 end module psykal_lite_mod
