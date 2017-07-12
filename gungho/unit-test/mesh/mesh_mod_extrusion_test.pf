@@ -29,9 +29,9 @@ module mesh_mod_extrusion_test
     type(partition_type)            :: partition
   contains
     private
-    procedure setUp
-    procedure tearDown
-    procedure test_extrusion
+    procedure, public :: setUp
+    procedure, public :: tearDown
+    procedure, public ::  test_extrusion
   end type mesh_extrusion_test_type
 
   @testParameter

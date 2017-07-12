@@ -117,7 +117,7 @@ class FortranAnalyser(Analyser):
                           flags=re.IGNORECASE )
     self._usePattern = re.compile( r'^\s*USE\s+([^,\s]+)',
                                    flags=re.IGNORECASE )
-    self._pFUnitPattern = re.compile( r'^\s*#\s+\d+\s+".+/testSuites.inc"',
+    self._pFUnitPattern = re.compile( r'^\s*#\s+\d+\s+".*testSuites.inc"',
                                       flags=re.IGNORECASE )
     self._suitePattern  = re.compile( r'^\s*ADD_TEST_SUITE\(\s*(\S+)\)' )
 

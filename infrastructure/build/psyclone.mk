@@ -41,6 +41,10 @@ $(WORKING_DIR)/%_psy.f90: $(SOURCE_DIR)/%.x90 $(GLOBAL_OPTIMISATION_FILE) \
 	$(Q)psyclone -api dynamo0.3 -l -d $(WORKING_DIR) \
 	             -s $(GLOBAL_OPTIMISATION_FILE) \
 	             -opsy $@ -oalg $(WORKING_DIR)/$*.f90 $<
+
+$(OPTIMISATION_PATH)/global.py:
+	$(error File not found: $(OPTIMISATION_PATH)/global.py)
+
 else
 $(WORKING_DIR)/%_psy.f90: $(SOURCE_DIR)/%.x90 | $(KERNEL_SOURCE)
 	$(call MESSAGE,Full psyclone,$@)
