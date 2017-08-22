@@ -110,7 +110,7 @@ subroutine test_compute_colours_cubedsphere(this)
 
   character(len=str_max_filename)  :: filename
   integer                          :: total_colours, total_cells, colour_idx
-  integer                          :: nc_colour, cic_colour
+  integer                          :: nc_colour, cic_colour, nc_colour_subset
   type(partition_type)             :: partition
   type(global_mesh_type), pointer  :: global_mesh => null()
   procedure(partitioner_interface), pointer  :: partitioner_ptr => null()
@@ -125,9 +125,10 @@ subroutine test_compute_colours_cubedsphere(this)
   integer(i_def)           :: mesh_id
   type(mesh_type), pointer :: mesh => null()
   integer(i_def)           :: err
+  character( 200 ) :: message
 
   npanels = 6
-  filename = "data/mesh_C4.nc"
+  filename = "data/mesh_C32.nc"
 
   global_mesh_id =  global_mesh_collection%add_new_global_mesh( filename,  &
                                                                 mesh_name, &
@@ -160,7 +161,8 @@ subroutine test_compute_colours_cubedsphere(this)
   ! Is there storage for colour maps...
   @assertTrue(associated(cells_in_colour), "Colours not set for function space.")
   ! Is total number of colours used meaningful...
-  @assertTrue(num_colours == 4, "Failed to colour cubed-sphere with 4 colours")
+  write(message,'(A,I5)')"Failed to colour cubed-sphere with 4 colours. Used ",num_colours
+  @assertTrue(num_colours == 4, message)
 
   ! Did we colour everything...
   total_cells = sum(num_cell_per_colour)
@@ -172,11 +174,17 @@ subroutine test_compute_colours_cubedsphere(this)
 
   ! Does the total in each colour match the cells in the colour map...
   do colour_idx=1, num_colours
+    ! Does the total in each colour match the cells in the colour map...
     nc_colour = num_cell_per_colour(colour_idx)
     cic_colour = count(cells_in_colour(colour_idx,:) /= 0)
     @assertEqual(nc_colour, cic_colour, "Mismatch between num-per-colour total and cell count.")
+    ! For an unpartitioned mesh all the following should be equal to the number of cells in the colour
+    ! So they are not terribly meaningful tests
+    nc_colour_subset = mesh%get_last_edge_cell_per_colour(colour_idx)
+    @assertEqual(nc_colour, nc_colour_subset, "Mismatch between num-per-colour total and no. upto last edge cell.")
+    nc_colour_subset = mesh%get_last_halo_cell_per_colour(colour_idx,1)
+    @assertEqual(nc_colour, nc_colour_subset, "Mismatch between num-per-colour total and no. upto last halo cell.")
   end do
-
 
   return
 end subroutine test_compute_colours_cubedsphere
@@ -196,7 +204,7 @@ subroutine test_compute_colours_biperiodic(this)
 
   character(len=str_max_filename)  :: filename
   integer                          :: total_colours, total_cells, colour_idx
-  integer                          :: nc_colour, cic_colour
+  integer                          :: nc_colour, cic_colour, nc_colour_subset
   type(partition_type)             :: partition
   type(global_mesh_type), pointer  :: global_mesh => null()
   procedure(partitioner_interface), pointer  :: partitioner_ptr => null()
@@ -263,6 +271,12 @@ subroutine test_compute_colours_biperiodic(this)
     nc_colour = num_cell_per_colour(colour_idx)
     cic_colour = count(cells_in_colour(colour_idx,:) /= 0)
     @assertEqual(nc_colour, cic_colour, "Mismatch between num-per-colour total and cell count.")
+    ! For an unpartitioned mesh all the following should be equal to the number of cells in the colour
+    ! So they are not terribly meaningful tests
+    nc_colour_subset = mesh%get_last_edge_cell_per_colour(colour_idx)
+    @assertEqual(nc_colour, nc_colour_subset, "Mismatch between num-per-colour total and no. upto last edge cell.")
+    nc_colour_subset = mesh%get_last_halo_cell_per_colour(colour_idx,1)
+    @assertEqual(nc_colour, nc_colour_subset, "Mismatch between num-per-colour total and no. upto last halo cell.")
   end do
 
 

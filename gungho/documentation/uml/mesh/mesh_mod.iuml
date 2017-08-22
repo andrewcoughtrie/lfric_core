@@ -56,9 +56,13 @@ class mesh_mod::mesh_type {
   +get_halo_depth() : integer
   +get_inner_depth() : integer
   +get_last_edge_cell() : integer
+  +get_last_edge_cell_per_colour( <<in>>colour: integer ) : integer
   +get_last_halo_cell() : integer
   +get_last_halo_cell( <<in>>depth: integer ) : integer
+  +get_last_halo_cell_per_colour( <<in>>colour: integer ) : integer
+  +get_last_halo_cell_per_colour( <<in>>colour: integer, <<in>>depth: integer ) : integer
   +get_last_inner_cell( <<in>>depth: integer ) : integer
+  +get_last_inner_cell_per_colour( <<in>>colour: integer, <<in>>colour: depth ) : integer
   +get_local_rank() : integer
   +get_ncells() : integer
   +get_ncells_2d() : integer

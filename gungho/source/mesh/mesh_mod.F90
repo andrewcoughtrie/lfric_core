@@ -23,7 +23,8 @@ module mesh_mod
   use global_mesh_mod,      only : global_mesh_type
   use global_mesh_map_mod,  only : global_mesh_map_type
   use log_mod,              only : log_event, log_scratch_space, &
-                                   LOG_LEVEL_ERROR, LOG_LEVEL_TRACE
+                                   LOG_LEVEL_ERROR, LOG_LEVEL_TRACE, &
+                                   LOG_LEVEL_INFO, LOG_LEVEL_DEBUG
   use partition_mod,        only : partition_type
 
   use linked_list_mod,      only : linked_list_type, &
@@ -173,6 +174,11 @@ module mesh_mod
     integer(i_def), allocatable, private :: cells_in_colour(:,:)
     !> integer Number of cells in the global 2D mesh
     integer(i_def)                       :: ncells_global_mesh
+    !> integer 2-d array, how many of the first so many cells belong to each colour
+    integer(i_def), allocatable, private :: ncells_per_colour_subset(:,:)
+    integer(i_def),allocatable           :: last_inner_cell_per_colour(:,:)
+    integer(i_def),allocatable           :: last_halo_cell_per_colour(:,:)
+    integer(i_def),allocatable           :: last_edge_cell_per_colour(:)
     !==========================================================================
     ! Maps that this mesh connects to
     !
@@ -215,15 +221,30 @@ module mesh_mod
     procedure, public :: is_cell_owned
     procedure, public :: get_inner_depth
     procedure, public :: get_num_cells_inner
+
     procedure, public :: get_last_inner_cell
+    procedure, public :: get_last_inner_cell_per_colour
+
     procedure, public :: get_num_cells_edge
+
     procedure, public :: get_last_edge_cell
+    procedure, public :: get_last_edge_cell_per_colour
+
     procedure, public :: get_halo_depth
     procedure, public :: get_num_cells_halo
+
     procedure, public :: get_last_halo_cell_any
     procedure, public :: get_last_halo_cell_deepest
-    generic           :: get_last_halo_cell => get_last_halo_cell_any, &
-                                               get_last_halo_cell_deepest
+    generic           :: get_last_halo_cell => &
+                            get_last_halo_cell_any, &
+                            get_last_halo_cell_deepest
+
+    procedure, public :: get_last_halo_cell_per_colour_any
+    procedure, public :: get_last_halo_cell_per_colour_deepest
+    generic           :: get_last_halo_cell_per_colour => &
+                            get_last_halo_cell_per_colour_any, &
+                            get_last_halo_cell_per_colour_deepest
+
     procedure, public :: get_num_cells_ghost
     procedure, public :: get_gid_from_lid
     procedure, public :: get_mesh_map
@@ -238,6 +259,7 @@ module mesh_mod
     ! Get information about colouring of mesh
     procedure, public :: get_ncolours
     procedure, public :: get_colours
+    procedure, public :: get_colour_map
     procedure, public :: is_coloured
 
     procedure, public :: clear
@@ -712,7 +734,7 @@ contains
                       npanels,                 &
                       self%ncells_global_mesh, &
                       gid_from_lid(:) )
-  
+    call init_last_cell_per_colour(self)
   end function mesh_constructor
 
 
@@ -1436,6 +1458,30 @@ contains
 
   end function get_last_inner_cell
 
+  !> @brief  Gets the number of cells of a given colour up to the specified inner halo 
+  !> @param[in] colour Colour of cells to return number of
+  !> @param[in] depth The depth of the halo being queried
+  !> @return ncells_colour The number of this coloured cells in the partition up
+  !>         to the specified inner halo
+  function get_last_inner_cell_per_colour( self, colour, depth ) &
+                                          result ( last_inner_cell )
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+
+    integer(i_def), intent(in) :: depth
+    integer(i_def), intent(in) :: colour
+
+    character(len=*),parameter :: function_name = &
+                                    'get_last_inner_cell_per_colour'
+    integer(i_def)             :: last_inner_cell
+
+    ! Check arguments, which will abort if out of bounds
+    call bounds_check (self, function_name, colour=colour, depth=depth )
+    last_inner_cell = self%last_inner_cell_per_colour(colour, depth)
+
+  end function get_last_inner_cell_per_colour
+
   !> Get the number of edge cells from the partition object
   !> @return edge_cells The total number of edge cells on the 
   !> local partition
@@ -1467,6 +1513,28 @@ contains
 
   end function get_last_edge_cell
 
+  !> @brief  Gets the index of the last edge cell in a 2d slice on the local
+  !>         partition for a given colour
+  !> @return last_edge_cell The index of the last of "edge" cell on 
+  !>         the local partition for the requested colour
+  !============================================================================
+  function get_last_edge_cell_per_colour( self, colour ) &
+                                        result ( last_edge_cell )
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+
+    integer(i_def), intent(in) :: colour
+
+    character(len=*),parameter :: function_name = &
+                                    'get_last_edge_cell_per_colour'
+    integer(i_def) :: last_edge_cell
+
+    ! Check arguments, which will abort if out of bounds
+    call bounds_check (self, function_name, colour=colour )
+    last_edge_cell = self%last_edge_cell_per_colour(colour)
+
+  end function get_last_edge_cell_per_colour
 
   !> @details Returns the maximum depth of the halo from the partition object
   !> @return  The maximum depth of halo cells
@@ -1517,15 +1585,122 @@ contains
     class(mesh_type), intent(in) :: self
 
     integer(i_def), intent(in) :: depth
+
+    character(len=*),parameter :: function_name = &
+                                    'get_last_halo_cell_any'
     integer(i_def)             :: last_halo_cell
 
-    if( depth > self%get_halo_depth() )then
-      last_halo_cell = 0
-    else
-      last_halo_cell = self%partition%get_last_halo_cell(depth)
-    end if
+    ! Check arguments, which will abort if out of bounds
+    call bounds_check (self, function_name, depth=depth )
+    last_halo_cell = self%partition%get_last_halo_cell(depth)
 
   end function get_last_halo_cell_any
+
+  !> @brief  Gets the number of cells of a given colour up to the specified halo 
+  !> @param[in] colour Colour of cells to return number of
+  !> @param[in] depth The depth of the halo being queried
+  !> @return ncells_colour The number of this coloured cells in the partition up
+  !>         to the specified halo
+  !============================================================================
+  function get_last_halo_cell_per_colour_any( self, colour, depth ) &
+                                            result ( ncells_colour )
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+
+    integer(i_def), intent(in) :: depth
+    integer(i_def), intent(in) :: colour
+
+    character(len=*),parameter :: function_name = &
+                                    'get_last_halo_cell_per_colour_any'
+    integer(i_def)             :: ncells_colour
+
+    ! Check arguments, which will abort if out of bounds
+    call bounds_check (self, function_name, colour=colour, depth=depth )
+    ncells_colour = self%last_halo_cell_per_colour(colour, depth)
+
+  end function get_last_halo_cell_per_colour_any
+
+  !> @brief  Gets the number of cells of a given colour in the partition
+  !> @param[in] colour Colour of cells to return number of
+  !> @return ncells_colour The number of this coloured cells in the partition
+  !============================================================================
+  function get_last_halo_cell_per_colour_deepest( self, colour) &
+                                            result ( ncells_colour )
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+
+    integer(i_def), intent(in) :: colour
+    character(len=*),parameter :: function_name = &
+                                    'get_last_halo_cell_per_colour_deepest'
+
+    integer(i_def)             :: ncells_colour
+
+    ! Check arguments, which will abort if out of bounds
+    call bounds_check (self, function_name, colour=colour )
+    ncells_colour = self%ncells_per_colour(colour)
+
+  end function get_last_halo_cell_per_colour_deepest
+
+  !> @brief  Initialises the index of the last cell in various specified regions
+  !>         for each colour
+  !> @details In the PSy layer, we need to loop over various subsets of the mesh
+  !>         such as up to a given halo depth (inner or outer) or up to the last
+  !>         edge cell. In order for this to work with colouring, we need to 
+  !>         know the number of cells of each colour in each subset.
+  !============================================================================
+  subroutine init_last_cell_per_colour( self )
+
+    implicit none
+
+    class(mesh_type), intent(inout) :: self
+
+    integer(i_def)             :: depth
+    integer(i_def)             :: colour
+    integer(i_def)             :: cell
+    integer(i_def)             :: last_cell
+
+    ! Do calculations for the halos
+    if (self%get_halo_depth() > 0) then
+      allocate(self%last_halo_cell_per_colour(self%ncolours, self%get_halo_depth()))
+      do depth = 1, self%get_halo_depth()
+        last_cell = self%get_last_halo_cell(depth)
+        do colour = 1, self%ncolours
+          do cell = self%ncells_per_colour(colour),1,-1
+            if (self%cells_in_colour(colour, cell) <= last_cell) exit
+          end do
+          self%last_halo_cell_per_colour(colour, depth) = cell
+        end do
+      end do
+    end if
+
+    ! Do calculations for the inner halos
+    if (self%get_inner_depth() > 0) then
+      allocate(self%last_inner_cell_per_colour(self%ncolours, self%get_inner_depth()))
+      do depth = 1, self%get_inner_depth()
+        last_cell = self%get_last_inner_cell(depth)
+        do colour = 1, self%ncolours
+          do cell = self%ncells_per_colour(colour),1,-1
+            if (self%cells_in_colour(colour,cell) <= last_cell) exit
+          end do
+          self%last_inner_cell_per_colour(colour, depth) = cell
+        end do
+      end do
+    end if
+    
+    ! Do calculations for the range excluding halos
+    allocate(self%last_edge_cell_per_colour(self%ncolours))
+    last_cell = self%get_last_edge_cell()
+
+    do colour = 1, self%ncolours
+      do cell = self%ncells_per_colour(colour),1,-1
+        if (self%cells_in_colour(colour,cell) <= last_cell) exit
+      end do
+      self%last_edge_cell_per_colour(colour) = cell
+    end do
+ 
+  end subroutine init_last_cell_per_colour
 
   !> @brief  Gets the index of the last cell in the deepest halo 
   !> @details Returns the index of the last cell in a particular depth
@@ -1543,6 +1718,36 @@ contains
     last_halo_cell = self%partition%get_last_halo_cell( self%get_halo_depth() )
 
   end function get_last_halo_cell_deepest
+
+  !> @brief Check the bounds for depth and colour arguments and aborts
+  !>        if out of bounds
+
+  subroutine bounds_check(self, function_name, colour, depth)
+    implicit none
+    
+    class(mesh_type), intent(in) :: self
+
+    character(len = *), intent(in)  :: function_name
+        
+    integer(i_def), intent(in), optional :: colour
+    integer(i_def), intent(in), optional :: depth
+
+    if (present(depth)) then
+      if( depth > self%get_halo_depth() .or. depth < 1 )then
+        write(log_scratch_space,'(A,A,I5,A)')function_name,': depth ', &
+           depth,' is out of bounds'
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      end if
+    end if
+
+    if (present(colour)) then
+      if( colour > self%ncolours .or. colour < 1 )then
+        write(log_scratch_space,'(A,A,I5,A)')function_name,': colour ', &
+           colour,' is out of bounds'
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      end if
+    end if
+  end subroutine bounds_check
 
   !> @details Get the total number of ghost cells in a slice around
   !>          the local partition
@@ -1617,6 +1822,20 @@ contains
     ncolours = self%ncolours
 
   end function get_ncolours
+
+  !============================================================================
+  !> @brief Get the colour map
+  !> @param[in] self  The mesh_type instance.
+  !> @param[out] colour_map    Indices of cells in each colour.
+  !============================================================================
+  function get_colour_map(self) result (colour_map)
+    implicit none
+    class(mesh_type), intent(in), target      :: self
+    integer(i_def), pointer                   :: colour_map(:,:)
+  
+    colour_map => self%cells_in_colour
+
+  end function get_colour_map
 
   !============================================================================
   !> @brief Populates args with colouring info.
