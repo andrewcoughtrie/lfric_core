@@ -55,7 +55,6 @@ contains
   procedure, nopass :: held_suarez_code
 end type
 
-
 !-------------------------------------------------------------------------------
 ! Constructors
 !-------------------------------------------------------------------------------
@@ -65,20 +64,20 @@ interface held_suarez_kernel_type
    module procedure held_suarez_kernel_constructor
 end interface
 
-
 !-------------------------------------------------------------------------------
 ! local parameters
 !-------------------------------------------------------------------------------
 ! Held-Suarez parameters 
-real(kind=r_def), parameter :: SIGMA_B = 0.7
-real(kind=r_def), parameter :: KA = 1./86400.
-real(kind=r_def), parameter :: KF = KA/40.0
-real(kind=r_def), parameter :: KS = KA/4.0
+real(kind=r_def), parameter :: SIGMA_B = 0.7  ! non-dimensional pressure threshold
+! relaxation and damping coefficients
+real(kind=r_def), parameter :: KF = 1./86400. ! 1 day-1
+real(kind=r_def), parameter :: KA = KF/40.0   ! 1/40 day-1
+real(kind=r_def), parameter :: KS = KF/4.0    ! 1/4 day-1
+
 real(kind=r_def), parameter :: T_MIN            = 200.0 ! Minimum/Stratospheric temperature 
 real(kind=r_def), parameter :: T_SURF           = 315.0 ! surface temperature 
 real(kind=r_def), parameter :: DT_EQ_POLE       = 60.0  ! Equator-Pole Temp diff (deltaT)_y
 real(kind=r_def), parameter :: STATIC_STABILITY = 10.0  ! Static Stability temperature (delta \theta)_z
-
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines

@@ -307,8 +307,8 @@ contains
     ! Normalize answers of differing magnitudes to use the same tolerance in assertEqual
     norm_1 = tol/1.e-04
     norm_2 = tol/1.e-12
-    this%answer_dtheta(1) = -1.024334239337491E-004 * norm_1
-    this%answer_du(1) = 1.446564757996608E-012 * norm_2
+    this%answer_dtheta(1) = -0.1023480E-03 * norm_1
+    this%answer_du(1) = 0.5786259E-10 * norm_2
 
     @assertEqual( this%answer_dtheta(1), dtheta_proxy%data(map_w0(1)) * norm_1, tol )
     @assertEqual( this%answer_du(1), du_proxy%data(map_w2(1)) * norm_2, tol )

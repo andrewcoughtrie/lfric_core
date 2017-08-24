@@ -1,0 +1,8 @@
+namelist physics
+  ! the placement variables indicate where a given physics routine is placed
+  ! if > 0: then placement is in fast physics
+  ! if = 0: then routine is not called
+  ! if < 0: then placement is in slow physics
+  heldsuarez_placement : integer ! heldsuarez forcing
+
+end namelist physics

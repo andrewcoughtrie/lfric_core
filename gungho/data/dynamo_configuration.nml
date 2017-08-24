@@ -68,6 +68,10 @@
   subroutine_timers         = .true.
 /
 
+&physics
+ heldsuarez_placement = -1
+/
+
 &planet
   gravity        = 9.80665
   radius         = 6371229.0

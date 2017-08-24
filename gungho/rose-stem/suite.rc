@@ -6,7 +6,7 @@
                                  'dcmip301', 'robert', 'robert-moist', 'robert_short',
                                  'sbr', 'sbr_spinupwinds', 'sbr_spinupalpha',
                                  'straka_x', 'straka_y', 'straka_y_ugrid', 'straka_200m',
-                                 'biperiodic-cosmic',
+                                 'biperiodic-cosmic', 'weak_hs_short',
                                  'baroclinic'%}
 {%- set miniapp_configurations = ['gravity_wave', 'umphysics_testbuild', 'miniapp_skeleton', 'io_miniapp'] %}
 {%- set groups = {'developer': ['science( semi-implicit, resolutions=[["C12",10.0]], env={"nrun":3})',
@@ -22,7 +22,16 @@
                                           plotstr="straka_plot_y_ugrid.py $NODAL_DATA_DIR/lfric_diag.nc air_potential_temperature faces_levels T90 $PLOT_DIR",
                                           checkkgo=False)',
                                 'science( robert_short, resolutions=[["BiP50x4-20x20",0.5]],
-                                                        env={"crun":3, "nrun":5})',     
+                                                        env={"crun":3, "nrun":5})',  
+                                'science( weak_hs_short,
+                                          resolutions=[["C24",600.0]],
+                                          env={"crun":3, "nrun": {"default":3},
+                                              "directives":{"default":{"mpi_parts":24,
+                                                                       "threads":1,
+                                                                       "wallclock":"00:05:00"}
+                                                           }
+                                             },
+                                          checkkgo=True)',   
                                 'science( baroclinic, resolutions=[["C24",600.0]],
                                           plotstr="slices.py diagDynamo $NODAL_DATA_DIR theta:rho:1u:2u:3u T000010 180 50 0 $PLOT_DIR")',
                                 'check_compilers(fast-debug, semi-implicit, resolutions=[["C12",10.0]], publish=False)',

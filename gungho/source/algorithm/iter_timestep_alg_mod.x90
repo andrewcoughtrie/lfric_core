@@ -22,7 +22,6 @@ module iter_timestep_alg_mod
   use timestepping_config_mod,   only: dt, alpha, &
                                        outer_iterations, inner_iterations, &
                                        spinup_period, spinup_alpha, spinup_winds
-  use idealised_config_mod,      only: test, idealised_test_held_suarez
   use derived_config_mod,        only: bundle_size
   use runtime_constants_mod,     only: get_qr, get_coordinates, get_height
   use fs_continuity_mod,         only: W3, Wtheta
@@ -40,10 +39,6 @@ module iter_timestep_alg_mod
                                        set_bundle_scalar, &
                                        bundle_ax 
 
-  ! PsyKAl PSYClone kernels
-  use held_suarez_kernel_mod,    only: held_suarez_kernel_type
-  use enforce_bc_kernel_mod,     only: enforce_bc_kernel_type
-
   ! Derived Types
   use field_mod,                 only: field_type
   use quadrature_mod,            only: quadrature_type
@@ -56,6 +51,8 @@ module iter_timestep_alg_mod
   use si_operators_alg_mod,      only: create_si_operators, compute_si_operators
   use helmholtz_solver_alg_mod,  only: helmholtz_solver_init, &
                                        compute_inv_hb
+  use fast_physics_alg_mod,      only: fast_physics
+  use slow_physics_alg_mod,      only: slow_physics
 
   ! Field mappings
   use map_rho_to_theta_mod,      only: map_rho_to_theta
@@ -80,7 +77,7 @@ module iter_timestep_alg_mod
   !  created once but used every step
   type( field_type ), allocatable :: state(:), state_n(:)
   type( field_type ), allocatable :: rhs_n(:), rhs_np1(:), rhs_adv(:)
-  type( field_type ), allocatable :: rhs_heldsuarez(:), inc(:)
+  type( field_type ), allocatable :: rhs_phys(:), inc(:)
   type( field_type ) :: u_adv   ! Advective wind (centered in time)
 
 
@@ -88,14 +85,13 @@ module iter_timestep_alg_mod
   public :: iter_alg_step
 
 contains
+
   !> @details Initialisation procedure for the timestepping algorithm
   !>         Initialises various internal fields
   !> @param[in]    mesh_id Mesh id of the mesh object on which the model runs
   !> @param[inout] u  3D wind field
   !> @param[inout] rho Density
   !> @param[inout] theta Potential temperature
-
-
   subroutine iter_alg_init( mesh_id, u, rho, theta)
 
     implicit none
@@ -106,18 +102,21 @@ contains
     ! Prognostic fields    
     type( field_type ), intent( inout ) :: u, rho, theta
 
-    !=== Allocate internal state field arrays ================================!
+    !--------------------------------------------------------------------
+    ! Allocate internal state field arrays
+    !--------------------------------------------------------------------
 
     allocate(state(bundle_size))
     allocate(state_n(bundle_size))
     allocate(rhs_n(bundle_size))
     allocate(rhs_np1(bundle_size))
     allocate(rhs_adv(bundle_size))
-    allocate(rhs_heldsuarez(bundle_size))
+    allocate(rhs_phys(bundle_size))
     allocate(inc(bundle_size))
 
-
-    !=== Initialise internal state field objects =============================!
+    !--------------------------------------------------------------------
+    ! Initialise internal state field objects
+    !--------------------------------------------------------------------
 
     state(igh_u) = field_type( vector_space = u%get_function_space() )
     state(igh_t) = field_type( vector_space = theta%get_function_space() )
@@ -127,18 +126,24 @@ contains
     call clone_bundle(state, rhs_n,     bundle_size)
     call clone_bundle(state, rhs_np1,   bundle_size)
     call clone_bundle(state, rhs_adv,   bundle_size)
-    call clone_bundle(state, rhs_heldsuarez,   bundle_size)
+    call clone_bundle(state, rhs_phys,  bundle_size)
     call clone_bundle(state, inc,       bundle_size)
 
+    !--------------------------------------------------------------------
     ! If held-suarez forcing is not used, then we want the following to be 
     ! initialized to zero
-    call set_bundle_scalar(0.0_r_def, rhs_heldsuarez, bundle_size)
+    !--------------------------------------------------------------------
+    call set_bundle_scalar(0.0_r_def, rhs_phys, bundle_size)
 
+    !--------------------------------------------------------------------
     ! Operators for si solves
+    !--------------------------------------------------------------------
     if ( helmholtz_solve ) call helmholtz_solver_init(state)
     if ( helmholtz_solve .or. use_operators ) call create_si_operators(mesh_id)
 
-    !=== Copy prognostic field data to state arrays ===========================!
+    !--------------------------------------------------------------------
+    ! Copy prognostic field data to state arrays
+    !--------------------------------------------------------------------
     call invoke( copy_field(u,     state(igh_u)), &
                  copy_field(theta, state(igh_t)), &
                  copy_field(rho,   state(igh_d)) )
@@ -147,8 +152,7 @@ contains
 
     u_adv = field_type( vector_space = u%get_function_space() ) 
 
-    call log_event( "Dynamo: initialised timestepping algorithm", LOG_LEVEL_INFO )
-
+    call log_event( "iter_timestep: initialised timestepping algorithm", LOG_LEVEL_INFO )
 
   end subroutine iter_alg_init
 
@@ -159,7 +163,7 @@ contains
   !>         Advection terms computed in an outer loop using time-averaged
   !>         fields.
   !>         New time level forcings computed in an inner loop.
-  !>         To match ENDGame 2 outer and 2 inner loops are used per timestep
+  !>         If matching ENDGame, 2 outer and 2 inner loops are used per timestep
   !>         by default. This means that there is one evaluation of old time
   !>         level terms, 2 evaluation of advective terms and 4 evaluations 
   !>         of new time level terms and increment updates per timestep
@@ -176,7 +180,6 @@ contains
   !> @param[inout] p_in_w3 pressure on w3 space
   !> @param[inout] p_in_wth pressure on wth space
   !> @param[in]    timestep model timestep number
-
   subroutine iter_alg_step(u, rho, theta, mr, xi,        &
                            u1_in_w3, u2_in_w3, u3_in_w3, &
                            rho_in_wth, theta_in_w3,      &
@@ -215,7 +218,9 @@ contains
     chi => get_coordinates()
     height_w3  => get_height(W3)
     height_wth => get_height(Wtheta)
+    !--------------------------------------------------------------------
     !Pass updated fields into state
+    !--------------------------------------------------------------------
     if (spinup_winds .and. timestep <= spinup_period)then
       call invoke( copy_field(u,     state(igh_u)), &
                    copy_field(theta, state(igh_t)), &
@@ -238,24 +243,36 @@ contains
       call map_physics_fields_alg(u, rho, theta, rho_in_wth,                    &
                                   u1_in_w3, u2_in_w3, u3_in_w3, theta_in_w3,    &
                                   p_in_w3, p_in_wth)
+      !--------------------------------------------------------------------
+      ! Call the slow physics terms
+      !--------------------------------------------------------------------
+      call slow_physics()
       call p_in_wth%log_minmax(LOG_LEVEL_INFO, 'p_in_wth')
       call p_in_w3%log_minmax(LOG_LEVEL_INFO, 'p_in_w3')
-      call log_event( "Dynamo: generated physics fields.", LOG_LEVEL_INFO )
+      call log_event( "slow physics: completed slow physics.", LOG_LEVEL_INFO )
     end if
 
-    !=== Do a single timestep ==============================================!
     call copy_bundle(state, state_n, bundle_size)
     if ( helmholtz_solve .or. use_operators ) call compute_si_operators(state_n)
     if ( helmholtz_solve ) call compute_inv_hb()
     call rhs_alg(rhs_n, varbeta*dt, state_n)
-    !=== Section 3.1:  Outer (advection loop) ==============================!
+
+    !============================================================================
+    ! Start the Outer (advection) loop
+    !============================================================================
     do outer = 1,outer_iterations
-      ! Some idealized (fast) physics terms
-      if ( test == idealised_test_held_suarez) then
-        call set_bundle_scalar(0.0_r_def, rhs_heldsuarez, bundle_size)
-        call invoke(held_suarez_kernel_type(rhs_heldsuarez(igh_u), rhs_heldsuarez(igh_t), &
-                    state_n(igh_u), state_n(igh_t), state_n(igh_d), chi, qr))
-        call invoke( enforce_bc_kernel_type( rhs_heldsuarez(igh_u) ) )
+
+      if (use_physics)then
+        call map_rho_to_theta(state_n(igh_d), state_n(igh_t), rho_in_wth) 
+        call map_physics_fields_alg(state_n(igh_u), state_n(igh_d), state_n(igh_t),  &
+                                    rho_in_wth,                                      &
+                                    u1_in_w3, u2_in_w3, u3_in_w3, theta_in_w3,       &
+                                    p_in_w3, p_in_wth)
+        !--------------------------------------------------------------------
+        ! Call the fast physics terms
+        !--------------------------------------------------------------------
+        call fast_physics(chi, state_n, rhs_phys, qr)
+        call log_event( "iter_timestep: completed fast physics.", LOG_LEVEL_INFO )
       end if
 
       ! Set advecting velocity & terms
@@ -263,17 +280,23 @@ contains
       call advection_alg(rhs_adv, state_n, xi, u_adv)
       if ( use_moisture ) call advection_mr_alg(mr, u_adv)
       call bundle_ax(dt, rhs_adv, rhs_adv, bundle_size) 
-      !=== Section 3.2: Inner (nonlinear, coriolis loop) ===================!
+
+      !============================================================================
+      ! Start the Inner (nonlinear, coriolis) loop
+      !============================================================================
       do inner = 1,inner_iterations
         call rhs_alg(rhs_np1, -varalpha*dt, state)
 
-        ! === Section 3.3: Solve for increments ============================!
+        !--------------------------------------------------------------------
+        ! Solve for the increments
+        !
         ! Add on advective terms: rhs = rhs_n - rhs_np1 + rhs_adv
         ! (reuse rhs_np1 for rhs)
+        !--------------------------------------------------------------------
 
         call bundle_axpy(-1.0_r_def, rhs_np1, rhs_n, rhs_np1, bundle_size)
         call add_bundle(rhs_np1, rhs_adv, rhs_np1, bundle_size)
-        call add_bundle(rhs_np1, rhs_heldsuarez, rhs_np1, bundle_size)
+        call add_bundle(rhs_np1, rhs_phys, rhs_np1, bundle_size)
              
         write( log_scratch_space, '(A,2I3)' ) 'loop indices (o, i): ', &
                                                   , outer, inner
@@ -294,12 +317,20 @@ contains
         call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
         call si_solver_alg(state, rhs_np1, state_n)
-        !=== End Section 3.3 ===============================================!
+
       end do ! INNER
-      !=== End Section 3.2 =================================================!
+      !--------------------------------------------------------------------
+      ! End of Inner (nonlinear, coriolis) loop
+      !--------------------------------------------------------------------
+
     end do ! OUTER
-    !=== End Section 3.1 ===================================================!
+    !--------------------------------------------------------------------
+    ! End of Outer (advection) loop
+    !--------------------------------------------------------------------
+
+    !--------------------------------------------------------------------
     ! Apply viscosity
+    !--------------------------------------------------------------------
     if ( viscosity ) then
       call log_event( 'Applying Viscosity', LOG_LEVEL_INFO )      
       call invoke_viscosity(inc(igh_t), theta, inc(igh_u), u, chi)
@@ -307,8 +338,10 @@ contains
       call bundle_axpy(dt, inc, state, state, bundle_size)
     end if    
     
+    !--------------------------------------------------------------------
     ! Return fields in u, theta, rho arrays
     ! The if statement prevents this update if spinup_winds is true
+    !--------------------------------------------------------------------
     if (.not. (spinup_winds .and. timestep <= spinup_period))then
       call invoke( copy_field(state(igh_u), u) )
     end if

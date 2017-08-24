@@ -1,0 +1,65 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2017 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!>@brief Calls to the slow physics schemes
+module slow_physics_alg_mod
+
+  use constants_mod,             only: i_def,r_def
+  use log_mod,                   only: log_event,         &
+                                       LOG_LEVEL_WARNING
+  use physics_config_mod,        only: heldsuarez_placement
+  use derived_config_mod,        only: bundle_size
+  ! PsyKAl PSYClone kernels
+  use held_suarez_kernel_mod,    only: held_suarez_kernel_type
+  use enforce_bc_kernel_mod,     only: enforce_bc_kernel_type
+  
+  use field_bundle_mod,          only: set_bundle_scalar
+  
+  ! Derived Types
+  use field_mod,                 only: field_type
+  use quadrature_mod,            only: quadrature_type
+  ! Field indices
+  use field_indices_mod,         only: igh_u, igh_t, igh_d
+  
+  implicit none
+
+contains
+
+  !> @details Collection of procedures for subgrid physics that act
+  !>          before the outer loop of the solver
+  subroutine slow_physics()
+
+    implicit none
+
+    !===================================================================================
+    ! Currently there are no codes on trunk to use this, but this is where they will go
+    ! For the time being we write out a warning if held_suarez forcing is requested here
+    !===================================================================================
+
+    logical :: held_suarez_done ! Flag to indicate that held_suarez has been calculated
+
+    held_suarez_done=.false.
+
+    if (heldsuarez_placement < 0)then
+      ! This is where the call to held-suarez would go
+      call log_event( &
+         'slow_physics: Trying to running Held-Suarez forcing, &
+         &but this is not yet implemented', &
+         LOG_LEVEL_WARNING )
+      held_suarez_done=.true. ! We've done it, so need to collect this term later on
+    end if
+
+    !=====================================
+    ! collect individual terms in parallel
+    !=====================================
+    if (held_suarez_done)then
+      ! If we had some output, then we'd collect it together here
+    end if
+
+  end subroutine slow_physics
+
+
+end module slow_physics_alg_mod
