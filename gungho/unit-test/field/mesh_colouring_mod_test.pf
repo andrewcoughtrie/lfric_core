@@ -41,14 +41,14 @@ module mesh_colouring_mod_test
     procedure     :: test_compute_colours_biperiodic
   end type compute_colours_test_type
 
-  character(str_def), parameter :: mesh_name ='unit_test'
+  character(str_def), parameter :: mesh_name ='Mesh2'
   
 !-------------------------------------------------------------------------------
 contains
 !-------------------------------------------------------------------------------
 subroutine setUp(this)
 
-  use finite_element_config_mod, only : finite_element_shape_quadrilateral
+  use finite_element_config_mod, only : finite_element_cellshape_quadrilateral
   use ESMF
   use reference_element_mod,     only : reference_cube, reference_element
 
@@ -64,7 +64,7 @@ subroutine setUp(this)
                   rc=rc)
   if (rc  /=  ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
-  reference_element = finite_element_shape_quadrilateral
+  reference_element = finite_element_cellshape_quadrilateral
   call reference_cube()
 
   ! Create top level collections

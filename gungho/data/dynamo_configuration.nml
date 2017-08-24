@@ -1,6 +1,6 @@
 &base_mesh
   filename        = 'mesh_C12.nc'
-  prime_mesh_name = 'dynamics'
+  prime_mesh_name = 'Mesh2'
   geometry        = 'spherical'
   partitioner     = 'cubedsphere'
   fplane          = .false.
@@ -14,13 +14,13 @@
 /
 
 &finite_element
-  shape         = 'quadrilateral'
-  element_order = 0
+  cellshape        = 'quadrilateral'
+  element_order    = 0
   coordinate_order = 2
-  rehabilitate  = .true.
-  wtheta_on = .true.
-  supg = .false. 
-  lumped_m1 = .false.
+  rehabilitate     = .true.
+  wtheta_on        = .true.
+  supg             = .false. 
+  lumped_m1        = .false.
 /
 
 &formulation

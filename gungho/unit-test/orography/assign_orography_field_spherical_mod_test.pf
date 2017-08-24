@@ -38,7 +38,7 @@ module assign_orography_field_spherical_mod_test
     procedure     :: test_assign_orography_field_spherical
   end type assign_orography_field_spherical_test_type
 
-  character(str_def), parameter   :: mesh_name     = 'unit_test'
+  character(str_def), parameter   :: mesh_name     = 'Mesh2'
   character(len=str_max_filename) :: filename      = "data/mesh_C16.nc"
   real(r_def),        parameter   :: domain_top    = 10000.0_r_def
   integer(i_def),     parameter   :: npanels       = 6_i_def
@@ -64,7 +64,7 @@ contains
 
     use reference_element_mod,          only : reference_cube, reference_element
     use agnesi_orography_spherical_mod, only : agnesi_spherical_type
-    use finite_element_config_mod,      only : finite_element_shape_quadrilateral
+    use finite_element_config_mod,      only : finite_element_cellshape_quadrilateral
     use base_mesh_config_mod,           only : base_mesh_geometry_spherical, &
                                                base_mesh_partitioner_cubedsphere
     use gungho_feign_config_mod,        only :                  &
@@ -79,7 +79,7 @@ contains
 
     class(assign_orography_field_spherical_test_type), intent(inout) :: this
 
-    reference_element = finite_element_shape_quadrilateral
+    reference_element = finite_element_cellshape_quadrilateral
     call reference_cube()
 
     ! Create top level collections

@@ -50,7 +50,7 @@ module mesh_map_mod_test
     procedure :: test_fine_to_coarse_map
   end type mesh_map_test_type
 
-  character(str_def), parameter :: mesh_name = 'unit_test'
+  character(str_def), parameter :: mesh_name = 'Mesh2'
   character(str_max_filename), parameter :: filenames(2) = &
                                     [ 'data/mesh_C4.nc ',  &! 4x4 panel
                                       'data/mesh_C8.nc ']   ! 8x8 panel
@@ -153,7 +153,7 @@ contains
 
     use base_mesh_config_mod,      only : base_mesh_geometry_spherical, &
                                           base_mesh_partitioner_cubedsphere
-    use finite_element_config_mod, only : finite_element_shape_quadrilateral
+    use finite_element_config_mod, only : finite_element_cellshape_quadrilateral
     use gungho_feign_config_mod,   only : feign_base_mesh_config, &
                                           feign_planet_config,    &
                                           feign_extrusion_config
@@ -189,7 +189,7 @@ contains
                               rd=rd, cp=cp, p_zero=p_zero,                 &
                               scaling_factor=scaling )
 
-    reference_element = finite_element_shape_quadrilateral
+    reference_element = finite_element_cellshape_quadrilateral
     call reference_cube()
 
     partitioner_ptr => partitioner_cubedsphere_serial

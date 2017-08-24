@@ -1,4 +1,4 @@
-"dynamics":
+"Mesh2":
   Class:               plane
   Generator inputs:    cells_in_x=16;cells_in_y=8;cell_width=100.00;cell_height=50.00
   Nodes:               128

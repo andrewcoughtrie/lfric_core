@@ -38,7 +38,7 @@ module schar_orography_cartesian_mod_test
     procedure     :: test_schar_orography_cartesian
   end type schar_orography_cartesian_test_type
 
-  character(str_def), parameter   :: mesh_name     = 'unit_test'
+  character(str_def), parameter   :: mesh_name     = 'Mesh2'
   character(len=str_max_filename) :: filename      = "data/mesh_BiP40x40-5x5.nc"
   real(r_def),        parameter   :: domain_top    = 1000.0_r_def
   integer(i_def),     parameter   :: npanels       = 1_i_def
@@ -56,7 +56,7 @@ contains
 
     use reference_element_mod,         only : reference_cube, reference_element
     use schar_orography_cartesian_mod, only : schar_cartesian_type
-    use finite_element_config_mod,     only : finite_element_shape_quadrilateral
+    use finite_element_config_mod,     only : finite_element_cellshape_quadrilateral
     use base_mesh_config_mod,          only : base_mesh_geometry_planar, &
                                               base_mesh_partitioner_planar
     use gungho_feign_config_mod,       only :                    &
@@ -70,7 +70,7 @@ contains
 
     class(schar_orography_cartesian_test_type), intent(inout) :: this
 
-    reference_element = finite_element_shape_quadrilateral
+    reference_element = finite_element_cellshape_quadrilateral
     call reference_cube()
 
     ! Create top level collections

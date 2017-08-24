@@ -1,8 +1,8 @@
 &base_mesh
-  filename        = 'mesh_C12.nc'
+  filename        = 'cubedsphere.12x12.nc'
   geometry        = 'spherical'
   partitioner     = 'cubedsphere'
-  prime_mesh_name = 'dynamics'
+  prime_mesh_name = 'Mesh2'
   fplane          = .false.
   f_lat_deg       = 45.0
 /
@@ -14,12 +14,12 @@
 /
 
 &finite_element
-  shape         = 'quadrilateral'
-  element_order = 0
+  cellshape        = 'quadrilateral'
+  element_order    = 0
   coordinate_order = 2
-  rehabilitate  = .true.
-  wtheta_on     = .false.
-  supg = .false.
+  rehabilitate     = .true.
+  wtheta_on        = .false.
+  supg             = .false.
 /
 
 &planet
