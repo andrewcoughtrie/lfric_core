@@ -63,42 +63,42 @@ contains
 !> @param[in] mesh_id  Id of the mesh all fields are on
 subroutine output_nodal(field_name,n, field, mesh_id)
 
-   implicit none
+  implicit none
 
-   character(len=*),    intent(in)    :: field_name
-   integer(i_def),      intent(in)    :: n
-   type(field_type),    intent(inout) :: field
-   integer(i_def),      intent(in)    :: mesh_id
+  character(len=*),    intent(in)    :: field_name
+  integer(i_def),      intent(in)    :: n
+  type(field_type),    intent(inout) :: field
+  integer(i_def),      intent(in)    :: mesh_id
 
-   ! Local variables
-   type(mesh_type ), pointer          :: mesh => null()
-   type(field_type),    pointer       :: chi(:) => null()
-   type(field_type), allocatable      :: projected_field(:)
-   type(field_type)                   :: nodal_output(3)
-   type(field_type)                   :: nodal_coordinates(3)
-   type(field_type)                   :: level
-   character(len=str_max_filename)    :: rank_name
-   character(len=str_max_filename)    :: fname
-   integer(kind=i_def)                :: output_dim, dir, fs_handle
-   type(function_space_type), pointer :: fs
-   character(len=1)                   :: uchar
-   character(len=len(field_name)+1)   :: field_name_new
-   integer(i_def), parameter          :: nodal_output_unit = 21
+  ! Local variables
+  type(mesh_type ), pointer          :: mesh => null()
+  type(field_type),    pointer       :: chi(:) => null()
+  type(field_type), allocatable      :: projected_field(:)
+  type(field_type)                   :: nodal_output(3)
+  type(field_type)                   :: nodal_coordinates(3)
+  type(field_type)                   :: level
+  character(len=str_max_filename)    :: rank_name
+  character(len=str_max_filename)    :: fname
+  integer(kind=i_def)                :: output_dim, dir, fs_handle
+  type(function_space_type), pointer :: fs
+  character(len=1)                   :: uchar
+  character(len=len(field_name)+1)   :: field_name_new
+  integer(i_def), parameter          :: nodal_output_unit = 21
 
-   mesh => mesh_collection%get_mesh( mesh_id )
+  mesh => mesh_collection%get_mesh( mesh_id )
 
-   chi  => get_coordinates()
+  chi  => get_coordinates()
 
-   ! Determine the rank and set rank_name
-   ! No rank name appended for a serial run
+  ! Determine the rank and set rank_name
+  ! No rank name appended for a serial run
 
-   if ( mesh%get_total_ranks() == 1 ) then
-     rank_name=".m"
-   else
-     write( rank_name, "("".Rank"", I6.6, A)") mesh%get_local_rank(), ".m"
-   end if
+  if ( mesh%get_total_ranks() == 1 ) then
+    rank_name=".m"
+  else
+    write( rank_name, "("".Rank"", I6.6, A)") mesh%get_local_rank(), ".m"
+  end if
 
-  ! get the dimensionality of the field to work out if it is scalar or vector. 
+  ! Get the dimensionality of the field to work out if it is scalar or vector. 
 
   fs_handle = field%which_function_space()    
   fs => function_space_collection%get_fs(mesh_id,element_order, fs_handle)
@@ -162,26 +162,26 @@ end subroutine output_nodal
 !> @param[in] mesh_id  Id of the mesh all fields are on
 subroutine output_xios_nodal(field_name, field, mesh_id)
 
-   implicit none
+  implicit none
 
-   character(len=*),    intent(in)    :: field_name
-   type(field_type),    intent(inout) :: field
-   integer(i_def),      intent(in)    :: mesh_id
+  character(len=*),    intent(in)    :: field_name
+  type(field_type),    intent(inout) :: field
+  integer(i_def),      intent(in)    :: mesh_id
 
-   ! Local variables
-   type(field_type),    pointer       :: chi(:) => null()
-   type(field_type), allocatable      :: projected_field(:)
-   type(field_type)                   :: nodal_output(3)
-   type(field_type)                   :: nodal_coordinates(3)
-   type(field_type)                   :: level
-   integer(kind=i_def)                :: output_dim, dir, fs_handle
-   type(function_space_type), pointer :: fs
-   character(len=1)                   :: uchar
-   character(len=len(field_name)+1)   :: field_name_new
+  ! Local variables
+  type(field_type),    pointer       :: chi(:) => null()
+  type(field_type), allocatable      :: projected_field(:)
+  type(field_type)                   :: nodal_output(3)
+  type(field_type)                   :: nodal_coordinates(3)
+  type(field_type)                   :: level
+  integer(kind=i_def)                :: output_dim, dir, fs_handle
+  type(function_space_type), pointer :: fs
+  character(len=1)                   :: uchar
+  character(len=len(field_name)+1)   :: field_name_new
 
-   chi  => get_coordinates()
+  chi  => get_coordinates()
 
-  ! get the dimensionality of the field to work out if it is scalar or vector. 
+  ! Get the dimensionality of the field to work out if it is scalar or vector. 
 
   fs_handle = field%which_function_space()    
   fs => function_space_collection%get_fs(mesh_id,element_order, fs_handle)
@@ -235,36 +235,33 @@ end subroutine output_xios_nodal
 !!  @param[in]      mpi_comm      The MPI comm object
 !!  @param[in]      dtime         XIOS timestep interval
 !!  @param[in]      mesh_id       Mesh id
+!!  @param[in]      chi           Coordinate field
 !!  @param[in]      vm            ESMF vm
 !!  @param[in]      local_rank    Local rank
 !!  @param[in]      total_ranks   Total ranks
 !-------------------------------------------------------------------------------
 
-subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, mesh_id, &
+subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, mesh_id, chi, &
                             vm, local_rank, total_ranks)
   implicit none
 
-  !Arguments
+  ! Arguments
   character(len=*),    intent(in)      :: xios_ctx
   integer(i_def),      intent(in)      :: mpi_comm
   integer(i_def),      intent(in)      :: dtime
   integer(i_def),      intent(in)      :: mesh_id
+  type(field_type),    intent(in)      :: chi(3)
   type(ESMF_VM),       intent(in)      :: vm
   integer(i_def),      intent(in)      :: local_rank
   integer(i_def),      intent(in)      :: total_ranks
 
 
   ! Local variables 
-
   type(xios_duration)                  :: xios_timestep
   type(xios_context)                   :: xios_ctx_hdl
 
   integer(i_def)                       :: i, rc
 
-
-  ! For calculating domain extents 
-
-  type(field_type),    pointer  :: chi(:) => null()
 
   ! Node domain (W0)
   integer(i_def)             :: ibegin_nodes
@@ -308,7 +305,7 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, mesh_id, &
   integer(i_def), allocatable   :: local_undf(:), all_undfs(:)
   integer(i_def)                :: local_annexed_dof
 
-  ! factor to convert coords from radians to degrees if needed
+  ! Factor to convert coords from radians to degrees if needed
   ! set as 1.0 for biperiodic
   real(r_def)                :: r2d
 
@@ -331,7 +328,7 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, mesh_id, &
   
   all_undfs = 0
 
-  ! calculate the nodal coords for a field on W0
+  ! Calculate the nodal coords for a field on W0
   output_field_fs => function_space_collection%get_fs( mesh_id, element_order, W0 )
 
   ! Set up fields to hold the output coordinates
@@ -351,11 +348,11 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, mesh_id, &
   num_face_local = local_mesh%get_last_edge_cell()
   nodes_per_face = local_mesh%get_nverts_per_cell_2d()
 
-  ! get the local value for last owned dof
+  ! Get the local value for last owned dof
 
   local_undf(1)  = proxy_coord_output(1)%vspace%get_last_dof_owned()
 
-  ! get the local value for last annexed dof
+  ! Get the local value for last annexed dof
 
   local_annexed_dof  = proxy_coord_output(1)%vspace%get_last_dof_annexed()
 
@@ -390,24 +387,20 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, mesh_id, &
   allocate(bnd_faces_lon(nodes_per_face,num_face_local))
   allocate(bnd_faces_lat(nodes_per_face,num_face_local))  
 
-
-  ! Get Chi field
-  chi  => get_coordinates()
-
   ! Calculate the node coords arrays and also the face-node boundary arrays 
   call calc_xios_domain_coords(coord_output, chi, &
                           size(fractional_levels_nodes), num_face_local, &
                           nodes_lon_full, nodes_lat_full, &
                           bnd_faces_lon, bnd_faces_lat)
  
-  ! get nodal coordinates (owned part of full length arrays)
+  ! Get nodal coordinates (owned part of full length arrays)
   nodes_lon =  nodes_lon_full(1:coord_dim_owned)
   nodes_lat =  nodes_lat_full(1:coord_dim_owned)
 
   ! Construct nodal bounds arrays
   bnd_nodes_lon=(reshape(nodes_lon, (/1, size(nodes_lon)/) ) )
   bnd_nodes_lat=(reshape(nodes_lat, (/1, size(nodes_lat)/) ) )
-! 
+
   !!!!!!!!!!!!  Global domain calculation !!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   call ESMF_VMAllGather(vm, sendData=local_undf, recvData=all_undfs, count=1, rc=rc)
@@ -428,7 +421,7 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, mesh_id, &
   global_undf = sum(all_undfs)
 
 
-  ! calculate ibegin for each rank (as we have the array of undfs in order
+  ! Calculate ibegin for each rank (as we have the array of undfs in order
   ! we can just sum to get it)
 
   if (local_rank == 0) then
@@ -460,7 +453,7 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, mesh_id, &
   
   all_undfs = 0
 
-  ! calculate the nodal coords for a field on W3
+  ! Calculate the nodal coords for a field on W3
   output_field_fs => function_space_collection%get_fs( mesh_id, element_order, W3 )
 
   ! Set up fields to hold the output coordinates
@@ -483,7 +476,7 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, mesh_id, &
     proxy_coord_output(i) = coord_output(i)%get_proxy()
   end do
 
-  ! get the local value for undf
+  ! Get the local value for undf
 
   local_undf(1)  = proxy_coord_output(1)%vspace%get_last_dof_owned()
 
@@ -494,8 +487,6 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, mesh_id, &
 
   allocate(faces_lon( num_face_local))
   allocate(faces_lat( num_face_local))
-
-
 
   faces_lon =  proxy_coord_output(1)%data(1: local_undf(1):size(fractional_levels_faces)) * r2d
   faces_lat =  proxy_coord_output(2)%data(1: local_undf(1):size(fractional_levels_faces)) * r2d
@@ -521,7 +512,7 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, mesh_id, &
   global_undf = sum(all_undfs)
 
 
-  ! calculate ibegin for each rank as we have the array of undfs in order
+  ! Calculate ibegin for each rank as we have the array of undfs in order
   ! we can just sum to get it
 
   if (local_rank == 0) then
@@ -538,8 +529,6 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, mesh_id, &
   call xios_set_domain_attr("face", bounds_lon_1d=bnd_faces_lon, bounds_lat_1d=bnd_faces_lat)
 
   call xios_set_axis_attr("vert_axis_face", n_glo=size(fractional_levels_faces), value=fractional_levels_faces)
-
-
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Setup calendar and finalise context !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -580,117 +569,113 @@ subroutine calc_xios_domain_coords(nodal_coords, chi, &
                                    face_bnds_lon_coords, &
                                    face_bnds_lat_coords)
 
-    implicit none
+  implicit none
     
-    type(field_type), intent(in)         :: nodal_coords(3)
-    type(field_type), intent(in)         :: chi(3)
-    integer(i_def),   intent(in)         :: nlayers
-    integer(i_def),   intent(in)         :: ncells
-    real(kind=r_def), intent(out)        :: lon_coords(:), lat_coords(:)
-    real(kind=r_def), intent(out)        :: face_bnds_lon_coords(:,:)
-    real(kind=r_def), intent(out)        :: face_bnds_lat_coords(:,:)
+  type(field_type), intent(in)         :: nodal_coords(3)
+  type(field_type), intent(in)         :: chi(3)
+  integer(i_def),   intent(in)         :: nlayers
+  integer(i_def),   intent(in)         :: ncells
+  real(kind=r_def), intent(out)        :: lon_coords(:), lat_coords(:)
+  real(kind=r_def), intent(out)        :: face_bnds_lon_coords(:,:)
+  real(kind=r_def), intent(out)        :: face_bnds_lat_coords(:,:)
 
-    type(field_proxy_type) :: x_p(3), chi_p(3)
+  type(field_proxy_type) :: x_p(3), chi_p(3)
    
-    integer(i_def)            :: cell
-    integer(i_def)            :: ndf_chi, ndf_x
-    integer(i_def)            :: dim_chi
-    integer, pointer          :: map_chi(:), map_x(:) => null()
-    real(kind=r_def), pointer :: nodes_x(:,:) => null()
-    real(kind=r_def)          :: xyz(3)
-    real(kind=r_def)          :: llr(3)
+  integer(i_def)            :: cell
+  integer(i_def)            :: ndf_chi, ndf_x
+  integer(i_def)            :: dim_chi
+  integer, pointer          :: map_chi(:), map_x(:) => null()
+  real(kind=r_def), pointer :: nodes_x(:,:) => null()
+  real(kind=r_def)          :: xyz(3)
+  real(kind=r_def)          :: llr(3)
 
-    real(kind=r_def), allocatable  :: basis_chi(:,:,:)
-    integer(i_def)                 :: df_x, df_chi, i
+  real(kind=r_def), allocatable  :: basis_chi(:,:,:)
+  integer(i_def)                 :: df_x, df_chi, i
 
-    ! factor to convert coords from radians to degrees if needed
-    ! set as 1.0 for biperiodic
-    real(r_def)                 :: r2d
+  ! Factor to convert coords from radians to degrees if needed
+  ! set as 1.0 for biperiodic
+  real(r_def)                 :: r2d
 
-    do i = 1,3
-      x_p(i)   = nodal_coords(i)%get_proxy()
-      chi_p(i) = chi(i)%get_proxy()
+  do i = 1,3
+    x_p(i)   = nodal_coords(i)%get_proxy()
+    chi_p(i) = chi(i)%get_proxy()
+  end do
+
+  ndf_x  = x_p(1)%vspace%get_ndf( )
+  nodes_x => x_p(1)%vspace%get_nodes()
+  ndf_chi  = chi_p(1)%vspace%get_ndf( )
+
+  dim_chi = chi_p(1)%vspace%get_dim_space( )
+
+  allocate(basis_chi(dim_chi, ndf_chi, ndf_x))
+
+  do df_x = 1, ndf_x
+    do df_chi = 1, ndf_chi
+      basis_chi(:,df_chi,df_x) = chi_p(1)%vspace%call_function(BASIS,df_chi,nodes_x(:,df_x))
     end do
+  end do
 
-    ndf_x  = x_p(1)%vspace%get_ndf( )
-    nodes_x => x_p(1)%vspace%get_nodes()
-    ndf_chi  = chi_p(1)%vspace%get_ndf( )
+  if (chi_p(1)%is_dirty(depth=1)) then
+    call chi_p(1)%halo_exchange(depth=1)
+  end if
 
-    dim_chi = chi_p(1)%vspace%get_dim_space( )
+  if (chi_p(2)%is_dirty(depth=1)) then
+    call chi_p(2)%halo_exchange(depth=1)
+  end if
 
-    allocate(basis_chi(dim_chi, ndf_chi, ndf_x))
+  if (chi_p(3)%is_dirty(depth=1)) then
+    call chi_p(3)%halo_exchange(depth=1)
+  end if
 
-    do df_x = 1, ndf_x
-      do df_chi = 1, ndf_chi
-        basis_chi(:,df_chi,df_x) = chi_p(1)%vspace%call_function(BASIS,df_chi,nodes_x(:,df_x))
+  ! Loop over cells
+  do cell = 1, ncells !mesh%get_last_edge_cell()
+
+    map_x   => x_p(1)%vspace%get_cell_dofmap( cell )
+    map_chi => chi_p(1)%vspace%get_cell_dofmap( cell )
+
+    ! Loop over bottom half of the cell dofmap for the given layer
+    do df_x = 1,(ndf_x/2)
+      xyz(:) = 0.0_r_def
+      do df_chi = 1, (ndf_chi/2)
+        xyz(1) = xyz(1) + chi_p(1)%data(map_chi(df_chi))*basis_chi(1,df_chi,df_x)
+        xyz(2) = xyz(2) + chi_p(2)%data(map_chi(df_chi))*basis_chi(1,df_chi,df_x)
+        xyz(3) = xyz(3) + chi_p(3)%data(map_chi(df_chi))*basis_chi(1,df_chi,df_x)
       end do
-    end do
 
-    if (chi_p(1)%is_dirty(depth=1)) then
-       call chi_p(1)%halo_exchange(depth=1)
-    end if
-      !
-    if (chi_p(2)%is_dirty(depth=1)) then
-       call chi_p(2)%halo_exchange(depth=1)
-    end if
-      !
-    if (chi_p(3)%is_dirty(depth=1)) then
-       call chi_p(3)%halo_exchange(depth=1)
-    end if
+      ! Convert to lat-lon in degrees if required
+      if ( geometry == base_mesh_geometry_spherical ) then
 
+        r2d = 180.0/PI
 
+        call xyz2llr(xyz(1), xyz(2), xyz(3), llr(1), llr(2), llr(3))
 
-    ! Loop over cells
-    do cell = 1, ncells !mesh%get_last_edge_cell()
+        lon_coords( ((map_x(df_x)-1)/nlayers)+1) = llr(1)*r2d
+        lat_coords( ((map_x(df_x)-1)/nlayers)+1) = llr(2)*r2d
 
-       map_x   => x_p(1)%vspace%get_cell_dofmap( cell )
-       map_chi => chi_p(1)%vspace%get_cell_dofmap( cell )
+        face_bnds_lon_coords(df_x,cell) = llr(1)*r2d
+        face_bnds_lat_coords(df_x,cell) = llr(2)*r2d
+      else
+        r2d = 1.0
 
+        lon_coords( ((map_x(df_x)-1)/nlayers)+1) = xyz(1)*r2d
+        lat_coords( ((map_x(df_x)-1)/nlayers)+1) = xyz(2)*r2d
 
-      ! Loop over bottom half of the cell dofmap for the given layer
-      do df_x = 1,(ndf_x/2)
-        xyz(:) = 0.0_r_def
-        do df_chi = 1, (ndf_chi/2)
-          xyz(1) = xyz(1) + chi_p(1)%data(map_chi(df_chi))*basis_chi(1,df_chi,df_x)
-          xyz(2) = xyz(2) + chi_p(2)%data(map_chi(df_chi))*basis_chi(1,df_chi,df_x)
-          xyz(3) = xyz(3) + chi_p(3)%data(map_chi(df_chi))*basis_chi(1,df_chi,df_x)
-        end do
+        face_bnds_lon_coords(df_x,cell) = xyz(1)*r2d
+        face_bnds_lat_coords(df_x,cell) = xyz(2)*r2d
 
-
-        ! Convert to lat-lon in degrees if required
-        if ( geometry == base_mesh_geometry_spherical ) then
-
-          r2d = 180.0/PI
-
-          call xyz2llr(xyz(1), xyz(2), xyz(3), llr(1), llr(2), llr(3))
-
-          lon_coords( ((map_x(df_x)-1)/nlayers)+1) = llr(1)*r2d
-          lat_coords( ((map_x(df_x)-1)/nlayers)+1) = llr(2)*r2d
-
-          face_bnds_lon_coords(df_x,cell) = llr(1)*r2d
-          face_bnds_lat_coords(df_x,cell) = llr(2)*r2d
-        else
-          r2d = 1.0
-
-          lon_coords( ((map_x(df_x)-1)/nlayers)+1) = xyz(1)*r2d
-          lat_coords( ((map_x(df_x)-1)/nlayers)+1) = xyz(2)*r2d
-
-          face_bnds_lon_coords(df_x,cell) = xyz(1)*r2d
-          face_bnds_lat_coords(df_x,cell) = xyz(2)*r2d
-
-        endif
+      endif
         
    
-      end do
-
-
     end do
 
-    call x_p(1)%set_dirty()
-    call x_p(2)%set_dirty()
-    call x_p(3)%set_dirty()
 
-    deallocate(basis_chi)
+  end do
+
+  call x_p(1)%set_dirty()
+  call x_p(2)%set_dirty()
+  call x_p(3)%set_dirty()
+
+  deallocate(basis_chi)
 
 end subroutine calc_xios_domain_coords
 

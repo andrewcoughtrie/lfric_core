@@ -15,6 +15,7 @@ program io_miniapp
   use cli_mod,                        only : get_initial_filename
   use io_miniapp_mod,                 only : load_configuration
   use init_mesh_mod,                  only : init_mesh
+  use init_fem_mod,                   only : init_fem
   use init_io_miniapp_mod,            only : init_io_miniapp
   use ESMF
   use field_mod,                      only : field_type
@@ -56,6 +57,9 @@ program io_miniapp
 
   type( field_type ) :: test_field
 
+  ! Coordinate field
+  type(field_type), target, dimension(3) :: chi
+
   integer(i_def)     :: dtime
   !-----------------------------------------------------------------------------
   ! Driver layer init
@@ -65,7 +69,7 @@ program io_miniapp
  
   call mpi_init(ierr)
 
-  ! initialise XIOS and get back the split mpi communicator
+  ! Initialise XIOS and get back the split mpi communicator
   call init_wait()
   call xios_initialize(xios_id, return_comm = comm)
 
@@ -94,7 +98,7 @@ program io_miniapp
 
 
   !-----------------------------------------------------------------------------
-  ! model init
+  ! Top-level init
   !-----------------------------------------------------------------------------
   allocate( global_mesh_collection, &
             source = global_mesh_collection_type() )
@@ -109,8 +113,9 @@ program io_miniapp
   call log_event( log_scratch_space, LOG_LEVEL_INFO )
   deallocate(global_mesh_collection)
 
-  ! Create and initialise field
-  call init_io_miniapp(mesh_id, test_field)
+  ! Create FEM specifics (function spaces and chi field)
+  call init_fem(mesh_id, chi)
+
 
   !-----------------------------------------------------------------------------
   ! IO init
@@ -120,10 +125,17 @@ program io_miniapp
 
   dtime = 1
 
-  call xios_domain_init(xios_ctx, comm, dtime, mesh_id, vm, local_rank, total_ranks)
+  call xios_domain_init(xios_ctx, comm, dtime, mesh_id, chi, vm, local_rank, total_ranks)
 
   !-----------------------------------------------------------------------------
-  ! model step 
+  ! Model init
+  !-----------------------------------------------------------------------------
+
+  ! Create and initialise field
+  call init_io_miniapp(mesh_id, chi, test_field)
+
+  !-----------------------------------------------------------------------------
+  ! Model step 
   !-----------------------------------------------------------------------------
 
   ! Make sure XIOS calendar is set to timestep 1 as it starts there

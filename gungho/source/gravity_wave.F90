@@ -16,6 +16,7 @@ program gravity_wave
   use cli_mod,                        only : get_initial_filename
   use gravity_wave_mod,               only : load_configuration
   use init_mesh_mod,                  only : init_mesh
+  use init_fem_mod,                   only : init_fem
   use init_gravity_wave_mod,          only : init_gravity_wave
   use ESMF
   use field_mod,                      only : field_type
@@ -70,8 +71,11 @@ program gravity_wave
 
   integer(i_def)     :: mesh_id
 
-  ! prognostic fields
+  ! Prognostic fields
   type( field_type ) :: wind, buoyancy, pressure
+
+  ! Coordinate field
+  type(field_type), target, dimension(3) :: chi
 
   integer(i_def)     :: timestep, ts_init, dtime
 
@@ -86,7 +90,7 @@ program gravity_wave
  
   call mpi_init(ierr)
 
-  ! initialise XIOS and get back the split mpi communicator
+  ! Initialise XIOS and get back the split mpi communicator
   call init_wait()
   call xios_initialize(xios_id, return_comm = comm)
 
@@ -116,7 +120,7 @@ program gravity_wave
   restart = restart_type( restart_filename, local_rank, total_ranks )
 
   !-----------------------------------------------------------------------------
-  ! model init
+  ! Model init
   !-----------------------------------------------------------------------------
   if ( subroutine_timers ) call timer('gravity wave')
 
@@ -126,19 +130,8 @@ program gravity_wave
   ! Create the mesh
   call init_mesh(local_rank, total_ranks, mesh_id)
 
-  multigrid_function_space_chain = function_space_chain_type()
-
-  ! Create function space collection and initialise prognostic fields
-  call init_gravity_wave( mesh_id, multigrid_function_space_chain, &
-                          wind, pressure, buoyancy, restart )
-
-
-  ! Full global meshes no longer required, so reclaim
-  ! the memory from global_mesh_collection
-  write(log_scratch_space,'(A)') &
-      "Purging global mesh collection."
-  call log_event( log_scratch_space, LOG_LEVEL_INFO )
-  deallocate(global_mesh_collection)
+  ! Create FEM specifics (function spaces and chi field)
+  call init_fem(mesh_id, chi)
 
   !-----------------------------------------------------------------------------
   ! IO init
@@ -149,12 +142,27 @@ program gravity_wave
 
     dtime = 1
 
-    call xios_domain_init(xios_ctx, comm, dtime, mesh_id, vm, &
+    call xios_domain_init(xios_ctx, comm, dtime, mesh_id, chi, vm, &
                           local_rank, total_ranks)
 
   end if
 
-  ! output initial conditions
+
+  multigrid_function_space_chain = function_space_chain_type()
+
+  ! Create function space collection and initialise prognostic fields
+  call init_gravity_wave( mesh_id, chi, multigrid_function_space_chain, &
+                          wind, pressure, buoyancy, restart )
+
+  ! Full global meshes no longer required, so reclaim
+  ! the memory from global_mesh_collection
+  write(log_scratch_space,'(A)') &
+      "Purging global mesh collection."
+  call log_event( log_scratch_space, LOG_LEVEL_INFO )
+  deallocate(global_mesh_collection)
+
+
+  ! Output initial conditions
   ! We only want these once at the beginning of a run 
   ts_init = max( (restart%ts_start() - 1), 0 ) ! 0 or t previous.
 
@@ -183,7 +191,7 @@ program gravity_wave
   end if
 
   !-----------------------------------------------------------------------------
-  ! model step 
+  ! Model step 
   !-----------------------------------------------------------------------------
   do timestep = restart%ts_start(),restart%ts_end()
 
@@ -229,7 +237,7 @@ program gravity_wave
 
   end do
   !-----------------------------------------------------------------------------
-  ! model finalise
+  ! Model finalise
   !-----------------------------------------------------------------------------
 
   ! Write checksums to file

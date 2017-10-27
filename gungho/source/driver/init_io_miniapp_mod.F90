@@ -13,8 +13,7 @@ module init_io_miniapp_mod
   use constants_mod,                  only : i_def
   use field_mod,                      only : field_type, write_interface
   use finite_element_config_mod,      only : element_order
-  use function_space_collection_mod,  only : function_space_collection, &
-                                             function_space_collection_type
+  use function_space_collection_mod,  only : function_space_collection
   use fs_continuity_mod,              only : W3
   use log_mod,                        only : log_event,         &
                                              LOG_LEVEL_INFO
@@ -28,18 +27,16 @@ module init_io_miniapp_mod
 
   contains
 
-  subroutine init_io_miniapp(mesh_id, test_field)
+  subroutine init_io_miniapp(mesh_id, chi, test_field)
 
     integer(i_def), intent(in)               :: mesh_id
+    type( field_type ), intent(inout)        :: chi(:)
     type( field_type ), intent(inout)        :: test_field
 
 
     procedure(write_interface), pointer      :: tmp_ptr
 
     call log_event( 'IO Mini App: initialisation...', LOG_LEVEL_INFO )
-
-    allocate( function_space_collection,      &
-              source = function_space_collection_type() )
 
     ! Create field
     test_field   = field_type( vector_space = &
@@ -56,7 +53,7 @@ module init_io_miniapp_mod
     ! Create runtime_constants object. This in turn creates various things
     ! needed by the timestepping algorithms such as mass matrix operators, mass
     ! matrix diagonal fields and the geopotential field
-    call create_runtime_constants(mesh_id)
+    call create_runtime_constants(mesh_id, chi)
 
     ! Initialise the test field to a fixed value
     call io_miniapp_init_fields_alg(test_field)

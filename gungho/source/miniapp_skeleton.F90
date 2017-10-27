@@ -13,6 +13,7 @@ program miniapp_skeleton
   use cli_mod,                        only : get_initial_filename
   use miniapp_skeleton_mod,           only : load_configuration
   use init_mesh_mod,                  only : init_mesh
+  use init_fem_mod,                   only : init_fem
   use init_miniapp_skeleton_mod,      only : init_miniapp_skeleton
   use ESMF
   use global_mesh_collection_mod,     only : global_mesh_collection, &
@@ -52,8 +53,12 @@ program miniapp_skeleton
 
   integer(i_def)     :: dtime
 
-  ! prognostic fields
+  ! Prognostic fields
   type( field_type ) :: field_1
+
+  ! Coordinate field
+  type(field_type), target, dimension(3) :: chi
+
   !-----------------------------------------------------------------------------
   ! Driver layer init
   !-----------------------------------------------------------------------------
@@ -62,7 +67,7 @@ program miniapp_skeleton
  
   call mpi_init(ierr)
 
-  ! initialise XIOS and get back the split mpi communicator
+  ! Initialise XIOS and get back the split mpi communicator
   call init_wait()
   call xios_initialize(xios_id, return_comm = comm)
 
@@ -91,36 +96,39 @@ program miniapp_skeleton
   deallocate( filename )
 
   !-----------------------------------------------------------------------------
-  ! model init
+  ! Model init
   !-----------------------------------------------------------------------------
 
   ! Create the mesh and function space collection
   allocate( global_mesh_collection, &
             source = global_mesh_collection_type() )
   call init_mesh(local_rank, total_ranks, mesh_id)
- ! Full global meshes no longer required, so reclaim
+  ! Full global meshes no longer required, so reclaim
   ! the memory from global_mesh_collection
   write(log_scratch_space,'(A)') &
       "Purging global mesh collection."
   call log_event( log_scratch_space, LOG_LEVEL_INFO )
   deallocate(global_mesh_collection)
 
+  ! Create FEM specifics (function spaces and chi field)
+  call init_fem(mesh_id, chi)
 
-  ! Create and initialise prognostic fields
-  call init_miniapp_skeleton(mesh_id, field_1)
 
   ! If xios output then set up XIOS domain and context
   if (write_xios_output) then
 
     dtime = 1
 
-    call xios_domain_init(xios_ctx, comm, dtime, mesh_id, vm, local_rank, total_ranks)
+    call xios_domain_init(xios_ctx, comm, dtime, mesh_id, chi, vm, local_rank, total_ranks)
 
     ! Make sure XIOS calendar is set to timestep 1 as it starts there
     ! not timestep 0.
     call xios_update_calendar(1)
 
   end if
+
+  ! Create and initialise prognostic fields
+  call init_miniapp_skeleton(mesh_id, chi, field_1)
 
   ! Call an algorithm
   call miniapp_skeleton_alg(field_1)
@@ -140,7 +148,7 @@ program miniapp_skeleton
   end if
   
   !-----------------------------------------------------------------------------
-  ! model finalise
+  ! Model finalise
   !-----------------------------------------------------------------------------
 
   ! Write checksums to file

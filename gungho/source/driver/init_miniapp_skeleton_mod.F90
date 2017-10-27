@@ -14,8 +14,7 @@ module init_miniapp_skeleton_mod
   use constants_mod,                  only : i_def
   use field_mod,                      only : field_type, write_interface
   use finite_element_config_mod,      only : element_order
-  use function_space_collection_mod,  only : function_space_collection_type, &
-                                             function_space_collection
+  use function_space_collection_mod,  only : function_space_collection
   use fs_continuity_mod,              only : W3
   use log_mod,                        only : log_event,         &
                                              LOG_LEVEL_INFO, &
@@ -28,18 +27,17 @@ module init_miniapp_skeleton_mod
 
   contains
 
-  subroutine init_miniapp_skeleton(mesh_id, field_1)
+  subroutine init_miniapp_skeleton(mesh_id, chi, field_1)
 
     integer(i_def), intent(in)               :: mesh_id
-    ! prognostic fields
+    ! Prognostic fields
     type( field_type ), intent(inout)        :: field_1
+    ! Coordinate field
+    type( field_type ), intent(inout)        :: chi(:)
 
     procedure(write_interface), pointer      :: tmp_ptr
 
     call log_event( 'miniapp skeleton: initialisation...', LOG_LEVEL_INFO )
-
-    allocate( function_space_collection,      &
-              source = function_space_collection_type() )
 
 
     ! Create prognostic fields
@@ -60,7 +58,7 @@ module init_miniapp_skeleton_mod
     ! Create runtime_constants object. This in turn creates various things
     ! needed by the fem algorithms such as mass matrix operators, mass
     ! matrix diagonal fields and the geopotential field
-    call create_runtime_constants(mesh_id)
+    call create_runtime_constants(mesh_id, chi)
 
     call log_event( 'miniapp skeleton initialised', LOG_LEVEL_INFO )
 

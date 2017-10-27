@@ -4,20 +4,18 @@
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
 
-!> @brief init functionality for dynamo
+!> @brief init functionality for gungho model
 
-!> @details Handles init of prognostic fields
+!> @details Creates and initialises prognostic fields, also runtime_constants
+!>          specific to the model
 
-module init_dynamo_mod
+module init_gungho_mod
 
-  use base_mesh_config_mod,           only : geometry, &
-                                             base_mesh_geometry_spherical
   use constants_mod,                  only : i_def
   use field_mod,                      only : field_type, write_interface
   use finite_element_config_mod,      only : element_order, wtheta_on
   use fs_continuity_mod,              only : W0, W1, W2, W3, Wtheta
-  use function_space_collection_mod , only : function_space_collection_type, &
-                                             function_space_collection
+  use function_space_collection_mod , only : function_space_collection
   use init_prognostic_fields_alg_mod, only : init_prognostic_fields_alg
   use log_mod,                        only : log_event,         &
                                              LOG_LEVEL_INFO
@@ -39,24 +37,24 @@ module init_dynamo_mod
 
   contains
 
-  subroutine init_dynamo( mesh_id, u, rho, theta, rho_in_wth, mr, xi, restart )
+  subroutine init_gungho( mesh_id, chi, u, rho, theta, rho_in_wth, mr, xi, restart )
 
     integer(i_def), intent(in)               :: mesh_id
-    ! prognostic fields
+    ! Prognostic fields
     type( field_type ), intent(inout)        :: u, rho, theta, xi
     type( field_type ), intent(inout)        :: mr(nummr), rho_in_wth
     type(restart_type), intent(in)           :: restart
+
+    ! Chi field
+
+    type( field_type ), intent(inout)        :: chi(:)
 
     integer(i_def)                           :: imr
 
     procedure(write_interface), pointer      :: tmp_ptr
 
-    call log_event( 'Dynamo: initialisation...', LOG_LEVEL_INFO )
+    call log_event( 'GungHo: initialisation...', LOG_LEVEL_INFO )
 
-    allocate( function_space_collection,      &
-              source = function_space_collection_type() )
-
-    
     ! Create prognostic fields
     if ( (transport_only .and. &
          scheme == transport_scheme_method_of_lines .and. &
@@ -134,14 +132,14 @@ module init_dynamo_mod
     ! Create runtime_constants object. This in turn creates various things
     ! needed by the timestepping algorithms such as mass matrix operators, mass
     ! matrix diagonal fields and the geopotential field
-    call create_runtime_constants(mesh_id)
+    call create_runtime_constants(mesh_id, chi)
 
     ! Initialise prognostic fields
     call init_prognostic_fields_alg( mesh_id, u, rho, theta, &
                                      rho_in_wth, mr, xi, restart )
 
-    call log_event( 'Dynamo initialised', LOG_LEVEL_INFO )
+    call log_event( 'Gungho initialised', LOG_LEVEL_INFO )
 
-  end subroutine init_dynamo
+  end subroutine init_gungho
 
-end module init_dynamo_mod
+end module init_gungho_mod

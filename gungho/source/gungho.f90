@@ -30,7 +30,8 @@ program gungho
   use finite_element_config_mod,      only : element_order
   use formulation_config_mod,         only : transport_only, use_moisture, use_physics
   use init_mesh_mod,                  only : init_mesh
-  use init_dynamo_mod,                only : init_dynamo
+  use init_fem_mod,                   only : init_fem
+  use init_gungho_mod,                only : init_gungho
   use init_physics_mod,               only : init_physics
   use iter_timestep_alg_mod,          only : iter_alg_init, &
                                              iter_alg_step
@@ -102,11 +103,14 @@ program gungho
 
   integer(i_def)     :: mesh_id
 
-  ! prognostic fields
+  ! Prognostic fields
   type( field_type ) :: u, rho, theta, xi, mr(nummr), rho_in_wth
 
-  ! prognostic fields in non-native spaces (e.g. for physics)
+  ! Prognostic fields in non-native spaces (e.g. for physics)
   type( field_type ) :: u1_in_w3, u2_in_w3, u3_in_w3, theta_in_w3, p_in_w3, p_in_wth
+
+  ! Coordinate field
+  type(field_type), target, dimension(3) :: chi
 
   ! Array to hold cell orientation values in W3 field
   type( field_type )               :: cell_orientation
@@ -127,7 +131,7 @@ program gungho
  
   call mpi_init(ierr)
 
-  ! initialise XIOS and get back the split mpi communicator
+  ! Initialise XIOS and get back the split mpi communicator
   call init_wait()
   call xios_initialize(xios_id, return_comm = comm)
 
@@ -161,14 +165,14 @@ program gungho
   restart = restart_type( restart_filename, local_rank, total_ranks )
 
   !-----------------------------------------------------------------------------
-  ! model init
+  ! Model init
   !-----------------------------------------------------------------------------
   if ( subroutine_timers ) call timer('gungho')
 
   allocate( global_mesh_collection, &
             source = global_mesh_collection_type() )
 
-  ! Create the mesh and function space collection
+  ! Create the mesh
   call init_mesh(local_rank, total_ranks, mesh_id)
 
   ! Full global meshes no longer required, so reclaim
@@ -178,9 +182,28 @@ program gungho
   call log_event( log_scratch_space, LOG_LEVEL_INFO )
   deallocate(global_mesh_collection)
 
+  ! Create FEM specifics (function spaces and chi field)
+  call init_fem(mesh_id, chi)
+
+  !-----------------------------------------------------------------------------
+  ! IO init
+  !-----------------------------------------------------------------------------
+
+  ! If xios output then set up XIOS domain and context
+  if (write_xios_output) then
+
+    dtime = 1
+
+
+    call xios_domain_init(xios_ctx, comm, dtime, mesh_id, chi, vm, local_rank, total_ranks)
+
+
+  end if
+
+
   ! Create and initialise prognostic fields
   timestep = 0
-  call init_dynamo(mesh_id, u, rho, theta, rho_in_wth, mr, xi, restart)
+  call init_gungho(mesh_id, chi, u, rho, theta, rho_in_wth, mr, xi, restart)
 
   if (use_physics)then
     call init_physics(mesh_id, u, rho, theta, rho_in_wth,         &
@@ -195,18 +218,6 @@ program gungho
   ! Create detj values at W2 dof locations
   detj_at_w2 = get_detj_at_w2()
 
-  !-----------------------------------------------------------------------------
-  ! IO init
-  !-----------------------------------------------------------------------------
-
-  ! If xios output then set up XIOS domain and context
-  if (write_xios_output) then
-
-    dtime = 1
-
-    call xios_domain_init(xios_ctx, comm, dtime, mesh_id, vm, local_rank, total_ranks)
-
-  end if
 
   ! Initial output
   ! We only want these once at the beginning of a run 
@@ -263,7 +274,7 @@ program gungho
   end if
   
   !-----------------------------------------------------------------------------
-  ! model step 
+  ! Model step 
   !-----------------------------------------------------------------------------
   do timestep = restart%ts_start(),restart%ts_end()
 
@@ -309,7 +320,6 @@ program gungho
            if (timestep == restart%ts_start()) then 
              call runge_kutta_init()
              call iter_alg_init(mesh_id, u, rho, theta)
-             call log_event( "Dynamo: Outputting initial fields", LOG_LEVEL_INFO )
              call conservation_algorithm(timestep, rho, u, theta, xi)
            end if
            call iter_alg_step(u, rho, theta, mr, xi,           &
@@ -322,7 +332,6 @@ program gungho
            if (timestep == restart%ts_start()) then
              call runge_kutta_init()
              call rk_alg_init( mesh_id, u, rho, theta)
-             call log_event( "Dynamo: Outputting initial fields", LOG_LEVEL_INFO )
              call conservation_algorithm(timestep, rho, u, theta, xi)
            end if
            call rk_alg_step( u, rho, theta, xi)
@@ -395,7 +404,7 @@ program gungho
   end do ! end ts loop
 
   !-----------------------------------------------------------------------------
-  ! model finalise
+  ! Model finalise
   !-----------------------------------------------------------------------------
 
   ! Log fields

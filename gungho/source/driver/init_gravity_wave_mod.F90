@@ -31,8 +31,7 @@ module init_gravity_wave_mod
                                              xios_write_field_node
 
   use function_space_mod,             only : function_space_type
-  use function_space_collection_mod,  only : function_space_collection, &
-                                             function_space_collection_type
+  use function_space_collection_mod,  only : function_space_collection
   use function_space_chain_mod,       only : function_space_chain_type
 
   use init_multigrid_mesh_mod,        only : mesh_ids
@@ -43,14 +42,16 @@ module init_gravity_wave_mod
 
   contains
 
-  subroutine init_gravity_wave( mesh_id, multigrid_function_space_chain, &
+  subroutine init_gravity_wave( mesh_id, chi, multigrid_function_space_chain, &
                                 wind, pressure, buoyancy, restart )
 
     integer(i_def),                  intent(in)  :: mesh_id
     type(function_space_chain_type), intent(out) :: multigrid_function_space_chain
 
-    ! prognostic fields
+    ! Prognostic fields
     type( field_type ), intent(inout)        :: wind, pressure, buoyancy
+    ! Coordinate field
+    type( field_type ), intent(inout)        :: chi(:)
     type(restart_type), intent(in)           :: restart
     integer(i_def)                           :: buoyancy_space, output_b_space
 
@@ -61,10 +62,6 @@ module init_gravity_wave_mod
 
     call log_event( 'gravity wave: initialisation...', LOG_LEVEL_INFO )
 
-
-
-    allocate( function_space_collection,      &
-              source = function_space_collection_type() )
 
     !===============================================================================
     ! Now create the function space chain for multigrid
@@ -138,7 +135,7 @@ module init_gravity_wave_mod
     ! Create runtime_constants object. This in turn creates various things
     ! needed by the timestepping algorithms such as mass matrix operators, mass
     ! matrix diagonal fields and the geopotential field
-    call create_runtime_constants(mesh_id)
+    call create_runtime_constants(mesh_id, chi)
 
     ! Initialise prognostic fields
     call gw_init_fields_alg(wind, pressure, buoyancy, restart)
