@@ -1078,34 +1078,28 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
                       """
 
         [[[environment]]]
+{#                  If the mpi is configured by the suite, then we will use         #}
+{#                  the setcores optional configuration, so let's check that here   #}
 {%-                 if configuration_label in scheduledTasksDict.keys() %}
+{%-                   set configTaskDict = scheduledTasksDict[configuration_label] %}
 
-{#          BEGIN Jinja2 NASTY                                            #}
-{#          Unnessary and causes override warnings.                       #}
-{#          Though taking it out causes kgo changes for some reason,      #}
-{#          removing as it stands would need a kgo update. This is        #}
-{#          unexpected behaviour an should attempt to figure out why it's #}
-{#          happening before removing Jinja2 NASTYA resoultion, see #1166 #}
-            {{ scheduledTasksDict[configuration_label] | dictToAssign('            ') }}
-{#          END Jinja2 NASTY                                              #}
+            {{ configTaskDict | dictToAssign('            ') }}
 
 {#                    If the directives are configured by the suite, then we will #}
 {#                    expand those in the environment                             #}
-{%-                   if 'directives' in scheduledTasksDict[configuration_label].keys() %}
+{%-                   if 'directives' in configTaskDict.keys() %}
+{%-                     set directiveKey  = res_value if res_value in configTaskDict['directives'].keys() else 'default'%}
+{%-                     set directiveDict = configTaskDict['directives'][directiveKey] %}
             {{ directiveDict | dictToAssign('            ') }}
-{%-                   endif %}
-
-{%-                   if 'crun' in scheduledTasksDict[configuration_label].keys() %}
-            crun = {{scheduledTasksDict[configuration_label]['crun']}}
 {%-                   endif %}
 
 {#                    If we have nrun dependent on resolution / timestep then we  #}
 {#                    need to set that in the environment too                     #}
-{%-                   if 'nrun' in scheduledTasksDict[configuration_label].keys() %}
-{%-                     if scheduledTasksDict[configuration_label]['nrun'] is not number %}
+{%-                   if 'nrun' in configTaskDict.keys() %}
+{%-                     if configTaskDict['nrun'] is not number %}
 {%-                       set nrunKey = res_value if dt_values[i]=='' else (res_value, dt_values[i]) %}
-{%-                       set nrunKey = nrunKey if nrunKey in scheduledTasksDict[configuration_label]['nrun'].keys() else 'default' %}
-            nrun = {{scheduledTasksDict[configuration_label]['nrun'][nrunKey] }}
+{%-                       set nrunKey = nrunKey if nrunKey in configTaskDict['nrun'].keys() else 'default' %}
+            nrun = {{configTaskDict['nrun'][nrunKey] }}
 {%-                     endif %}
 {%-                   endif %}
 

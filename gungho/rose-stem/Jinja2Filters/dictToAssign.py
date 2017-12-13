@@ -18,6 +18,8 @@ def dictToAssign(inDict, indent):
     '''
     envVariables=[]
     for key, value in inDict.items():
-        envVariables.append('%s = %s' % (key, value) )
+        if not isinstance(value, dict):
+            envVariables.append('%s = %s' % (key, value) )
+
     joining_str = '\n' + indent
     return joining_str.join(envVariables)
