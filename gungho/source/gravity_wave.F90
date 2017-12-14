@@ -39,6 +39,7 @@ program gravity_wave
                                              subroutine_timers, &
                                              write_nodal_output, &
                                              write_xios_output
+  use timestepping_config_mod,        only : dt
   use checksum_alg_mod,               only : checksum_alg
   use timer_mod,                      only : timer, output_timer
 
@@ -140,7 +141,7 @@ program gravity_wave
   ! If xios output then set up XIOS domain and context
   if (write_xios_output) then
 
-    dtime = 1
+    dtime = int(dt)
 
     call xios_domain_init(xios_ctx, comm, dtime, mesh_id, chi, vm, &
                           local_rank, total_ranks)
@@ -177,9 +178,8 @@ program gravity_wave
     ! XIOS output
     if (write_xios_output) then
 
-      ! Make sure XIOS calendar is set to timestep 1 as it starts there
-      ! not timestep 0.
-      call xios_update_calendar(1)
+      ! Make sure XIOS calendar is set to first timestep to be computed
+      call xios_update_calendar(ts_init+1)
  
       ! Output scalar fields
       call output_xios_nodal("init_wind", wind, mesh_id)

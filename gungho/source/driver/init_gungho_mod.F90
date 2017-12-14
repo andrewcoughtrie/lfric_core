@@ -62,12 +62,10 @@ module init_gungho_mod
          wtheta_on  ) then
       ! Only use Wtheta for fv method of lines transport or if wtheta_on
       theta = field_type( vector_space = &
-                          function_space_collection%get_fs(mesh_id, element_order, Wtheta), &
-                          output_space = W3)
+                          function_space_collection%get_fs(mesh_id, element_order, Wtheta) )
     else
       theta = field_type( vector_space = &
-                          function_space_collection%get_fs(mesh_id, element_order, W0), &
-                          output_space = W3)
+                          function_space_collection%get_fs(mesh_id, element_order, W0) )
     end if
     xi    = field_type( vector_space = &
                         function_space_collection%get_fs(mesh_id, element_order, W1), &
@@ -76,17 +74,14 @@ module init_gungho_mod
                         function_space_collection%get_fs(mesh_id, element_order, W2), &
                         output_space = W3)
     rho   = field_type( vector_space = &
-                        function_space_collection%get_fs(mesh_id, element_order, W3), &
-                        output_space = W3)
+                        function_space_collection%get_fs(mesh_id, element_order, W3) )
 
     rho_in_wth = field_type( vector_space = & 
-        function_space_collection%get_fs(mesh_id, element_order, theta%which_function_space()), &
-                                         output_space = W3)
+        function_space_collection%get_fs(mesh_id, element_order, theta%which_function_space()) )
 
     do imr = 1,nummr
       mr(imr) = field_type( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, theta%which_function_space()), &
-                                       output_space = W3)
+      function_space_collection%get_fs(mesh_id, element_order, theta%which_function_space()) )
     end do
 
     if (write_xios_output) then

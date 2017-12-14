@@ -10,12 +10,14 @@
 
    <axis_definition>
     <axis id="vert_axis_node" name="levels_nodes"/>
-    <axis id="vert_axis_face" name="levels_faces"/>
+    <axis id="vert_axis_half_levels" name="half_levels_faces"/>   
+    <axis id="vert_axis_full_levels" name="full_levels_faces"/>   
    </axis_definition>
    
    <domain_definition>
-      <domain id="node" name="Mesh2d" nvertex="1"/>
-      <domain id="face" name="Mesh2d" nvertex="4"/>
+      <domain id="node" name="Mesh2d_node" nvertex="1"/>
+      <domain id="face_half_levels" name="Mesh2d_half_levels" nvertex="4"/>
+      <domain id="face_full_levels" name="Mesh2d_full_levels" nvertex="4"/>
    </domain_definition>
    
    <grid_definition>
@@ -23,15 +25,19 @@
       <domain domain_ref="node"/>
       <axis axis_ref="vert_axis_node"/>
     </grid>
-    <grid id="face_grid">
-      <domain domain_ref="face"/>
-      <axis axis_ref="vert_axis_face"/>
+    <grid id="half_level_face_grid">
+      <domain domain_ref="face_half_levels"/>
+      <axis axis_ref="vert_axis_half_levels"/>
+    </grid>
+    <grid id="full_level_face_grid">
+      <domain domain_ref="face_full_levels"/>
+      <axis axis_ref="vert_axis_full_levels"/>
     </grid>
    </grid_definition>
 
    <field_definition prec="8" >
-     <field_group freq_op="1s" enabled=".TRUE." operation="instant" >  
-       <field id="test_field" name="test_field" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="face_grid" />
+     <field_group freq_op="1ts" enabled=".TRUE." operation="instant" >  
+       <field id="test_field" name="test_field" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
      </field_group>  
      
    </field_definition>
@@ -43,7 +49,7 @@
       enabled=".TRUE.">
       
       
-      <file id="lfric_io_diag" name="lfric_io_diag" output_freq="1s" convention="UGRID">
+      <file id="lfric_io_diag" name="lfric_io_diag" output_freq="1ts" convention="UGRID">
         <field field_ref="test_field"/>
       </file> 
  

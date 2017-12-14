@@ -1,20 +1,19 @@
-!-------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown, 
-! Met Office and NERC 2014. 
-! However, it has been created with the help of the GungHo Consortium, 
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-!-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2017 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
 !>  @brief Module for IO subroutines
 !!
 !!  @details Module for IO subroutines
-!-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 module io_mod
   use constants_mod,                 only: i_def, r_def, dp_xios, str_max_filename, PI
   use field_mod,                     only: field_type, field_proxy_type
   use finite_element_config_mod,     only: element_order
   use base_mesh_config_mod,          only: geometry, &
                                            base_mesh_geometry_spherical
-  use fs_continuity_mod,             only: W0, W3, Wtheta
+  use fs_continuity_mod,             only: W0, W3, Wtheta, W2V
   use mesh_mod,                      only: mesh_type
   use mesh_collection_mod,           only: mesh_collection 
   use function_space_mod,            only: function_space_type, BASIS
@@ -24,7 +23,7 @@ module io_mod
   use output_config_mod,             only: diag_stem_name, &
                                            write_nodal_output, &
                                            write_xios_output, &
-                                           output_projections_on_w3
+                                           nodal_output_on_w3
   use nodal_output_alg_mod,          only: nodal_output_alg
   use runtime_constants_mod,         only: get_coordinates
   use coord_transform_mod,           only: xyz2llr
@@ -111,36 +110,45 @@ subroutine output_nodal(field_name,n, field, mesh_id)
   call nodal_write_field(nodal_coordinates, level, nodal_output, output_dim, nodal_output_unit, fname)
 
   ! If required, also do nodal output with vectors projected to scalars
-  if (output_projections_on_w3) then
+  if (nodal_output_on_w3) then
 
       allocate(projected_field(output_dim))
 
       if ( output_dim > 1 ) then
+
         ! Vector field - project to desired output scalar function space
         call project_output(field, projected_field, output_dim, field%which_output_function_space() , mesh_id)
+
         do dir =1,output_dim
            ! Write the component number into the filename and the field name
            write(uchar,'(i1)') dir
            field_name_new = field_name//uchar
            fname=trim(ts_fname("nodal_w3projection_", field_name_new, n, rank_name))
 
-           ! Transform the field data
+           ! Transform the projected field data
            call nodal_output_alg(projected_field(dir), chi, nodal_output, nodal_coordinates, level)
            call nodal_write_field(nodal_coordinates, level, nodal_output, output_dim, nodal_output_unit, fname)
            
         end do
       else
         ! Scalar fields - generally not projected unless it has been specified
-        if (fs_handle == Wtheta .and. output_projections_on_w3) then
+        if (fs_handle == Wtheta .and. nodal_output_on_w3) then
+
           call project_output(field, projected_field, 1, field%which_output_function_space() , mesh_id)
           fname=trim(ts_fname("nodal_w3projection_", field_name, n, rank_name))
+
+          ! Transform the projected field data
+          call nodal_output_alg(projected_field(1), chi, nodal_output, nodal_coordinates, level)
+
         else
-          projected_field(1) = field
+
           fname=trim(ts_fname("nodal_", field_name, n, rank_name))
+
+          ! Transform the field data
+          call nodal_output_alg(field, chi, nodal_output, nodal_coordinates, level)
+
         end if
 
-         ! Transform the field data
-        call nodal_output_alg(projected_field(1), chi, nodal_output, nodal_coordinates, level)
          ! Call write on the field
         call nodal_write_field(nodal_coordinates, level, nodal_output, output_dim, nodal_output_unit, fname)
 
@@ -186,39 +194,31 @@ subroutine output_xios_nodal(field_name, field, mesh_id)
   fs => function_space_collection%get_fs(mesh_id,element_order, fs_handle)
   output_dim = fs%get_dim_space()
 
-
-  allocate(projected_field(output_dim))
-
   if ( output_dim > 1 ) then
+
     ! Vector field - project to desired output scalar function space
+    allocate(projected_field(output_dim))
+
     call project_output(field, projected_field, output_dim, field%which_output_function_space() , mesh_id)
+
       do dir =1,output_dim
          ! Write the component number into the filename and the field name
          write(uchar,'(i1)') dir
          field_name_new = field_name//uchar
-         ! Transform the field data
-         call nodal_output_alg(projected_field(dir), chi, nodal_output, nodal_coordinates, level)
 
-         ! Call write on the field
+         ! Call write on the projected field
          call projected_field(dir)%write_field(trim(field_name_new))
            
       end do
+
+    deallocate(projected_field)
+
   else
-    ! Scalar fields - generally not projected for output unless on Wtheta 
-    if (fs_handle == Wtheta) then
-      call project_output(field, projected_field, 1, field%which_output_function_space() , mesh_id)
-    else
-      projected_field(1) = field
-    end if
 
-    ! Transform the field data
-    call nodal_output_alg(projected_field(1), chi, nodal_output, nodal_coordinates, level)
     ! Call write on the field
-    call  projected_field(1)%write_field(trim(field_name))
+    call field%write_field(trim(field_name))
+
   end if
-
-
-  deallocate(projected_field)
 
 
 end subroutine output_xios_nodal
@@ -254,13 +254,12 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, mesh_id, chi, &
   integer(i_def),      intent(in)      :: local_rank
   integer(i_def),      intent(in)      :: total_ranks
 
-
   ! Local variables 
+
   type(xios_duration)                  :: xios_timestep
   type(xios_context)                   :: xios_ctx_hdl
 
   integer(i_def)                       :: i, rc
-
 
   ! Node domain (W0)
   integer(i_def)             :: ibegin_nodes
@@ -280,7 +279,8 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, mesh_id, chi, &
   real(dp_xios),allocatable  :: faces_lat(:)
   real(dp_xios),allocatable  :: bnd_faces_lon(:,:)
   real(dp_xios),allocatable  :: bnd_faces_lat(:,:)
-  real(dp_xios),pointer      :: fractional_levels_faces(:) => null()
+  real(dp_xios),pointer      :: fractional_levels_full_faces(:) => null()
+  real(dp_xios),pointer      :: fractional_levels_half_faces(:) => null()
 
 
   ! Variables needed to compute output domain coordinates in lat-long
@@ -308,7 +308,6 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, mesh_id, chi, &
   ! set as 1.0 for biperiodic
   real(r_def)                :: r2d
 
-
   if ( geometry == base_mesh_geometry_spherical ) then
    r2d = 180.0_r_def/PI
   else
@@ -327,7 +326,9 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, mesh_id, chi, &
   
   all_undfs = 0
 
-  ! Calculate the nodal coords for a field on W0
+  ! Set up the 'node' domain.
+  ! Here we use information from W0 to calculate the physical coordinates
+  ! for the horizontal domain and levels for the vertical domain
   output_field_fs => function_space_collection%get_fs( mesh_id, element_order, W0 )
 
   ! Set up fields to hold the output coordinates
@@ -360,10 +361,10 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, mesh_id, chi, &
 
   ! Allocate coordinate arrays
 
-  ! coord_dim_full is the size of one whole level of the full field - needed to be sure we get all coords
+  ! Coord_dim_full is the size of one whole level of the full field - needed to be sure we get all coords
   ! for faces on this partition
   coord_dim_full = size(proxy_coord_output(1)%data) / size(fractional_levels_nodes)
-  ! coord_dim_owned is the size up to last owned dof for a whole level - this is needed to set the node domain
+  ! Coord_dim_owned is the size up to last owned dof for a whole level - this is needed to set the node domain
   ! for this partition
   coord_dim_owned = size(proxy_coord_output(1)%data(1: local_undf(1))) / size(fractional_levels_nodes)
 
@@ -372,7 +373,6 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, mesh_id, chi, &
 
   nodes_lon_full = 0.0_r_def
   nodes_lat_full = 0.0_r_def
-
 
   allocate(nodes_lon( coord_dim_owned ))
   allocate(nodes_lat( coord_dim_owned ))
@@ -419,7 +419,6 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, mesh_id, chi, &
 
   global_undf = sum(all_undfs)
 
-
   ! Calculate ibegin for each rank (as we have the array of undfs in order
   ! we can just sum to get it)
 
@@ -429,8 +428,7 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, mesh_id, chi, &
     ibegin_nodes = sum(all_undfs(1:local_rank))
   end if
 
-
- ! Do Node domain setup
+  ! Do Node domain setup
 
   call xios_set_domain_attr("node", ni_glo=global_undf, &
                                     ibegin=ibegin_nodes, ni=local_undf(1)/size(fractional_levels_nodes), &
@@ -452,14 +450,16 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, mesh_id, chi, &
   
   all_undfs = 0
 
-  ! Calculate the nodal coords for a field on W3
+  ! Set up the face domains
+  ! Here we use information from W3 to calculate the physical coordinates
+  ! for the horizontal domains and the 'half levels' vertical domain
+  ! We use Wtheta to set the 'full levels' vertical domain
   output_field_fs => function_space_collection%get_fs( mesh_id, element_order, W3 )
 
   ! Set up fields to hold the output coordinates
   do i = 1,3
     coord_output(i) = field_type( vector_space = output_field_fs )
   end do
-
 
   ! Convert field to physical nodal output & sample chi on nodal points
   call invoke_nodal_coordinates_kernel(coord_output, chi)
@@ -479,16 +479,16 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, mesh_id, chi, &
 
   local_undf(1)  = proxy_coord_output(1)%vspace%get_last_dof_owned()
 
-  ! Get the unique fractional levels to set up vertical output domain
-  fractional_levels_faces => proxy_coord_output(1)%vspace%get_levels()
+  ! Get the unique fractional levels to set up half levels vertical output domain
+  fractional_levels_half_faces => proxy_coord_output(1)%vspace%get_levels()
 
   ! Allocate coordinate arrays for faces
 
   allocate(faces_lon( num_face_local))
   allocate(faces_lat( num_face_local))
 
-  faces_lon =  proxy_coord_output(1)%data(1: local_undf(1):size(fractional_levels_faces)) * r2d
-  faces_lat =  proxy_coord_output(2)%data(1: local_undf(1):size(fractional_levels_faces)) * r2d
+  faces_lon =  proxy_coord_output(1)%data(1: local_undf(1):size(fractional_levels_half_faces)) * r2d
+  faces_lat =  proxy_coord_output(2)%data(1: local_undf(1):size(fractional_levels_half_faces)) * r2d
 
   !!!!!!!!!!!!  Global domain calculation !!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -502,14 +502,12 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, mesh_id, chi, &
   ! Adjust size of data taking into account how many levels we have
   ! partition as we only partition horizontally)
 
-  all_undfs = all_undfs/size(fractional_levels_faces)
-
+  all_undfs = all_undfs/size(fractional_levels_half_faces)
 
   ! Now get the global sum of undf across all ranks to set the global domain
   ! for xios
 
   global_undf = sum(all_undfs)
-
 
   ! Calculate ibegin for each rank as we have the array of undfs in order
   ! we can just sum to get it
@@ -521,13 +519,62 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, mesh_id, chi, &
   end if
 
 
-  call xios_set_domain_attr("face", ni_glo=global_undf, &
-                                    ibegin=ibegin_faces, ni=local_undf(1)/size(fractional_levels_faces), &
+  call xios_set_domain_attr("face_half_levels", ni_glo=global_undf, &
+                                    ibegin=ibegin_faces, ni=local_undf(1)/size(fractional_levels_half_faces), &
                                     type='unstructured')
-  call xios_set_domain_attr("face", lonvalue_1d=faces_lon, latvalue_1d=faces_lat)
-  call xios_set_domain_attr("face", bounds_lon_1d=bnd_faces_lon, bounds_lat_1d=bnd_faces_lat)
+  call xios_set_domain_attr("face_half_levels", lonvalue_1d=faces_lon, latvalue_1d=faces_lat)
+  call xios_set_domain_attr("face_half_levels", bounds_lon_1d=bnd_faces_lon, bounds_lat_1d=bnd_faces_lat)
 
-  call xios_set_axis_attr("vert_axis_face", n_glo=size(fractional_levels_faces), value=fractional_levels_faces)
+  call xios_set_axis_attr("vert_axis_half_levels", n_glo=size(fractional_levels_half_faces), value=fractional_levels_half_faces)
+
+
+  ! Clean up things used ready to reuse for the vertical full levels domain setup
+  deallocate(local_undf, all_undfs)
+  output_field_fs => null()
+
+  ! Set up arrays for AllGather
+
+  allocate(local_undf(1))
+  allocate(all_undfs(total_ranks))
+  
+  all_undfs = 0
+
+  ! Calculate the nodal coords for a field on Wtheta
+  output_field_fs => function_space_collection%get_fs( mesh_id, element_order, Wtheta )
+
+  ! Set up fields to hold the output coordinates
+  do i = 1,3
+    coord_output(i) = field_type( vector_space = output_field_fs )
+  end do
+
+  ! Convert field to physical nodal output & sample chi on nodal points
+  call invoke_nodal_coordinates_kernel(coord_output, chi)
+
+  ! If spherical geometry convert the coordinate field to (longitude, latitude, radius)
+  if ( geometry == base_mesh_geometry_spherical ) then
+     call invoke_pointwise_convert_xyz2llr(coord_output) 
+  end if
+
+  ! Get proxies for coordinates so we can access them
+  do i = 1,3
+    proxy_coord_output(i) = coord_output(i)%get_proxy()
+  end do
+
+  ! Get the local value for undf
+
+  local_undf(1)  = proxy_coord_output(1)%vspace%get_last_dof_owned()
+
+  ! Get the unique fractional levels to set up full levels vertical output domain
+  fractional_levels_full_faces => proxy_coord_output(1)%vspace%get_levels()
+
+  call xios_set_domain_attr("face_full_levels", ni_glo=global_undf, &
+                                    ibegin=ibegin_faces, ni=local_undf(1)/size(fractional_levels_full_faces), &
+                                    type='unstructured')
+  call xios_set_domain_attr("face_full_levels", lonvalue_1d=faces_lon, latvalue_1d=faces_lat)
+  call xios_set_domain_attr("face_full_levels", bounds_lon_1d=bnd_faces_lon, bounds_lat_1d=bnd_faces_lat)
+
+  call xios_set_axis_attr("vert_axis_full_levels", n_glo=size(fractional_levels_full_faces), value=fractional_levels_full_faces)
+
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Setup calendar and finalise context !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -543,7 +590,8 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, mesh_id, chi, &
   deallocate(nodes_lat, nodes_lon, bnd_nodes_lat, bnd_nodes_lon)
   deallocate(faces_lat, faces_lon, bnd_faces_lat, bnd_faces_lon)
   deallocate(nodes_lat_full, nodes_lon_full)
-  fractional_levels_faces => null()
+  fractional_levels_half_faces => null()
+  fractional_levels_full_faces => null()
   output_field_fs => null()
 
   return
@@ -664,7 +712,6 @@ subroutine calc_xios_domain_coords(nodal_coords, chi, &
 
       endif
         
-   
     end do
 
 
@@ -789,6 +836,8 @@ end subroutine xios_write_field_node
 
 !> @brief   Output a field in UGRID format on the face domain via XIOS
 !> @details Output a field in UGRID format on the face domain via XIOS
+!>          Currently only output of fields on W3 (vertical half levels)
+!>          and W2V/Wtheta (vertical full levels) is supported
 !>@param[in] xios_field_name XIOS identifier for the field
 !>@param[in] field_proxy a field proxy containing the data to output
 !------------------------------------------------------------------------------- 
@@ -803,20 +852,25 @@ subroutine xios_write_field_face(xios_field_name, field_proxy)
   type(field_proxy_type), intent(in) :: field_proxy
 
   integer(i_def) :: i, undf
+  integer(i_def) :: fs_id
   integer(i_def) :: domain_size, axis_size
   real(dp_xios), allocatable :: send_field(:)
 
   undf = field_proxy%vspace%get_last_dof_owned()
+  fs_id = field_proxy%vspace%which()
   
-  ! Get the expected horizontal domain size for the rank
-  call xios_get_domain_attr('face', ni=domain_size)
-  ! Get the expected vertical axis size
-  call xios_get_axis_attr("vert_axis_face", n_glo=axis_size)
+  ! Get the expected horizontal and vertical axis size
 
+  if (fs_id == W3) then
+    call xios_get_domain_attr('face_half_levels', ni=domain_size)
+    call xios_get_axis_attr("vert_axis_half_levels", n_glo=axis_size)
+  else
+    call xios_get_domain_attr('face_full_levels', ni=domain_size)
+    call xios_get_axis_attr("vert_axis_full_levels", n_glo=axis_size)
+  end if
 
   ! Size the arrays to be what is expected
   allocate(send_field(domain_size*axis_size))
-
 
   ! All data are scalar fields
 

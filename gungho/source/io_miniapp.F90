@@ -34,6 +34,7 @@ program io_miniapp
   use derived_config_mod,             only : set_derived_config
   use io_mod,                         only : output_xios_nodal, &
                                              xios_domain_init
+  use timestepping_config_mod,        only : dt
 
   use xios
   use mpi
@@ -123,7 +124,7 @@ program io_miniapp
 
   ! Set up XIOS domain and context
 
-  dtime = 1
+  dtime = int(dt)
 
   call xios_domain_init(xios_ctx, comm, dtime, mesh_id, chi, vm, local_rank, total_ranks)
 
@@ -138,8 +139,7 @@ program io_miniapp
   ! Model step 
   !-----------------------------------------------------------------------------
 
-  ! Make sure XIOS calendar is set to timestep 1 as it starts there
-  ! not timestep 0.
+  ! Update XIOS calendar
   call log_event( "IO Mini App: Updating XIOS timestep", LOG_LEVEL_INFO )
   call xios_update_calendar(1)
 

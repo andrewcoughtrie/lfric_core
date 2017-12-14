@@ -53,7 +53,7 @@ module init_gravity_wave_mod
     ! Coordinate field
     type( field_type ), intent(inout)        :: chi(:)
     type(restart_type), intent(in)           :: restart
-    integer(i_def)                           :: buoyancy_space, output_b_space
+    integer(i_def)                           :: buoyancy_space
 
     integer(i_def) :: i
 
@@ -90,15 +90,12 @@ module init_gravity_wave_mod
     select case(b_space)
       case(gw_miniapp_constants_b_space_w0)
         buoyancy_space = W0
-        output_b_space = W0
         call log_event( "gravity wave: Using W0 for buoyancy", LOG_LEVEL_INFO )
       case(gw_miniapp_constants_b_space_w3)
         buoyancy_space = W3
-        output_b_space = W3
         call log_event( "gravity wave: Using W3 for buoyancy", LOG_LEVEL_INFO )
       case(gw_miniapp_constants_b_space_wtheta)
         buoyancy_space = Wtheta
-        output_b_space = W3
         call log_event( "gravity wave: Using Wtheta for buoyancy", LOG_LEVEL_INFO )
       case default
         call log_event( "gravity wave: Invalid buoyancy space", LOG_LEVEL_ERROR )
@@ -108,8 +105,7 @@ module init_gravity_wave_mod
                        function_space_collection%get_fs(mesh_id, element_order, W2), &
                        output_space = W3)
     buoyancy = field_type( vector_space = &
-               function_space_collection%get_fs(mesh_id, element_order, buoyancy_space), &
-               output_space = output_b_space)
+               function_space_collection%get_fs(mesh_id, element_order, buoyancy_space) )
     pressure = field_type( vector_space = &
                        function_space_collection%get_fs(mesh_id, element_order, W3) )
 
@@ -122,7 +118,7 @@ module init_gravity_wave_mod
        call wind%set_write_field_behaviour(tmp_ptr)
        call pressure%set_write_field_behaviour(tmp_ptr)
 
-       if (output_b_space == W0) then
+       if (buoyancy_space == W0) then
          tmp_ptr => xios_write_field_node
          call buoyancy%set_write_field_behaviour(tmp_ptr)
        else

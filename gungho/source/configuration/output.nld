@@ -4,6 +4,6 @@ namelist output
     write_xios_output         : logical ! write xios output
     write_nodal_output        : logical ! write nodal output
     diagnostic_frequency      : integer ! frequency of diagnostic output
-    output_projections_on_w3  : logical ! write nodal projection to w3 of fields
+    nodal_output_on_w3        : logical ! write nodal projection to w3 of fields
     subroutine_timers         : logical ! write out subroutine runtimes
 end namelist output

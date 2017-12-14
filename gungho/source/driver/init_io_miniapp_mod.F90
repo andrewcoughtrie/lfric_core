@@ -40,8 +40,7 @@ module init_io_miniapp_mod
 
     ! Create field
     test_field   = field_type( vector_space = &
-                   function_space_collection%get_fs(mesh_id, element_order, W3), &
-                   output_space = W3)
+                   function_space_collection%get_fs(mesh_id, element_order, W3) )
 
 
     ! Set up procedure pointer to IO behaviour

@@ -10,12 +10,14 @@
 
    <axis_definition>
     <axis id="vert_axis_node" name="levels_nodes"/>
-    <axis id="vert_axis_face" name="levels_faces"/>
+    <axis id="vert_axis_half_levels" name="half_levels_faces"/>   
+    <axis id="vert_axis_full_levels" name="full_levels_faces"/>   
    </axis_definition>
    
    <domain_definition>
-      <domain id="node" name="Mesh2d" nvertex="1"/>
-      <domain id="face" name="Mesh2d" nvertex="4"/>
+      <domain id="node" name="Mesh2d_node" nvertex="1"/>
+      <domain id="face_half_levels" name="Mesh2d_half_levels" nvertex="4"/>
+      <domain id="face_full_levels" name="Mesh2d_full_levels" nvertex="4"/>
    </domain_definition>
    
    <grid_definition>
@@ -23,48 +25,52 @@
       <domain domain_ref="node"/>
       <axis axis_ref="vert_axis_node"/>
     </grid>
-    <grid id="face_grid">
-      <domain domain_ref="face"/>
-      <axis axis_ref="vert_axis_face"/>
+    <grid id="half_level_face_grid">
+      <domain domain_ref="face_half_levels"/>
+      <axis axis_ref="vert_axis_half_levels"/>
+    </grid>
+    <grid id="full_level_face_grid">
+      <domain domain_ref="face_full_levels"/>
+      <axis axis_ref="vert_axis_full_levels"/>
     </grid>
    </grid_definition>
 
    <field_definition prec="8" >
      <!-- Main diagnostic group -->
-     <field_group freq_op="50s" enabled=".TRUE." operation="instant" >
-       <field id="theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="face_grid" />
-       <field id="m_v" name="m_v" long_name="m_v" unit="1" grid_ref="face_grid" />
-       <field id="m_c" name="m_c" long_name="m_c" unit="1" grid_ref="face_grid" />
-       <field id="m_r" name="m_r" long_name="m_r" unit="1" grid_ref="face_grid" />
-       <field id="m_nc" name="m_nc" long_name="m_nc" unit="1" grid_ref="face_grid" />
-       <field id="m_nr" name="m_nr" long_name="m_nr"  unit="1" grid_ref="face_grid" />    
-       <field id="rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="face_grid" />
-       <field id="xi1" name="xi1" long_name="Xi1" unit="s-1" grid_ref="face_grid" />
-       <field id="xi2" name="xi2" long_name="Xi2" unit="s-1" grid_ref="face_grid" />
-       <field id="xi3" name="xi3" long_name="Xi3" unit="s-1" grid_ref="face_grid" />
-       <field id="u1" name="u1" long_name="U1" unit="m s-1" grid_ref="face_grid" />
-       <field id="u2" name="u2" long_name="U2" unit="m s-1" grid_ref="face_grid" />
-       <field id="u3" name="u3" long_name="U3" unit="m s-1" grid_ref="face_grid" />
-       <field id="divergence" name="divergence" long_name="divergence_of_wind" standard_name="divergence_of_wind" unit="s-1" grid_ref="face_grid" />
-       <field id="exner" name="exner" long_name="exner_pressure" unit="1" grid_ref="face_grid" />
+     <field_group freq_op="1ts" enabled=".TRUE." operation="instant" >
+       <field id="theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />   
+       <field id="m_v" name="m_v" long_name="m_v" unit="1" grid_ref="full_level_face_grid" />
+       <field id="m_c" name="m_c" long_name="m_c" unit="1" grid_ref="full_level_face_grid" />
+       <field id="m_r" name="m_r" long_name="m_r" unit="1" grid_ref="full_level_face_grid" />
+       <field id="m_nc" name="m_nc" long_name="m_nc" unit="1" grid_ref="full_level_face_grid" />
+       <field id="m_nr" name="m_nr" long_name="m_nr"  unit="1" grid_ref="full_level_face_grid" />    
+       <field id="rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
+       <field id="xi1" name="xi1" long_name="Xi1" unit="s-1" grid_ref="half_level_face_grid" />
+       <field id="xi2" name="xi2" long_name="Xi2" unit="s-1" grid_ref="half_level_face_grid" />
+       <field id="xi3" name="xi3" long_name="Xi3" unit="s-1" grid_ref="half_level_face_grid" />
+       <field id="u1" name="u1" long_name="U1" unit="m s-1" grid_ref="half_level_face_grid" />
+       <field id="u2" name="u2" long_name="U2" unit="m s-1" grid_ref="half_level_face_grid" />
+       <field id="u3" name="u3" long_name="U3" unit="m s-1" grid_ref="half_level_face_grid" />
+       <field id="divergence" name="divergence" long_name="divergence_of_wind" standard_name="divergence_of_wind" unit="s-1" grid_ref="half_level_face_grid" />
+       <field id="exner" name="exner" long_name="exner_pressure" unit="1" grid_ref="half_level_face_grid" />
      </field_group>
       <!-- Initial conditions group -->
-     <field_group freq_op="1s" enabled=".TRUE." operation="once" >
-       <field id="init_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="face_grid" />
-       <field id="init_m_v" name="m_v" long_name="m_v" unit="1" grid_ref="face_grid" />
-       <field id="init_m_c" name="m_c" long_name="m_c" unit="1" grid_ref="face_grid" />
-       <field id="init_m_r" name="m_r" long_name="m_r" unit="1" grid_ref="face_grid" />
-       <field id="init_m_nc" name="m_nc" long_name="m_nc" unit="1" grid_ref="face_grid" />
-       <field id="init_m_nr" name="m_nr" long_name="m_nr"  unit="1" grid_ref="face_grid" />  
-       <field id="init_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="face_grid" />
-       <field id="init_xi1" name="xi1" long_name="Xi1" unit="s-1" grid_ref="face_grid" />
-       <field id="init_xi2" name="xi2" long_name="Xi2" unit="s-1" grid_ref="face_grid" />
-       <field id="init_xi3" name="xi3" long_name="Xi3" unit="s-1" grid_ref="face_grid" />
-       <field id="init_u1" name="u1" long_name="U1" unit="m s-1" grid_ref="face_grid" />
-       <field id="init_u2" name="u2" long_name="U2" unit="m s-1" grid_ref="face_grid" />
-       <field id="init_u3" name="u3" long_name="U3" unit="m s-1" grid_ref="face_grid" />
-       <field id="init_divergence" name="divergence" long_name="divergence_of_wind" standard_name="divergence_of_wind" unit="s-1" grid_ref="face_grid" />
-       <field id="init_exner" name="exner" long_name="exner_pressure" unit="1" grid_ref="face_grid" />
+     <field_group freq_op="1ts" enabled=".TRUE." operation="once" >
+       <field id="init_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
+       <field id="init_m_v" name="m_v" long_name="m_v" unit="1" grid_ref="full_level_face_grid" />
+       <field id="init_m_c" name="m_c" long_name="m_c" unit="1" grid_ref="full_level_face_grid" />
+       <field id="init_m_r" name="m_r" long_name="m_r" unit="1" grid_ref="full_level_face_grid" />
+       <field id="init_m_nc" name="m_nc" long_name="m_nc" unit="1" grid_ref="full_level_face_grid" />
+       <field id="init_m_nr" name="m_nr" long_name="m_nr"  unit="1" grid_ref="full_level_face_grid" />  
+       <field id="init_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
+       <field id="init_xi1" name="xi1" long_name="Xi1" unit="s-1" grid_ref="half_level_face_grid" />
+       <field id="init_xi2" name="xi2" long_name="Xi2" unit="s-1" grid_ref="half_level_face_grid" />
+       <field id="init_xi3" name="xi3" long_name="Xi3" unit="s-1" grid_ref="half_level_face_grid" />
+       <field id="init_u1" name="u1" long_name="U1" unit="m s-1" grid_ref="half_level_face_grid" />
+       <field id="init_u2" name="u2" long_name="U2" unit="m s-1" grid_ref="half_level_face_grid" />
+       <field id="init_u3" name="u3" long_name="U3" unit="m s-1" grid_ref="half_level_face_grid" />
+       <field id="init_divergence" name="divergence" long_name="divergence_of_wind" standard_name="divergence_of_wind" unit="s-1" grid_ref="half_level_face_grid" />
+       <field id="init_exner" name="exner" long_name="exner_pressure" unit="1" grid_ref="half_level_face_grid" />
 
      </field_group>    
      
@@ -77,7 +83,7 @@
       enabled=".TRUE.">
       
       
-      <file id="lfric_diag" name="lfric_diag" output_freq="50s" convention="UGRID">
+      <file id="lfric_diag" name="lfric_diag" output_freq="50ts" convention="UGRID">
         <field field_ref="theta"/>
         <field field_ref="m_v"/>
         <field field_ref="m_c"/>
@@ -95,7 +101,7 @@
         <field field_ref="exner"/>
       </file> 
       
-      <file id="lfric_initial" name="lfric_initial" output_freq="1s" convention="UGRID">
+      <file id="lfric_initial" name="lfric_initial" output_freq="1ts" convention="UGRID">
         <field field_ref="init_theta"/>
         <field field_ref="init_m_v"/>
         <field field_ref="init_m_c"/>
