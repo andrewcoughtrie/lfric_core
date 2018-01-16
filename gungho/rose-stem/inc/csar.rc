@@ -25,11 +25,10 @@
                                          checkkgo=False)'
                                ],
                 'csar-robert-moist':['run_application(gungho, robert-moist,
-                                         resolutions=[("BiP100x4-10x10", 0.25, 0.5),
-                                                      ("BiP50x4-20x20", 0.5)],
+                                      resolutions=[("BiP100x4-10x10", 0.25, 0.5),
+                                                   ("BiP50x4-20x20", 0.5)],
                                          env={"crun":5,
-                                              "nrun":
-                                                   {"default":50,
+                                              "nrun":{"default":50,
                                                    ("BiP100x4-10x10", 0.25): 200,
                                                    ("BiP100x4-10x10", 0.5): 200,
                                                    ("BiP100x4-20x20", 0.25): 200
@@ -52,39 +51,123 @@
                                          checkkgo=False)'
                              ],
                 'csar-sbr':['run_application(gungho, sbr_spinupwinds,
-                                         resolutions=[("C24",1.0, 5.0, 10.0, 20.0),
-                                                      ("C48",1.0, 5.0, 10.0, 20.0),
-                                                      ("C96",1.0, 5.0, 10.0, 20.0)],
-                                         env={"crun":1440,
-                                              "nrun":
-                                                   {"default":180,
-                                                   ("C24", 5.0):  72,
-                                                   ("C24", 10.0): 36,
-                                                   ("C24", 20.0): 18,
-                                                   ("C48", 5.0):  72,
-                                                   ("C48", 10.0): 36,
-                                                   ("C48", 20.0): 18,
-                                                   ("C96", 5.0):  72,
-                                                   ("C96", 10.0): 36,
-                                                   ("C96", 20.0): 18
+                                      resolutions=[("C24",1800.0),
+                                                   ("C48",1800.0),
+                                                   ("C96",900.0),
+                                                   ("C192",450.0)],
+                                         env={"crun":20,
+                                              "nrun":{"default":96,
+                                                   ("C24", 1800.0): 96,
+                                                   ("C48", 1800.0): 96,
+                                                   ("C96", 900.0): 96,
+                                                   ("C192",450.0): 96
                                                    },
                                               "directives":
                                                    {"C24":
-                                                       {"mpi_parts":36,
+                                                       {"mpi_parts":6,
                                                         "threads":1,
                                                         "wallclock":"02:00:00"},
                                                     "C48":
-                                                       {"mpi_parts":216,
+                                                       {"mpi_parts":24,
                                                         "threads":1,
                                                         "wallclock":"02:00:00"},
                                                     "C96":
-                                                       {"mpi_parts":432,
+                                                       {"mpi_parts":96,
+                                                        "threads":1,
+                                                        "wallclock":"02:00:00"},
+                                                    "C192":
+                                                       {"mpi_parts":384,
                                                         "threads":1,
                                                         "wallclock":"02:00:00"}
                                                    }
                                              },
-                                         checkkgo=False)',
+                                         checkkgo=False)'
                               ],
+                'csar-baroclinic':['run_application(gungho, baroclinic,
+                                      resolutions=[("C24",1800.0),
+                                                   ("C48",1800.0),
+                                                   ("C96",900.0),
+                                                   ("C192",450.0)],
+                                         env={"crun":20,
+                                              "nrun":{"default":96,
+                                                   ("C24", 1800.0): 96,
+                                                   ("C48", 1800.0): 96,
+                                                   ("C96", 900.0): 96,
+                                                   ("C192",450.0): 96
+                                                   },
+                                              "directives":
+                                                   {"C24":
+                                                       {"mpi_parts":6,
+                                                        "threads":1,
+                                                        "wallclock":"02:00:00"},
+                                                    "C48":
+                                                       {"mpi_parts":24,
+                                                        "threads":1,
+                                                        "wallclock":"03:00:00"},
+                                                    "C96":
+                                                       {"mpi_parts":96,
+                                                        "threads":1,
+                                                        "wallclock":"03:00:00"},
+                                                    "C192":
+                                                       {"mpi_parts":384,
+                                                        "threads":1,
+                                                        "wallclock":"03:00:00"}
+                                                   }
+                                             },
+                                         checkkgo=False,
+                                         plotstr="baroclinic.py diagDynamo $NODAL_DATA_DIR theta:exner:w3projection_u1:w3projection_u2:w3projection_u3 T000096:T0000192:T000384:T000480:T000960:T001920 $PLOT_DIR 1")'
+                              ],
+                'csar-hiwpp':['run_application(gungho, baroclinic,
+                                      resolutions=[("C192", 450.0),
+                                                   ("C192s",450.0),
+                                                   ("C384", 225.0),
+                                                   ("C384s",225.0)],
+                                         env={"crun":4,
+                                              "nrun":{"default":96,
+                                                   ("C192", 450.0): 96,
+                                                   ("C192s",450.0): 96,
+                                                   ("C384", 225.0): 96,
+                                                   ("C384s",225.0): 96
+                                                   },
+                                              "directives":
+                                                   {
+                                                    "C192":
+                                                       {"mpi_parts":384,
+                                                        "threads":1,
+                                                        "wallclock":"03:00:00"},
+                                                    "C192s":
+                                                       {"mpi_parts":384,
+                                                        "threads":1,
+                                                        "wallclock":"03:00:00"},
+                                                    "C384":
+                                                       {"mpi_parts":1536,
+                                                        "threads":1,
+                                                        "wallclock":"03:00:00"},
+                                                    "C384s":
+                                                       {"mpi_parts":1536,
+                                                        "threads":1,
+                                                        "wallclock":"03:00:00"}
+                                                   }
+                                             },
+                                         checkkgo=False,
+                                         plotstr="slices.py diagDynamo $NODAL_DATA_DIR w3projection_u2:w3projection_u3 T000096:T0000192:T000384 180 -35 1 $PLOT_DIR")'
+                              ],
+                'csar-straka':['run_application( gungho, straka_x,   resolutions=[("BiP128x4-400x400",10.0)],checkkgo=False,
+                                                 plotstr="straka_plot_x.py $NODAL_DATA_DIR 128 4 theta T000090 $PLOT_DIR" )',
+                               'run_application( gungho, straka_200m,resolutions=[("BiP256x4-200x200",5.0)],checkkgo=False,
+                                                 plotstr="straka_plot_x.py $NODAL_DATA_DIR 256 4 theta T000180 $PLOT_DIR" )',
+                               'run_application( gungho, straka_100m,resolutions=[("BiP512x4-100x100",2.5)],checkkgo=False,
+                                                 env={"crun":1, "nrun":360,
+                                                      "directives":{"default":{"mpi_parts":32,"threads":1,"wallclock":"02:00:00"} } },
+                                                 plotstr="straka_plot_x.py $NODAL_DATA_DIR 512 4 theta T000360 $PLOT_DIR" )',
+                               'run_application( gungho, straka_50m, resolutions=[("BiP1024x4-50x50",1.25)],checkkgo=False,
+                                                 env={"crun":1, "nrun":720,
+                                                      "directives":{"default":{"mpi_parts":128,"threads":1,"wallclock":"03:00:00"} } },
+                                                 plotstr="straka_plot_x.py $NODAL_DATA_DIR 1024 4 theta T000720 $PLOT_DIR" )',
+                               'run_application( gungho, straka_25m, resolutions=[("BiP2048x4-25x25",0.625)],checkkgo=False,
+                                                 env={"crun":1, "nrun":1440,
+                                                      "directives":{"default":{"mpi_parts":512,"threads":1,"wallclock":"03:00:00"} } },
+                                                 plotstr="straka_plot_x.py $NODAL_DATA_DIR 2048 4 theta T001440 $PLOT_DIR" )'],
                 'csar-short':['run_application(gungho, dcmip301,
                                          resolutions=[("C24",10.0)],
                                          checkkgo=False,

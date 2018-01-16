@@ -33,9 +33,9 @@ module operator_mod
      private 
     !> Each operator has pointers to the two function spaces on which it is
     !! defined as a map from one to the other
-     type( function_space_type ), pointer         :: fs_from => null( )
-     type( function_space_type ), pointer         :: fs_to => null( )
-     integer, allocatable :: gnu_dummy
+     type( function_space_type ), pointer :: fs_from => null( )
+     type( function_space_type ), pointer :: fs_to => null( )
+     integer(i_def), allocatable          :: gnu_dummy
 
   contains
 
@@ -60,7 +60,8 @@ module operator_mod
     real(kind=r_def), allocatable         :: local_stencil( :, :, : )
     !> Size of the outermost dimemsion of the local_stencil array, equal to 
     !! ncell*nlayers
-    integer :: ncell_3d
+    integer(i_def) :: ncell_3d
+
   contains
 
     !> Function to get a proxy with public pointers to the data in a
@@ -109,7 +110,7 @@ module operator_mod
     integer(i_def) :: ndof_cell_to, ndof_cell_from
     !> data array for banded matrix storage
     real(kind=r_def), allocatable :: columnwise_matrix( :, :, : )
-    integer :: ncell_2d !> Number of columns (= cells in 2d grid)
+    integer(i_def) :: ncell_2d !> Number of columns (= cells in 2d grid)
     !> columnwise dof-map \f$\pi_{to}\f$, using native ordering (to-space)
     integer(kind=i_def), allocatable :: column_dofmap_to( :, : )
     !> columnwise dof-map \f$\pi_{from}\f$ , using native ordering (from-space)
@@ -124,6 +125,7 @@ module operator_mod
     integer(kind=i_def), allocatable :: indirection_dofmap_to( :)
     !> indirection map \f$\mu_{from} := \pi_{from}\circ\tilde{\pi}^{-1}_{from}\f$ 
     integer(kind=i_def), allocatable :: indirection_dofmap_from( :)
+
   contains
 
     !> Function to get a proxy with public pointers to the data in a
@@ -172,10 +174,10 @@ module operator_mod
     type( function_space_type ), pointer, public :: fs_to
     type( function_space_type ), pointer, public :: fs_from
     !> Allocatable array of type real which holds the values of the operator
-    real(kind=r_def), public, pointer         :: local_stencil( :, :, : )
+    real(kind=r_def), public, pointer            :: local_stencil( :, :, : )
     !> size of the outermost dimension
-    integer,public                            :: ncell_3d
-    integer, allocatable :: gnu_dummy(:)
+    integer(i_def), public                       :: ncell_3d
+    integer(i_def), allocatable                  :: gnu_dummy(:)
 
   contains
     final :: destroy_op_proxy
@@ -209,7 +211,7 @@ module operator_mod
     integer(i_def), public :: ncol
     !> data array for banded matrix storage
     real(kind=r_def), public, pointer :: columnwise_matrix( :, :, : )
-    integer, public :: ncell_2d !> Number of columns (= cells in 2d grid)
+    integer(i_def), public :: ncell_2d !> Number of columns (= cells in 2d grid)
     !> columnwise dof-map \f$\tilde{\pi}_{to}\f$, ordering which makes the
     !> matrix banded (to-space)
     integer(kind=i_def), public, pointer :: column_banded_dofmap_to( :, : )
@@ -236,26 +238,31 @@ contains
   !--------------------------------------------------------------------------
 
   ! base type procedures
-
+  !>@brief Get the function space the operator maps from
+  !>@return fs Function space the operator maps from
   function which_fs_from(self) result(fs)
     implicit none
     class(base_operator_type), intent(in) :: self
-    integer :: fs
+    integer(i_def) :: fs
     
     fs = self%fs_from%which()
 
     return
   end function which_fs_from
 
+  !>@brief Get the function space the operator maps to
+  !>@return fs Function space the operator maps to
   function which_fs_to(self) result(fs)
     implicit none
     class(base_operator_type), intent(in)  :: self
-    integer :: fs
+    integer(i_def) :: fs
     fs = self%fs_to%which()
 
     return
   end function which_fs_to
 
+  !>@brief Get the mesh the operator lives on
+  !>@return mesh Mesh the operator lives on
   function get_mesh(self) result(mesh)
 
     implicit none
@@ -267,7 +274,7 @@ contains
     return
   end function get_mesh
 
-  !operator type procedures
+  ! Operator type procedures
 
   !> Construct an <code>operator_type</code> object.
   !>
@@ -287,7 +294,6 @@ contains
     self%ncell_3d = fs_from%get_ncell() * fs_from%get_nlayers()
     ! allocate the array in memory
     allocate(self%local_stencil( fs_to%get_ndf(),fs_from%get_ndf(), self%ncell_3d ) )
-    self%local_stencil(:,:,:) = 0.0_r_def
 
   end function operator_constructor
 
@@ -305,7 +311,8 @@ contains
     get_proxy_op % ncell_3d                =  self%ncell_3d
     allocate(get_proxy_op%gnu_dummy(2))
   end function get_proxy_op
-  
+
+  !>@brief Destroy the operator type
   subroutine operator_destructor(self)
     implicit none
     type(operator_type), intent(inout) :: self
@@ -316,6 +323,7 @@ contains
     end if
   end subroutine operator_destructor
 
+  !>@brief Destroy the operator proxy
   subroutine destroy_op_proxy(self)
     implicit none
     type(operator_proxy_type) :: self
@@ -487,7 +495,7 @@ contains
 
   !> @brief Calculate GCD of two integers
   !>
-  !> @detail Auxilliary function, calculates and returns greatest common
+  !> @details Auxilliary function, calculates and returns greatest common
   !> divisor of two integer numbers.
   !>
   !> @param [in] a First integer
@@ -523,7 +531,7 @@ contains
 
   !> @brief Build the dof- and indirection- maps
   !>
-  !> @detail Construct the following indirection maps (each for both the to-
+  !> @details Construct the following indirection maps (each for both the to-
   !> and from-functionspaces of the operator):
   !> * column_dofmap_XX(i,k): offset (relative to index of first unknown in
   !>   column) of the i-th dof on level k, using the native DYNAMO
@@ -733,6 +741,7 @@ contains
                                     alpha, beta, gamma_m, gamma_p)
   end function columnwise_operator_product
 
+  !>@brief Destroy the column operator proxy
   subroutine destroy_col_op_proxy(self)
     implicit none
     type(columnwise_operator_proxy_type) :: self

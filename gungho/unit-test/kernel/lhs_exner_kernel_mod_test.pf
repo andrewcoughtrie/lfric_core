@@ -36,7 +36,7 @@ module lhs_exner_kernel_mod_test
     type(function_space_type), pointer :: w3_fs => null()
     type(field_type)                   :: lhs_exner
     type(field_type)                   :: exner, rho, theta
-    type(field_type)                   :: rho_ref, theta_ref
+    type(field_type)                   :: rho_ref, theta_ref, exner_ref
     real(r_def), allocatable           :: basis_w3(:,:,:,:), &
                                           basis_w0(:,:,:,:), &
                                           diff_basis_w0(:,:,:,:)
@@ -120,6 +120,7 @@ contains
     this%lhs_exner  = field_type( vector_space = this%w3_fs )
     this%rho_ref  = field_type( vector_space = this%w3_fs )
     this%exner  = field_type( vector_space = this%w3_fs )
+    this%exner_ref  = field_type( vector_space = this%w3_fs )
     exner_proxy = this%exner%get_proxy()
 
     ndf_w3  = exner_proxy%vspace%get_ndf( )
@@ -189,7 +190,7 @@ contains
 
     type(field_proxy_type)    :: lhs_exner_proxy 
     type(field_proxy_type)    :: rho_proxy, exner_proxy, theta_proxy
-    type(field_proxy_type)    :: rho_ref_proxy, theta_ref_proxy
+    type(field_proxy_type)    :: rho_ref_proxy, theta_ref_proxy, exner_ref_proxy
 
     real(kind=r_def), pointer :: xp(:,:) => null()
     real(kind=r_def), pointer :: zp(:) => null()
@@ -220,6 +221,7 @@ contains
     ! Test kernel
     rho_proxy  = this%rho%get_proxy()
     exner_proxy  = this%exner%get_proxy()
+    exner_ref_proxy = this%exner_ref%get_proxy()
     theta_proxy = this%theta%get_proxy()
     lhs_exner_proxy = this%lhs_exner%get_proxy()
     rho_ref_proxy = this%rho_ref%get_proxy()
@@ -256,6 +258,7 @@ contains
     ! Create the data
     rho_proxy%data(:) = 0.1_r_def
     exner_proxy%data(:) = 0.2_r_def
+    exner_ref_proxy%data(:) = 1.2_r_def
     theta_proxy%data(:) = 3.0_r_def
     rho_ref_proxy%data(:) = 1.2_r_def
     theta_ref_proxy%data(:) = 300.0_r_def
@@ -268,6 +271,7 @@ contains
                          exner_proxy%data,                          &
                          theta_ref_proxy%data,                      &
                          rho_ref_proxy%data,                        &
+                         exner_ref_proxy%data,                      &
                          chi_p(1)%data,                             &
                          chi_p(2)%data,                             &
                          chi_p(3)%data,                             &
@@ -281,10 +285,7 @@ contains
                          )
 
     k = 1
-    exner_ref =  calc_exner_pointwise(rho_ref_proxy%data(1), &
-                                      theta_ref_proxy%data(1))
-
-    answer = (1.0_r_def - kappa)/kappa*exner_proxy%data(1)/exner_ref &
+    answer = (1.0_r_def -kappa)/kappa*exner_proxy%data(1)/exner_ref_proxy%data(1) &
            - rho_proxy%data(1)/rho_ref_proxy%data(1) &
            - theta_proxy%data(1)/theta_ref_proxy%data(1)
     @assertEqual(answer, lhs_exner_proxy%data(map_w3(1)+k)/(dx*dy*dz), tol)

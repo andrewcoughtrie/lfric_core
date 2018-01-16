@@ -53,7 +53,7 @@ module advection_alg_mod
   use mr_indices_mod,                 only: nummr
   use timestepping_config_mod,        only: dt
   use runge_kutta_init_mod,           only: num_rk_stage, ak
-  use field_indices_mod,              only: igh_u, igh_t, igh_d
+  use field_indices_mod,              only: igh_u, igh_t, igh_d, igh_p
   use output_config_mod,              only: subroutine_timers 
   use timer_mod,                      only: timer
   use timestepping_config_mod,        only: time_method => method, &
@@ -76,12 +76,17 @@ module advection_alg_mod
   private :: advective_inc_alg
 
 contains
-!>@brief Initialisation routine to advection algorithm
+
+  !>@brief Initialisation routine to advection algorithm
+  !>@param[in] mesh_id Identity of the mesh to create all fields on
   subroutine advection_alg_init(mesh_id)
     use mesh_mod,                          only: mesh_type
     use mesh_collection_mod,               only: mesh_collection
     use sample_poly_flux_kernel_mod,       only: sample_poly_flux_init
     use sample_poly_adv_kernel_mod,        only: sample_poly_adv_init
+
+    implicit none
+
     integer(i_def),  intent(in) :: mesh_id
 
     type(mesh_type), pointer :: mesh => null()
@@ -117,21 +122,22 @@ contains
 
   end subroutine advection_alg_init
 
-!=============================================================================!
-!>@details A wrapper algorithm for computing the advection of the prognostic
-!>         equations, namely:
-!>         \f[ \mathbf{R_u} = \xi \times \frac{\mathbf{F}}{\rho} \f]
-!>         \f[ R_\theta = \frac{\mathbf{F}}{\rho}.\nabla\theta \f]
-!>         \f[ R_\rho = \nabla.\mathbf{F} \f]
-!>         with diagnostic fields:
-!>
-!>         Mass flux: \f$ \mathbf{F} = \mathbf{u}\rho \f$
-!>         Vorticity: \f$ \xi = \nabla\times\mathbf{u} \f$
-!>
-!>         Using a method of lines algorithm
-!> @param[inout] advection Advective terms
-!> @param[in]    state Current state of the model prognostics
-!> @param[in]    xi Relative vorticity field
+  !=============================================================================!
+  !>@details A wrapper algorithm for computing the advection of the prognostic
+  !>         equations, namely:
+  !>         \f[ \mathbf{R_u} = \xi \times \frac{\mathbf{F}}{\rho} \f]
+  !>         \f[ R_\theta = \frac{\mathbf{F}}{\rho}.\nabla\theta \f]
+  !>         \f[ R_\rho = \nabla.\mathbf{F} \f]
+  !>         with diagnostic fields:
+  !>
+  !>         Mass flux: \f$ \mathbf{F} = \mathbf{u}\rho \f$
+  !>         Vorticity: \f$ \xi = \nabla\times\mathbf{u} \f$
+  !>
+  !>         Using a method of lines algorithm
+  !> @param[inout] advection Advective terms
+  !> @param[in]    state Current state of the model prognostics
+  !> @param[in]    xi Relative vorticity field
+  !> @param[in]    advecting_wind Wind field used to advect all quantities
   subroutine advection_alg( advection, &
                             state, &
                             xi, advecting_wind)
@@ -321,7 +327,7 @@ contains
                                                xi, chi, qr), &
                enforce_bc_kernel_type(advection(igh_u)) )
 
-  ! 5) advection update for the continuity equation divergence of mass flux: 
+  ! 5) Advection update for the continuity equation divergence of mass flux: 
   !    M3^-1(div(F))
   call log_event( "Computing advective density increment...", LOG_LEVEL_INFO)
   call invoke( name = "Compute advective density increment",     &
@@ -330,15 +336,21 @@ contains
                inc_a_times_X(minus_one, r_rho),                  &
                dg_matrix_vector_kernel_type(advection(igh_d), r_rho, mm_w3_inv) )
 
+  ! 6) Advection update for the equation of state, since this is diagnostic the
+  ! increment is always zero
+  call invoke( name = "Compute advective pressure increment",    &
+               setval_c(advection(igh_p), 0.0_r_def) )
+
+
+  deallocate ( rrho_prediction, rtheta_prediction )
   if ( subroutine_timers ) call timer('advection_alg')
   end subroutine advection_alg
 
-!>@details A wrapper algorithm for computing the advection of the moisture 
-!>         prognostic
-!> @param[inout] advection Field array containing the advective terms
-!> @param[in]    mr Field array. Mixing ratios
-!> @param[in]    wind Field array. Winds
-
+  !>@details A wrapper algorithm for computing the advection of the moisture 
+  !>         prognostic
+  !> @param[inout] advection Field array containing the advective terms
+  !> @param[in]    mr Field array. Mixing ratios
+  !> @param[in]    wind Field array. Winds
   subroutine advection_mr_alg( mr, wind )
   
     use matrix_vector_kernel_mod, only: matrix_vector_kernel_type
@@ -384,10 +396,10 @@ contains
 
   end subroutine advection_mr_alg
 
-!>@brief Compute the mass flux, f = rho*u using desired spatial reconstruction
-!>@param[inout] mass_flux Mass flux field: f = density*wind
-!>@param[in]    density Field to advect
-!>@param[in]    wind Advecting wind field
+  !>@brief Compute the mass flux, f = rho*u using desired spatial reconstruction
+  !>@param[inout] mass_flux Mass flux field: f = density*wind
+  !>@param[in]    density Field to advect
+  !>@param[in]    wind Advecting wind field
   subroutine mass_flux_alg(mass_flux, density, wind)
   implicit none
   
@@ -430,12 +442,11 @@ contains
 
   end subroutine mass_flux_alg
 
-
-!>@brief Compute advective update u.grad(theta) using desired spatial 
-!>       reconstruction
-!>@param[inout] rtheta Advective increment
-!>@param[in]    theta Field to advect
-!>@param[in]    wind Advecting wind field
+  !>@brief Compute advective update u.grad(theta) using desired spatial 
+  !>       reconstruction
+  !>@param[inout] rtheta Advective increment
+  !>@param[in]    theta Field to advect
+  !>@param[in]    wind Advecting wind field
   subroutine advective_inc_alg(rtheta, theta, wind)
   implicit none
   type(field_type), intent(in)        :: theta, wind

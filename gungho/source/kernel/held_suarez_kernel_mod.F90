@@ -17,12 +17,11 @@ module held_suarez_kernel_mod
 use kernel_mod,               only: kernel_type
 use argument_mod,             only: arg_type, func_type,                 &
                                     GH_FIELD, GH_WRITE, GH_READ, GH_INC, &
-                                    W0, W2, W3, ANY_SPACE_9,             &
+                                    W2, W3, ANY_SPACE_9, ANY_SPACE_1,    &
                                     GH_BASIS, GH_DIFF_BASIS,             &
                                     CELLS, GH_QUADRATURE_XYoZ
 use constants_mod,            only: r_def
 use coord_transform_mod,      only: xyz2llr
-use calc_exner_pointwise_mod, only: calc_exner_pointwise
 use planet_config_mod,        only: scaling_factor, kappa
 implicit none
 
@@ -34,15 +33,15 @@ type, public, extends(kernel_type) :: held_suarez_kernel_type
   private
   type(arg_type) :: meta_args(6) = (/                                  &
        arg_type(GH_FIELD,   GH_INC,   W2),                             &
-       arg_type(GH_FIELD,   GH_INC,   W0),                             &
+       arg_type(GH_FIELD,   GH_INC,   ANY_SPACE_1),                    &
        arg_type(GH_FIELD,   GH_READ,  W2),                             &
-       arg_type(GH_FIELD,   GH_READ,  W0),                             &
+       arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1),                    &
        arg_type(GH_FIELD,   GH_READ,  W3),                             &
        arg_type(GH_FIELD*3, GH_READ,  ANY_SPACE_9)                     &
        /)
   type(func_type) :: meta_funcs(4) = (/                                &
        func_type(W2, GH_BASIS),                                        &
-       func_type(W0, GH_BASIS),                                        &
+       func_type(ANY_SPACE_1, GH_BASIS),                               &
        func_type(W3, GH_BASIS),                                        &
        func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                 &
        /)
@@ -56,17 +55,17 @@ end type
 ! Constructors
 !-------------------------------------------------------------------------------
 
-! overload the default structure constructor for function space
+! Overload the default structure constructor for function space
 interface held_suarez_kernel_type
    module procedure held_suarez_kernel_constructor
 end interface
 
 !-------------------------------------------------------------------------------
-! local parameters
+! Local parameters
 !-------------------------------------------------------------------------------
 ! Held-Suarez parameters 
 real(kind=r_def), parameter :: SIGMA_B = 0.7_r_def  ! non-dimensional pressure threshold
-! relaxation and damping coefficients
+! Relaxation and damping coefficients
 real(kind=r_def), parameter :: KF = 1.0_r_def/86400.0_r_def ! 1 day-1
 real(kind=r_def), parameter :: KA = KF/40.0_r_def   ! 1/40 day-1
 real(kind=r_def), parameter :: KS = KF/4.0_r_def    ! 1/4 day-1
@@ -88,22 +87,22 @@ end function held_suarez_kernel_constructor
 
 !> @brief Adds a Held-Suarez forcing
 !! @param[in] nlayers Number of layers
-!! @param[inout] dtheta Theta increment
-!! @param[in] theta Potential temperature
 !! @param[inout] du Wind increment
+!! @param[inout] dtheta Theta increment
 !! @param[inout] u Wind
-!! @param[in] rho Density
+!! @param[in] theta Potential temperature
+!! @param[in] exner Pressure
 !! @param[in] chi_1 X component of the coordinate 
 !! @param[in] chi_2 Y component of the coordinate 
 !! @param[in] chi_3 Z component of the coordinate
-!! @param[in] ndf_w0 Number of degrees of freedom per cell for w0
-!! @param[in] undf_w0 Number of unique degrees of freedom for w0
-!! @param[in] map_w0 Dofmap for the cell at the base of the column for w0
-!! @param[in] basis_w0 Basis functions evaluated at gaussian quadrature points for w0
 !! @param[in] ndf_w2 Number of degrees of freedom per cell for w2
 !! @param[in] undf_w2 Number of unique degrees of freedom for w2
 !! @param[in] map_w2 Dofmap for the cell at the base of the column for w2
 !! @param[in] basis_w2 Basis functions evaluated at gaussian quadrature points for w2
+!! @param[in] ndf_w0 Number of degrees of freedom per cell for w0
+!! @param[in] undf_w0 Number of unique degrees of freedom for w0
+!! @param[in] map_w0 Dofmap for the cell at the base of the column for w0
+!! @param[in] basis_w0 Basis functions evaluated at gaussian quadrature points for w0
 !! @param[in] ndf_w3 Number of degrees of freedom per cell for w3
 !! @param[in] undf_w3 Number of unique degrees of freedom for w3
 !! @param[in] map_w3 Dofmap for the cell at the base of the column for w3
@@ -113,12 +112,12 @@ end function held_suarez_kernel_constructor
 !! @param[in] map_chi Dofmap for the cell at the base of the column for chi
 !! @param[in] basis_chi Basis functions evaluated at gaussian quadrature points for chi
 !! @param[in] diff_basis_chi Differential basis functions evaluated at gaussian quadrature points for chi
-!! @param[in] nqp_h the number of horizontal quadrature points
-!! @param[in] nqp_v the number of vertical quadrature points
-!! @param[in] wqp_h the weights of the horizontal quadrature points
-!! @param[in] wqp_v the weights of the vertical quadrature points
+!! @param[in] nqp_h Number of horizontal quadrature points
+!! @param[in] nqp_v Number of vertical quadrature points
+!! @param[in] wqp_h Weights of the horizontal quadrature points
+!! @param[in] wqp_v Weights of the vertical quadrature points
 subroutine held_suarez_code(nlayers,                                           &
-                            du, dtheta, u, theta, rho,                         &
+                            du, dtheta, u, theta, exner,                       &
                             chi_1, chi_2, chi_3,                               &
                             ndf_w2, undf_w2, map_w2, basis_w2,                 &
                             ndf_w0, undf_w0, map_w0, basis_w0,                 &
@@ -131,7 +130,7 @@ subroutine held_suarez_code(nlayers,                                           &
 
   implicit none
 
-  !Arguments
+  ! Arguments
   integer, intent(in) :: nlayers
 
   integer, intent(in) :: ndf_w0, undf_w0  
@@ -143,8 +142,8 @@ subroutine held_suarez_code(nlayers,                                           &
   real(kind=r_def), dimension(undf_w2), intent(inout) :: du
   real(kind=r_def), dimension(undf_w0), intent(in)    :: theta
   real(kind=r_def), dimension(undf_w2), intent(in)    :: u
-  real(kind=r_def), dimension(undf_w3), intent(in)    :: rho
-  real(kind=r_def), dimension(undf_chi), intent(in)    :: chi_1, chi_2, chi_3
+  real(kind=r_def), dimension(undf_w3), intent(in)    :: exner
+  real(kind=r_def), dimension(undf_chi), intent(in)   :: chi_1, chi_2, chi_3
 
   integer, dimension(ndf_w0),  intent(in)                          :: map_w0
   real(kind=r_def), dimension(1, ndf_w0, nqp_h, nqp_v), intent(in) :: basis_w0
@@ -162,22 +161,22 @@ subroutine held_suarez_code(nlayers,                                           &
   real(kind=r_def), dimension(nqp_h), intent(in) :: wqp_h
   real(kind=r_def), dimension(nqp_v), intent(in) :: wqp_v
 
-  !Internal variables
+  ! Internal variables
   integer               :: df, k, loc
 
-  real(kind=r_def)            :: theta_eq, exner
+  real(kind=r_def)            :: theta_eq
   real(kind=r_def)            :: lon, r
   integer                     :: qp1, qp2
   
   real(kind=r_def), dimension(ndf_chi)         :: chi_1_at_dof, chi_2_at_dof, chi_3_at_dof
-  real(kind=r_def), dimension(ndf_w3)          :: rho_at_dof
+  real(kind=r_def), dimension(ndf_w3)          :: exner_at_dof
   real(kind=r_def), dimension(ndf_w2)          :: u_at_dof
   real(kind=r_def), dimension(ndf_w0)          :: theta_at_dof
   real(kind=r_def), dimension(nqp_h,nqp_v)     :: dj
   real(kind=r_def), dimension(3,3,nqp_h,nqp_v) :: jac
   real(kind=r_def), dimension(ndf_w2)          :: du_at_dof
   real(kind=r_def), dimension(ndf_w0)          :: dtheta_at_dof
-  real(kind=r_def)                             :: rho_at_quad, theta_at_quad
+  real(kind=r_def)                             :: theta_at_quad, exner_at_quad
   real(kind=r_def)                             :: u_at_quad(3), jac_v(3), chi_at_quad(3), lat_at_quad
 
   real(kind=r_def) :: exner0 ! lowest level exner value
@@ -204,14 +203,14 @@ subroutine held_suarez_code(nlayers,                                           &
      u_at_dof(df) = u( map_w2(df) + k )
    end do  
    do df = 1, ndf_w3
-     rho_at_dof(df) = rho( map_w3(df) + k )
+     exner_at_dof(df) = exner( map_w3(df) + k )
    end do 
    ! Compute integrals over each cell       
     do qp2 = 1, nqp_v
       do qp1 = 1, nqp_h
-        rho_at_quad = 0.0_r_def 
+        exner_at_quad = 0.0_r_def 
         do df = 1, ndf_w3
-          rho_at_quad  = rho_at_quad + rho_at_dof(df)*basis_w3(1,df,qp1,qp2) 
+          exner_at_quad  = exner_at_quad + exner_at_dof(df)*basis_w3(1,df,qp1,qp2) 
         end do
         theta_at_quad = 0.0_r_def
         chi_at_quad(:) = 0.0_r_def
@@ -232,17 +231,16 @@ subroutine held_suarez_code(nlayers,                                           &
           u_at_quad(:) = u_at_quad(:) &
              + u_at_dof(df)*basis_w2(:,df,qp1,qp2)
         end do
-        exner = calc_exner_pointwise(rho_at_quad, theta_at_quad)
 
-        if (k==0)then
+        if (k==0) then
           sigma = 1.0_r_def
-          ! calculate mean exner value in bottom layer of quadrature points
-          if (qp2==1)exner0 = exner0 + exner/real(nqp_v, r_def)
+          ! Calculate mean exner value in bottom layer of quadrature points
+          if (qp2==1) exner0 = exner0 + exner_at_quad/real(nqp_v, r_def)
         else
-          sigma = (exner/exner0)**(1.0_r_def/kappa)
+          sigma = (exner_at_quad/exner0)**(1.0_r_def/kappa)
         end if
 
-        theta_eq = held_suarez_equilibrium_theta(exner, lat_at_quad) 
+        theta_eq = held_suarez_equilibrium_theta(exner_at_quad, lat_at_quad) 
         do df = 1, ndf_w0
           dtheta_at_dof(df) = dtheta_at_dof(df) & 
              - held_suarez_newton_frequency(sigma, lat_at_quad) * &
@@ -274,8 +272,9 @@ subroutine held_suarez_code(nlayers,                                           &
 end subroutine held_suarez_code
 
 !> @brief Function to calculate equilibrium theta profile for held-suarez
-!! @param[in] exner exner pressure
-!! @param[in] lat latitude
+!! @param[in] exner Exner pressure
+!! @param[in] lat Latitude
+!! @return theta_eq Equilibrium potential temperature
 function held_suarez_equilibrium_theta(exner, lat) result(theta_eq)
 
   implicit none
@@ -289,8 +288,9 @@ function held_suarez_equilibrium_theta(exner, lat) result(theta_eq)
 end function held_suarez_equilibrium_theta
 
 !> @brief Function to calculate the newton relaxation frequency for held-suarez
-!! @param[in] sigma nondimensional pressure p/p_surf
-!! @param[in] lat latitude
+!! @param[in] sigma Nondimensional pressure p/p_surf
+!! @param[in] lat Latitude
+!! @return held_suarez_frequency Relaxation frequency
 function held_suarez_newton_frequency(sigma, lat) result(held_suarez_frequency)
 
   implicit none
@@ -309,7 +309,8 @@ function held_suarez_newton_frequency(sigma, lat) result(held_suarez_frequency)
 end function held_suarez_newton_frequency
  
 !> @brief Function to calculate the damping coefficent for held-suarez
-!! @param[in] sigma nondimensional pressure p/p_surf
+!! @param[in] sigma Nondimensional pressure p/p_surf
+!! @return held_suarez_damping_rate Damping coefficent
 function held_suarez_damping(sigma) result(held_suarez_damping_rate)
 
   implicit none

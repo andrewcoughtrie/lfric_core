@@ -36,7 +36,7 @@ module weighted_proj_2theta_kernel_mod_test
     type(function_space_type), pointer :: w0_fs => null()
     type(function_space_type), pointer :: w2_fs => null()
     type(function_space_type), pointer :: w3_fs => null()
-    type(field_type)                   :: theta, rho
+    type(field_type)                   :: exner
     type(operator_type)                :: proj
     real(r_def), allocatable           :: diff_basis_w2(:,:,:,:), &
                                           basis_w3(:,:,:,:), &
@@ -75,7 +75,7 @@ contains
     class(weighted_proj_2theta_test_type), intent(inout) :: this
 
     type(operator_proxy_type) :: proj_p
-    type(field_proxy_type)    :: theta_p, rho_p
+    type(field_proxy_type)    :: exner_p
     type( quadrature_rule_gaussian_type ) :: quadrature_rule
 
     integer :: nlayers, dim, diff_dim, dim_w3, diff_dim_w2, dim_w2
@@ -115,15 +115,12 @@ contains
 
     this%proj = operator_type(this%w2_fs,this%w0_fs)
 
-    this%theta = field_type( vector_space = this%w0_fs )
-    theta_p    = this%theta%get_proxy()
+    this%exner = field_type( vector_space = this%w3_fs )
+    exner_p    = this%exner%get_proxy()
 
-    this%rho = field_type( vector_space = this%w3_fs )
-    rho_p    = this%rho%get_proxy()
-
-    diff_dim = theta_p%vspace%get_dim_space_diff( )
-    dim      = theta_p%vspace%get_dim_space( )
-    ndf_w0   = theta_p%vspace%get_ndf()
+    diff_dim = this%w0_fs%get_dim_space_diff( )
+    dim      = this%w0_fs%get_dim_space( )
+    ndf_w0   = this%w0_fs%get_ndf()
     allocate(this%diff_basis_w0(diff_dim,ndf_w0,nqp_h,nqp_v) )
     allocate(this%basis_w0(dim,ndf_w0,nqp_h,nqp_v) )
 
@@ -135,8 +132,8 @@ contains
     allocate(this%diff_basis_w2(diff_dim_w2 ,ndf_w2, nqp_h, nqp_v) )
     allocate(this%basis_w2(dim_w2 ,ndf_w2, nqp_h, nqp_v) )
 
-    ndf_w3 = rho_p%vspace%get_ndf()
-    dim_w3 = rho_p%vspace%get_dim_space( )
+    ndf_w3 = exner_p%vspace%get_ndf()
+    dim_w3 = exner_p%vspace%get_dim_space( )
     allocate(this%basis_w3(dim_w3, ndf_w3, nqp_h, nqp_v) )
 
   end subroutine setUp
@@ -164,14 +161,13 @@ contains
   subroutine test_all( this )
 
     use weighted_proj_2theta_kernel_mod, only : weighted_proj_2theta_code
-    use calc_exner_pointwise_mod,        only : calc_exner_pointwise
 
     implicit none
 
     class(weighted_proj_2theta_test_type), intent(inout) :: this
 
     type(operator_proxy_type) :: proj_p
-    type(field_proxy_type )   :: theta_p, rho_p
+    type(field_proxy_type )   :: exner_p
 
     real(kind=r_def), parameter :: tol = 1.0e-6_r_def
 
@@ -188,7 +184,6 @@ contains
     real(kind=r_def), pointer :: zp(:)   => null()
     real(kind=r_def), pointer :: wh(:), wv(:) => null()
     real(kind=r_def), dimension(6,8) :: answer
-    real(kind=r_def)                 :: exner
 
     ! Test the operator kernel
     proj_p = this%proj%get_proxy()
@@ -200,15 +195,12 @@ contains
     wh=>this%qr_proxy%weights_xy
     wv=>this%qr_proxy%weights_z
 
-    theta_p = this%theta%get_proxy()
-    ndf_w0  = theta_p%vspace%get_ndf()
-    undf_w0 = theta_p%vspace%get_undf()
-    call theta_p%vspace%compute_basis_function(                    &
+    ndf_w0  = proj_p%fs_from%get_ndf()
+    undf_w0 = proj_p%fs_from%get_undf()
+    call proj_p%fs_from%compute_basis_function(                    &
          this%basis_w0,ndf_w0, nqp_h, nqp_v, xp, zp )
-    call theta_p%vspace%compute_diff_basis_function(                    &
+    call proj_p%fs_from%compute_diff_basis_function(                    &
          this%diff_basis_w0,ndf_w0, nqp_h, nqp_v, xp, zp )
-
-    rho_p = this%rho%get_proxy()
 
     nlayers = proj_p%fs_from%get_nlayers()
     ndf_w2  = proj_p%fs_to%get_ndf()
@@ -217,29 +209,26 @@ contains
     call proj_p%fs_to%compute_diff_basis_function(                     &
          this%diff_basis_w2, ndf_w2, nqp_h, nqp_v, xp, zp ) 
 
-    ndf_w3  = rho_p%vspace%get_ndf()
-    undf_w3 = rho_p%vspace%get_undf()
-    call rho_p%vspace%compute_basis_function(                            &
+    exner_p = this%exner%get_proxy()
+    ndf_w3  = exner_p%vspace%get_ndf()
+    undf_w3 = exner_p%vspace%get_undf()
+    call exner_p%vspace%compute_basis_function(                            &
          this%basis_w3, ndf_w3, nqp_h, nqp_v, xp, zp ) 
 
     cell = 1
-    map_w0 => theta_p%vspace%get_cell_dofmap(cell)
-    map_w3 => rho_p%vspace%get_cell_dofmap(cell)
+    map_w3 => exner_p%vspace%get_cell_dofmap(cell)
     proj_p%local_stencil(:,:,:) = 0.0_r_def
-    theta_p%data(:) = 300.0_r_def
-    rho_p%data(:) = 1.0_r_def
+    exner_p%data(:) = 1.0_r_def
     call weighted_proj_2theta_code( cell,                              &
                                     nlayers,                           &
                                     proj_p%ncell_3d,                   &
                                     proj_p%local_stencil,              &
-                                    theta_p%data,                      &
-                                    rho_p%data,                        &
+                                    exner_p%data,                      &
+                                    1.0_r_def,                         &
                                     ndf_w2,                            &
                                     this%basis_w2,                     &
                                     this%diff_basis_w2,                &
                                     ndf_w0,                            &
-                                    undf_w0,                           &
-                                    map_w0,                            &
                                     this%basis_w0,                     &
                                     this%diff_basis_w0,                &
                                     ndf_w3,                            &
@@ -253,8 +242,7 @@ contains
                                    )
 
     call proj_operator(answer)
-    exner = calc_exner_pointwise(rho_p%data(1), theta_p%data(1))
-    @assertEqual(answer*exner, proj_p%local_stencil(:, :, 1 ), tol)
+    @assertEqual(answer, proj_p%local_stencil(:, :, 1 ), tol)
 
   end subroutine test_all
 
@@ -274,12 +262,6 @@ contains
    0,1,1,0,0,1,&
    0,0,1,-1,0,1,&
   -1,0,0,-1,0,1 &
-!  -1, 0, 0,-1,-1, 0, 0,-1, &
-!   1, 1, 0, 0, 1, 1, 0, 0, &
-!   0, 1, 1, 0, 0, 1, 1, 0, &
-!   0, 0,-1,-1, 0, 0,-1,-1, &
-!  -1,-1,-1,-1, 0, 0, 0, 0, &
-!   0, 0, 0, 0,-1,-1,-1,-1  &
  ], shape(proj) ),r_def) 
 
     return

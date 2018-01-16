@@ -210,6 +210,7 @@ contains
                                     proj_p%ncell_3d,                   &
                                     proj_p%local_stencil,              &
                                     theta_p%data,                      &
+                                    1.0_r_def,                         &
                                     ndf_w0,                            &
                                     undf_w0,                           &
                                     map_w0,                            &

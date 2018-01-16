@@ -20,8 +20,9 @@ module cusph_cosmic_transport_alg_mod
                                                log_scratch_space, &
                                                LOG_LEVEL_INFO,    &
                                                LOG_LEVEL_TRACE
-  use runtime_constants_mod,             only: get_coordinates
-
+  use runtime_constants_mod,             only: get_coordinates, &
+                                               get_cell_orientation, &
+                                               get_detj_at_w2
   use cusph_split_transport_alg_mod,     only: cusph_split_transport_alg
   use cusph_fv_density_update_alg_mod,   only: cusph_fv_density_update_alg
   use flux_direction_mod,                only: x_direction, y_direction
@@ -105,23 +106,23 @@ contains
   !>          analytically.
   !> @param[in]    mesh_id          Mesh id of the mesh all fields are on
   !> @param[inout] rho              Density field
-  !> @param[in]    cell_orientation Orientation of cells, held in a W3 field
-  !> @param[in]    detj_at_w2       Detj values at W2 dof locations held in a W2 field
   subroutine cusph_cosmic_transport_step( mesh_id,            &
-                                          rho,                &
-                                          cell_orientation,   &
-                                          detj_at_w2 )
+                                          rho )
 
     implicit none
 
     integer(i_def),      intent(in)    :: mesh_id
     type(field_type),    intent(inout) :: rho
-    type(field_type),    intent(in)    :: cell_orientation
-    type(field_type),    intent(inout) :: detj_at_w2
 
     type(field_type), pointer :: chi(:) => null()
+    ! Array to hold cell orientation values in W3 field
+    type(field_type), pointer :: cell_orientation => null()
+    ! Array to hold detj values at W2 dof locations
+    type(field_type), pointer :: detj_at_w2 => null()
 
-    chi => get_coordinates()
+    chi              => get_coordinates()
+    cell_orientation => get_cell_orientation()
+    detj_at_w2       => get_detj_at_w2()
 
     call invoke( setval_X(rho_n, rho) )
 

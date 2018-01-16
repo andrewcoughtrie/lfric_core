@@ -69,7 +69,7 @@ contains
                                 wind_time_period = 0.0_r_def )
 
     call feign_formulation_config(transport_only=.false., rotating=.true., &
-                                  eliminate_p=.false., use_moisture=.false., &
+                                  use_moisture=.false., &
                                   shallow=.false., use_physics=.false., &
 				  use_wavedynamics=.true.)
 

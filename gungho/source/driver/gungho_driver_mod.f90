@@ -3,7 +3,7 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-!> Drives the execution of the GungHo model.
+!>@brief Drives the execution of the GungHo model.
 !>
 !> This is a temporary solution until we have a proper driver layer.
 !>
@@ -19,11 +19,9 @@ module gungho_driver_mod
                                          cusph_cosmic_transport_step
   use derived_config_mod,         only : set_derived_config
   use diagnostic_alg_mod,         only : divergence_diagnostic_alg, &
-                                         pressure_diagnostic_alg,   &
                                          density_diagnostic_alg
   use ESMF
   use field_mod,                  only : field_type
-  use finite_element_config_mod,  only : element_order
   use formulation_config_mod,     only : transport_only, &
                                          use_moisture,   &
                                          use_physics
@@ -62,8 +60,6 @@ module gungho_driver_mod
                                          rk_transport_step, &
                                          rk_transport_final
   use runge_kutta_init_mod,       only : runge_kutta_init
-  use runtime_constants_mod,      only : get_cell_orientation, &
-                                         get_detj_at_w2
   use timer_mod,                  only : timer, output_timer
   use timestepping_config_mod,    only : method, dt, &
                                          timestepping_method_semi_implicit, &
@@ -85,6 +81,7 @@ module gungho_driver_mod
   type( field_type ) :: u,         &
                         rho,       &
                         theta,     &
+                        exner,     &
                         xi,        &
                         mr(nummr), &
                         rho_in_wth
@@ -94,8 +91,7 @@ module gungho_driver_mod
                         u2_in_w3,    &
                         u3_in_w3,    &
                         theta_in_w3, &
-                        p_in_w3,     &
-                        p_in_wth
+                        exner_in_wth
 
   ! UM 2d fields
   type( field_type ) :: tstar_2d, zh_2d, z0msea_2d
@@ -103,19 +99,13 @@ module gungho_driver_mod
   ! Coordinate field
   type(field_type), target, dimension(3) :: chi
 
-  ! Array to hold cell orientation values in W3 field
-  type( field_type ) :: cell_orientation
-
-  ! Array to hold detj values at W2 dof locations
-  type( field_type ) :: detj_at_w2
-
   integer(i_def) :: mesh_id, twod_mesh_id
 
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !> Sets up required state in preparation for run.
-  !>
+  !>@brief Sets up required state in preparation for run.
+  !>@param[in] filename Name of the file containing the desired configuration 
   subroutine initialise( filename )
 
     implicit none
@@ -165,7 +155,7 @@ contains
     call log_event( 'gungho running...', LOG_LEVEL_INFO )
 
     call load_configuration( filename )
-    call set_derived_config()
+    call set_derived_config( .true. )
 
     restart = restart_type( restart_filename, local_rank, total_ranks )
 
@@ -213,21 +203,15 @@ contains
 
     ! Create and initialise prognostic fields
     timestep = 0
-    call init_gungho(mesh_id, chi, u, rho, theta, rho_in_wth, mr, xi, restart)
+    call init_gungho(mesh_id, chi, u, rho, theta, exner, rho_in_wth, mr, xi, restart)
 
     if (use_physics)then
-      call init_physics(mesh_id, twod_mesh_id, u, rho, theta, rho_in_wth, &
+      call init_physics(mesh_id, twod_mesh_id,                      &
+                        u, exner, rho, theta, rho_in_wth,           &
                         u1_in_w3, u2_in_w3, u3_in_w3, theta_in_w3,  &
-                        p_in_w3, p_in_wth, tstar_2d, zh_2d, z0msea_2d)
+                        exner_in_wth, tstar_2d, zh_2d, z0msea_2d)
+
     end if
-
-    if ( transport_only .and. scheme == transport_scheme_cusph_cosmic) then
-      cell_orientation = get_cell_orientation()
-    end if
-
-    ! Create detj values at W2 dof locations
-    detj_at_w2 = get_detj_at_w2()
-
 
     ! Initial output
     ! We only want these once at the beginning of a run
@@ -242,6 +226,7 @@ contains
         call output_nodal('xi',    ts_init, xi,    mesh_id)
         call output_nodal('u',     ts_init, u,     mesh_id)
         call output_nodal('rho',   ts_init, rho,   mesh_id)
+        call output_nodal('exner', ts_init, exner, mesh_id)
 
         if (use_moisture)then
         call output_nodal('m_v',   ts_init, mr(imr_v),   mesh_id)
@@ -262,6 +247,7 @@ contains
         ! Output scalar fields
         call output_xios_nodal("init_theta", theta, mesh_id)
         call output_xios_nodal("init_rho", rho, mesh_id)
+        call output_xios_nodal("init_exner", exner, mesh_id)
 
         ! Output vector fields
         call output_xios_nodal("init_u", u, mesh_id)
@@ -277,7 +263,6 @@ contains
 
       end if
 
-      call pressure_diagnostic_alg(rho, theta, ts_init, mesh_id)
       call divergence_diagnostic_alg(u, ts_init, mesh_id)
 
     end if
@@ -285,8 +270,8 @@ contains
   end subroutine initialise
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !> Performs time steps.
-  !>
+  !>@brief Timesteps the model, calling the desired timestepping algorithm based
+  !upon the configuration
   subroutine run()
 
     implicit none
@@ -318,15 +303,12 @@ contains
             call rk_transport_step( u, rho, theta)
           case ( transport_scheme_bip_cosmic)
             call cosmic_transport_init(mesh_id, u, timestep)
-            call cosmic_transport_step(rho,detj_at_w2)
+            call cosmic_transport_step(rho)
           case ( transport_scheme_cusph_cosmic)
             call cusph_cosmic_transport_init(mesh_id, u, timestep)
-            call cusph_cosmic_transport_step( mesh_id,          &
-                                              rho,              &
-                                              cell_orientation, &
-                                              detj_at_w2 )
+            call cusph_cosmic_transport_step( mesh_id, rho)
             call density_diagnostic_alg(rho, timestep)
-            call conservation_algorithm(timestep, rho, u, theta, xi)
+            call conservation_algorithm(timestep, rho, u, theta, exner, xi)
           case default
           call log_event("Dynamo: Incorrect transport option chosen, "// &
                           "stopping program! ",LOG_LEVEL_ERROR)
@@ -338,31 +320,31 @@ contains
             ! Initialise and output initial conditions on first timestep
             if (timestep == restart%ts_start()) then
               call runge_kutta_init()
-              call iter_alg_init(mesh_id, u, rho, theta, tstar_2d, zh_2d, &
-                                 z0msea_2d)
-              call conservation_algorithm(timestep, rho, u, theta, xi)
+              call iter_alg_init(mesh_id, u, rho, theta, exner, &
+                                 tstar_2d, zh_2d, z0msea_2d)
+              call conservation_algorithm(timestep, rho, u, theta, exner, xi)
             end if
-            call iter_alg_step(u, rho, theta, mr, xi,           &
+            call iter_alg_step(u, rho, theta, exner, mr, xi,  &
                                 u1_in_w3, u2_in_w3, u3_in_w3, &
                                 rho_in_wth, theta_in_w3,      &
-                                p_in_w3, p_in_wth, tstar_2d,  &
+                                exner_in_wth, tstar_2d,       &
                                 zh_2d, z0msea_2d, timestep)
 
           case( timestepping_method_rk )             ! RK
             ! Initialise and output initial conditions on first timestep
             if (timestep == restart%ts_start()) then
               call runge_kutta_init()
-              call rk_alg_init( mesh_id, u, rho, theta)
-              call conservation_algorithm(timestep, rho, u, theta, xi)
+              call rk_alg_init(mesh_id, u, rho, theta, exner)
+              call conservation_algorithm(timestep, rho, u, theta, exner, xi)
             end if
-            call rk_alg_step( u, rho, theta, xi)
+            call rk_alg_step(u, rho, theta, exner, xi)
           case default
             call log_event("Dynamo: Incorrect time stepping option chosen, "// &
                             "stopping program! ",LOG_LEVEL_ERROR)
             stop
         end select
 
-        call conservation_algorithm(timestep, rho, u, theta, xi)
+        call conservation_algorithm(timestep, rho, u, theta, exner, xi)
 
       end if
 
@@ -381,9 +363,10 @@ contains
 
           call log_event("Gungho: writing nodal output", LOG_LEVEL_INFO)
           call output_nodal("theta", timestep, theta, mesh_id)
-          call output_nodal("rho", timestep, rho, mesh_id)
-          call output_nodal("u", timestep, u, mesh_id)
-          call output_nodal("xi", timestep, xi, mesh_id)
+          call output_nodal("rho",   timestep, rho,   mesh_id)
+          call output_nodal("exner", timestep, exner, mesh_id)
+          call output_nodal("u",     timestep, u,     mesh_id)
+          call output_nodal("xi",    timestep, xi,    mesh_id)
 
           if (use_moisture)then
             call output_nodal('m_v',    timestep, mr(imr_v),   mesh_id)
@@ -402,6 +385,7 @@ contains
           call log_event("Gungho: writing xios output", LOG_LEVEL_INFO)
           call output_xios_nodal("theta", theta, mesh_id)
           call output_xios_nodal("rho", rho, mesh_id)
+          call output_xios_nodal("exner", exner, mesh_id)
 
           if (use_moisture)then
             call output_xios_nodal('m_v', mr(imr_v),   mesh_id)
@@ -417,7 +401,6 @@ contains
 
         end if
 
-        call pressure_diagnostic_alg(rho, theta, timestep, mesh_id)
         call divergence_diagnostic_alg(u, timestep, mesh_id)
       end if
 
@@ -426,8 +409,7 @@ contains
   end subroutine run
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !> Tidies up after a run.
-  !>
+  !>@brief Tidies up after a run.
   subroutine finalise()
 
     implicit none
@@ -441,6 +423,7 @@ contains
     ! Log fields
     call rho%log_field(   LOG_LEVEL_DEBUG, 'rho' )
     call theta%log_field( LOG_LEVEL_DEBUG, 'theta' )
+    call exner%log_field( LOG_LEVEL_DEBUG, 'exner' )
     call u%log_field(     LOG_LEVEL_DEBUG, 'u' )
 
     ! Write checksums to file
@@ -463,6 +446,11 @@ contains
                               trim(restart%endfname("theta"))
       call log_event(log_scratch_space,LOG_LEVEL_INFO)
       call theta%write_checkpoint(trim(restart%endfname("theta")))
+
+      write(log_scratch_space,'(A,A)') "writing file:",  &
+                              trim(restart%endfname("exner"))
+      call log_event(log_scratch_space,LOG_LEVEL_INFO)
+      call exner%write_checkpoint(trim(restart%endfname("exner")))
 
       write(log_scratch_space,'(A,A)') "writing file:",  &
                               trim(restart%endfname("xi"))

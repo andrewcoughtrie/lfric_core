@@ -16,12 +16,12 @@ module compute_tri_precon_kernel_mod
 use constants_mod,           only: r_def, i_def
 use kernel_mod,              only: kernel_type
 use argument_mod,            only: arg_type, func_type,                      &
-                                   GH_OPERATOR, GH_FIELD, GH_READ, GH_WRITE, &
+                                   GH_FIELD, GH_READ, GH_WRITE,              &
                                    ANY_SPACE_9, W3, ANY_SPACE_1,             &
                                    GH_BASIS, GH_DIFF_BASIS,                  &
                                    CELLS, GH_EVALUATOR
-use planet_config_mod,       only : kappa, cp
-use timestepping_config_mod, only : dt, tau_u, tau_t
+use planet_config_mod,       only: kappa, cp
+use timestepping_config_mod, only: dt, tau_u, tau_t
 
 implicit none
 
@@ -34,8 +34,8 @@ type, public, extends(kernel_type) :: compute_tri_precon_kernel_type
        arg_type(GH_FIELD*3,  GH_WRITE, W3),                            &
        arg_type(GH_FIELD,    GH_READ,  ANY_SPACE_9),                   &
        arg_type(GH_FIELD,    GH_READ,  W3),                            &
-       arg_type(GH_FIELD*3,  GH_READ,  ANY_SPACE_1),                   &
-       arg_type(GH_OPERATOR, GH_READ,  W3, W3)                         &
+       arg_type(GH_FIELD,    GH_READ,  W3),                            &
+       arg_type(GH_FIELD*3,  GH_READ,  ANY_SPACE_1)                    &
        /)
   type(func_type) :: meta_funcs(1) = (/                                &
        func_type(ANY_SPACE_1, GH_DIFF_BASIS)                           &
@@ -67,44 +67,42 @@ end function compute_tri_precon_constructor
   
 !> @brief Compute the tridiagonal vertical only terms for the helmholtz matrix 
 !!        for lowest order elements
-!! @param[in] cell  Id of 2d cell
 !! @param[in] nlayers Number of layers.
 !! @param[out] tri_0 Diagonal of the tridiagonal matrix
 !! @param[out] tri_plus Upper diagonal of the tridiagonal matrix
 !! @param[out] tri_mins Lower diagonal of the tridiagonal matrix
 !! @param[in]  theta Potential temperature field
+!! @param[in]  exner Exner pressure field
 !! @param[in]  rho Density field
 !! @param[in]  chi1 First coordinate component
 !! @param[in]  chi2 Second coordinate component
 !! @param[in]  chi3 Third coordinate component
-!! @param[in]  ncell_3d total number of cells
-!! @param[in]  m3_inv Inverse mass matrix for w3 space
 !! @param[in]  ndf_w3 Number of degrees of freedom per cell for the operator space.
 !! @param[in]  undf_w3 Number of unique degrees of freedum for the w3 space
 !! @param[in]  map_w3 Dofmap for the cell at the base of the column.
 !! @param[in]  ndf_wtheta Number of degrees of freedom per cell for the operator space.
 !! @param[in]  undf_wtheta Number of unique degrees of freedum for the wtheta space
 !! @param[in]  map_wtheta Dofmap for the cell at the base of the column.
+!! @param[in]  ndf_chi Number of degrees of freedom per cell for the coordinate space.
+!! @param[in]  undf_chi Number of unique degrees of freedum for the coordinate space
+!! @param[in]  map_chi Dofmap for the cell at the base of the column.
 !! @param[in]  diff_basis_chi Differential basis functions evaluated at W3 nodal points.
-subroutine compute_tri_precon_code(cell, nlayers,                       &
+subroutine compute_tri_precon_code(nlayers,                             &
                                    tri_0, tri_plus, tri_minus,          &
-                                   theta, rho,                          &
+                                   theta, exner, rho,                   &
                                    chi1, chi2, chi3,                    &
-                                   ncell_3d, m3_inv,                    &
                                    ndf_w3, undf_w3, map_w3,             &
                                    ndf_wtheta, undf_wtheta, map_wtheta, &
                                    ndf_chi, undf_chi, map_chi,          &
-                                   diff_basis_chi )
+                                   diff_basis_chi)
 
-  use calc_exner_pointwise_mod, only: calc_exner_pointwise
   use coordinate_jacobian_mod,  only: coordinate_jacobian
 
   implicit none
-  !Arguments
+  ! Arguments
   integer(kind=i_def), intent(in) :: ndf_w3, ndf_wtheta, ndf_chi
   integer(kind=i_def), intent(in) :: undf_w3, undf_wtheta, undf_chi
   integer(kind=i_def), intent(in) :: nlayers
-  integer(kind=i_def), intent(in) :: cell, ncell_3d
 
   integer, dimension(ndf_chi), intent(in) :: map_chi
   integer, dimension(ndf_wtheta),  intent(in) :: map_wtheta
@@ -113,27 +111,28 @@ subroutine compute_tri_precon_code(cell, nlayers,                       &
   real(kind=r_def), dimension(undf_w3),      intent(out) :: tri_0
   real(kind=r_def), dimension(undf_w3),      intent(out) :: tri_plus
   real(kind=r_def), dimension(undf_w3),      intent(out) :: tri_minus
-  real(kind=r_def), dimension(undf_w3),      intent(in)  :: rho
+  real(kind=r_def), dimension(undf_w3),      intent(in)  :: exner, rho
   real(kind=r_def), dimension(undf_wtheta),  intent(in)  :: theta
   real(kind=r_def), dimension(undf_chi),     intent(in)  :: chi1
   real(kind=r_def), dimension(undf_chi),     intent(in)  :: chi2
   real(kind=r_def), dimension(undf_chi),     intent(in)  :: chi3
 
-  real(kind=r_def), dimension(ndf_w3,ndf_w3,ncell_3d), intent(in)  :: m3_inv
-
   real(kind=r_def), dimension(3,ndf_chi,ndf_w3,1), intent(in) :: diff_basis_chi
 
-  !Internal variables
-  integer(kind=i_def)                        :: k, kp, km, df, ik
-  real(kind=r_def)                           :: theta_ref, dpdz, theta_m, theta_p, rho_p, rho_m
+  ! Internal variables
+  integer(kind=i_def)                        :: k, kp, km, df
+  real(kind=r_def)                           :: theta_ref, dpdz
+  real(kind=r_def)                           :: theta_p, theta_m
+  real(kind=r_def)                           :: rho_p, rho_m
   real(kind=r_def)                           :: kappa_term
-  real(kind=r_def), dimension(0:nlayers-1)   :: exner, dj
+  real(kind=r_def), dimension(0:nlayers-1)   :: dj
   real(kind=r_def), dimension(0:nlayers)     :: HB_inv, dthetadz, Pw, Pt
   real(kind=r_def), dimension(3,3,0:nlayers-1) :: jac
   real(kind=r_def), dimension(3,3)           :: jac_av
   real(kind=r_def), dimension(ndf_chi)       :: chi1_e, chi2_e, chi3_e
   real(kind=r_def)                           :: JTJ
   real(kind=r_def)                           :: r_ndf
+  real(kind=r_def)                           :: tau_dt
 
   ! Metric terms: 
   ! J(3)^2 on w points
@@ -141,15 +140,9 @@ subroutine compute_tri_precon_code(cell, nlayers,                       &
   ! Currently only for lowest order uniform grid
   kappa_term = (1.0_r_def - kappa)/kappa
   r_ndf = real(ndf_wtheta,r_def)
+  tau_dt = cp*tau_u*tau_t*dt**2
   ! Compute layer terms
   do k = 0,nlayers-1
-    theta_ref = 0.0_r_def
-    do df = 1, ndf_wtheta
-       theta_ref = theta_ref &
-                     + 1.0_r_def/r_ndf * (theta(map_wtheta(df) + k))
-    end do
-    exner(k) = calc_exner_pointwise(rho(map_w3(1)+k), theta_ref)
-
     do df = 1,ndf_chi
       chi1_e(df) = chi1(map_chi(df)+k)
       chi2_e(df) = chi2(map_chi(df)+k)
@@ -173,11 +166,11 @@ subroutine compute_tri_precon_code(cell, nlayers,                       &
     end do
 
     dthetadz(k) = (theta_p - theta_m)/2.0_r_def
-    dpdz = (exner(k) - exner(k-1))
+    dpdz = (exner(map_w3(1)+k) - exner(map_w3(1)+k-1))
    
     jac_av = 0.5_r_def*(jac(:,:,k-1) + jac(:,:,k))
     JTJ = jac_av(1,3)**2 + jac_av(2,3)**2 + jac_av(3,3)**2
-    HB_inv = 1.0_r_def/max(0.1_r_def,JTJ-cp*tau_u*dt*dthetadz(k)*dpdz)
+    HB_inv = 1.0_r_def/max(0.1_r_def,JTJ-tau_dt*dthetadz(k)*dpdz)
   end do
   HB_inv(nlayers)   = 1.0_r_def
   dthetadz(nlayers) = 0.0_r_def
@@ -214,12 +207,8 @@ subroutine compute_tri_precon_code(cell, nlayers,                       &
 
     tri_plus(map_w3(1)+k)  = tau_u*dt*Pw(k+1)*rho_p/(rho(map_w3(1)+k)*dj(k)) - 0.5_r_def*Pt(k+1)/theta_p
     tri_minus(map_w3(1)+k) = tau_u*dt*Pw(k)  *rho_m/(rho(map_w3(1)+k)*dj(k)) + 0.5_r_def*Pt(k)  /theta_m
-    tri_0(map_w3(1)+k) = kappa_term/exner(k) - tri_plus(map_w3(1)+k) - tri_minus(map_w3(1)+k)
+    tri_0(map_w3(1)+k) = kappa_term/exner(map_w3(1)+k) - tri_plus(map_w3(1)+k) - tri_minus(map_w3(1)+k)
 
-    ik = (cell-1)*nlayers + k + 1
-    tri_plus (map_w3(1)+k)  = tri_plus (map_w3(1)+k)*m3_inv(1,1,ik)
-    tri_minus(map_w3(1)+k)  = tri_minus(map_w3(1)+k)*m3_inv(1,1,ik)
-    tri_0    (map_w3(1)+k)  = tri_0    (map_w3(1)+k)*m3_inv(1,1,ik)
   end do
 
 end subroutine compute_tri_precon_code

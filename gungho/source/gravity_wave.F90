@@ -115,7 +115,7 @@ program gravity_wave
 
   call get_initial_filename( filename )
   call load_configuration( filename )
-  call set_derived_config()
+  call set_derived_config( .false. )
   deallocate( filename )
 
   restart = restart_type( restart_filename, local_rank, total_ranks )

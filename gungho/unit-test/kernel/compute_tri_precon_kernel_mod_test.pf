@@ -28,6 +28,7 @@ module compute_tri_precon_kernel_mod_test
     type(function_space_type), pointer :: w0_fs => null()
     type(function_space_type), pointer :: w3_fs => null()
     type(field_type)                   :: chi(3)
+    type(field_type)                   :: exner
     type(field_type)                   :: rho
     type(field_type)                   :: theta
     type(field_type)                   :: A0
@@ -81,9 +82,9 @@ contains
 
     class(compute_tri_precon_test_type), intent(inout) :: this
 
-    type(field_proxy_type) :: chi_p, rho_p
+    type(field_proxy_type) :: chi_p, exner_p
     integer(i_def)         :: i
-    integer(i_def)         :: ndf_chi, diff_dim_chi, ndf_rho
+    integer(i_def)         :: ndf_chi, diff_dim_chi, ndf_exner
     integer(i_def)         :: mesh_id
 
     call feign_base_mesh_config( filename='foo', prime_mesh_name='unit_test', &
@@ -95,11 +96,9 @@ contains
                               rd=rd, cp=cp, p_zero=p_zero,                 &
                               scaling_factor=scaling )
 
-    call feign_timestepping_config(method, dt, alpha, tau_u, tau_t, tau_r, nout, nin, rk_method,&
-				    spinup_period,                         &
-				    spinup_alpha,                          &
-				    spinup_winds                           &
-				    )
+    call feign_timestepping_config(method, dt, alpha, tau_u, tau_t, tau_r, &
+                                   nout, nin, rk_method,&
+                                   spinup_period, spinup_alpha, spinup_winds    )
 
     reference_element = finite_element_cellshape_quadrilateral
     call reference_cube()
@@ -118,6 +117,7 @@ contains
     this%A0    = field_type( vector_space = this%w3_fs )
     this%AP    = field_type( vector_space = this%w3_fs )
     this%AM    = field_type( vector_space = this%w3_fs )
+    this%exner = field_type( vector_space = this%w3_fs )
     this%rho   = field_type( vector_space = this%w3_fs )
     this%theta = field_type( vector_space = this%w0_fs )
     do i = 1,3
@@ -129,10 +129,10 @@ contains
     ndf_chi  = chi_p%vspace%get_ndf()
     diff_dim_chi = chi_p%vspace%get_dim_space_diff()
 
-    rho_p    = this%rho%get_proxy()
-    ndf_rho = rho_p%vspace%get_ndf()
+    exner_p   = this%exner%get_proxy()
+    ndf_exner = exner_p%vspace%get_ndf()
 
-    allocate(this%diff_basis_chi(diff_dim_chi, ndf_chi, ndf_rho))
+    allocate(this%diff_basis_chi(diff_dim_chi, ndf_chi, ndf_exner))
 
   end subroutine setUp
 
@@ -158,7 +158,6 @@ contains
   subroutine test_all( this )
 
     use compute_tri_precon_kernel_mod, only: compute_tri_precon_code
-    use calc_exner_pointwise_mod,      only: calc_exner_pointwise
     use planet_config_mod,             only: kappa
     use function_space_mod,            only: DIFF_BASIS
 
@@ -170,7 +169,7 @@ contains
                                  dy = 1000.0_r_def, &
                                  dz = 2000.0_r_def
     real(r_def), parameter    :: tol = 1.0e-10_r_def
-    real(r_def)               :: answer, exner
+    real(r_def)               :: answer
     type(field_proxy_type )   :: chi_p(3)
 
     integer                   :: i, j, k, cell, err
@@ -186,9 +185,8 @@ contains
     integer                   :: element_order
     integer, pointer          :: map_w3(:), map_w0(:) => null()
     real(kind=r_def), pointer :: nodes_w3(:,:) => null()
-    type(field_proxy_type)    :: rho_proxy, theta_proxy, A0_proxy, AM_proxy, AP_proxy
-
-    real(kind=r_def), allocatable :: m3_inv(:,:,:)
+    type(field_proxy_type)    :: exner_proxy, rho_proxy, theta_proxy, &
+                                 A0_proxy, AM_proxy, AP_proxy
 
     ! Make a coordinate field with a function space
     do i = 1,3
@@ -210,16 +208,17 @@ contains
     end do
 
     ! Test kernel
-    rho_proxy  = this%rho%get_proxy()
+    exner_proxy = this%exner%get_proxy()
+    rho_proxy   = this%rho%get_proxy()
     theta_proxy = this%theta%get_proxy()
     A0_proxy  = this%A0%get_proxy()
     AP_proxy  = this%AP%get_proxy()
     AM_proxy  = this%AM%get_proxy()
 
-    nlayers  = rho_proxy%vspace%get_nlayers()
-    nodes_w3 => rho_proxy%vspace%get_nodes()
-    ndf_w3   = rho_proxy%vspace%get_ndf( )
-    undf_w3  = rho_proxy%vspace%get_undf()
+    nlayers  = exner_proxy%vspace%get_nlayers()
+    nodes_w3 => exner_proxy%vspace%get_nodes()
+    ndf_w3   = exner_proxy%vspace%get_ndf( )
+    undf_w3  = exner_proxy%vspace%get_undf()
 
     ndf_w0  = theta_proxy%vspace%get_ndf( )
     undf_w0 = theta_proxy%vspace%get_undf()
@@ -236,26 +235,24 @@ contains
 
     cell = 5
 
-    map_w3 => rho_proxy%vspace%get_cell_dofmap( cell )
+    map_w3 => exner_proxy%vspace%get_cell_dofmap( cell )
     map_w0 => theta_proxy%vspace%get_cell_dofmap( cell )
 
     ! Create the data
-    rho_proxy%data(:) = 1.5_r_def
+    exner_proxy%data(:) = 1.5_r_def
+    rho_proxy%data(:)   = 1.5_r_def
     theta_proxy%data(:) = 300.0_r_def
 
-    allocate( m3_inv(1,1,cell*nlayers) )
-    m3_inv(:,:,:) = 2.0_r_def
-    call compute_tri_precon_code( cell, nlayers,                             &
+    call compute_tri_precon_code( nlayers,                                   &
                                   A0_proxy%data,                             &
                                   AP_proxy%data,                             &
                                   Am_proxy%data,                             &
                                   theta_proxy%data,                          &
+                                  exner_proxy%data,                          &
                                   rho_proxy%data,                            &
                                   chi_p(1)%data,                             &
                                   chi_p(2)%data,                             &
                                   chi_p(3)%data,                             &
-                                  cell*nlayers,                              &
-                                  m3_inv,                                    &
                                   ndf_w3, undf_w3, map_w3,                   &
                                   ndf_w0, undf_w0, map_w0,                   &
                                   ndf_w0, undf_w0, map_w0,                   &
@@ -268,13 +265,12 @@ contains
     k = nlayers - 1
     @assertEqual(answer, AP_proxy%data(map_w3(1)+k), tol)
     
-    answer = - (tau_u*dt/dz)**2*cp*theta_proxy%data(map_w0(1))*m3_inv(1,1,1)
+    answer = - (tau_u*dt/dz)**2*cp*theta_proxy%data(map_w0(1))
     k = 1
     @assertEqual(answer, AP_proxy%data(map_w3(1)+k), tol)
     @assertEqual(answer, AM_proxy%data(map_w3(1)+k), tol)
     
-    exner = calc_exner_pointwise(rho_proxy%data(1), theta_proxy%data(1))
-    answer = ((1.0_r_def- kappa)/kappa * 1.0_r_def/exner*m3_inv(1,1,1) - 2.0_r_def*answer)
+    answer = ((1.0_r_def- kappa)/kappa * 1.0_r_def/exner_proxy%data(1) - 2.0_r_def*answer)
     @assertEqual(answer, A0_proxy%data(map_w3(1)+k), tol)
 
   end subroutine test_all

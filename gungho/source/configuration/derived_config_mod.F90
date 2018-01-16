@@ -12,20 +12,20 @@ use constants_mod,     only: i_def
   implicit none
 
   private
-  integer(i_def), public, protected :: si_bundle_size
   integer(i_def), public, protected :: bundle_size
   public :: set_derived_config
 
 contains
-  subroutine set_derived_config()
-    use formulation_config_mod, only: eliminate_p
 
+  subroutine set_derived_config(gh)
+    
     implicit none
-    bundle_size = 3_i_def
-    if ( eliminate_p ) then
-      si_bundle_size = 3_i_def
+    logical, intent(in) :: gh
+
+    if ( gh ) then
+      bundle_size = 4_i_def
     else
-      si_bundle_size = 4_i_def
+      bundle_size = 3_i_def
     end if
 
   end subroutine set_derived_config

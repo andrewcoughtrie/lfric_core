@@ -13,23 +13,19 @@ module lhs_alg_mod
                                                get_div, &
                                                get_mass_matrix, &
                                                get_rmultiplicity, &
-                                               w2_id, w3inv_id, theta_space_id
+                                               w2_id, w3inv_id, theta_space_id, &
+                                               get_normalisation
   use field_mod,                         only: field_type
   use function_space_mod,                only: function_space_type
   use finite_element_config_mod,         only: element_order, wtheta_on
   use fs_continuity_mod,                 only: W2
-  use transport_config_mod,              only: operators, &
-                                               transport_operators_fv
   use field_indices_mod,                 only: igh_u, igh_t, igh_d, igh_p
   use output_config_mod,                 only: subroutine_timers 
   use timer_mod,                         only: timer
-
   implicit none
 
   type(field_type), private              :: f_star, r_rho
   type(field_type), allocatable, private :: lhs_tmp(:)
-  type(field_type)                       :: mt_lumped
-  type( field_type ), target             :: exner_inc
   type(function_space_type), pointer     :: u_fs => null()
 
   private
@@ -37,24 +33,24 @@ module lhs_alg_mod
   public  :: lhs_init
   private :: on_the_fly_lhs_alg
   private :: operator_lhs_alg
+
 contains
 
-!>@brief Initialise fields to be used for computing the lhs
+  !>@brief Initialise fields to be used for computing the lhs
+  !> @param[inout] state Field vector used for creating temporary fields
   subroutine lhs_init(state)
     use field_bundle_mod,          only: clone_bundle
-    use derived_config_mod,        only: si_bundle_size
-    use matrix_vector_kernel_mod,  only: matrix_vector_kernel_type
-    use operator_mod,              only: operator_type
+    use derived_config_mod,        only: bundle_size
 
     implicit none
 
-    type(field_type), intent(in) :: state(si_bundle_size)
+    type(field_type), intent(in) :: state(bundle_size)
 
     type(function_space_type), pointer :: rho_fs => null()
     type(field_type)                   :: ones
 
-    allocate( lhs_tmp(si_bundle_size) )
-    call clone_bundle(state, lhs_tmp, si_bundle_size)
+    allocate( lhs_tmp(bundle_size) )
+    call clone_bundle(state, lhs_tmp, bundle_size)
 
     ! For computing lhs_theta
     rho_fs => state(igh_d)%get_function_space()
@@ -66,69 +62,67 @@ contains
     u_fs => state(igh_u)%get_function_space()
     f_star = field_type( vector_space = u_fs )
 
-    ! For computing lhs u with operators and diagnostic exner
-    exner_inc = field_type( vector_space = rho_fs )
-
   end subroutine lhs_init
+
   !============================================================================!
-!>@details A wrapper for computing the lhs of the prognostic
-!>         equations by choosing certain terms to approximate the 
-!>         Jacobian, namely:
-!>         \f[
-!>         \mathbf{L_u} = \mathbf{u}' 
-!>                      + \tau_u\Delta t Cp\left( \theta^*\nabla\Pi'
-!>                                                +\theta'\nabla\Pi^*\right)
-!>         \f]
-!>         \f[ L_\rho = \rho' 
-!>                    + tau_r\Delta t\nabla.\left(\rho^*\mathbf{u}'\right) \f]
-!>         \f[ L_\theta = \theta' + tau_t\Delta t\mathbf{u}'.\nabla\theta^*\f]
-!>
-!>         Where primed terms are increments to the n+1 timelevel field and
-!>         star terms are a reference profile
-!> @param[inout] lhs State vector to compute
-!> @param[in]    tau_{u,t,r}_dt Relaxation parameter times the timestep
-!> @param[inout] state Current model prognostic state
-!> @param[in] ref_state Reference state of the model fields
+  !>@details A wrapper for computing the lhs of the prognostic
+  !>         equations by choosing certain terms to approximate the 
+  !>         Jacobian, namely:
+  !>         \f[
+  !>         \mathbf{L_u} = \mathbf{u}' 
+  !>                      + \tau_u\Delta t Cp\left( \theta^*\nabla\Pi'
+  !>                                                +\theta'\nabla\Pi^*\right)
+  !>         \f]
+  !>         \f[ L_\rho = \rho' 
+  !>                    + tau_r\Delta t\nabla.\left(\rho^*\mathbf{u}'\right) \f]
+  !>         \f[ L_\theta = \theta' + tau_t\Delta t\mathbf{u}'.\nabla\theta^*\f]
+  !>
+  !>         Where primed terms are increments to the n+1 timelevel field and
+  !>         star terms are a reference profile
+  !> @param[inout] lhs State vector to compute
+  !> @param[in]    tau_{u,t,r}_dt Relaxation parameter times the timestep
+  !> @param[inout] state Current model prognostic state
+  !> @param[in] ref_state Reference state of the model fields
   subroutine lhs_alg(lhs, state, ref_state, tau_u_dt, tau_t_dt, tau_r_dt)
-  use derived_config_mod, only: si_bundle_size, bundle_size
+  use derived_config_mod, only: bundle_size
   use solver_config_mod,  only: use_operators
 
   implicit none
   ! Form of state and lhs is [u,theta,rho,exner]
-  type(field_type),                  intent(inout) :: lhs(si_bundle_size)
-  type(field_type),                  intent(inout) :: state(si_bundle_size)
+  type(field_type),                  intent(inout) :: lhs(bundle_size)
+  type(field_type),                  intent(inout) :: state(bundle_size)
 
   type(field_type),        optional, intent(in)    :: ref_state(bundle_size)
   real(kind=r_def),                  intent(in)    :: tau_u_dt, tau_t_dt, tau_r_dt
 
   if ( subroutine_timers ) call timer('lhs_alg')
   if ( use_operators ) then
-    call operator_lhs_alg(lhs, state, tau_u_dt, tau_t_dt, tau_r_dt)
+    call operator_lhs_alg(lhs, state, tau_r_dt)
   else
     call on_the_fly_lhs_alg(lhs, state, ref_state, tau_u_dt, tau_t_dt, tau_r_dt)
   end if
   if ( subroutine_timers ) call timer('lhs_alg')
 
   end subroutine lhs_alg
+
   !============================================================================!
   !>@brief Apply LHS terms with operators computed on the fly
+  !> @param[inout] lhs Bundle to store the left hand side of the semi-implicit operator
+  !> @param[inout] state Current model prognostic state
+  !> @param[in] ref_state Reference state of the model fields
+  !> @param[in] tau_{u,t,r}_dt Relaxation parameter times the timestep
   subroutine on_the_fly_lhs_alg(lhs, state, ref_state, tau_u_dt, tau_t_dt, tau_r_dt)
   use enforce_bc_kernel_mod,             only: enforce_bc_kernel_type
-  use formulation_config_mod,            only: eliminate_p
   use rtheta_kernel_mod,                 only: rtheta_kernel_type
   use rtheta_wtheta_kernel_mod,          only: rtheta_wtheta_kernel_type
-  use pert_pressure_gradient_kernel_mod, only: pert_pressure_gradient_kernel_type
   use exner_gradient_kernel_mod,         only: exner_gradient_kernel_type
-  use psykal_lite_mod,                   only: invoke_rtheta_bd_kernel,               &
-                                               invoke_exner_gradient_bd_kernel,       &
-                                               invoke_pert_pressure_gradient_bd_kernel
+  use psykal_lite_mod,                   only: invoke_rtheta_bd_kernel, &
+                                               invoke_exner_gradient_bd_kernel
   use matrix_vector_kernel_mod,          only: matrix_vector_kernel_type
   use operator_mod,                      only: operator_type
+  use derived_config_mod,                only: bundle_size
   use quadrature_xyoz_mod,               only: quadrature_xyoz_type
   use quadrature_rule_gaussian_mod,      only: quadrature_rule_gaussian_type
-  use rrho_kernel_mod,                   only: rrho_kernel_type
-  use w3_solver_kernel_mod,              only: w3_solver_kernel_type
-  use derived_config_mod,                only: si_bundle_size, bundle_size
   use lhs_exner_kernel_mod,              only: lhs_exner_kernel_type
   use sample_flux_kernel_mod,            only: sample_flux_kernel_type
 
@@ -136,9 +130,9 @@ contains
 
   real(kind=r_def),             intent(in)    :: tau_u_dt, tau_t_dt, tau_r_dt
   ! Form of state and lhs is [u,theta,rho,exner]
-  type(field_type), target,     intent(inout) :: state(si_bundle_size)
+  type(field_type), target,     intent(inout) :: state(bundle_size)
   type(field_type), target,     intent(in)    :: ref_state(bundle_size)
-  type(field_type),             intent(inout) :: lhs(si_bundle_size)
+  type(field_type),             intent(inout) :: lhs(bundle_size)
 
   type( quadrature_xyoz_type )          :: qr
   type( quadrature_rule_gaussian_type ) :: quadrature_rule
@@ -154,7 +148,10 @@ contains
   type(field_type),    pointer :: exner => null()
   type(field_type),    pointer :: theta_ref => null()
   type(field_type),    pointer :: rho_ref => null()
-  type(field_type),    pointer :: w2_rmultiplicity => null()
+  type(field_type),    pointer :: exner_ref => null()
+  type(field_type),    pointer :: w2_rmultiplicity => null(), &
+                                  mt_lumped_inv => null(), &
+                                  m2_diag => null()
 
   ! Auxiliary constants to group invokes
   real(kind=r_def), parameter  :: minus_one = -1.0_r_def
@@ -167,43 +164,30 @@ contains
   div       => get_div()
   w2_rmultiplicity => get_rmultiplicity( W2 )
 
-  ! dereference state
+  ! Dereference state
   u     => state(igh_u)
   theta => state(igh_t)
   rho   => state(igh_d)
+  exner => state(igh_p)
 
   theta_ref => ref_state(igh_t)
   rho_ref   => ref_state(igh_d)
+  exner_ref => ref_state(igh_p)
 
   qr = quadrature_xyoz_type(element_order+2, quadrature_rule)
 
   ! Compute lhs_u
   call invoke( setval_c( lhs_tmp(igh_u), 0.0_r_def ), &
                setval_c( lhs(igh_u),     0.0_r_def ) )
-  if ( eliminate_p ) then
-    if(wtheta_on) then
-      call invoke_pert_pressure_gradient_bd_kernel( lhs_tmp(igh_u), rho, rho_ref, &
-                                                    theta, theta_ref, qr )
-    end if
-    call invoke( pert_pressure_gradient_kernel_type(  &
-                 lhs_tmp(igh_u), rho, rho_ref, theta, theta_ref, qr ), &
-                 matrix_vector_kernel_type( lhs(igh_u), u, mm_w2 ) )
-  else 
-    ! Use r_rho as a zero field so that exner' = 0 in pert_pressure_gradient_kernel
-    call invoke( setval_c( r_rho, 0.0_r_def ) )
-    exner => state(igh_p)
 
-    if(wtheta_on) then
-      call invoke_exner_gradient_bd_kernel( lhs_tmp(igh_u), exner, theta_ref, qr )
-      call invoke_pert_pressure_gradient_bd_kernel( lhs_tmp(igh_u), r_rho, rho_ref, &
-                                                     theta, theta_ref, qr )
-    end if
-    call invoke( exner_gradient_kernel_type( lhs_tmp(igh_u), exner, theta_ref, qr ), &
-                 pert_pressure_gradient_kernel_type( lhs_tmp(igh_u), r_rho, rho_ref, &
-                                                     theta, theta_ref, qr ), &
-                 matrix_vector_kernel_type( lhs(igh_u), u, mm_w2 ) )
-
+  if (wtheta_on) then
+    call invoke_exner_gradient_bd_kernel( lhs_tmp(igh_u), exner, theta_ref, qr )
+    call invoke_exner_gradient_bd_kernel( lhs_tmp(igh_u), exner_ref, theta, qr )
   end if
+  call invoke( exner_gradient_kernel_type( lhs_tmp(igh_u), exner, theta_ref, qr ), &
+               exner_gradient_kernel_type( lhs_tmp(igh_u), exner_ref, theta, qr ), &
+               matrix_vector_kernel_type( lhs(igh_u), u, mm_w2 ) )
+
   call invoke( inc_X_minus_bY( lhs(igh_u), tau_u_dt, lhs_tmp(igh_u) ), &
                enforce_bc_kernel_type( lhs(igh_u) ) )
  
@@ -211,7 +195,7 @@ contains
   ! Compute lhs_theta
   call invoke( setval_c( lhs_tmp(igh_t), 0.0_r_def ), &
                setval_c( lhs(igh_t),     0.0_r_def ) )
-  if(wtheta_on) then
+  if (wtheta_on) then
     call invoke_rtheta_bd_kernel ( lhs_tmp(igh_t), theta_ref, u, qr )
     call invoke( rtheta_wtheta_kernel_type( lhs_tmp(igh_t), theta_ref, u, qr ), &
                  matrix_vector_kernel_type( lhs(igh_t), theta, mm_wtheta ) )
@@ -234,45 +218,48 @@ contains
                X_minus_bY( lhs(igh_d), rho, tau_r_dt, lhs_tmp(igh_d) ) )
 
   ! Compute lhs exner
-  if ( .not. eliminate_p ) then
-    exner => state(igh_p)
-    call invoke( name = "Compute lhs exner",                          &
-                 setval_c( lhs(igh_p),     0.0_r_def ),               &
-                 setval_c( lhs_tmp(igh_p), 0.0_r_def ),               &
-                 lhs_exner_kernel_type( lhs_tmp(igh_p), theta, rho, exner, &
-                                       theta_ref, rho_ref, chi, qr ), &
-                 matrix_vector_kernel_type( lhs(igh_p), lhs_tmp(igh_p), mm_w3_inv ) )
+  call invoke( name = "Compute lhs exner",                                     &
+               setval_c( lhs(igh_p),     0.0_r_def ),                          &
+               setval_c( lhs_tmp(igh_p), 0.0_r_def ),                          &
+               lhs_exner_kernel_type( lhs_tmp(igh_p), theta, rho, exner,       &
+                                     theta_ref, rho_ref, exner_ref, chi, qr ), &
+               matrix_vector_kernel_type( lhs(igh_p), lhs_tmp(igh_p), &
+                                          mm_w3_inv ) )
 
-  end if
+  mt_lumped_inv => get_normalisation(theta_space_id)
+  m2_diag       => get_normalisation(w2_id)
+  call invoke( name = "Normlise on the fly lhs ",       &
+               inc_X_times_Y(lhs(igh_u), m2_diag),      &
+               inc_X_times_Y(lhs(igh_t), mt_lumped_inv) & 
+             )
 
   end subroutine on_the_fly_lhs_alg
 
   !============================================================================!
   !>@brief Apply LHS terms with precomputed operators
-  subroutine operator_lhs_alg(lhs, state, tau_u_dt, tau_t_dt, tau_r_dt)
+  !> @param[inout] lhs Bundle to store the left hand side of the semi-implicit operator
+  !> @param[inout] state Current model prognostic state
+  !> @param[in] ref_state Reference state of the model fields
+  !> @param[in] tau_r_dt Density relaxation parameter times the timestep
+  subroutine operator_lhs_alg(lhs, state, tau_r_dt)
 
   use matrix_vector_kernel_mod,           only: matrix_vector_kernel_type
   use operator_mod,                       only: operator_type
-  use derived_config_mod,                 only: si_bundle_size
+  use derived_config_mod,                 only: bundle_size
   use si_operators_alg_mod,               only: get_p2theta,       &
                                                 get_div_star,      &
                                                 get_ptheta2,       &
                                                 get_m3_rho_star,   &
                                                 get_m3_exner_star, &
-                                                get_m3_exner_star_inv, &
-                                                get_p3theta, &
+                                                get_p3theta,       &
                                                 get_rho_at_u
-  use planet_config_mod,                  only: cp
-  use transpose_matrix_vector_kernel_mod, only: transpose_matrix_vector_kernel_type
   use dg_matrix_vector_kernel_mod,        only: dg_matrix_vector_kernel_type
-  use formulation_config_mod,             only: eliminate_p
   implicit none
 
-  ! Form of state and lhs is [u,theta,rho]       if eliminate_p
-  ! Form of state and lhs is [u,theta,rho,exner] if not eliminate_p
-  type(field_type), target,        intent(inout) :: state(si_bundle_size)
-  type(field_type),                intent(inout) :: lhs(si_bundle_size)
-  real(kind=r_def),                intent(in)    :: tau_u_dt, tau_t_dt, tau_r_dt
+  ! Form of state and lhs is [u,theta,rho,exner]
+  type(field_type), target,        intent(inout) :: state(bundle_size)
+  type(field_type),                intent(inout) :: lhs(bundle_size)
+  real(kind=r_def),                intent(in)    :: tau_r_dt
 
   type(operator_type), pointer :: mm_w2 => null(), mm_w3_inv => null(), mm_wtheta => null()
   type(operator_type), pointer :: div => null()
@@ -282,11 +269,11 @@ contains
                                   ptheta2 => null(), &
                                   m3_rho_star => null(), &
                                   m3_exner_star => null(), &
-                                  p3theta => null(), &
-                                  m3_exner_star_inv => null()
-  type(field_type),    pointer :: rho_at_u => null()
-  real(kind=r_def)             :: s1
-  real(kind=r_def), parameter  :: minus_one = -1.0_r_def
+                                  p3theta => null()
+  type(field_type),    pointer :: rho_at_u => null(), &
+                                  mt_lumped_inv => null(), &
+                                  m2_diag => null()
+  real(r_def), parameter :: minus_one = -1.0_r_def
 
   ! Function spaces for input variables, these are not needed but used for psyclone reasoning
   ! W2 => state(igh_u)%get_function_space()
@@ -304,39 +291,24 @@ contains
   u     => state(igh_u)
   theta => state(igh_t)
   rho   => state(igh_d)
+  exner => state(igh_p)
 
   ! Obtain operators from runtime constants
-  mm_w2      => get_mass_matrix(w2_id)
-  mm_w3_inv  => get_mass_matrix(w3inv_id)
-  mm_wtheta  => get_mass_matrix(theta_space_id)
-  div        => get_div()
+  mm_w2         => get_mass_matrix(w2_id)
+  mm_w3_inv     => get_mass_matrix(w3inv_id)
+  mm_wtheta     => get_mass_matrix(theta_space_id)
+  div           => get_div()
+  mt_lumped_inv => get_normalisation(theta_space_id)
+  m2_diag       => get_normalisation(w2_id)
 
   ! Obtain operators from si operators
-  p2theta       => get_p2theta()
-  div_star      => get_div_star()
-  ptheta2       => get_ptheta2()
-  m3_rho_star   => get_m3_rho_star()
-  m3_exner_star => get_m3_exner_star()
-  p3theta       => get_p3theta()
-  rho_at_u      => get_rho_at_u()
-
-  ! Combine constants
-  s1 = -tau_u_dt*cp
-
-  if ( eliminate_p ) then
-    ! Recompute exner' from linear eos
-    m3_exner_star_inv => get_m3_exner_star_inv()
-    exner => exner_inc
-    call invoke( name = "Compute diagnostic exner increment",                  &
-                 dg_matrix_vector_kernel_type( lhs(igh_d), rho, m3_rho_star ), &
-                 matrix_vector_kernel_type( lhs(igh_d), theta, p3theta ),      &
-                 dg_matrix_vector_kernel_type( exner_inc, lhs(igh_d),          &
-                                               m3_exner_star_inv ),            &
-                 setval_c( lhs(igh_d), 0.0_r_def )                             &
-               )
-  else
-    exner => state(igh_p)
-  end if
+  p2theta           => get_p2theta()
+  div_star          => get_div_star()
+  ptheta2           => get_ptheta2()
+  m3_rho_star       => get_m3_rho_star()
+  m3_exner_star     => get_m3_exner_star()
+  p3theta           => get_p3theta()
+  rho_at_u          => get_rho_at_u()
 
   ! Use operators
   ! Initialise lhs_u and lhs_theta to 0
@@ -350,29 +322,27 @@ contains
                matrix_vector_kernel_type( lhs(igh_u), theta, p2theta ),               &
                matrix_vector_kernel_type( lhs(igh_u), exner, div_star ),              &
                matrix_vector_kernel_type( lhs_tmp(igh_u), u, mm_w2 ),                 &
-               inc_aX_plus_Y( s1, lhs(igh_u), lhs_tmp(igh_u) ),                       &
+               inc_aX_plus_Y(minus_one, lhs(igh_u), lhs_tmp(igh_u) ),                 &
                enforce_bc_kernel_type( lhs(igh_u) ),                                  &
   ! L_theta
                matrix_vector_kernel_type( lhs(igh_t), u, ptheta2 ),                   &
                matrix_vector_kernel_type( lhs_tmp(igh_t), theta, mm_wtheta ),         &
-               inc_aX_plus_Y( tau_t_dt, lhs(igh_t), lhs_tmp(igh_t) ),                 &
+               inc_X_plus_Y( lhs(igh_t), lhs_tmp(igh_t) ),                            &
   ! L_rho
                X_times_Y( f_star, rho_at_u, u ),                                      &
                dg_matrix_vector_kernel_type( lhs_tmp(igh_d), f_star, div ),           &
                dg_matrix_vector_kernel_type( lhs(igh_d), lhs_tmp(igh_d), mm_w3_inv ), &
-               inc_aX_plus_Y( tau_r_dt, lhs(igh_d), rho )                             &
-              )
-
-  if ( .not. eliminate_p ) then
-    ! L_pi 
-    call invoke( name = "Compute pressure lhs",                                         & 
-                 dg_matrix_vector_kernel_type( lhs(igh_p), rho, m3_rho_star ),          &
-                 matrix_vector_kernel_type( lhs(igh_p), theta, p3theta ),               &
-                 dg_matrix_vector_kernel_type( lhs_tmp(igh_p), exner, m3_exner_star ),  &
-                 inc_X_minus_Y( lhs_tmp(igh_p), lhs(igh_p) ),                           &
-                 dg_matrix_vector_kernel_type( lhs(igh_p), lhs_tmp(igh_p), mm_w3_inv )  &
+               inc_aX_plus_Y( tau_r_dt, lhs(igh_d), rho ),                            &
+  ! L_pi 
+               dg_matrix_vector_kernel_type( lhs(igh_p), rho, m3_rho_star ),          &
+               matrix_vector_kernel_type( lhs(igh_p), theta, p3theta ),               &
+               dg_matrix_vector_kernel_type( lhs_tmp(igh_p), exner, m3_exner_star ),  &
+               inc_X_minus_Y( lhs_tmp(igh_p), lhs(igh_p) ),                           &
+               dg_matrix_vector_kernel_type( lhs(igh_p), lhs_tmp(igh_p), mm_w3_inv ), &
+  ! Normalise lu and lt
+               inc_X_times_Y(lhs(igh_u), m2_diag),                                    &
+               inc_X_times_Y(lhs(igh_t), mt_lumped_inv)                               & 
                )
-  end if
   end subroutine operator_lhs_alg
   !============================================================================!
 

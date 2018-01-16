@@ -36,7 +36,7 @@ module held_suarez_kernel_mod_test
     type(function_space_type), pointer :: w0_fs => null()
     type(function_space_type), pointer :: w2_fs => null()
     type(function_space_type), pointer :: w3_fs => null()
-    type(field_type)                   :: du, dtheta, u, theta, rho
+    type(field_type)                   :: du, dtheta, u, theta, exner
     type(field_type)                   :: chi(3)
     real(r_def), allocatable           :: basis_w2(:,:,:,:), &
                                           basis_w0(:,:,:,:), &
@@ -78,7 +78,7 @@ contains
     class(held_suarez_test_type), intent(inout) :: this
 
 
-    type(field_proxy_type) :: u_proxy, theta_proxy, rho_proxy, du_proxy, dtheta_proxy
+    type(field_proxy_type) :: u_proxy, theta_proxy, exner_proxy, du_proxy, dtheta_proxy
     type( quadrature_rule_gaussian_type ) :: quadrature_rule
 
     integer(i_def)                 :: nqp_h, nqp_v
@@ -138,10 +138,10 @@ contains
     allocate( this%diff_basis_w0(dim_diff_w0,ndf_w0,nqp_h,nqp_v) )
     allocate( this%answer_dtheta(undf_w0) )
 
-    this%rho  = field_type( vector_space = this%w3_fs )
-    rho_proxy = this%rho%get_proxy()
-    ndf_w3    = rho_proxy%vspace%get_ndf( )
-    dim_w3    = rho_proxy%vspace%get_dim_space( )
+    this%exner  = field_type( vector_space = this%w3_fs )
+    exner_proxy = this%exner%get_proxy()
+    ndf_w3    = exner_proxy%vspace%get_ndf( )
+    dim_w3    = exner_proxy%vspace%get_dim_space( )
     allocate( this%basis_w3(dim_w3,ndf_w3,nqp_h,nqp_v) )
 
     this%du  = field_type( vector_space = this%w2_fs )
@@ -199,7 +199,7 @@ contains
     integer, pointer        :: map_w2(:) => null()
     integer, pointer        :: map_w3(:) => null()
 
-    type(field_proxy_type)        :: u_proxy, theta_proxy, rho_proxy, &
+    type(field_proxy_type)        :: u_proxy, theta_proxy, exner_proxy, &
                                      du_proxy, dtheta_proxy, chi_proxy(3)
 
     real(kind=r_def), pointer :: xp(:,:) => null()
@@ -219,7 +219,7 @@ contains
     u_proxy       = this%u%get_proxy()
     dtheta_proxy  = this%dtheta%get_proxy()
     du_proxy      = this%du%get_proxy()
-    rho_proxy     = this%rho%get_proxy()
+    exner_proxy     = this%exner%get_proxy()
     do i = 1,3
       chi_proxy(i) = this%chi(i)%get_proxy()
     end do
@@ -257,8 +257,8 @@ contains
     ndf_w0      = theta_proxy%vspace%get_ndf( )
     undf_w0     = theta_proxy%vspace%get_undf()
 
-    ndf_w3      = rho_proxy%vspace%get_ndf( )
-    undf_w3     = rho_proxy%vspace%get_undf()
+    ndf_w3      = exner_proxy%vspace%get_ndf( )
+    undf_w3     = exner_proxy%vspace%get_undf()
 
     call u_proxy%vspace%compute_basis_function(         &
         this%basis_w2, ndf_w2, nqp_h, nqp_v, xp, zp)
@@ -269,26 +269,26 @@ contains
     call theta_proxy%vspace%compute_diff_basis_function( &
          this%diff_basis_w0, ndf_w0, nqp_h, nqp_v, xp, zp)
 
-    call rho_proxy%vspace%compute_basis_function(        &
+    call exner_proxy%vspace%compute_basis_function(        &
         this%basis_w3, ndf_w3, nqp_h, nqp_v, xp, zp)
 
     ! Create the data
     theta_proxy%data(:) = 300.0_r_def
     u_proxy%data(:)     = 0.1_r_def
-    rho_proxy%data(:)   = 1.0_r_def
+    exner_proxy%data(:)   = 1.0_r_def
 
 ! only test the interior cell (5)
     cell=5
     map_w0 => theta_proxy%vspace%get_cell_dofmap( cell )
     map_w2 => u_proxy%vspace%get_cell_dofmap( cell )
-    map_w3 => rho_proxy%vspace%get_cell_dofmap( cell )
+    map_w3 => exner_proxy%vspace%get_cell_dofmap( cell )
 
     call held_suarez_code( nlayers, &
                          du_proxy%data, &
                          dtheta_proxy%data, &
                          u_proxy%data, &
                          theta_proxy%data, &
-                         rho_proxy%data, &
+                         exner_proxy%data, &
                          chi_proxy(1)%data, &
                          chi_proxy(2)%data, &
                          chi_proxy(3)%data, &
@@ -311,7 +311,7 @@ contains
     ! Normalize answers of differing magnitudes to use the same tolerance in assertEqual
     norm_1 = tol/1.e-04
     norm_2 = tol/1.e-12
-    this%answer_dtheta(1) = -0.1023480E-03 * norm_1
+    this%answer_dtheta(1) = 0.1171151E-02 * norm_1
     this%answer_du(1) = 0.5786259E-10 * norm_2
 
     @assertEqual( this%answer_dtheta(1), dtheta_proxy%data(map_w0(1)) * norm_1, tol )

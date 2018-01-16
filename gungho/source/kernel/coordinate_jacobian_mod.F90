@@ -14,6 +14,7 @@ use constants_mod, only: r_def
 implicit none
 
 contains
+
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
@@ -38,6 +39,7 @@ subroutine coordinate_jacobian(ndf, ngp_h, ngp_v, chi_1, chi_2, chi_3, diff_basi
 ! Compute the Jacobian J^{i,j} = d chi_i / d \hat{chi_j} and the 
 ! derterminant det(J)
 !-------------------------------------------------------------------------------
+implicit none
 
 integer,          intent(in)  :: ndf, ngp_h, ngp_v
 real(kind=r_def), intent(in)  :: chi_1(ndf), chi_2(ndf), chi_3(ndf)
@@ -46,9 +48,9 @@ real(kind=r_def), intent(out) :: jac(3,3,ngp_h,ngp_v)
 real(kind=r_def), intent(out) :: dj(ngp_h,ngp_v)
 
 ! Hardwired values for cartesian domain
-!real(kind=r_def) :: dx = 6000.0_r_def, &
-!                    dy = 2000.0_r_def, &
-!                    dz = 2000.0_r_def
+!real(kind=r_def) :: dx = 200.0_r_def, &
+!                    dy = 200.0_r_def, &
+!                    dz = 200.0_r_def
 
 integer :: i, j, df, dir
 
@@ -68,6 +70,7 @@ do j = 1,ngp_v
 !    jac(1,1,i,j) = dx
 !    jac(2,2,i,j) = dy
 !    jac(3,3,i,j) = dz
+!    dj(i,j) = dx*dy*dz
 
     dj(i,j) = jac(1,1,i,j)*(jac(2,2,i,j)*jac(3,3,i,j)        &
                           - jac(2,3,i,j)*jac(3,2,i,j))       &

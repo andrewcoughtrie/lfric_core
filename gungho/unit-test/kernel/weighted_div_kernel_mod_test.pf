@@ -209,6 +209,7 @@ contains
                             div_p%ncell_3d,                    &
                             div_p%local_stencil,               &
                             theta_p%data,                      &
+                            1.0_r_def,                         &
                             ndf_w2,                            &
                             this%basis_w2,                     &
                             this%diff_basis_w2,                &

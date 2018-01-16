@@ -4,8 +4,7 @@
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
 
-!> @brief init functionality for gungho model
-
+!> @brief Init functionality for gungho model
 !> @details Creates and initialises prognostic fields, also runtime_constants
 !>          specific to the model
 
@@ -35,19 +34,31 @@ module init_gungho_mod
   implicit none
 
 
-  contains
+contains
 
-  subroutine init_gungho( mesh_id, chi, u, rho, theta, rho_in_wth, mr, xi, restart )
+  !>@brief Initialise the gungho model
+  !> @param[in] mesh_id Identifier of the mesh
+  !> @param[inout] chi Spatial coordinates
+  !> @param[inout] u Wind field
+  !> @param[inout] rho Density field
+  !> @param[inout] theta Potential temperature field
+  !> @param[inout] exner Exner pressure field
+  !> @param[inout] rho_in_wth Density in the temperature space
+  !> @param[inout] mr Moisture mixing ratios
+  !> @param[inout] xi Vorticity
+  !> @param[in] restart Restart dump to read prognostic fields from
+  subroutine init_gungho( mesh_id, chi, u, rho, theta, exner, rho_in_wth, mr, xi, restart )
 
     integer(i_def), intent(in)               :: mesh_id
     ! Prognostic fields
-    type( field_type ), intent(inout)        :: u, rho, theta, xi
-    type( field_type ), intent(inout)        :: mr(nummr), rho_in_wth
-    type(restart_type), intent(in)           :: restart
-
-    ! Chi field
-
+    type( field_type ), intent(inout)        :: u, rho, theta, exner
+    type( field_type ), intent(inout)        :: mr(nummr)
+    ! Diagnostic fields
+    type( field_type ), intent(inout)        :: xi, rho_in_wth
+    ! Coordinate fields
     type( field_type ), intent(inout)        :: chi(:)
+
+    type(restart_type), intent(in)           :: restart
 
     integer(i_def)                           :: imr
 
@@ -75,6 +86,9 @@ module init_gungho_mod
                         output_space = W3)
     rho   = field_type( vector_space = &
                         function_space_collection%get_fs(mesh_id, element_order, W3) )
+    exner = field_type( vector_space = &
+                        function_space_collection%get_fs(mesh_id, element_order, W3), &
+                        output_space = W3)
 
     rho_in_wth = field_type( vector_space = & 
         function_space_collection%get_fs(mesh_id, element_order, theta%which_function_space()) )
@@ -85,8 +99,6 @@ module init_gungho_mod
     end do
 
     if (write_xios_output) then
-
-
        ! Fields that are output on the XIOS face domain
 
        tmp_ptr => xios_write_field_face
@@ -94,34 +106,24 @@ module init_gungho_mod
        call xi%set_write_field_behaviour(tmp_ptr)
        call u%set_write_field_behaviour(tmp_ptr)
        call rho%set_write_field_behaviour(tmp_ptr)
-       
+       call exner%set_write_field_behaviour(tmp_ptr)
 
        ! Fields that are output on the XIOS node domain
 
        ! Theta is a special case as it can be on face (if function space is WTheta) 
        ! or node (if function space is W0)
-
        if (theta%which_function_space() == Wtheta) then
-
           call theta%set_write_field_behaviour(tmp_ptr)
-
        else
-
           tmp_ptr => xios_write_field_node
-
           call theta%set_write_field_behaviour(tmp_ptr)
-
        end if
 
        ! Moisture diagnostics use the same type of field write as Theta
-
        call theta%get_write_field_behaviour(tmp_ptr)
-
        do imr = 1,nummr
          call mr(imr)%set_write_field_behaviour(tmp_ptr)
        end do
-
-
     end if
 
     ! Create runtime_constants object. This in turn creates various things
@@ -130,7 +132,7 @@ module init_gungho_mod
     call create_runtime_constants(mesh_id, chi)
 
     ! Initialise prognostic fields
-    call init_prognostic_fields_alg( mesh_id, u, rho, theta, &
+    call init_prognostic_fields_alg( u, rho, theta, exner, &
                                      rho_in_wth, mr, xi, restart )
 
     call log_event( 'Gungho initialised', LOG_LEVEL_INFO )

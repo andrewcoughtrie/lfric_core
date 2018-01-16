@@ -358,7 +358,7 @@ contains
   !> Kernel requires mesh information (adjacent_face) that will be implemented
   !> in lfric:#986 + psylcone:#18
   !> Invoke_ru_bd_kernel: Invoke the boundary part of the RHS of the momentum equation
-  subroutine invoke_ru_bd_kernel( r_u_bd, rho, theta, qr )
+  subroutine invoke_ru_bd_kernel( r_u_bd, exner, theta, qr )
 
     use ru_bd_kernel_mod,       only : ru_bd_code
     use mesh_mod,               only : mesh_type ! Work around for intel_v15 failues on the Cray
@@ -368,30 +368,27 @@ contains
     implicit none
 
     type( mesh_type ), pointer           :: mesh => null()
-    type( field_type ), intent( in )     :: rho, theta
+    type( field_type ), intent( in )     :: exner, theta
     type( field_type ), intent( inout )  :: r_u_bd
     type( quadrature_xyoz_type ), intent( in ) :: qr
 
     type(quadrature_xyoz_proxy_type) :: qr_proxy
     type(stencil_dofmap_type), pointer :: cross_stencil_w3 => null()
-    type(stencil_dofmap_type), pointer :: cross_stencil_wtheta => null()
 
     integer                 :: cell, nlayers, nqp_h, nqp_v, nqp_h_1d
     integer                 :: ndf_w2, ndf_w3, ndf_wtheta
     integer                 :: undf_w2, undf_w3, undf_wtheta
     integer                 :: dim_w2, dim_w3, dim_wtheta
-    integer, pointer        :: map_w2(:) => null()
+    integer, pointer        :: map_w2(:,:) => null()
+    integer, pointer        :: map_wtheta(:,:) => null()
     integer, pointer        :: adjacent_face(:,:) => null()
 
     integer, pointer        :: cross_stencil_w3_map(:,:,:) => null()
     integer                 :: cross_stencil_w3_size
 
-    integer, pointer        :: cross_stencil_wtheta_map(:,:,:) => null()
-    integer                 :: cross_stencil_wtheta_size
-
     integer                 :: ff
 
-    type( field_proxy_type )        :: r_u_bd_proxy, rho_proxy, theta_proxy
+    type( field_proxy_type )        :: r_u_bd_proxy, exner_proxy, theta_proxy
 
     real(kind=r_def), allocatable  :: basis_w2_face(:,:,:,:,:), &
       basis_w3_face(:,:,:,:,:), &
@@ -403,21 +400,17 @@ contains
     real(kind=r_def), pointer :: wh(:) => null()
     real(kind=r_def), pointer :: wv(:) => null()
 
-    mesh => rho%get_mesh()
+    mesh => exner%get_mesh()
 
     r_u_bd_proxy = r_u_bd%get_proxy()
-    rho_proxy    = rho%get_proxy()
+    exner_proxy  = exner%get_proxy()
     theta_proxy  = theta%get_proxy()
 
-    cross_stencil_w3 => rho_proxy%vspace%get_stencil_dofmap(STENCIL_CROSS, 1)
+    cross_stencil_w3 => exner_proxy%vspace%get_stencil_dofmap(STENCIL_CROSS, 1)
     cross_stencil_w3_map => cross_stencil_w3%get_whole_dofmap()
     cross_stencil_w3_size = cross_stencil_w3%get_size()
 
-    cross_stencil_wtheta => theta_proxy%vspace%get_stencil_dofmap(STENCIL_CROSS, 1)
-    cross_stencil_wtheta_map => cross_stencil_wtheta%get_whole_dofmap()
-    cross_stencil_wtheta_size = cross_stencil_wtheta%get_size()
-
-    nlayers = rho_proxy%vspace%get_nlayers()
+    nlayers = exner_proxy%vspace%get_nlayers()
     qr_proxy = qr%get_quadrature_proxy()
     nqp_h=qr_proxy%np_xy
     nqp_v=qr_proxy%np_z
@@ -436,9 +429,9 @@ contains
     undf_w2     = r_u_bd_proxy%vspace%get_undf()
     allocate(basis_w2_face(dim_w2,ndf_w2,nqp_h_1d,nqp_v,nfaces_h))
 
-    ndf_w3  = rho_proxy%vspace%get_ndf( )
-    dim_w3  = rho_proxy%vspace%get_dim_space( )
-    undf_w3 = rho_proxy%vspace%get_undf()
+    ndf_w3  = exner_proxy%vspace%get_ndf( )
+    dim_w3  = exner_proxy%vspace%get_dim_space( )
+    undf_w3 = exner_proxy%vspace%get_undf()
     allocate(basis_w3_face(dim_w3,ndf_w3,nqp_h_1d,nqp_v,nfaces_h))
 
     ndf_wtheta      = theta_proxy%vspace%get_ndf( )
@@ -467,7 +460,7 @@ contains
       call r_u_bd_proxy%vspace%compute_basis_function( &
         basis_w2_face(:,:,:,:,ff), ndf_w2, nqp_h_1d, nqp_v, xp_f(:, :, ff), zp)
 
-      call rho_proxy%vspace%compute_basis_function( &
+      call exner_proxy%vspace%compute_basis_function( &
         basis_w3_face(:,:,:,:,ff), ndf_w3, nqp_h_1d, nqp_v, xp_f(:,:, ff), zp)
 
       call theta_proxy%vspace%compute_basis_function( &
@@ -476,27 +469,27 @@ contains
     end do
 
     if(theta_proxy%is_dirty(depth=2) ) call theta_proxy%halo_exchange(depth=2)
-    if(rho_proxy%is_dirty(depth=2) ) call rho_proxy%halo_exchange(depth=2)
+    if(exner_proxy%is_dirty(depth=2) ) call exner_proxy%halo_exchange(depth=2)
     if(r_u_bd_proxy%is_dirty(depth=2) ) call r_u_bd_proxy%halo_exchange(depth=2)
 
     
     adjacent_face => mesh%get_adjacent_face()
 
+    map_w2     => r_u_bd_proxy%vspace%get_whole_dofmap( )
+    map_wtheta => theta_proxy%vspace%get_whole_dofmap( )
     do cell = 1, mesh%get_last_halo_cell(1)
 
-      map_w2 => r_u_bd_proxy%vspace%get_cell_dofmap( cell )
 
       call ru_bd_code(nlayers,                            &
                       ndf_w2, undf_w2,                    &
-                      map_w2,                             &
+                      map_w2(:,cell),                     &
                       ndf_w3, undf_w3,                    &
                       cross_stencil_w3_map(:,:,cell),     &
                       cross_stencil_w3_size,              &
                       ndf_wtheta, undf_wtheta,            &
-                      cross_stencil_wtheta_map(:,:,cell), &
-                      cross_stencil_wtheta_size,          &
+                      map_wtheta(:,cell),                 &
                       r_u_bd_proxy%data,                  &
-                      rho_proxy%data,                     &
+                      exner_proxy%data,                   &
                       theta_proxy%data,                   &
                       nqp_v, nqp_h_1d, wv,                &
                       basis_w2_face,                      &
@@ -667,171 +660,8 @@ contains
   !> will be introduced in #793  by modifying quadrature tools developed in ticket #761.
   !> Kernel requires mesh information (adjacent_face) that will be implemented
   !> in lfric:#986 + psylcone:#18
-  !> Invoke_pert_pressure_gradient_bd_kernel: Invoke the boundary part of pert_pressure_gradient kernel.
-  subroutine invoke_pert_pressure_gradient_bd_kernel( r_u_bd, rho, rho_ref, theta, theta_ref, qr )
-
-    use pert_pressure_gradient_bd_kernel_mod, only : pert_pressure_gradient_bd_code
-    use mesh_mod,                             only : mesh_type ! Work around for intel_v15 failues on the Cray
-    use stencil_dofmap_mod,                   only : stencil_dofmap_type, STENCIL_CROSS
-    use reference_element_mod,                only : nfaces_h
-
-    implicit none
-
-    type( mesh_type ), pointer           :: mesh => null()
-    type( field_type ), intent( in )     :: rho, theta, rho_ref, theta_ref
-    type( field_type ), intent( inout )  :: r_u_bd
-    type( quadrature_xyoz_type), intent( in ) :: qr
-
-    type(quadrature_xyoz_proxy_type) :: qr_proxy
-    type(stencil_dofmap_type), pointer :: cross_stencil_w3 => null()
-    type(stencil_dofmap_type), pointer :: cross_stencil_wtheta => null()
-
-    integer                 :: cell, nlayers, nqp_h, nqp_v, nqp_h_1d
-    integer                 :: ndf_w2, ndf_w3, ndf_wtheta
-    integer                 :: undf_w2, undf_w3, undf_wtheta
-    integer                 :: dim_w2, dim_w3, dim_wtheta
-    integer, pointer        :: map_w2(:) => null()
-    integer, pointer        :: adjacent_face(:,:) => null()
-
-    integer, pointer        :: cross_stencil_w3_map(:,:,:) => null()
-    integer                 :: cross_stencil_w3_size
-
-    integer, pointer        :: cross_stencil_wtheta_map(:,:,:) => null()
-    integer                 :: cross_stencil_wtheta_size
-
-    integer                 :: ff
-
-    type( field_proxy_type )        :: r_u_bd_proxy, rho_proxy, theta_proxy, rho_ref_proxy, theta_ref_proxy
-
-    real(kind=r_def), allocatable  :: basis_w2_face(:,:,:,:,:),    &
-                                      basis_w3_face(:,:,:,:,:),    &
-                                      basis_wtheta_face(:,:,:,:,:)
-
-    real(kind=r_def), pointer :: xp_f(:,:,:) => null()
-    real(kind=r_def), pointer :: xp(:,:) => null()
-    real(kind=r_def), pointer :: zp(:) => null()
-    real(kind=r_def), pointer :: wh(:) => null()
-    real(kind=r_def), pointer :: wv(:) => null()
-
-    mesh => rho%get_mesh()
-
-    r_u_bd_proxy = r_u_bd%get_proxy()
-    rho_proxy    = rho%get_proxy()
-    theta_proxy  = theta%get_proxy()
-    rho_ref_proxy    = rho_ref%get_proxy()
-    theta_ref_proxy  = theta_ref%get_proxy()
-
-    cross_stencil_w3 => rho_proxy%vspace%get_stencil_dofmap(STENCIL_CROSS, 1)
-    cross_stencil_w3_map => cross_stencil_w3%get_whole_dofmap()
-    cross_stencil_w3_size = cross_stencil_w3%get_size()
-
-    cross_stencil_wtheta => theta_proxy%vspace%get_stencil_dofmap(STENCIL_CROSS, 1)
-    cross_stencil_wtheta_map => cross_stencil_wtheta%get_whole_dofmap()
-    cross_stencil_wtheta_size = cross_stencil_wtheta%get_size()
-
-    nlayers = rho_proxy%vspace%get_nlayers()
-    qr_proxy = qr%get_quadrature_proxy()
-    nqp_h=qr_proxy%np_xy
-    nqp_v=qr_proxy%np_z
-    xp=>qr_proxy%points_xy
-    zp=>qr_proxy%points_z
-    wh=>qr_proxy%weights_xy
-    wv=>qr_proxy%weights_z
-
-
-    ! Assumes same number of horizontal qp in x and y
-    nqp_h_1d = int(sqrt(real(nqp_h)))  ! use sqrt
-
-    allocate(xp_f(nfaces_h, nqp_h_1d, 2))
-
-    ndf_w2      = r_u_bd_proxy%vspace%get_ndf( )
-    dim_w2      = r_u_bd_proxy%vspace%get_dim_space( )
-    undf_w2     = r_u_bd_proxy%vspace%get_undf()
-    allocate(basis_w2_face(nfaces_h,dim_w2,ndf_w2,nqp_h_1d,nqp_v))
-
-    ndf_w3  = rho_proxy%vspace%get_ndf( )
-    dim_w3  = rho_proxy%vspace%get_dim_space( )
-    undf_w3 = rho_proxy%vspace%get_undf()
-    allocate(basis_w3_face(nfaces_h,dim_w3,ndf_w3,nqp_h_1d,nqp_v))
-
-    ndf_wtheta      = theta_proxy%vspace%get_ndf( )
-    dim_wtheta      = theta_proxy%vspace%get_dim_space( )
-    undf_wtheta     = theta_proxy%vspace%get_undf()
-    allocate(basis_wtheta_face(nfaces_h,dim_wtheta,ndf_wtheta,nqp_h_1d,nqp_v))
-
-    ! Quadrature points on horizontal faces
-
-    xp_f(1, :, :) = xp(1:nqp_h_1d, :)
-    xp_f(1, :, 1) = 0.0_r_def
-
-    xp_f(2, :, :) = xp(1:nqp_h - nqp_h_1d + 1:nqp_h_1d, :)
-    xp_f(2, :, 2) = 0.0_r_def
-
-    xp_f(3, :, :) = xp(nqp_h - nqp_h_1d + 1:nqp_h, :)
-    xp_f(3, :, 1) = 1.0_r_def
-
-    xp_f(4, :, :) = xp(nqp_h_1d:nqp_h:nqp_h_1d, :)
-    xp_f(4, :, 2) = 1.0_r_def
-
-    ! Filling up the face basis vector with value of the basis functions at the horizontal faces quadrature points
-
-    do ff = 1, nfaces_h
-
-      call r_u_bd_proxy%vspace%compute_basis_function( &
-        basis_w2_face(ff,:,:,:,:), ndf_w2, nqp_h_1d, nqp_v, xp_f(ff, :, :), zp)
-
-      call rho_proxy%vspace%compute_basis_function( &
-        basis_w3_face(ff,:,:,:,:), ndf_w3, nqp_h_1d, nqp_v, xp_f(ff, :,:), zp)
-
-      call theta_proxy%vspace%compute_basis_function( &
-        basis_wtheta_face(ff,:,:,:,:), ndf_wtheta, nqp_h_1d, nqp_v, xp_f(ff, :, :), zp)
-
-    end do
-
-    if(theta_proxy%is_dirty(depth=2) ) call theta_proxy%halo_exchange(depth=2)
-    if(rho_proxy%is_dirty(depth=2) ) call rho_proxy%halo_exchange(depth=2)
-    if(theta_ref_proxy%is_dirty(depth=2) ) call theta_ref_proxy%halo_exchange(depth=2)
-    if(rho_ref_proxy%is_dirty(depth=2) ) call rho_ref_proxy%halo_exchange(depth=2)
-    if(r_u_bd_proxy%is_dirty(depth=2) ) call r_u_bd_proxy%halo_exchange(depth=2)
-
-    adjacent_face => mesh%get_adjacent_face()
-
-    do cell = 1, mesh%get_last_halo_cell(1)
-
-      map_w2 => r_u_bd_proxy%vspace%get_cell_dofmap( cell )
-      call pert_pressure_gradient_bd_code( nlayers,                            &
-                                           ndf_w2, undf_w2,                    &
-                                           map_w2,                             &
-                                           ndf_w3, undf_w3,                    &
-                                           cross_stencil_w3_map(:,:,cell),     &
-                                           cross_stencil_w3_size,              &
-                                           ndf_wtheta, undf_wtheta,            &
-                                           cross_stencil_wtheta_map(:,:,cell), &
-                                           cross_stencil_wtheta_size,          &
-                                           r_u_bd_proxy%data,                  &
-                                           rho_proxy%data,                     &
-                                           rho_ref_proxy%data,                 &
-                                           theta_proxy%data,                   &
-                                           theta_ref_proxy%data,               &
-                                           nqp_v, nqp_h_1d, wv,                &
-                                           basis_w2_face,                      &
-                                           basis_w3_face, basis_wtheta_face,   &
-                                           adjacent_face(:,cell))
-
-    end do
-    call r_u_bd_proxy%set_dirty()
-
-    deallocate(basis_w3_face, basis_w2_face, basis_wtheta_face, xp_f)
-
-  end subroutine invoke_pert_pressure_gradient_bd_kernel
-
-  !-------------------------------------------------------------------------------
-  !> Computation of 2d quadrature on faces not currently supported PSyClone,
-  !> will be introduced in #793  by modifying quadrature tools developed in ticket #761.
-  !> Kernel requires mesh information (adjacent_face) that will be implemented
-  !> in lfric:#986 + psylcone:#18
   !> Invoke_weighted_div_bd_kernel: Invoke the boundary part of the divergence of the lhs Helmholtz
-  subroutine invoke_weighted_div_bd_kernel_type(div_star, theta, qr)
+  subroutine invoke_weighted_div_bd_kernel_type(div_star, theta, s, qr)
 
       use weighted_div_bd_kernel_mod, only : weighted_div_bd_code
       use mesh_mod,                   only : mesh_type
@@ -840,11 +670,12 @@ contains
 
       implicit none
 
-      type( mesh_type ), pointer           :: mesh => null()
-      type(field_type), intent(in)         :: theta
-      type(operator_type), intent(inout)   :: div_star
+      type(field_type),           intent(in)    :: theta
+      type(operator_type),        intent(inout) :: div_star
       type(quadrature_xyoz_type), intent(in)    :: qr
+      real(r_def),                intent(in)    :: s
 
+      type( mesh_type ), pointer       :: mesh => null()
       type(quadrature_xyoz_proxy_type) :: qr_proxy
       integer :: cell, nlayers, nqp_h, nqp_v, nqp_h_1d
       integer :: ndf_w2, ndf_w3, ndf_wtheta, undf_wtheta
@@ -961,6 +792,7 @@ contains
                                   div_star_proxy%ncell_3d,            &
                                   div_star_proxy%local_stencil,       &
                                   theta_proxy%data,                   &
+                                  s,                                  &
                                   ndf_w2, ndf_w3,                     &
                                   ndf_wtheta, undf_wtheta,            &
                                   cross_stencil_wtheta_map(:,:,cell), &
@@ -983,7 +815,7 @@ contains
   !> Kernel requires mesh information (adjacent_face) that will be implemented
   !> in lfric:#986 + psylcone:#18
   !> Invoke_weighted_proj_2theta_bd_kernel: Invoke the boundary part of the projection from wtheta to w2 operator of the lhs Helmholtz
-  subroutine invoke_weighted_proj_2theta_bd_kernel_type(p2theta, theta, rho, qr)
+  subroutine invoke_weighted_proj_2theta_bd_kernel_type(p2theta, exner, s, qr)
 
       use weighted_proj_2theta_bd_kernel_mod, only : weighted_proj_2theta_bd_code
       use mesh_mod,                           only : mesh_type
@@ -993,34 +825,31 @@ contains
       implicit none
 
       type( mesh_type ), pointer           :: mesh => null()
-      type(field_type), intent(in)         :: theta, rho
+      type(field_type), intent(in)         :: exner
+      real(r_def), intent(in)              :: s
       type(operator_type), intent(inout)   :: p2theta
       type(quadrature_xyoz_type), intent(in)    :: qr
 
       type(quadrature_xyoz_proxy_type) :: qr_proxy
       integer :: cell, nlayers, nqp_h, nqp_v, nqp_h_1d
-      integer :: ndf_w2, ndf_w3, undf_w3, ndf_wtheta, undf_wtheta
+      integer :: ndf_w2, ndf_w3, undf_w3, ndf_wtheta
       integer :: dim_w2, dim_w3, dim_wtheta
 
-      integer,                   pointer :: cross_stencil_wtheta_map(:,:,:) => null(), &
-                                            cross_stencil_w3_map(:,:,:) => null()
-      type(stencil_dofmap_type), pointer :: cross_stencil_wtheta => null(), &
-                                            cross_stencil_w3 => null()
+      integer,                   pointer :: cross_stencil_w3_map(:,:,:) => null()
+      type(stencil_dofmap_type), pointer :: cross_stencil_w3 => null()
+      integer                            :: cross_stencil_w3_size
+      integer                            :: ff
 
-      integer                            :: cross_stencil_w3_size, cross_stencil_wtheta_size
-
-
-      integer                 :: ff
-
-      real(kind=r_def), allocatable  :: basis_w2_face(:,:,:,:,:), basis_w3_face(:,:,:,:,:), &
-      basis_wtheta_face(:,:,:,:,:)
+      real(kind=r_def), allocatable  :: basis_w2_face(:,:,:,:,:), &
+                                        basis_w3_face(:,:,:,:,:), &
+                                        basis_wtheta_face(:,:,:,:,:)
 
       real(kind=r_def), pointer :: xp(:,:), xp_f(:,:,:) => null()
       real(kind=r_def), pointer :: zp(:) => null()
       real(kind=r_def), pointer :: wv(:) => null()
 
-      type(operator_proxy_type) ::p2theta_proxy
-      type(field_proxy_type)    ::theta_proxy, rho_proxy
+      type(operator_proxy_type) :: p2theta_proxy
+      type(field_proxy_type)    :: exner_proxy
 
       integer, pointer        :: adjacent_face(:,:) => null()
 
@@ -1028,8 +857,7 @@ contains
       ! Initialise field proxies
       !
       p2theta_proxy = p2theta%get_proxy()
-      theta_proxy = theta%get_proxy()
-      rho_proxy   = rho%get_proxy()
+      exner_proxy = exner%get_proxy()
       !
       ! Initialise number of layers
       !
@@ -1058,14 +886,13 @@ contains
       dim_w2      = p2theta_proxy%fs_to%get_dim_space( )
       allocate(basis_w2_face(dim_w2,ndf_w2,nqp_h_1d,nqp_v,nfaces_h))
 
-      ndf_w3   = rho_proxy%vspace%get_ndf( )
-      undf_w3  = rho_proxy%vspace%get_undf( )
-      dim_w3   = rho_proxy%vspace%get_dim_space( )
+      ndf_w3   = exner_proxy%vspace%get_ndf( )
+      undf_w3  = exner_proxy%vspace%get_undf( )
+      dim_w3   = exner_proxy%vspace%get_dim_space( )
       allocate(basis_w3_face(dim_w3,ndf_w3,nqp_h_1d,nqp_v,nfaces_h))
 
       ndf_wtheta      = p2theta_proxy%fs_from%get_ndf( )
       dim_wtheta      = p2theta_proxy%fs_from%get_dim_space( )
-      undf_wtheta     = p2theta_proxy%fs_from%get_undf()
       allocate(basis_wtheta_face(dim_wtheta,ndf_wtheta,nqp_h_1d,nqp_v,nfaces_h))
 
       ! Quadrature points on horizontal faces
@@ -1083,11 +910,7 @@ contains
       xp_f(:, 2, 4) = 1.0_r_def
 
       ! Stencil maps
-      cross_stencil_wtheta => p2theta_proxy%fs_from%get_stencil_dofmap(STENCIL_CROSS, 1)
-      cross_stencil_wtheta_map => cross_stencil_wtheta%get_whole_dofmap()
-      cross_stencil_wtheta_size = cross_stencil_wtheta%get_size()
-
-      cross_stencil_w3 => rho_proxy%vspace%get_stencil_dofmap(STENCIL_CROSS, 1)
+      cross_stencil_w3 => exner_proxy%vspace%get_stencil_dofmap(STENCIL_CROSS, 1)
       cross_stencil_w3_map => cross_stencil_w3%get_whole_dofmap()
       cross_stencil_w3_size = cross_stencil_w3%get_size()
 
@@ -1101,15 +924,14 @@ contains
         call p2theta_proxy%fs_from%compute_basis_function( &
           basis_wtheta_face(:,:,:,:,ff), ndf_wtheta, nqp_h_1d, nqp_v, xp_f(:,:, ff), zp)
 
-        call rho_proxy%vspace%compute_basis_function( &
+        call exner_proxy%vspace%compute_basis_function( &
           basis_w3_face(:,:,:,:,ff), ndf_w3, nqp_h_1d, nqp_v, xp_f(:, :, ff), zp)
 
       end do
       !
       ! Call kernels and communication routines
       !
-      if (theta_proxy%is_dirty(depth=2)) call theta_proxy%halo_exchange(depth=2)
-      if (rho_proxy%is_dirty(depth=2))   call rho_proxy%halo_exchange(depth=2)
+      if (exner_proxy%is_dirty(depth=2)) call exner_proxy%halo_exchange(depth=2)
       !
 
       adjacent_face => mesh%get_adjacent_face()
@@ -1119,12 +941,10 @@ contains
                                   nlayers,                            &
                                   p2theta_proxy%ncell_3d,             &
                                   p2theta_proxy%local_stencil,        &
-                                  theta_proxy%data,                   &
-                                  rho_proxy%data,                     &
+                                  exner_proxy%data,                   &
+                                  s,                                  &
                                   ndf_w2,                             &
-                                  ndf_wtheta, undf_wtheta,            &
-                                  cross_stencil_wtheta_map(:,:,cell), &
-                                  cross_stencil_wtheta_size,          &
+                                  ndf_wtheta,                         &
                                   ndf_w3, undf_w3,                    &
                                   cross_stencil_w3_map(:,:,cell),     &
                                   cross_stencil_w3_size,              &
@@ -1147,7 +967,7 @@ contains
   !> Kernel requires mesh information (adjacent_face) that will be implemented
   !> in lfric:#986 + psylcone:#18
   !> Invoke_weighted_proj_theta2_bd_kernel: Invoke the boundary part of the projection from w2 to wtheta operator of the lhs Helmholtz  
-  subroutine invoke_weighted_proj_theta2_bd_kernel_type(ptheta2, theta, qr)
+  subroutine invoke_weighted_proj_theta2_bd_kernel_type(ptheta2, theta, s, qr)
 
       use weighted_proj_theta2_bd_kernel_mod, only : weighted_proj_theta2_bd_code
       use mesh_mod,                           only : mesh_type
@@ -1159,6 +979,7 @@ contains
       type( mesh_type ), pointer           :: mesh => null()
       type(field_type), intent(in)         :: theta
       type(operator_type), intent(inout)   :: ptheta2
+      real(r_def), intent(in)              :: s
       type(quadrature_xyoz_type), intent(in)    :: qr
 
       type(quadrature_xyoz_proxy_type) :: qr_proxy
@@ -1209,7 +1030,7 @@ contains
       wv=>qr_proxy%weights_z
 
       ! Assumes same number of horizontal qp in x and y
-      nqp_h_1d = int(sqrt(real(nqp_h)))  ! use sqrt
+      nqp_h_1d = int(sqrt(real(nqp_h)))
 
       allocate(xp_f(nqp_h_1d, 2, nfaces_h))
 
@@ -1265,6 +1086,7 @@ contains
                                   ptheta2_proxy%ncell_3d,             &
                                   ptheta2_proxy%local_stencil,        &
                                   theta_proxy%data,                   &
+                                  s,                                  &
                                   ndf_w2,                             &
                                   ndf_wtheta, undf_wtheta,            &
                                   cross_stencil_wtheta_map(:,:,cell), &
@@ -4156,5 +3978,92 @@ end subroutine invoke_sample_poly_adv
     end if
 
   end subroutine invoke_correct_cosmic_wind
+
+  !------------------------------------------------------------------------------
+  !> invoke_initial_exner_sample_kernel: invoke the density initialization for a generic space
+  !> Computation of nodal basis function for coordinates chi not currently supported PSyClone,
+  !> will be introduced in modification of quadrature strategy, see ticket #723.
+
+  subroutine invoke_initial_exner_sample_kernel( exner, chi, time )
+
+    use initial_exner_sample_kernel_mod, only : initial_exner_sample_code
+    use mesh_mod,                      only : mesh_type
+    implicit none
+
+    type( field_type ), intent( inout )  :: exner
+    type( field_type ), intent( in )     :: chi(3)
+    real(kind=r_def),   intent( in )     :: time
+
+    integer          :: cell
+    integer          :: ndf_w3, undf_w3, &
+                        ndf_chi, undf_chi, dim_chi
+    integer, pointer :: map_w3(:)  => null()
+    integer, pointer :: map_chi(:) => null()
+
+    type( field_proxy_type ) :: exner_proxy
+    type( field_proxy_type ) :: chi_proxy(3)
+
+    real(kind=r_def), allocatable :: basis_chi(:,:,:)
+
+    type(mesh_type), pointer :: mesh => null()
+
+    integer          :: df_w3, df_chi
+    real(kind=r_def), pointer :: nodes_w3(:,:) => null()
+
+    exner_proxy    = exner%get_proxy()
+    chi_proxy(1) = chi(1)%get_proxy()
+    chi_proxy(2) = chi(2)%get_proxy()
+    chi_proxy(3) = chi(3)%get_proxy()
+
+    ndf_w3       = exner_proxy%vspace%get_ndf( )
+    undf_w3      = exner_proxy%vspace%get_undf( )
+
+    ndf_chi  = chi_proxy(1)%vspace%get_ndf( )
+    undf_chi  = chi_proxy(1)%vspace%get_undf( )
+    dim_chi  = chi_proxy(1)%vspace%get_dim_space( )
+
+    allocate( basis_chi(dim_chi, ndf_chi, ndf_w3) )
+
+    nodes_w3 => exner_proxy%vspace%get_nodes()
+    do df_w3 = 1, ndf_w3
+      do df_chi = 1, ndf_chi
+        basis_chi(:,df_chi,df_w3) = &
+                  chi_proxy(1)%vspace%call_function(BASIS,df_chi,nodes_w3(:,df_w3))
+      end do
+    end do
+
+    if (chi_proxy(1)%is_dirty(depth=1)) call chi_proxy(1)%halo_exchange(depth=1)
+    if (chi_proxy(2)%is_dirty(depth=1)) call chi_proxy(2)%halo_exchange(depth=1)
+    if (chi_proxy(3)%is_dirty(depth=1)) call chi_proxy(3)%halo_exchange(depth=1)
+
+    mesh => exner%get_mesh()
+    do cell = 1, mesh%get_last_halo_cell(1)
+
+      map_w3 => exner_proxy%vspace%get_cell_dofmap( cell )
+      map_chi => chi_proxy(1)%vspace%get_cell_dofmap( cell )
+
+      call initial_exner_sample_code(                                  &
+                                     exner_proxy%vspace%get_nlayers(), &
+                                     ndf_w3,                           &
+                                     undf_w3,                          &
+                                     map_w3,                           &
+                                     exner_proxy%data,                 &
+                                     ndf_chi,                          &
+                                     undf_chi,                         &
+                                     map_chi,                          &
+                                     basis_chi,                        &
+                                     chi_proxy(1)%data,                &
+                                     chi_proxy(2)%data,                &
+                                     chi_proxy(3)%data,                &
+                                     time                              &
+                                     )
+    end do
+
+    call exner_proxy%set_dirty()
+
+    deallocate( basis_chi )
+  end subroutine invoke_initial_exner_sample_kernel
+
+
 
 end module psykal_lite_mod

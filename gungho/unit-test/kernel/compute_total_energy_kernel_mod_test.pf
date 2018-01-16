@@ -35,7 +35,7 @@ module compute_total_energy_kernel_mod_test
     type(function_space_type), pointer :: w0_fs => null()
     type(function_space_type), pointer :: w2_fs => null()
     type(function_space_type), pointer :: w3_fs => null()
-    type(field_type)                   :: u, rho, theta
+    type(field_type)                   :: u, rho, theta, exner
     real(r_def), allocatable           :: basis_w3(:,:,:,:), &
                                           basis_w2(:,:,:,:), &
                                           basis_w0(:,:,:,:), &
@@ -104,6 +104,7 @@ contains
     this%w2_fs => function_space_collection%get_fs( mesh_id, element_order, W2 )
     this%w3_fs => function_space_collection%get_fs( mesh_id, element_order, W3 )
 
+    this%exner= field_type( vector_space = this%w3_fs )
     this%rho  = field_type( vector_space = this%w3_fs )
     rho_proxy = this%rho%get_proxy()
 
@@ -182,13 +183,13 @@ contains
     integer                 :: undf_w0, undf_w2, undf_w3
     integer, pointer        :: map_w3(:), map_w2(:), map_w0(:) => null()
 
-    type( field_proxy_type )        :: rho_proxy, theta_proxy, &
+    type( field_proxy_type )        :: rho_proxy, exner_proxy, theta_proxy, &
                                        u_proxy, phi_proxy, energy_proxy
 
     real(kind=r_def), pointer :: xp(:,:) => null()
     real(kind=r_def), pointer :: zp(:) => null()
     real(kind=r_def), pointer :: wh(:), wv(:) => null()
-    real(kind=r_def) :: exner
+    real(kind=r_def) :: t
     real(r_def) :: cv
 
     ! Make a coordinate field with a function space
@@ -217,6 +218,8 @@ contains
 
     u_proxy     = this%u%get_proxy()
     rho_proxy   = this%rho%get_proxy()
+    exner_proxy = this%exner%get_proxy()
+    theta_proxy = this%theta%get_proxy()
     theta_proxy = this%theta%get_proxy()
     phi_proxy   = phi%get_proxy()
     energy_proxy = energy%get_proxy()
@@ -254,6 +257,7 @@ contains
     ! Create the data
     u_proxy%data(:)     = 0.0_r_def
     rho_proxy%data(:)   = 1.0_r_def
+    exner_proxy%data(:) = 0.8_r_def
     theta_proxy%data(:) = 300.0_r_def
     energy_proxy%data(:) = 0.0_r_def
     phi_proxy%data(:)   = gravity*chi_proxy(3)%data(:)
@@ -267,6 +271,7 @@ contains
                                    energy_proxy%data,                         &
                                    u_proxy%data,                              &
                                    rho_proxy%data,                            &
+                                   exner_proxy%data,                          &
                                    theta_proxy%data,                          &
                                    phi_proxy%data,                            &
                                    chi_proxy(1)%data,                         &
@@ -286,10 +291,9 @@ contains
                                    )
 
     ! This is only testing the vertical component of vorticity
-    exner =  calc_exner_pointwise(rho_proxy%data(1), theta_proxy%data(1))
     cv = cp - rd
-    answer = rho_proxy%data(1)                                       &
-             * (gravity*0.5_r_def*dz + Cv*theta_proxy%data(1)*exner) &
+    t = cv*theta_proxy%data(1)*exner_proxy%data(1)
+    answer = rho_proxy%data(1)*(gravity*0.5_r_def*dz + t) &
              * dx*dy*dz/radius**2
     @assertEqual(answer, energy_proxy%data(map_w3(1)), tol)
 

@@ -13,8 +13,20 @@ module checksum_alg_mod
   public :: checksum_alg
 
 contains
-
-  subroutine checksum_alg(model_name, field1, name1, field2, name2, field3, name3)
+  !> @brief Computes the checksum of a field X as the inner product:
+  !>        checksum = sum(X.X) 
+  !>        Writes each checksum to file geenrate from the model and field name
+  !> @param[in] model_name Name of the model to checksum
+  !> @param[in] field1 First field to checksum
+  !> @param[in] name1 Name of the first field to checksum
+  !> @param[in] field2 Optional second field to checksum
+  !> @param[in] name2 Optional name of the second field to checksum
+  !> @param[in] field3 Optional third field to checksum
+  !> @param[in] name3 Optional name of the third field to checksum
+  !> @param[in] field4 Optional fourth field to checksum
+  !> @param[in] name4 Optional name of the fourth field to checksum
+  subroutine checksum_alg(model_name, field1, name1, field2, name2, &
+                                      field3, name3, field4, name4)
     use field_mod,       only: field_type
     use constants_mod,   only: i_def, r_def, str_max_filename
     use ESMF
@@ -24,18 +36,19 @@ contains
 
     type(field_type), intent(in)           :: field1
     character(len=*), intent(in)           :: model_name, name1
-    type(field_type), intent(in), optional :: field2, field3
-    character(len=*), intent(in), optional :: name2, name3
+    type(field_type), intent(in), optional :: field2, field3, field4
+    character(len=*), intent(in), optional :: name2, name3, name4
 
     type(ESMF_VM)                   :: vm
     integer(i_def)                  :: rc, petCount, localPET
     integer(i_def)                  :: stat
-    real(r_def)                     :: chksum1, chksum2, chksum3
+    real(r_def)                     :: chksum1, chksum2, chksum3, chksum4
     character(len=str_max_filename) :: fname
 
     call invoke( X_innerproduct_X(chksum1, field1) )
     if ( present(field2) ) call invoke( X_innerproduct_X(chksum2, field2) )
     if ( present(field3) ) call invoke( X_innerproduct_X(chksum3, field3) )
+    if ( present(field4) ) call invoke( X_innerproduct_X(chksum4, field4) )
 
     call ESMF_VMGetCurrent(vm=vm, rc=rc)
     call ESMF_VMGET(vm, localPet=localPET, petCount=petCount, rc=rc)
@@ -50,6 +63,7 @@ contains
       write(9, '(A,A,A,Z16)' ) 'Inner product checksum ',trim(name1),' = ',chksum1
       if ( present(name2) ) write(9, '(A,A,A,Z16)' ) 'Inner product checksum ',trim(name2),' = ',chksum2
       if ( present(name3) ) write(9, '(A,A,A,Z16)' ) 'Inner product checksum ',trim(name3),' = ',chksum3
+      if ( present(name4) ) write(9, '(A,A,A,Z16)' ) 'Inner product checksum ',trim(name4),' = ',chksum4
       close( 9 )
     end if
   end subroutine checksum_alg

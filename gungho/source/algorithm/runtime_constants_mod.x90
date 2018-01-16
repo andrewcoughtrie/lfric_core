@@ -9,7 +9,6 @@
 !> @details A module holding various objects that are created at
 !>         setup and are not changed thereafter but are needed
 !>         throughout the algorithm layers
-
 module runtime_constants_mod
 
   use constants_mod,                     only: i_def, r_def  
@@ -56,6 +55,7 @@ module runtime_constants_mod
   use compute_geopotential_kernel_mod,       only: compute_geopotential_kernel_type
   use calc_detj_at_w2_kernel_mod,            only: calc_detj_at_w2_kernel_type
   use calc_dA_at_w2_kernel_mod,              only: calc_dA_at_w2_kernel_type
+  use w2_normalisation_kernel_mod,           only: w2_normalisation_kernel_type
 
   use output_config_mod,                     only: subroutine_timers 
   use timer_mod,                             only: timer
@@ -95,6 +95,7 @@ module runtime_constants_mod
   type(field_type), target              :: nodal_rmultiplicity_w2
   type(field_type), target              :: nodal_rmultiplicity_w2h
   type(field_type), target              :: nodal_rmultiplicity_w0
+  type(field_type), target              :: w2_normalisation
 
   ! Enumerated types
   integer(i_def), parameter, public :: w0_id    = 0_i_def
@@ -124,12 +125,14 @@ module runtime_constants_mod
   public :: get_rmultiplicity
   public :: get_inverse_lumped_mass_matrix
   public :: get_height
+  public :: get_normalisation
 
 contains
-  !> Subroutine to create the runtime constants
+  !>@brief Subroutine to create the runtime constants
   !> @param[in] mesh_id Mesh_id
   !> @param[in] chi chi field
-  subroutine create_runtime_constants( mesh_id, chi)
+  subroutine create_runtime_constants(mesh_id, chi)
+
     implicit none
 
     integer(i_def),           intent(in)            :: mesh_id
@@ -332,9 +335,14 @@ contains
     call invoke( setval_c(ones, 1.0_r_def), &
                  X_divideby_Y(nodal_rmultiplicity_w0, ones, nodal_multiplicity_w0) )
 
+    w2_normalisation = field_type( vector_space = w2_fs )
+    call invoke( setval_c(w2_normalisation, 0.0_r_def),                    &
+                 w2_normalisation_kernel_type(w2_normalisation, chi),      &
+                 inc_X_divideby_Y(w2_normalisation, nodal_multiplicity_w2) )
+    call invoke_raise_field(w2_normalisation, -1_i_def)
+
     ! Store pointer to chi field so things downstream can access it via
     ! runtime_constants
-
     coords => chi
 
     call log_event( "Gungho: created runtime_constants", LOG_LEVEL_INFO )
@@ -343,7 +351,7 @@ contains
   end subroutine create_runtime_constants
 
 
-  !> Function to return a pointer to the coordinate array
+  !> @brief Function to return a pointer to the coordinate array
   !> @return The coordinate field array
   function get_coordinates() result(coords_ptr)
 
@@ -352,12 +360,12 @@ contains
 
   end function get_coordinates
 
-  !> Function to return a pointer to a height field
+  !> @brief Function to return a pointer to a height field
   !> @param[in] i the space of the desired height field
   !> @return A height field
   function get_height(space) result(height)
 
-    integer, intent(in) :: space
+    integer(i_def), intent(in) :: space
     type(field_type), pointer :: height
 
     select case (space)
@@ -372,7 +380,7 @@ contains
 
   end function get_height
 
-  !> Function to return a pointer to the geopotential field
+  !> @brief Function to return a pointer to the geopotential field
   !> @return The geopotential field
   function get_geopotential() result(phi)
 
@@ -381,7 +389,7 @@ contains
 
   end function get_geopotential
 
-  !> Function to return a pointer to the cell_orientation field
+  !> @brief Function to return a pointer to the cell_orientation field
   !> @return The cell_orientation field
   function get_cell_orientation() result(orientation)
 
@@ -395,7 +403,7 @@ contains
   end function get_cell_orientation
 
 
-  !> Function to return the detj values at W2 dof locations
+  !> @brief Function to return the detj values at W2 dof locations
   !> @return The detj field
   function get_detj_at_w2() result(detj)
 
@@ -404,7 +412,7 @@ contains
 
   end function get_detj_at_w2
 
-  !> Function to return the dA values at W2 dof locations
+  !> @brief Function to return the dA values at W2 dof locations
   !> @return The dA field
   function get_dA_at_w2() result(dA)
 
@@ -413,12 +421,12 @@ contains
 
   end function get_dA_at_w2
 
-  !> Function to return a pointer to a mass matrix
+  !> @brief Function to return a pointer to a mass matrix
   !> @param[in] i the index of the desired mass matrix field
   !> @return The mass matrix operator
   function get_mass_matrix(i) result(mm)
 
-    integer, intent(in) :: i
+    integer(i_def), intent(in) :: i
     type(operator_type), pointer :: mm 
 
     select case (i)
@@ -448,12 +456,12 @@ contains
 
   end function get_mass_matrix
 
-  !> Function to return a pointer to a mass matrix diagonal
+  !> @brief Function to return a pointer to a mass matrix diagonal
   !> @param[in] i Index of the desired mass matrix diagonal field
   !> @return The mass matrix diagonal field
   function get_mass_matrix_diagonal(i) result(mmd)
 
-    integer, intent(in) :: i
+    integer(i_def), intent(in) :: i
     type(field_type), pointer :: mmd  
 
     select case (i)
@@ -483,7 +491,7 @@ contains
 
   end function get_mass_matrix_diagonal
 
-  !> Function to return a pointer to the grad operator
+  !> @brief Function to return a pointer to the grad operator
   !> @return The grad operator
   function get_grad() result(grad_op)
 
@@ -492,7 +500,7 @@ contains
 
   end function get_grad
 
-  !> Function to return a pointer to the curl operator
+  !> @brief Function to return a pointer to the curl operator
   !> @return The curl operator
   function get_curl() result(curl_op)
 
@@ -501,7 +509,7 @@ contains
 
   end function get_curl
 
-  !> Function to return a pointer to the div operator
+  !> @brief Function to return a pointer to the div operator
   !> @return The grad operator
   function get_div() result(div_op)
 
@@ -510,7 +518,7 @@ contains
 
   end function get_div
 
-  !> Function to return a pointer to the quadrature object
+  !> @brief Function to return a pointer to the quadrature object
   !> @return The quadrature object
   function get_qr() result(qr_obj)
 
@@ -519,12 +527,12 @@ contains
 
   end function get_qr
 
-  !> Function to return a pointer to a inverse lumped mass matrix
+  !> @brief Function to return a pointer to a inverse lumped mass matrix
   !> @param[in] i Index of the desired lumped mass matrix inverse field
   !> @return The lumped inverse mass matrix 
   function get_inverse_lumped_mass_matrix(i) result(mm)
 
-    integer, intent(in) :: i
+    integer(i_def), intent(in) :: i
     type(field_type), pointer :: mm
 
     select case (i)
@@ -548,10 +556,11 @@ contains
 
   end function get_inverse_lumped_mass_matrix
 
-  !> Function to return a pointer to the reciprocal of the multiplicity field
-  !> @return The geopotential field
+  !> @brief Function to return a pointer to the reciprocal of the multiplicity field
+  !> @return The nodal multiplicity field
+  !> @param[in] space enumeration of the function space
   function get_rmultiplicity(space) result(rmultiplicity)
-    integer, intent(in) :: space
+    integer(i_def), intent(in) :: space
     type(field_type), pointer :: rmultiplicity
 
     select case (space)
@@ -567,9 +576,34 @@ contains
         rmultiplicity => null()
         call log_event( "RMultiplicity does not exist for given space", &
            LOG_LEVEL_ERROR)
-        stop
     end select
 
   end function get_rmultiplicity
+
+  !> @brief Function to return a pointer to the normalisation of prognostic fields
+  !> @return The normalisation field
+  !> @param[in] space enumeration of the function space
+  function get_normalisation(space) result(normalisation)
+    integer(i_def), intent(in) :: space
+    type(field_type), pointer :: normalisation
+
+    select case (space)
+      case (w2_id)
+        normalisation => w2_normalisation
+      case (wt_id)
+        normalisation => mt_lumped_inv
+      case (theta_space_id)
+        if (wtheta_on) then
+          normalisation => mt_lumped_inv
+        else
+          normalisation => m0_lumped_inv
+        end if
+      case default
+        normalisation => null()
+        call log_event( " Normalisation does not exist for given space", &
+           LOG_LEVEL_ERROR)
+    end select
+
+  end function get_normalisation
 
 end module runtime_constants_mod

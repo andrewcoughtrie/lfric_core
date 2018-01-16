@@ -12,7 +12,8 @@
 module weighted_proj_theta2_kernel_mod
 use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,                      &
-                                    GH_OPERATOR, GH_FIELD, GH_READ, GH_WRITE, &
+                                    GH_OPERATOR, GH_FIELD, GH_REAL,           &
+                                    GH_READ, GH_WRITE,                        &
                                     ANY_SPACE_1, W2,                          &
                                     GH_BASIS, GH_DIFF_BASIS,                  &
                                     CELLS, GH_QUADRATURE_XYoZ
@@ -26,9 +27,10 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: weighted_proj_theta2_kernel_type
   private
-  type(arg_type) :: meta_args(2) = (/                                  &
+  type(arg_type) :: meta_args(3) = (/                                  &
        arg_type(GH_OPERATOR, GH_WRITE, ANY_SPACE_1, W2),               &
-       arg_type(GH_FIELD,    GH_READ,  ANY_SPACE_1)                    &
+       arg_type(GH_FIELD,    GH_READ,  ANY_SPACE_1),                   &
+       arg_type(GH_REAL,     GH_READ)                                  &
        /)
   type(func_type) :: meta_funcs(2) = (/                                &
        func_type(ANY_SPACE_1, GH_BASIS, GH_DIFF_BASIS),                &
@@ -44,7 +46,7 @@ end type
 ! Constructors
 !-------------------------------------------------------------------------------
 
-! overload the default structure constructor for function space
+! Overload the default structure constructor for function space
 interface weighted_proj_theta2_kernel_type
    module procedure weighted_proj_theta2_kernel_constructor
 end interface
@@ -65,6 +67,7 @@ end function weighted_proj_theta2_kernel_constructor
 !! @param[in] ncell_3d Total number of cells in the 3d mesh
 !! @param[inout] projection Locally assembled projection operator
 !! @param[in] theta Potential temperature array
+!! @param[in] scalar Real to scale matrix by
 !! @param[in] ndf_wtheta Number of degrees of freedom per cell for wtheta
 !! @param[in] undf_wtheta Number of unique degrees of freedom  for wtheta
 !! @param[in] map_wtheta Dofmap for the cell at the base of the column for wtheta
@@ -79,13 +82,15 @@ end function weighted_proj_theta2_kernel_constructor
 subroutine weighted_proj_theta2_code(cell, nlayers, ncell_3d,              &
                                      projection,                           &
                                      theta,                                &
+                                     scalar,                               &
                                      ndf_wtheta, undf_wtheta, map_wtheta,  &
                                      wtheta_basis, wtheta_diff_basis,      &
                                      ndf_w2, w2_basis,                     &
-                                     nqp_h, nqp_v, wqp_h, wqp_v )
+                                     nqp_h, nqp_v, wqp_h, wqp_v)
 
-  
-  !Arguments
+  implicit none
+ 
+  ! Arguments
   integer(kind=i_def), intent(in) :: cell, nlayers, ncell_3d, nqp_h, nqp_v
   integer(kind=i_def), intent(in) :: ndf_wtheta, ndf_w2, undf_wtheta
 
@@ -97,11 +102,12 @@ subroutine weighted_proj_theta2_code(cell, nlayers, ncell_3d,              &
 
   real(kind=r_def), dimension(ndf_wtheta,ndf_w2,ncell_3d), intent(inout) :: projection
   real(kind=r_def), dimension(undf_wtheta),                intent(in)    :: theta
+  real(kind=r_def),                                        intent(in)    :: scalar
 
   real(kind=r_def), dimension(nqp_h), intent(in) ::  wqp_h
   real(kind=r_def), dimension(nqp_v), intent(in) ::  wqp_v
 
-  !Internal variables
+  ! Internal variables
   integer(kind=i_def) :: df, k, ik, dft, df2
   integer(kind=i_def) :: qp1, qp2
   
@@ -117,12 +123,12 @@ subroutine weighted_proj_theta2_code(cell, nlayers, ncell_3d,              &
     projection(:,:,ik) = 0.0_r_def
     do qp2 = 1, nqp_v
       do qp1 = 1, nqp_h
-        grad_theta_at_quad(:) = 0.0_r_def
+        grad_theta_at_quad = 0.0_r_def
         do df = 1, ndf_wtheta
           grad_theta_at_quad(:) = grad_theta_at_quad(:) &
                                 + theta_e(df)*wtheta_diff_basis(:,df,qp1,qp2)
         end do
-        i1 = grad_theta_at_quad*wqp_h(qp1)*wqp_v(qp2)
+        i1 = scalar*grad_theta_at_quad*wqp_h(qp1)*wqp_v(qp2)
         do df2 = 1,ndf_w2
           i2 = dot_product(i1,w2_basis(:,df2,qp1,qp2))
           do dft = 1,ndf_wtheta

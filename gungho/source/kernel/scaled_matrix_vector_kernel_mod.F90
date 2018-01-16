@@ -7,9 +7,9 @@
 module scaled_matrix_vector_kernel_mod
 use argument_mod,            only : arg_type,                               &
                                     GH_FIELD, GH_OPERATOR, GH_READ, GH_INC, &
-                                    ANY_SPACE_1, ANY_SPACE_2,               &
+                                    W2, W3,                                 &
                                     CELLS 
-use constants_mod,           only : r_def
+use constants_mod,           only : r_def, i_def
 use kernel_mod,              only : kernel_type
 
 implicit none
@@ -20,11 +20,12 @@ implicit none
 
 type, public, extends(kernel_type) :: scaled_matrix_vector_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                    &  
-       arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),                    &
-       arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),       &
-       arg_type(GH_FIELD,    GH_READ, ANY_SPACE_1)                     &  
+  type(arg_type) :: meta_args(5) = (/                                  &
+       arg_type(GH_FIELD,    GH_INC,  W2),                             &  
+       arg_type(GH_FIELD,    GH_READ, W3),                             &
+       arg_type(GH_OPERATOR, GH_READ, W2, W3),                         &
+       arg_type(GH_FIELD,    GH_READ, W2),                             &  
+       arg_type(GH_FIELD,    GH_READ, W2)                              &  
        /)
   integer :: iterates_over = CELLS
 contains
@@ -33,12 +34,13 @@ end type
 
 type, public, extends(kernel_type) :: opt_scaled_matrix_vector_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                    &  
-       arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),                    &
-       arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),       &
-       arg_type(GH_FIELD,    GH_READ, ANY_SPACE_1)                     &  
-       /)
+  type(arg_type) :: meta_args(5) = (/                                  &
+       arg_type(GH_FIELD,    GH_INC,  W2),                             &  
+       arg_type(GH_FIELD,    GH_READ, W3),                             &
+       arg_type(GH_OPERATOR, GH_READ, W2, W3),                         &
+       arg_type(GH_FIELD,    GH_READ, W2),                             &  
+       arg_type(GH_FIELD,    GH_READ, W2)                              & 
+        /)
   integer :: iterates_over = CELLS
 contains
   procedure, nopass :: opt_scaled_matrix_vector_code
@@ -48,7 +50,7 @@ end type
 ! Constructors
 !-------------------------------------------------------------------------------
 
-! overload the default structure constructor for function space
+! Overload the default structure constructor for function space
 interface scaled_matrix_vector_kernel_type
    module procedure scaled_matrix_vector_kernel_constructor
 end interface
@@ -74,40 +76,44 @@ end function opt_scaled_matrix_vector_kernel_constructor
 !>        and y is a field in the same space as lhs
 !> @param[in] cell Horizontal cell index
 !! @param[in] nlayers Number of layers
-!! @param[in] x Input data
 !> @param[inout] lhs Output lhs (A*x)
+!! @param[in] x Input data
 !! @param[in] ncell_3d Total number of cells
 !! @param[in] matrix Local matrix assembly form of the operator A 
-!! @param[in] y field to scale output by
+!! @param[in] y Field to scale output by
+!! @param[in] z Second field to scale output by
 !! @param[in] ndf1 Number of degrees of freedom per cell for the output field
 !! @param[in] undf1 Unique number of degrees of freedom  for the output field
 !! @param[in] map1 Dofmap for the cell at the base of the column for the output field
-!! @param[in] map2 Dofmap for the cell at the base of the column for the input field
 !! @param[in] ndf2 Number of degrees of freedom per cell for the input field
 !! @param[in] undf2 Unique number of degrees of freedom for the input field 
+!! @param[in] map2 Dofmap for the cell at the base of the column for the input field
 subroutine scaled_matrix_vector_code(cell,        &
                                      nlayers,     &
                                      lhs, x,      & 
                                      ncell_3d,    &
                                      matrix,      &
                                      y,           &
+                                     z,           &
                                      ndf1, undf1, map1, &
                                      ndf2, undf2, map2)
 
   implicit none 
-  !Arguments
-  integer,                   intent(in)    :: cell, nlayers, ncell_3d
-  integer,                   intent(in)    :: undf1, ndf1
-  integer,                   intent(in)    :: undf2, ndf2
-  integer, dimension(ndf1),  intent(in)    :: map1
-  integer, dimension(ndf2),  intent(in)    :: map2
+  ! Arguments
+  integer(kind=i_def),                   intent(in) :: cell, nlayers, ncell_3d
+  integer(kind=i_def),                   intent(in) :: undf1, ndf1
+  integer(kind=i_def),                   intent(in) :: undf2, ndf2
+  integer(kind=i_def), dimension(ndf1),  intent(in) :: map1
+  integer(kind=i_def), dimension(ndf2),  intent(in) :: map2
+
   real(kind=r_def), dimension(undf2),              intent(in)    :: x
   real(kind=r_def), dimension(undf1),              intent(inout) :: lhs
   real(kind=r_def), dimension(ndf1,ndf2,ncell_3d), intent(in)    :: matrix
   real(kind=r_def), dimension(undf1),              intent(in)    :: y
+  real(kind=r_def), dimension(undf1),              intent(in)    :: z
 
-  !Internal variables
-  integer                           :: df, k, ik 
+  ! Internal variables
+  integer(kind=i_def)               :: df, k, ik 
   real(kind=r_def), dimension(ndf2) :: x_e
   real(kind=r_def), dimension(ndf1) :: lhs_e
 
@@ -118,7 +124,7 @@ subroutine scaled_matrix_vector_code(cell,        &
     ik = (cell-1)*nlayers + k + 1
     lhs_e = matmul(matrix(:,:,ik),x_e)
     do df = 1,ndf1
-       lhs(map1(df)+k) = lhs(map1(df)+k) + lhs_e(df)*y(map1(df)+k) 
+       lhs(map1(df)+k) = lhs(map1(df)+k) + lhs_e(df)*y(map1(df)+k)*z(map1(df)+k) 
     end do
   end do
  
@@ -130,23 +136,25 @@ end subroutine scaled_matrix_vector_code
 !>        lhs, y in W2, x in W3 all at lowest order
 !> @param[in] cell Horizontal cell index
 !! @param[in] nlayers Number of layers
-!! @param[in] x Input data
 !> @param[inout] lhs Output lhs (A*x)
+!! @param[in] x Input data
 !! @param[in] ncell_3d Total number of cells
 !! @param[in] matrix Local matrix assembly form of the operator A 
-!! @param[in] y field to scale output by
+!! @param[in] y Field to scale output by
+!! @param[in] z Second field to scale output by
 !! @param[in] ndf1 Number of degrees of freedom per cell for the output field
 !! @param[in] undf1 Unique number of degrees of freedom  for the output field
 !! @param[in] map1 Dofmap for the cell at the base of the column for the output field
-!! @param[in] map2 Dofmap for the cell at the base of the column for the input field
 !! @param[in] ndf2 Number of degrees of freedom per cell for the input field
 !! @param[in] undf2 Unique number of degrees of freedom for the input field 
+!! @param[in] map2 Dofmap for the cell at the base of the column for the input field
 subroutine opt_scaled_matrix_vector_code(cell,        &
                                          nlayers,     &
                                          lhs, x,      & 
                                          ncell_3d,    &
                                          matrix,      &
                                          y,           &
+                                         z,           &
                                          ndf1, undf1, map1, &
                                          ndf2, undf2, map2)
 
@@ -161,20 +169,22 @@ subroutine opt_scaled_matrix_vector_code(cell,        &
   real(kind=r_def), dimension(undf1),        intent(inout) :: lhs
   real(kind=r_def), dimension(6,1,ncell_3d), intent(in)    :: matrix
   real(kind=r_def), dimension(undf1),        intent(in)    :: y
+  real(kind=r_def), dimension(undf1),        intent(in)    :: z
 
   ! Internal variables
-  integer :: k, ik
+  integer :: k, ik, df
 
   ! Hard wired optimisation for desired configuration
-  do k = 0, nlayers-1
-    ik = (cell-1)*nlayers + k + 1
-    lhs(map1(1)+k) = lhs(map1(1)+k) + matrix(1,1,ik)*x(map2(1)+k)*y(map1(1)+k)
-    lhs(map1(2)+k) = lhs(map1(2)+k) + matrix(2,1,ik)*x(map2(1)+k)*y(map1(2)+k)
-    lhs(map1(3)+k) = lhs(map1(3)+k) + matrix(3,1,ik)*x(map2(1)+k)*y(map1(3)+k)
-    lhs(map1(4)+k) = lhs(map1(4)+k) + matrix(4,1,ik)*x(map2(1)+k)*y(map1(4)+k)
-    lhs(map1(5)+k) = lhs(map1(5)+k) + matrix(5,1,ik)*x(map2(1)+k)*y(map1(5)+k)
-    lhs(map1(6)+k) = lhs(map1(6)+k) + matrix(6,1,ik)*x(map2(1)+k)*y(map1(6)+k)
+  do df = 1,6
+    do k = 0, nlayers-1
+      ik = (cell-1)*nlayers + k + 1
+      lhs(map1(df)+k) = lhs(map1(df)+k) + matrix(df,1,ik)*x(map2(1)+k)*y(map1(df)+k)*z(map1(df)+k)
+    end do
   end do
+
+  ! Apply zero flux boundary conditions
+  lhs(map1(5))             = 0.0_r_def 
+  lhs(map1(6) + nlayers-1) = 0.0_r_def 
  
 end subroutine opt_scaled_matrix_vector_code
 

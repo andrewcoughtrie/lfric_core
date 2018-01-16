@@ -61,7 +61,7 @@ contains
                                     wind_time_period=0.0_r_def  )
 
     call feign_formulation_config(transport_only=.false., rotating=.false.,  &
-                                  eliminate_p=.false., use_moisture=.false., &
+                                  use_moisture=.false., &
                                   shallow=.true., use_physics=.false., &
 				  use_wavedynamics=.true.)
   end subroutine setUp
@@ -71,6 +71,8 @@ contains
   subroutine test_all( this )
 
     use generate_global_gw_fields_mod, only: generate_global_gw_fields
+
+    implicit none
 
     class(generate_global_gw_fields_test_type), intent(inout) :: this
 

@@ -6,14 +6,14 @@
 !
 !-------------------------------------------------------------------------------
 !> @brief Compute the divergence operatore weigthed by the potential temperature
-!> @details compute the locally assembled operator \f[<\sigma,\nabla.(\theta*\mathbf{v})> \f]
+!> @details Compute the locally assembled operator \f[<\sigma,\nabla.(\theta*\mathbf{v})> \f]
 !>          where sigma is the W3 test function, v is the W2 trial function
 !>          and theta is the potential temperature
 module weighted_div_kernel_mod
 use constants_mod,           only: r_def, i_def
 use kernel_mod,              only: kernel_type
 use argument_mod,            only: arg_type, func_type,            &
-                                   GH_OPERATOR, GH_FIELD,          &
+                                   GH_OPERATOR, GH_FIELD, GH_REAL, &
                                    GH_READ, GH_WRITE,              &
                                    ANY_SPACE_9, W2, W3,            &
                                    GH_BASIS,GH_DIFF_BASIS,         &
@@ -26,9 +26,10 @@ implicit none
 
 type, public, extends(kernel_type) :: weighted_div_kernel_type
   private
-  type(arg_type) :: meta_args(2) = (/                                  &
+  type(arg_type) :: meta_args(3) = (/                                  &
        arg_type(GH_OPERATOR, GH_WRITE, W2, W3),                        &
-       arg_type(GH_FIELD,    GH_READ,  ANY_SPACE_9)                    &
+       arg_type(GH_FIELD,    GH_READ,  ANY_SPACE_9),                   &
+       arg_type(GH_REAL,     GH_READ)                                  &
        /)
   type(func_type) :: meta_funcs(3) = (/                                &
        func_type(W2, GH_BASIS, GH_DIFF_BASIS),                         &
@@ -45,7 +46,7 @@ end type
 ! Constructors
 !-------------------------------------------------------------------------------
 
-! overload the default structure constructor for function space
+! Overload the default structure constructor for function space
 interface weighted_div_kernel_type
    module procedure weighted_div_kernel_constructor
 end interface
@@ -64,18 +65,19 @@ end function weighted_div_kernel_constructor
 !! @param[in] cell Cell number
 !! @param[in] nlayers Number of layers.
 !! @param[in] ncell_3d ncell*ndf
-!! @param[in] ndf_w3 Number of degrees of freedom per cell.
-!! @param[in] basis_w3 Basis functions evaluated at quadrature points.
+!! @param[in] div Local stencil of the div operator
+!! @param[in] theta Potential temperature
+!! @param[in] scalar Real to scale operator by
 !! @param[in] ndf_w2 Number of degrees of freedom per cell.
 !! @param[in] basis_w2 Scalar basis functions evaluated at quadrature points.
 !! @param[in] diff_basis_w2 Differential vector basis functions evaluated at quadrature points.
+!! @param[in] ndf_w3 Number of degrees of freedom per cell.
+!! @param[in] basis_w3 Basis functions evaluated at quadrature points.
 !! @param[in] ndf_wtheta Number of degrees of freedom per cell.
 !! @param[in] undf_wtheta Total number of degrees of freedom
 !! @param[in] map_wtheta Dofmap for Wtheta
 !! @param[in] basis_wtheta Basis functions evaluated at quadrature points.
 !! @param[in] diff_basis_wtheta Differential vector basis functions evaluated at quadrature points.
-!! @param[in] div Local stencil of the div operator
-!! @param[in] theta Potential temperature
 !! @param[in] nqp_h Number of horizontal quadrature points
 !! @param[in] nqp_v Number of vertical quadrature points
 !! @param[in] wqp_h Horizontal quadrature weights
@@ -83,13 +85,14 @@ end function weighted_div_kernel_constructor
 subroutine weighted_div_code(cell, nlayers, ncell_3d,             &
                              div,                                 &
                              theta,                               &
+                             scalar,                              &
                              ndf_w2, basis_w2, diff_basis_w2,     &
                              ndf_w3, basis_w3,                    &
                              ndf_wtheta, undf_wtheta, map_wtheta, &
                              basis_wtheta, diff_basis_wtheta,     &
-                             nqp_h, nqp_v, wqp_h, wqp_v )
+                             nqp_h, nqp_v, wqp_h, wqp_v)
   implicit none
-  !Arguments
+  ! Arguments
   integer(kind=i_def),                         intent(in) :: cell, nqp_h, nqp_v
   integer(kind=i_def),                         intent(in) :: nlayers
   integer(kind=i_def),                         intent(in) :: ncell_3d
@@ -104,10 +107,11 @@ subroutine weighted_div_code(cell, nlayers, ncell_3d,             &
 
   real(kind=r_def), dimension(ndf_w2,ndf_w3,ncell_3d), intent(inout) :: div
   real(kind=r_def), dimension(undf_wtheta),            intent(in)    :: theta
+  real(kind=r_def),                                    intent(in)    :: scalar
   real(kind=r_def), dimension(nqp_h),                  intent(in)    :: wqp_h
   real(kind=r_def), dimension(nqp_v),                  intent(in)    :: wqp_v
 
-  !Internal variables
+  ! Internal variables
   integer(kind=i_def)                          :: df, df2, df3, k, ik
   integer(kind=i_def)                          :: qp1, qp2
   real(kind=r_def), dimension(ndf_wtheta)      :: theta_e
@@ -123,8 +127,8 @@ subroutine weighted_div_code(cell, nlayers, ncell_3d,             &
     div(:,:,ik) = 0.0_r_def
     do qp2 = 1, nqp_v
       do qp1 = 1, nqp_h
-        theta_quad         = 0.0_r_def
-        grad_theta_quad(:) = 0.0_r_def
+        theta_quad      = 0.0_r_def
+        grad_theta_quad = 0.0_r_def
         do df = 1, ndf_wtheta
           theta_quad = theta_quad                                      &
                      + theta_e(df)*basis_wtheta(1,df,qp1,qp2)
@@ -132,7 +136,7 @@ subroutine weighted_div_code(cell, nlayers, ncell_3d,             &
                              + theta_e(df)*diff_basis_wtheta(:,df,qp1,qp2)
         end do
         do df3 = 1, ndf_w3
-          integrand = wqp_h(qp1)*wqp_v(qp2)*basis_w3(1,df3,qp1,qp2)
+          integrand = scalar*wqp_h(qp1)*wqp_v(qp2)*basis_w3(1,df3,qp1,qp2)
           do df2 = 1, ndf_w2
             div_theta_v = diff_basis_w2(1,df2,qp1,qp2)*theta_quad &
                         + dot_product(basis_w2(:,df2,qp1,qp2),grad_theta_quad)
@@ -142,6 +146,7 @@ subroutine weighted_div_code(cell, nlayers, ncell_3d,             &
       end do
     end do
   end do 
+
 end subroutine weighted_div_code
 
 end module weighted_div_kernel_mod

@@ -25,7 +25,6 @@ module gw_si_solver_alg_mod
                                      bundle_minmax,                       &
                                      bundle_inner_product
   use field_mod,               only: field_type
-  use formulation_config_mod,  only: eliminate_p
   use gw_lhs_alg_mod,          only: gw_lhs_alg
   use log_mod,                 only: log_event,                          &
                                      log_scratch_space,                  &
@@ -67,9 +66,9 @@ module gw_si_solver_alg_mod
   private :: jacobi
  
 contains
-!>@brief Setup for the semi-implicit solver, extracts mass matrix diagonals and 
-!!         sets up terms for the Newton-Krylov method if needed
-!>@param[in] x0 The state array to used to clone field bundles
+  !>@brief Setup for the semi-implicit solver, extracts mass matrix diagonals and 
+  !!         sets up terms for the Newton-Krylov method if needed
+  !>@param[in] x0 The state array to used to clone field bundles
   subroutine gw_si_solver_init(x0)
     use gw_lhs_alg_mod,                  only: gw_lhs_init
     use gw_miniapp_constants_config_mod, only: b_space, &
@@ -121,10 +120,11 @@ contains
     call gw_lhs_init(x0)
 
   end subroutine gw_si_solver_init
+
 !=============================================================================!
-!> Control routine for the type of gravity wave solver to use
-!>@param[inout] x0 State to increment 
-!>@param[in]    rhs0 Fixed rhs to solve for
+  !> Control routine for the type of gravity wave solver to use
+  !>@param[inout] x0 State to increment 
+  !>@param[in]    rhs0 Fixed rhs to solve for
   subroutine gw_si_solver_alg(x0, rhs0)
 
     implicit none
@@ -149,6 +149,10 @@ contains
   end subroutine gw_si_solver_alg
 
 !=============================================================================!
+  !>@brief Jacobi solver adapted for solving the semi-implicit equations
+  !>@param[inout] x0 State to increment 
+  !>@param[in]    rhs0 Fixed rhs to solve for
+  !>@param[in]    n Maximum number of iterations to perform
   subroutine jacobi(x0, rhs0, n)
     
     implicit none
@@ -182,13 +186,12 @@ contains
 
   end subroutine jacobi
 
-
 !=============================================================================!
-!>@brief GMRES solver adapted for solving the semi-implicit equations
-!>@details Standard GMRES algortihm from "Iterative methods for sparse linear
-!! systems" by Y Saad, SIAM 2003
-!>@param[inout] x0 State to increment 
-!>@param[in]    rhs0 Fixed rhs to solve for
+  !>@brief GMRES solver adapted for solving the semi-implicit equations
+  !>@details Standard GMRES algortihm from "Iterative methods for sparse linear
+  !! systems" by Y Saad, SIAM 2003
+  !>@param[inout] x0 State to increment 
+  !>@param[in]    rhs0 Fixed rhs to solve for
   subroutine gmres(x0, rhs0)
 
     implicit none
@@ -330,13 +333,14 @@ contains
     call bundle_axpy(1.0_r_def, dx, x0, x0, bundle_size)  
 
   end subroutine gmres
+
 !=============================================================================!
-!>@brief Applies a choosen preconditioner to a state x to produce state y
-!>@param[inout] y Preconditioned state
-!>@param[in]    x Original state
-!>@param[in]    option choice of which preconditioner to use
-!>@param[in]    mm Arrays containing diagonal approximation to mass matrices
-!>@param[in]    bundle_size Number of fields the state arrays
+  !>@brief Applies a choosen preconditioner to a state x to produce state y
+  !>@param[inout] y Preconditioned state
+  !>@param[in]    x Original state
+  !>@param[in]    option choice of which preconditioner to use
+  !>@param[in]    mm Arrays containing diagonal approximation to mass matrices
+  !>@param[in]    bundle_size Number of fields the state arrays
   subroutine bundle_preconditioner(y, x, option, mm, bundle_size)
     use psykal_lite_mod,            only: invoke_copy_field_data
     use gw_pressure_solver_alg_mod, only: gw_pressure_solver_alg
@@ -364,5 +368,6 @@ contains
       end if
     end if
   end subroutine bundle_preconditioner
+
 !=============================================================================!
 end module gw_si_solver_alg_mod

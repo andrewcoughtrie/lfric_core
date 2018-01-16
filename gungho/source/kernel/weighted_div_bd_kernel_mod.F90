@@ -20,13 +20,12 @@
 module weighted_div_bd_kernel_mod
   use kernel_mod,              only : kernel_type
   use argument_mod,            only : arg_type, func_type,                 &
-                                      GH_OPERATOR, GH_FIELD,               &
+                                      GH_OPERATOR, GH_FIELD, GH_REAL,      &
                                       GH_READ, GH_INC,                     &
                                       W2, W3, Wtheta, GH_BASIS,            &
                                       CELLS, GH_QUADRATURE_XYoZ
   use constants_mod,           only : r_def, i_def
   use reference_element_mod,   only : nfaces_h, out_face_normal
-
 
   implicit none
 
@@ -36,9 +35,10 @@ module weighted_div_bd_kernel_mod
   !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
   type, public, extends(kernel_type) :: weighted_div_bd_kernel_type
     private
-    type(arg_type) :: meta_args(2) = (/                               &
+    type(arg_type) :: meta_args(3) = (/                               &
        arg_type(GH_OPERATOR, GH_INC,  W2, W3),                        &
-       arg_type(GH_FIELD,    GH_READ, Wtheta)                         &
+       arg_type(GH_FIELD,    GH_READ, Wtheta),                        &
+       arg_type(GH_REAL,     GH_READ)                                 &
       /)
     type(func_type) :: meta_funcs(3) = (/                             &
        func_type(W2, GH_BASIS),                                       &
@@ -55,7 +55,7 @@ module weighted_div_bd_kernel_mod
   ! Constructors
   !-------------------------------------------------------------------------------
 
-  ! overload the default structure constructor for function space
+  ! Overload the default structure constructor for function space
   interface weighted_div_bd_kernel_type
     module procedure weighted_div_bd_kernel_constructor
   end interface
@@ -76,6 +76,7 @@ contains
   !! @param[in] ncell_3d ncell*ndf
   !! @param[in] div Local stencil of the div operator
   !! @param[in] theta Potential temperature
+  !! @param[in] scalar Real to scale matrix by
   !! @param[in] ndf_w2 Number of degrees of freedom per cell for w2
   !! @param[in] ndf_w3 Number of degrees of freedom per cell for w3
   !! @param[in] ndf_wtheta Number of degrees of freedom per cell for wtheta
@@ -88,9 +89,9 @@ contains
   !! @param[in] w2_basis_face Basis functions evaluated at gaussian quadrature points on horizontal faces
   !! @param[in] w3_basis_face Basis functions evaluated at gaussian quadrature points on horizontal faces
   !! @param[in] wtheta_basis_face Basis functions evaluated at gaussian quadrature points on horizontal faces
-
+  !! @param[in] adjacent_face Vector containing information on neighbouring face index for the current cell
   subroutine weighted_div_bd_code(cell, nlayers, ncell_3d,                                    &
-                                  div, theta,                                                 &
+                                  div, theta, scalar,                                         &
                                   ndf_w2, ndf_w3,                                             &
                                   ndf_wtheta, undf_wtheta,                                    &
                                   stencil_wtheta_map,                                         &
@@ -98,6 +99,7 @@ contains
                                   nqp_v, nqp_h_1d, wqp_v, w2_basis_face, w3_basis_face,       &
                                   wtheta_basis_face, adjacent_face)
 
+    implicit none
 
     ! Arguments
     integer(kind=i_def), intent(in) :: cell, nlayers, nqp_v, nqp_h_1d, ncell_3d
@@ -113,18 +115,19 @@ contains
 
     real(kind=r_def), dimension(ndf_w2,ndf_w3,ncell_3d), intent(inout) :: div
     real(kind=r_def), dimension(undf_wtheta), intent(in)    :: theta
+    real(kind=r_def),                         intent(in)    :: scalar
 
     real(kind=r_def), dimension(nqp_v), intent(in)      ::  wqp_v
 
     integer(kind=i_def), dimension(nfaces_h), intent(in) :: adjacent_face
 
-    !Internal variables
+    ! Internal variables
     integer(kind=i_def)              :: df, df2, df3, k, ik, face, face_next
     integer(kind=i_def)              :: qp1, qp2
 
     real(kind=r_def), dimension(ndf_wtheta) :: theta_e, theta_next_e
 
-    real(kind=r_def) :: v(3), integrand
+    real(kind=r_def) :: v_dot_n, integrand
     real(kind=r_def) :: theta_at_fquad, theta_next_at_fquad
     real(kind=r_def) :: this_bd_term, next_bd_term
 
@@ -149,12 +152,12 @@ contains
             end do                
             do df3 = 1, ndf_w3
               do df2 = 1, ndf_w2
-                v  = w2_basis_face(:,df2,qp1,qp2,face)
-                this_bd_term =  dot_product(v, out_face_normal(:,face))*theta_at_fquad
-                next_bd_term = -dot_product(v, out_face_normal(:,face))*theta_next_at_fquad
+                v_dot_n  = dot_product(w2_basis_face(:,df2,qp1,qp2,face),out_face_normal(:,face))
+                this_bd_term =  v_dot_n*theta_at_fquad
+                next_bd_term = -v_dot_n*theta_next_at_fquad
                 integrand = wqp_v(qp1)*wqp_v(qp2)*w3_basis_face(1,df3,qp1,qp2,face) &
                              * 0.5_r_def*(this_bd_term + next_bd_term)
-                div(df2,df3,ik) = div(df2,df3,ik) - integrand
+                div(df2,df3,ik) = div(df2,df3,ik) - scalar*integrand
               end do ! df2
             end do ! df3
           end do ! qp1

@@ -54,8 +54,8 @@
 
 \begin{document}
 
-\title{Dynamo formulation V1.0%
-\thanks{\copyright\ Crown copyright, 2014%
+\title{GungHo dynamical core implementation%
+\thanks{\copyright\ Crown copyright, 2018%
 }}
 
 
@@ -68,7 +68,7 @@ U.K.\protect \\
 $^{1}$ Met Office, Exeter, U.K.}
 \maketitle
 \begin{abstract}
-Dynamo is the prototype GungHo dynamical core being build at the Met Office. It implements a fully 3D mixed finite element method of arbritrary order on quadrilateral elements.
+This document describes the formulation of the prototype GungHo dynamical core as implemented in the LFRic infrastructure at the Met Office. It implements a fully 3D mixed finite element method of arbritrary order on quadrilateral elements.
 \end{abstract}
 \vskip\baselineskip KEYWORDS keywords here,
 
@@ -77,19 +77,16 @@ Dynamo is the prototype GungHo dynamical core being build at the Met Office. It 
 
 \section*{Changes to make:}
 
-These changes should be made once the relevant areas of the Dynamo
+These changes should be made once the relevant areas of the GungHo
 code have also been changed
 \begin{enumerate}
 \item Modify reference edge numbering so that edges are labeled with the
 vertices they connect, e.g $e_{1}\rightarrow e_{12},\, e_{10}\rightarrow e_{85}$.
-\item Add results for $p=1$ elements
-\item update density current results
 \end{enumerate}
 
 \section{\label{sec:Introduction}Introduction}
-
-This document describes the model and discretisation for the Dynamo
-prototype dynamical core produced as part of the Gung-Ho project.
+This document describes the model and discretisation for the implementation of the GungHo
+prototype dynamical core.
 
 
 \section{\label{sec:Governing-Equations}Governing Equations}
@@ -97,7 +94,7 @@ prototype dynamical core produced as part of the Gung-Ho project.
 Consider the full nonlinear 3D equations in a rotating frame
 \begin{eqnarray}
 \frac{D\mathbf{u}}{Dt}+2\bm{\Omega}\times\mathbf{u}+c_{pd}\theta\nabla\Pi+\nabla\Phi & = & 0,\label{eq:nonlinear_mom}\\
-\frac{D\rho}{Dt}+\rho\nabla.\mathbf{u} & = & 0,\label{eq:nonlinear_continuity}\\
+\frac{D\rho}{Dt}+\rho\nabla\cdot\mathbf{u} & = & 0,\label{eq:nonlinear_continuity}\\
 \frac{D\theta}{Dt} & = & 0,\label{eq:nonlinear_thermo}
 \end{eqnarray}
 along with the nonlinear equation of state
@@ -116,12 +113,12 @@ related to temperature through $T=\theta\Pi$; $\Pi=\left(p/p_{0}\right)^{\kappa_
 is the Exner pressure with $p$ pressure and $p_{0}$ a constant reference
 pressure; $R_{d}$ is the dry gas constant per unit mass, $c_{pd}$
 is the specific heat at constant pressure, and $\kappa_{d}\equiv R_{d}/c_{pd}$;
-$\Phi$ is the geopotential such that $\nabla\Phi=-\mathbf{g}\equiv\left(0,0,g\right)$
-is the gravitational term and $\bm{\Omega}$ is the rotation vector.
+$\Phi$ is the geopotential such that $\Phi \equiv g\left[sr - \left(1-s\right)a^2/r\right]$ with radius of the planet $a$ and radial distance from the planet centre $r$, $s$ is a switch for shallow- $s=1$ and deep- $s=0$ atmosphere geometries. The gravitational term is $\nabla\Phi$ which for shallow atmospheres in a Cartesian domain is $\nabla\Phi=-\mathbf{g}\equiv\left(0,0,g\right)$
+and $\bm{\Omega}$ is the rotation vector.
 Rewriting these equations in the vector invariant form yields
 \begin{eqnarray}
 \frac{\partial\mathbf{u}}{\partial t}+\frac{\bm{\xi}}{\rho}\times\mathbf{F}+2\bm{\Omega}\times\mathbf{u}+\nabla\left(K+\Phi\right)+c_{pd}\theta\nabla\Pi & = & 0,\label{eq:nonlinear_mom-1}\\
-\frac{\partial\rho}{\partial t}+\nabla.\mathbf{F} & = & 0,\label{eq:nonlinear_continuity-1}\\
+\frac{\partial\rho}{\partial t}+\nabla\cdot\mathbf{F} & = & 0,\label{eq:nonlinear_continuity-1}\\
 \frac{\partial\theta}{\partial t}+\mathbf{u}.\nabla\theta & = & 0,\label{eq:nonlinear_thermo-1}\\
 \Pi^{\left(\frac{1-\kappa_{d}}{\kappa_{d}}\right)} & = & \frac{R_{d}}{p_{0}}\rho\theta,\label{eq:nonlinear_eos-1}
 \end{eqnarray}
@@ -139,12 +136,12 @@ this method implies a set of four function spaces denoted by $\mathbb{W}_{i},\, 
 related by the DeRahm complex:
 \begin{equation}
 \begin{array}{ccccccc}
-\mathbb{W}_{0} & \overset{\nabla}{\longrightarrow} & \mathbb{W}_{1} & \overset{\nabla\times}{\longrightarrow} & \mathbb{W}_{2} & \overset{\nabla.}{\longrightarrow} & \mathbb{W}_{3}\\
- & \underset{\tilde{\nabla.}}{\dashleftarrow} &  & \underset{\tilde{\nabla}\times}{\dashleftarrow} &  & \underset{\tilde{\nabla}}{\dashleftarrow}
+\mathbb{W}_{0} & \overset{\nabla}{\longrightarrow} & \mathbb{W}_{1} & \overset{\nabla\times}{\longrightarrow} & \mathbb{W}_{2} & \overset{\nabla\cdot}{\longrightarrow} & \mathbb{W}_{3}\\
+ & \underset{\tilde{\nabla\cdot}}{\dashleftarrow} &  & \underset{\tilde{\nabla}\times}{\dashleftarrow} &  & \underset{\tilde{\nabla}}{\dashleftarrow}
 \end{array}\label{eq:derham_complex}
 \end{equation}
  where arrows pointing to the right denote strong operators and arrows
-to the left indicate weak operators. The function spaces correspond
+to the left indicate weak operators. These function spaces correspond
 to:
 \begin{lyxlist}{00.00.0000}
 \item [{$\mathbb{W}_{0},$}] The space of scalar functions built from the
@@ -159,29 +156,35 @@ with continuity in the normal direction only;
 \item [{$\mathbb{W}_{3},$}] The space of scalar functions built from the
 tensor product of $P^{k}(\chi_{1})P^{k}(\chi_{2})P^{k}(\chi_{3})$
 polynomials with no continuity.
+\end{lyxlist}
+The associated test/trial functions for each function space are $\gamma,\,\mathbf{c},\,\mathbf{v}\,,\sigma$
+respectively, see Appendix \ref{sec:Basis-Functions}.
+Additionally this DeRahm complex is complemented by the additional function spaces
+\begin{lyxlist}{00.00.0000}
 \item [{$\mathbb{W}_{\theta},$}] The space of scalar functions based on
 the vertical part of $\mathbb{W}_{2}$ to obtain the desired properties
-of a Charney-Philips grid.
+of a Charney-Phillips grid.
 \item [{$\mathbb{W}_{2V},$}] The space of vector functions based on the
 vertical part of $\mathbb{W}_{2}$ to be used as part of the multigrid
 solver.
 \item [{$\mathbb{W}_{2H},$}] The space of vector functions based on the
 horizontal part of $\mathbb{W}_{2}$ to be used in later developments.
+\item [{$\mathbb{W}_{\chi},$}] The space of scalar functions built from the
+tensor product of $P^{l}(\chi_{1})P^{l}(\chi_{2})P^{l}(\chi_{3})$
+polynomials with no continuity, where $l$ may be different from $k$.
 \end{lyxlist}
-The associated test/trial functions for each function space are $\gamma,\,\mathbf{c},\,\mathbf{v}\,,\sigma$
-respectively, see Appendix \ref{sec:Basis-Functions}. To obtain the
+To obtain the
 finite element discretisation each variable has to be placed into
 a function space from which it will inherit a polynomial expansion.
-Consistent with the physical nature of each variable these are: $\theta\in\mathbb{W}_{0}$,
+Consistent with the physical nature of each variable these are: $\Phi\in\mathbb{W}_{0}$,
 pointwise scalar functions; $\bm{\xi}\in\mathbb{W}_{1}$, vector functions
 corresponding to circulations; $\mathbf{u}\in\mathbb{W}_{2}$, vector
-functions corresponding to fluxes and $\rho\in\mathbb{W}_{3}$, scalar
-functions corresponding to volume integrals. $\Pi$ will be computed
-from \eqref{eq:nonlinear_eos} as
-a pointwise value wherever it is needed and so it is not placed in
-any function space. Additionally the form of the 
-rotation vector and geopotential is assumed to be know analytically
-and so will also be computed where needed.
+functions corresponding to fluxes and $\rho, \Pi \in\mathbb{W}_{3}$, scalar
+functions corresponding to volume integrals. Additionally the form of the 
+rotation vector is assumed to be known analytically
+and so will also be computed where needed. 
+In order to obtain good dispersion properties equivalent to the use of a Charney-Phillips grid
+$\theta \in\mathbb{W}_{\theta}$, see \cite{melvin_et_al_18} for details on this choice.
 
 The weak form of a prototypical equation, $s=0,$ for some variable
 $s$, is given by multiplying the equation by a test function $t$
@@ -205,16 +208,13 @@ the domain $\Omega\in\mathbb{R}^{3}$ gives the weak form of the nonlinear
 equations
 \begin{eqnarray}
 \left\langle \mathbf{v},\frac{\partial\mathbf{u}}{\partial t}\right\rangle  & = & -\left\langle \mathbf{v},\frac{\bm{\xi}}{\rho}\times\mathbf{F}+2\bm{\Omega}\times\mathbf{u}+\tilde{\nabla}K+\nabla\Phi+c_{pd}\theta\tilde{\nabla}\Pi\right\rangle ,\label{eq:nonlinear_mom-1-1}\\
-\left\langle \sigma,\frac{\partial\rho}{\partial t}\right\rangle  & = & -\left\langle \sigma,\nabla.\mathbf{F}\right\rangle ,\label{eq:nonlinear_continuity-1-1}\\
-\left\langle \gamma,\frac{\partial\theta}{\partial t}\right\rangle  & = & -\left\langle \gamma,\mathbf{u}.\nabla\theta\right\rangle .\label{eq:nonlinear_thermo-1-1}
+\left\langle \sigma,\frac{\partial\rho}{\partial t}\right\rangle  & = & -\left\langle \sigma,\nabla\cdot\mathbf{F}\right\rangle ,\label{eq:nonlinear_continuity-1-1}\\
+\left\langle \gamma,\frac{\partial\theta}{\partial t}\right\rangle  & = & -\left\langle \gamma,\mathbf{u}.\nabla\theta\right\rangle ,\label{eq:nonlinear_thermo-1-1}\\
+\left\langle \sigma,\Pi^{\frac{1-\kappa_d}{\kappa_d}}\right\rangle  & = & \left\langle \sigma, \frac{R_{d}}{p_{0}}\rho\theta\right\rangle.\label{eq:nonlinear_eos-1-1}
 \end{eqnarray}
-Again, replacing the weak operators in the momentum equation through
-integrating by parts yields
-\begin{eqnarray}
-\left\langle \mathbf{v},\frac{\partial\mathbf{u}}{\partial t}\right\rangle  & = & -\left\langle \mathbf{v},\frac{\bm{\xi}}{\rho}\times\mathbf{F}+\nabla\Phi\right\rangle +\left\langle \nabla.\mathbf{v},K\right\rangle +c_{pd}\left\langle \nabla.\left(\theta\mathbf{v}\right),\Pi\right\rangle -\left\langle \mathbf{v},2\bm{\Omega}\times\mathbf{u}\right\rangle ,\label{eq:nonlinear_mom-1-1-1}
-\end{eqnarray}
-where the boundary integral terms have been neglected on the assumption
-that $\theta$ is continuous. The chosen advection scheme will be
+
+\subsubsection{\label{sub:fem_advection}Advection terms}
+The chosen advection scheme will be
 needed to compute the mass flux $\mathbf{F}$ the vorticity flux term
 $\frac{\bm{\xi}}{\rho}\times\mathbf{F}$ and the potential temperature
 advection term $\mathbf{u}.\nabla\theta$. The simplest form of advection
@@ -222,9 +222,8 @@ scheme is to compute the mass flux and vorticity as projections into
 the appropriate spaces, i.e.
 \begin{eqnarray}
 \left\langle \mathbf{v},\mathbf{F}\right\rangle  & = & \left\langle \mathbf{v},\rho\mathbf{u}\right\rangle ,\label{eq:mass_flux_projection}\\
-\left\langle \mathbf{c},\mbox{\ensuremath{\bm{\xi}}}\right\rangle  & = & \left\langle \mathbf{c},\tilde{\nabla}\times\mathbf{u}\right\rangle =\left\langle \nabla\times\mathbf{c},\mathbf{u}\right\rangle ,\label{eq:voticity_projection}
+\left\langle \mathbf{c},\mbox{\ensuremath{\bm{\xi}}}\right\rangle  & = & \left\langle \mathbf{c},\tilde{\nabla}\times\mathbf{u}\right\rangle =\left\langle \nabla\times\mathbf{c},\mathbf{u}\right\rangle .\label{eq:voticity_projection}
 \end{eqnarray}
-and the potential temperature advection term is computed as in \eqref{eq:nonlinear_thermo-1-1}.
 
 Alternatively the vorticity advection term could be split onto advection
 of the horizontal and vertical parts
@@ -236,9 +235,70 @@ parts of a vector, respectively, and $\mathbf{F}_{h}^{\perp}\equiv\mathbf{k}\tim
 The last term in \eqref{eq:vorticity_split-1} is the vorticity flux
 term that appears in the shallow water equations. The mass flux term
 could be computed using any form of finite volume/discontinuous Galerkin
-method and the potential temperature equation could be computed in
+method and the potential temperature equation could be, for example, computed in
 a semi-Lagrangian manner.
 
+\subsubsection{\label{sub:theta_space}Horizontally discontinuous $\theta$}
+
+In order to obtain a grid arrangement equivalent to the Charney-Phillips staggering, the potential temperature $\theta$ has to be
+placed in the same space as the vertical component of the velocity vector. $\mathbb{W}_\theta$ is therefore the space of scalar functions built from the tensor product of one $P^{k+1}$ polynomial (in the vertical
+direction) and two $P^k_{DG}$ polynomials (in the horizontal direction) with continuity in the vertical direction only. With an abuse of notation, we still denote as $\gamma$ the test function in $\mathbb{W}_\theta$. Moreover, we denote the boundary
+integral
+\begin{equation}
+\int_{\partial\Omega}tsdS,\label{eq:face_int_def}
+\end{equation}    
+with 
+\begin{equation}
+\llangle t, s\rrangle\label{eq:dbl_ang_brack_def}.
+\end{equation}    
+Above, $\partial\Omega$ denotes the boundary of the domain $\Omega$. Next, let $\mathcal{E}$ be a tessellation of $\Omega$, restricting our attention to extruded quadrilateral
+elements for simplicity. For a scalar or vector function $\varphi$, we denote by $\varphi^-$ and $\varphi^+$ the inner
+and outer traces on the boundary $\partial\mathcal{C}$ of an element $\mathcal{C}\in\mathcal{E}$ with outward-pointing normal vector $\mathbf{n}^-$ as follows:
+\begin{equation}
+\varphi^{\pm}(\mathbf{x}, t) =\lim_{\varepsilon\rightarrow0}\varphi(\mathbf{x}\pm\varepsilon\mathbf{n}^-, t). \label{eq:outwd_traces_def}
+\end{equation}
+Let $\mathcal{C}'\in\mathcal{E}$ be an element adjacent to element $\mathcal{C}$, with outward-pointing boundary $\mathbf{n}^+$. Let
+$\mathcal{F}$ be the set of all faces of $\mathcal{E}$, so that $\int_{\mathcal{F}}=\sum_{f\in\mathcal{F}}\int_f$.
+On an interior face $\mathcal{F}\backslash\partial\Omega\ni f=\partial\mathcal{C}\cap\partial\mathcal{C}'$ we set:
+\begin{equation}
+\{\varphi\}=\frac12\left(\varphi^++\varphi^-\right),\qquad\llbracket\varphi\rrbracket = \varphi^-\mathbf{n}^-+\varphi^+\mathbf{n}^+,\label{eq:jump_at_bd_face_def}
+\end{equation}
+whilst at boundary cells $\mathcal{C}$, i.e. for faces $f\in\mathcal{F}\cap\partial\Omega$, we set: 
+\begin{equation}
+\{\varphi\}=\varphi,\qquad\llbracket\varphi\rrbracket = \varphi\mathbf{n}^-.\label{eq:jump_at_bd_domain_def}
+\end{equation}
+If $\varphi$ is a vector, then the multiplications in the definition of $\llbracket\varphi\rrbracket$ are dot products.
+Therefore, if $\varphi$ is a scalar (respectively vector) quantity, then $\{\varphi\}$ is a scalar (resp. vector), and $\llbracket\varphi\rrbracket$ is a vector (resp. scalar).
+
+With this notation, and considering $\theta\in\mathbb{W}_\theta$, the weak form \eqref{eq:nonlinear_mom-1-1-1} of the momentum equation is modified as follows:
+\begin{equation}
+\left\langle \mathbf{v},\frac{\partial\mathbf{u}}{\partial t}\right\rangle  = -\left\langle \mathbf{v},\frac{\bm{\xi}}{\rho}\times\mathbf{F}+\nabla\Phi\right\rangle +\left\langle \nabla\cdot\mathbf{v},K\right\rangle -c_{pd}\llangle\llbracket\theta\mathbf{v}, \Pi\rrbracket\rrangle +c_{pd}\left\langle \nabla_h\cdot\left(\theta\mathbf{v}\right),\Pi\right\rangle -\left\langle \mathbf{v},2\bm{\Omega}\times\mathbf{u}\right\rangle ,\label{eq:nonlinear_mom-1-1-1}
+\end{equation}
+where the boundary integral is to be taken on the internal faces $\mathcal{F}\backslash\partial\Omega$ only, and $\nabla_h\cdot(\theta\mathbf{v})$ is a function over $\Omega$
+whose restriction to the cell $\mathcal{C}$ is equal to $\nabla\cdot(\theta\mathbf{v})$. 
+As $\mathbf{v}$ has continuous normal component then for each face $f\in\mathcal{F}\backslash\partial\Omega$
+we have $\llbracket\theta\mathbf{v}\rrbracket = \theta^-\mathbf{v}^-\cdot\mathbf{n}^-+\theta^+\mathbf{v}^+\cdot\mathbf{n}^+=\mathbf{v}\cdot\mathbf{n^-}\left(\theta^--\theta^+\right)$,
+the jump of $\theta$ across the face $f$. In view of the continuity in the vertical direction for $\theta\in\mathbb{W}_\theta$,
+for each cell $\mathcal{C}$ the contribution of the boundary integral is equal to the sum of the
+integrals over the vertical faces ($f_1,f_2,f_3,f_4$) of $\partial\mathcal{C}$:
+\begin{equation}
+-c_{p}\sum_{i=1}^4\int_{f_i}\mathbf{v}\cdot\mathbf{n^{-}}\theta^{-}{\Pi}\ dA.\label{eq:face_integral_vert_faces}
+\end{equation}
+As a value for $\Pi$ on $f$, the average between the values on either side of $f$ is taken, i.e., $\Pi_{|f}=\{\Pi\}$.
+
+Since $\theta\in\mathbb{W}_\theta$ is horizontally discontinuous, the advection term in the thermodynamic equation \eqref{eq:nonlinear_thermo-1-1} has to be integrated by parts. The result is:
+\begin{equation}
+\left\langle \gamma,\frac{\partial\theta}{\partial t}\right\rangle  = -\llangle\widehat{\theta\mathbf{u}}\cdot\mathbf{n}^-, \gamma\rrangle + \left\langle\nabla_h\cdot\left(\gamma\mathbf{u}\right), \theta\right\rangle, \label{eq:nonlinear_thermo-1-1_wth}
+\end{equation}
+where the boundary integral is to be taken on the internal faces $\mathcal{F}\backslash\partial\Omega$ only, and $\nabla_h\cdot(\gamma\mathbf{u})$ is a function over $\Omega$
+whose restriction to $\mathcal{C}$ is equal to $\nabla\cdot(\gamma\mathbf{u})$. Choices for the flux term $\widehat{\theta\mathbf{u}}$ in \eqref{eq:nonlinear_thermo-1-1_wth} include the centered flux:
+\begin{equation}
+\widehat{\theta\mathbf{u}} = \{\theta\mathbf{u}\}\label{eq:centered_flux_tdeq}
+\end{equation}
+and the upwind flux:
+\begin{equation}
+\widehat{\theta\mathbf{u}} = \{\theta\mathbf{u}\}+\frac12|\mathbf{u}\cdot\mathbf{n}^-|\llbracket\theta\rrbracket.\label{eq:upwind_flux_tdeq}
+\end{equation}
 
 \subsection{\label{sec:Coordinate-Transforms}Coordinate Transforms}
 
@@ -275,7 +335,7 @@ which satisfies
 \end{equation}
 and therefore (this might be missing metric tensor terms)
 \begin{equation}
-\int_{\Omega}\mathbf{c}.\nabla\times\mathbf{c}d\chi=\int_{\hat{\Omega}}\frac{\sqrt{\det\left(\mathbf{g}^{{\rm ref}}\right)}}{\sqrt{\det\left(\mathbf{g}\right)}}\hat{\mathbf{c}}.\left(\hat{\nabla}\times\hat{\mathbf{c}}\right)d\hat{\chi},\label{eq:curl_mapping}
+\int_{\Omega}\mathbf{c}\cdot\nabla\times\mathbf{c}d\chi=\int_{\hat{\Omega}}\frac{\sqrt{\det\left(\mathbf{g}^{{\rm ref}}\right)}}{\sqrt{\det\left(\mathbf{g}\right)}}\hat{\mathbf{c}}.\left(\hat{\nabla}\times\hat{\mathbf{c}}\right)d\hat{\chi},\label{eq:curl_mapping}
 \end{equation}
 where the Jacobian $J\equiv\partial\bm{\mathbf{\phi}}\left(\hat{\bm{\chi}}\right)/\partial\hat{\bm{\mathbf{\chi}}},$
 
@@ -286,11 +346,11 @@ For vector fields in $\mathbb{W}_{2}$, which represent flux vectors
 \end{equation}
  crucially this transformation satisfies
 \begin{equation}
-\nabla.\mathbf{v}\left(\bm{\chi}\right)=\frac{1}{\det\left(J\right)}\hat{\nabla}.\left(\frac{\sqrt{\det\left(\mathbf{g}^{{\rm ref}}\right)}}{\sqrt{\det\left(\mathbf{g}\right)}}\hat{\mathbf{v}}\left(\hat{\bm{\mathbf{\chi}}}\right)\right),\label{eq:piola_div}
+\nabla\cdot\mathbf{v}\left(\bm{\chi}\right)=\frac{1}{\det\left(J\right)}\hat{\nabla}\cdot\left(\frac{\sqrt{\det\left(\mathbf{g}^{{\rm ref}}\right)}}{\sqrt{\det\left(\mathbf{g}\right)}}\hat{\mathbf{v}}\left(\hat{\bm{\mathbf{\chi}}}\right)\right),\label{eq:piola_div}
 \end{equation}
 and therefore
 \begin{equation}
-\int_{\Omega}\gamma\nabla.\mathbf{v}d\chi=\int_{\hat{\Omega}}\hat{\gamma}\hat{\nabla}.\left(\frac{\sqrt{\det\left(\mathbf{g}^{{\rm ref}}\right)}}{\sqrt{\det\left(\mathbf{g}\right)}}\hat{\mathbf{v}}\right)d\hat{\chi}.\label{eq:div_mapping}
+\int_{\Omega}\gamma\nabla\cdot\mathbf{v}d\chi=\int_{\hat{\Omega}}\hat{\gamma}\hat{\nabla}\cdot\left(\frac{\sqrt{\det\left(\mathbf{g}^{{\rm ref}}\right)}}{\sqrt{\det\left(\mathbf{g}\right)}}\hat{\mathbf{v}}\right)d\hat{\chi}.\label{eq:div_mapping}
 \end{equation}
 and for scalars in $\mathbb{W}_{3}$, which represent volume averaged
 quantities (3-forms), the transformation is
@@ -300,7 +360,7 @@ quantities (3-forms), the transformation is
 However, use of \eqref{eq:W3_scalar_transform} would result in the
 divergence mapping becoming
 \begin{equation}
-\int_{\Omega}\sigma\nabla.\mathbf{v}d\chi=\int_{\hat{\Omega}}\frac{\sqrt{\det\left(\mathbf{g}^{{\rm ref}}\right)}}{\sqrt{\det\left(\mathbf{g}\right)}}\frac{\hat{\sigma}}{\det\left(J\right)}\hat{\nabla}.\hat{\mathbf{v}}d\hat{\chi}\label{eq:divergence_problem}
+\int_{\Omega}\sigma\nabla\cdot\mathbf{v}d\chi=\int_{\hat{\Omega}}\frac{\sqrt{\det\left(\mathbf{g}^{{\rm ref}}\right)}}{\sqrt{\det\left(\mathbf{g}\right)}}\frac{\hat{\sigma}}{\det\left(J\right)}\hat{\nabla}\cdot\hat{\mathbf{v}}d\hat{\chi}\label{eq:divergence_problem}
 \end{equation}
 which for non-flat elements (such as when mapping to the sphere) cannot
 be integrated exactly as $\det\left(J\right)$ is not constant (for
@@ -311,11 +371,11 @@ so that it becomes
 \sigma\left(\bm{\chi}\right)\equiv\sigma\left(\bm{\mathbf{\phi}}\left(\hat{\bm{\mathbf{\chi}}}\right)\right)=\frac{\sqrt{\det\left(\mathbf{g}^{{\rm ref}}\right)}}{\sqrt{\det\left(\mathbf{g}\right)}}\hat{\sigma}\left(\hat{\bm{\mathbf{\chi}}}\right),\label{eq:W3_scalar_transform-new}
 \end{equation}
 which now means that the div-curl relationships are not satisfied
-any more, i.e. $\nabla.$ does not map $\mathbb{W}_{2}$ to $\mathbb{W}_{3}.$
+any more, i.e. $\nabla\cdot$ does not map $\mathbb{W}_{2}$ to $\mathbb{W}_{3}.$
 The chosen solution to this, proposed by \citet{bochev_ridzal10},
-is to replace $\nabla.$ by $\mu\nabla.$ where $\mu$ is the finite
+is to replace $\nabla\cdot$ by $\mu\nabla\cdot$ where $\mu$ is the finite
 element projection into $\mathbb{W}_{3}$ and so the correct div-curl
-relationship is regained as $\mathbb{W}_{2}\overset{\mu\nabla.}{\longrightarrow}\mathbb{W}_{3}.$
+relationship is regained as $\mathbb{W}_{2}\overset{\mu\nabla\cdot}{\longrightarrow}\mathbb{W}_{3}.$
 
 \smallskip{}
 
@@ -334,7 +394,7 @@ drop out.}%
 
 Table \ref{tab:Transformations-summary} summarises the spaces and
 transformations for functions in each space $\mathbb{W}_{0}$ to $\mathbb{W}_{3}$
-in the absence of any metric terms.
+in the absence of any metric terms. The additional function spaces follow the transforms appropriate for the geometrical scalars they contain, therefore $\mathbb{W}_\theta$ and $\mathbb{W}_\chi$ use the same transforms as $\mathbb{W}_0$ (for pointwise scalars) and $\mathbb{W}_{2V}$ and $\mathbb{W}_{2H}$  use the same transforms as $\mathbb{W}_2$ (for flux vectors)
 \begin{table}
 \begin{centering}
 \begin{tabular}{|c|c|c|}
@@ -348,7 +408,7 @@ $\mathbb{W}_{1}$ & $\mathbf{c}=J^{-T}\hat{\mathbf{c}}$ & $\nabla\gamma=J^{-T}\ha
 \hline
 $\mathbb{W}_{2}$ & $\mathbf{v}=J\hat{\mathbf{v}}/\det\left(J\right)$ & $\nabla\times\mathbf{c}=J\hat{\nabla}\times\hat{\mathbf{c}}/\det\left(J\right)$\tabularnewline
 \hline
-$\mathbb{W}_{3}$ & $\sigma=\hat{\sigma}$ & $\nabla.\mathbf{v}=\hat{\nabla}.\hat{\mathbf{v}}$\tabularnewline
+$\mathbb{W}_{3}$ & $\sigma=\hat{\sigma}$ & $\nabla\cdot\mathbf{v}=\hat{\nabla}\cdot\hat{\mathbf{v}}$\tabularnewline
 \hline
 \end{tabular}
 \par\end{centering}
@@ -377,22 +437,26 @@ Applying these coordinate transformations to the nonlinear equations
 \eqref{eq:nonlinear_mom-1-1}-\eqref{eq:voticity_projection} yields
 
 \begin{eqnarray}
-\left\langle J\hat{\mathbf{v}},\frac{J}{\det\left(J\right)}\frac{\partial\hat{\mathbf{u}}}{\partial t}\right\rangle  & = & -\left\langle J\hat{\mathbf{v}},\frac{J^{-T}\hat{\bm{\xi}}}{\hat{\rho}\det\left(J\right)}\times J\hat{\mathbf{F}}\right\rangle -\left\langle \hat{\mathbf{v}},\nabla\Phi\right\rangle +\left\langle \nabla.\hat{\mathbf{v}},\frac{1}{2}\left(\frac{J\hat{\mathbf{u}}}{\det\left(J\right)}\right).\left(\frac{J\hat{\mathbf{u}}}{\det\left(J\right)}\right)\right\rangle \label{eq:nonlinear_mom-pullback}\\
- &  & -\left\langle \frac{J\hat{\mathbf{v}}}{\det\left(J\right)},2\bm{\Omega}\times\left(J\hat{\mathbf{u}}\right)\right\rangle +c_{pd}\left\langle \hat{\theta}\nabla.\hat{\mathbf{v}}+\hat{\mathbf{v}}.\nabla\hat{\theta},\Pi\right\rangle ,\nonumber \\
-\left\langle \hat{\sigma},\frac{\partial\hat{\rho}'}{\partial t}\det\left(J\right)\right\rangle  & = & -\left\langle \hat{\sigma},\nabla.\hat{\mathbf{F}}\right\rangle ,\label{eq:nonlinear_continuity-pullback}\\
-\left\langle \hat{\gamma},\frac{\partial\hat{\theta}'}{\partial t}\det\left(J\right)\right\rangle  & = & -\left\langle \hat{\gamma},\hat{\mathbf{u}}.\nabla\hat{\theta}\right\rangle ,\label{eq:nonlinear_thermo-pullback}\\
+\left\langle J\hat{\mathbf{v}},\frac{J}{\det\left(J\right)}\frac{\partial\hat{\mathbf{u}}}{\partial t}\right\rangle & = & -\left\langle J\hat{\mathbf{v}},\frac{J^{-T}\hat{\bm{\xi}}}{\hat{\rho}\det\left(J\right)}\times J\hat{\mathbf{F}}\right\rangle -\left\langle \hat{\mathbf{v}},\nabla\Phi\right\rangle +\left\langle \nabla\cdot\hat{\mathbf{v}},\frac{1}{2}\left(\frac{J\hat{\mathbf{u}}}{\det\left(J\right)}\right).\left(\frac{J\hat{\mathbf{u}}}{\det\left(J\right)}\right)\right\rangle \label{eq:nonlinear_mom-pullback}\\
+& & -\left\langle \frac{J\hat{\mathbf{v}}}{\det\left(J\right)},2\bm{\Omega}\times\left(J\hat{\mathbf{u}}\right)\right\rangle -c_{pd}\llangle\llbracket\hat{\theta}\hat{\mathbf{v}}, \hat{\Pi}\rrbracket\rrangle +c_{pd}\left\langle \hat{\theta}\nabla\cdot\hat{\mathbf{v}}+\hat{\mathbf{v}}.\nabla\hat{\theta},\Pi\right\rangle ,\nonumber\\
+%
+\left\langle \hat{\sigma},\frac{\partial\hat{\rho}}{\partial t}\det\left(J\right)\right\rangle  & = & -\left\langle \hat{\sigma},\nabla\cdot\hat{\mathbf{F}}\right\rangle ,\label{eq:nonlinear_continuity-pullback}\\
+%
+\left\langle \hat{\gamma},\frac{\partial\hat{\theta}'}{\partial t}\det\left(J\right)\right\rangle & = &-\llangle\widehat{\hat{\theta}\hat{\mathbf{u}}}\cdot\mathbf{n}^-, \gamma\rrangle + \left\langle\nabla_h\cdot\left(\hat{\gamma}\hat{\mathbf{u}}\right), \hat{\theta}\right\rangle,\label{eq:nonlinear_thermo-pullback}\\
+%
+\left\langle \hat{\sigma},\hat{\Pi}^{\frac{1-\kappa_d}{\kappa_d}}\det\left(J\right)\right\rangle  & = & \left\langle \hat{\sigma},\frac{P_0}{R_d}\hat{\rho}\hat{\theta}\det\left(J\right)\right\rangle,\label{eq:nonlinear_eos-pullback}\\
+%
 \left\langle J\hat{\mathbf{v}},\frac{J\hat{\mathbf{F}}}{\det\left(J\right)}\right\rangle  & = & \left\langle J\hat{\mathbf{v}},\hat{\rho}\frac{J\hat{\mathbf{u}}}{\det\left(J\right)}\right\rangle ,\label{eq:mass_flux_pullback}\\
+%
 \left\langle J^{-T}\hat{\mathbf{c}},J^{-T}\hat{\mbox{\ensuremath{\bm{\xi}}}}\det\left(J\right)\right\rangle  & = & \left\langle J\nabla\times\hat{\mathbf{c}},\frac{J\hat{\mathbf{u}}}{\det\left(J\right)}\right\rangle .\label{eq:vorticity_pullback}
 \end{eqnarray}
-
-
 
 \subsection{Computation of the Jacobian}
 
 For various computations the Jacobian of the coordinate transformation
 from the reference space to the physical space, along with its determinant
 is required. By setting $\bm{\phi}\left(\hat{\bm{\chi}}\right)=\left(\phi_{1}\left(\hat{\bm{\chi}}\right),\phi_{2}\left(\hat{\bm{\chi}}\right),\phi_{3}\left(\hat{\bm{\chi}}\right)\right)$
-and requiring that $\phi_{i}\in\mathbb{W}_{0}$ for $i=1,2,3$ then
+and requiring that $\phi_{i}\in\mathbb{W}_{\chi}$ for $i=1,2,3$ then
 the Jacobian can be calculated. In practice this means that each element
 is parameterised by a polynomial function and therefore in general
 $\det\left(J\right)$ will be a polynomial and so terms with factors
@@ -456,7 +520,7 @@ M_{3}\frac{d\tilde{\rho}}{dt}=R_{\rho},\label{eq:P_RK}
 
 
 \begin{equation}
-M_{0}\frac{d\tilde{\theta}}{dt}=R_{\theta},\label{eq:theta_RK}
+M_{\theta}\frac{d\tilde{\theta}}{dt}=R_{\theta},\label{eq:theta_RK}
 \end{equation}
 where now the unknowns $\tilde{u},\,\tilde{\rho},\,\tilde{\theta}$
 correspond to vectors of degrees of freedom (dofs), that is the temporally
@@ -464,7 +528,7 @@ varying expansion coefficients of the finite element expansion, and
 $M_{i}$ is the mass matrix for function space $\mathbb{W}_{i}$ given
 by
 \begin{equation}
-M_{0}=\left\langle \hat{\gamma},\hat{\gamma}\det\left(J\right)\right\rangle ,\label{eq:M0_mass_matrix}
+M_{\theta}=\left\langle \hat{\gamma},\hat{\gamma}\det\left(J\right)\right\rangle ,\label{eq:M0_mass_matrix}
 \end{equation}
 \begin{equation}
 M_{1}=\left\langle J^{-T}\hat{\mathbf{c}},J^{-T}\hat{\mathbf{c}}\det\left(J\right)\right\rangle ,\label{eq:M1_mass_matrix}
@@ -484,14 +548,14 @@ The governing equations can be compactly written as
 \begin{equation}
 \mathbf{R}\left(\mathbf{x}\right)=0,\label{eq:residual}
 \end{equation}
-with state vector $\mathbf{x}\equiv\left[\mathbf{u},\:\theta,\,\rho\right]^{T}$
-and the residual term $\mathbf{R}\equiv\left[R_{\mathbf{u}},\,R_{\theta},\,R_{\rho}\right]^{T}$.
+with state vector $\mathbf{x}\equiv\left[\mathbf{u},\:\theta,\,\rho,\,\Pi\right]^{T}$
+and the residual term $\mathbf{R}\equiv\left[R_{\mathbf{u}},\,R_{\theta},\,R_{\rho},\,R_{\Pi}\right]^{T}$.
 Each component is given by the combination of a time-level $n$ term,
 $R^{n}$, an advective term, $R^{adv}$, and the time-level $n+1$
 term $R^{n+1}$, where the temporal averaging between $n+1$ and $n$
 time-levels is possibly offcentred, using the parameter $\alpha$.
 For $\alpha=1/2$ this corresponds to a Crank-Nicolson method. The
-advection terms use some (as yet unspecified) form of temporal integeration
+advection terms use some (as yet unspecified) form of temporal integration
 (possibly offcentred in the same manner as the other terms) and are
 denoted by fields with a $\widetilde{}$. For each individual component
 of the spatially continuous state the residual components are given
@@ -509,27 +573,46 @@ R_{\theta}^{adv} & = & \Delta t\frac{\widetilde{\mathbf{F}}}{\rho}.\nabla\theta^
 \begin{eqnarray}
 R_{\rho}^{n+1} & = & \rho^{n+1}\label{eq:Rrho_np1_continuous}\\
 R_{\rho}^{n} & = & -\rho^{n}\label{eq:Rrho_n_continous}\\
-R_{\rho}^{adv} & = & \Delta t\nabla.\widetilde{\mathbf{F}}\label{eq:Rrho_advective}
+R_{\rho}^{adv} & = & \Delta t\nabla\cdot\widetilde{\mathbf{F}}\label{eq:Rrho_advective}
+\end{eqnarray}
+\begin{eqnarray}
+R_{\Pi}^{n+1} & = & 1-\frac{P_0}{R_d}\frac{\left(\Pi^{n+1}\right)^{\frac{1-\kappa_d}{\kappa_d}}}{\rho^{n+1}\theta^{n+1}}\label{eq:Rpi_np1_continuous}\\
+R_{\Pi}^{n} & = & 0\label{eq:Rpi_n_continous}\\
+R_{\Pi}^{adv} & = & 0\label{eq:Rpi_advective}
 \end{eqnarray}
 and applying the FEM spatial discretisation, yields 
 \begin{eqnarray}
-R_{\mathbf{u}}^{n+1} & = & \left\langle \mathbf{v},\mathbf{u}^{n+1}\right\rangle -\alpha\Delta t\left[-\left\langle \mathbf{v},\nabla\Phi\right\rangle +\left\langle \nabla.\mathbf{v},K^{n+1}\right\rangle +c_{pd}\left\langle \nabla.\left(\theta^{n+1}\mathbf{v}\right),\Pi^{n+1}\right\rangle -\left\langle \mathbf{v},2\bm{\Omega}\times\mathbf{u}^{n+1}\right\rangle \right],\label{eq:si_ru_np1}\\
-R_{\mathbf{u}}^{n} & = & -\left\langle \mathbf{v},\mathbf{u}^{n}\right\rangle -\left(1-\alpha\right)\Delta t\left[-\left\langle \mathbf{v},\nabla\Phi\right\rangle +\left\langle \nabla.\mathbf{v},K^{n}\right\rangle +c_{pd}\left\langle \nabla.\left(\theta^{n}\mathbf{v}\right),\Pi^{n}\right\rangle -\left\langle \mathbf{v},2\mathbf{\Omega}\times\mathbf{u}^{n}\right\rangle \right],\label{eq:si_ru_n}\\
+R_{\mathbf{u}}^{n+1} & = & \left\langle \mathbf{v},\mathbf{u}^{n+1}\right\rangle -\tau_u\Delta t\left[-\left\langle \mathbf{v},\nabla\Phi\right\rangle +\left\langle \nabla\cdot\mathbf{v},K^{n+1}\right\rangle -c_{pd}\llangle\llbracket\theta^{n+1}\mathbf{v}, \Pi^{n+1}\rrbracket\rrangle\right. \label{eq:si_ru_np1}\\
+                     &   & \left.+c_{pd}\left\langle \nabla\cdot\left(\theta^{n+1}\mathbf{v}\right),\Pi^{n+1}\right\rangle -\left\langle \mathbf{v},2\bm{\Omega}\times\mathbf{u}^{n+1}\right\rangle \right],\nonumber\\
+%
+R_{\mathbf{u}}^{n} & = & -\left\langle \mathbf{v},\mathbf{u}^{n}\right\rangle -\left(1-\tau_u\right)\Delta t\left[-\left\langle \mathbf{v},\nabla\Phi\right\rangle +\left\langle \nabla\cdot\mathbf{v},K^{n}\right\rangle -c_{pd}\llangle\llbracket\theta^n\mathbf{v}, \Pi^n\rrbracket\rrangle\right. \label{eq:si_ru_n}\\
+%
 R_{\mathbf{u}}^{adv} & = & \Delta t\left\langle \mathbf{v},\left(\frac{\bm{\xi}}{\rho}\right)^{n}\times\widetilde{\mathbf{F}}\right\rangle ,\label{eq:si_ru_adv}\\
-R_{\rho}^{n+1} & = & \left\langle \sigma,\rho^{n+1}\right\rangle ,\label{eq:si_rrho_np1}\\
-R_{\rho}^{n} & = & -\left\langle \sigma,\rho^{n}\right\rangle ,\label{eq:si_rrho_n}\\
-R_{\rho}^{adv} & = & \Delta t\left\langle \sigma,\nabla.\widetilde{\mathbf{F}}\right\rangle ,\label{eq:si_rrho_adv}\\
+%
 R_{\theta}^{n+1} & = & \left\langle \gamma,\theta^{n+1}\right\rangle ,\label{eq:si_rtheta_np1}\\
+%
 R_{\theta}^{n} & = & -\left\langle \gamma,\theta^{n}\right\rangle ,\label{eq:si_rtheta_n}\\
-R_{\theta}^{adv} & = & \Delta t\left\langle \gamma,\frac{\widetilde{\mathbf{F}}}{\widetilde{\rho}}.\nabla\theta^{n}\right\rangle .\label{eq:si_rtheta_adv}
+%
+R_{\theta}^{adv} & = & -\Delta t\left[\llangle\widehat{\theta^n\frac{\widetilde{\mathbf{F}}}{\widetilde{\rho}}}\cdot\mathbf{n}^-, \gamma\rrangle + \left\langle\nabla_h\cdot\left(\gamma\frac{\widetilde{\mathbf{F}}}{\widetilde{\rho}}\right), \theta^n\right\rangle\right],\label{eq:si_rtheta_adv}\\
+%
+R_{\rho}^{n+1} & = & \left\langle \sigma,\rho^{n+1}\right\rangle ,\label{eq:si_rrho_np1}\\
+%
+R_{\rho}^{n} & = & -\left\langle \sigma,\rho^{n}\right\rangle ,\label{eq:si_rrho_n}\\
+%
+R_{\rho}^{adv} & = & \Delta t\left\langle \sigma,\nabla\cdot\widetilde{\mathbf{F}}\right\rangle ,\label{eq:si_rrho_adv}\\
+%
+R_{\Pi}^{n+1} & = & \left\langle \sigma,1-\frac{P_0}{R_d}\frac{\left(\Pi^{n+1}\right)^{\frac{1-\kappa_d}{\kappa_d}}}{\rho^{n+1}\theta^{n+1}}\right\rangle ,\label{eq:si_rpi_np1}\\
+%
+R_{\rho}^{n} & = & R_{\rho}^{adv} \equiv 0 ,\label{eq:si_rpi_n}
 \end{eqnarray}
 Combining these together, we have 
 \begin{eqnarray}
 R_{\mathbf{u}}^{n+1}+R_{\mathbf{u}}^{n}+R_{\mathbf{u}}^{adv} & = & 0,\label{eq:Ru_combined}\\
 R_{\theta}^{n+1}+R_{\theta}^{n}+R_{\theta}^{adv} & = & 0,\label{eq:Rtheta_combined}\\
-R_{\rho}^{n+1}+R_{\rho}^{n}+R_{\rho}^{adv} & = & 0,\label{eq:Rrho_combined}
+R_{\rho}^{n+1}+R_{\rho}^{n}+R_{\rho}^{adv} & = & 0,\label{eq:Rrho_combined}\\
+R_{\Pi}^{n+1}+R_{\Pi}^{n}+R_{\Pi}^{adv} & = & 0,\label{eq:Rpi_combined}\\
 \end{eqnarray}
-which is a nonlinear set of equations for the unknowns $\mathbf{x}^{n+1}=\left[\mathbf{u}^{n+1},\,\theta^{n+1},\,\rho^{n+1}\right]^{T}$. 
+which is a nonlinear set of equations for the unknowns $\mathbf{x}^{n+1}=\left[\mathbf{u}^{n+1},\,\theta^{n+1},\,\rho^{n+1},\,\Pi^{n+1}\right]^{T}$. 
 
 To solve \eqref{eq:Ru_combined}-\eqref{eq:Rrho_combined} a Newton
 method is used to obtain subsequent estimates $\mathbf{x}^{\left(k\right)}$
@@ -554,29 +637,18 @@ This method approximates the Jacobian $J$ by a linear system
 J\mathbf{x'}\approx L\mathbf{x'},\label{eq:physics_based_jfnk}
 \end{equation}
 The system $L$ is obtained by linearising $\mathbf{R}$ about some
-reference state $\mathbf{x}^{*}$ to obtain $L\left(\mathbf{x}^{*}\right)=\left[L_{\mathbf{u}},\,L_{\theta},\,L_{\rho}\right]^{T}$
+reference state $\mathbf{x}^{*}$ to obtain $L\left(\mathbf{x}^{*}\right)=\left[L_{\mathbf{u}},\,L_{\theta},\,L_{\rho},\,L_{\Pi}\right]^{T}$
 and then solving $L\mathbf{x}'=-\mathbf{R}\left(\mathbf{x}^{(k)}\right).$
-The form of $L$ implemented in dynamo is 
+The form of $L$ implemented is 
 \begin{equation}
 L\mathbf{x}'=\begin{cases}
 \mathbf{u}'+\tau_u\Delta tc_{pd}\left(\theta^{*}\nabla\Pi'+\theta'\nabla\Pi^{*}\right),\\
 \theta'+\tau_\theta\Delta t\mathbf{u}'.\nabla\theta^{*},\\
-\rho'+\tau_\rho\Delta t\nabla.\left(\rho^{*}\mathbf{u}'\right),
+\rho'+\tau_\rho\Delta t\nabla\cdot\left(\rho^{*}\mathbf{u}'\right),\\
+\frac{1-\kappa_d}{\kappa_d}\frac{\Pi'}{\Pi^*} -\frac{\rho'}{\rho^*} - \frac{\theta'}{\theta^*},\\
 \end{cases}\label{eq:L}
 \end{equation}
-where $\tau_{u,\theta,\rho}$ are relaxation parameters. The reference pressure $\Pi^{*}$
-is computed from $\rho^{*}$ and $\theta^{*}$ using the equation
-of state and $\Pi'=\frac{\kappa}{1-\kappa}\Pi^{*}\left(\frac{\theta'}{\theta^{*}}+\frac{\rho'}{\rho^{*}}\right)$
-is a pressure increment.
-
-Optionally \eqref{eq:L} can be augmented by including a prognostic equation for the 
-pressure increment $\Pi'\in\mathbb{W}_{3}$, the equation of state is added as an extra
-equation to the system \eqref{eq:L} as 
-\begin{equation}
-\frac{1-\kappa}{\kappa}\frac{\Pi'}{\Pi^{*}} - \frac{\rho'}{\rho^{*}} - \frac{\theta}{\theta^{*}} = 0,\label{eq:si_eos}
-\end{equation}
-Where needed $\Pi$ and $\Pi^{*}$ are evaluated from the nonlinear equation of state and so the equation of state
-is always exactly satisfied everywhere and the right-hand-side of \eqref{eq:si_eos} is identically zero.
+where $\tau_{u,\theta,\rho}$ are relaxation parameters. 
 
 Due to the expected high relative cost of computing the advective
 terms these are computed outside of the Newton loop and are therefore
@@ -616,39 +688,41 @@ The method used to solve \eqref{eq:Newton} uses a number of different solvers an
 \item Inner (Helmholtz) solve for the pressure system formed from the Schur complement, which is itself preconditioned by the vertical solver
 \item Vertical solve for the vertical component of the pressure system
 \end{enumerate}
-There are a number of options for types of solvers  to used in each of stages 1-3. Dynamo currently uses flexible GMRES for 1, BiCGstab for 2 and Gaussian elimination for 3. It is also possible to turn off any of the three components of the solve that will help reduce the complexity of the solver but at the cost of possibly slower convergence.
+There are a number of options for types of solvers  to used in each of stages 1-3. GungHo currently uses GCR for 1, BiCGstab for 2 and Gaussian elimination for 3. It is also possible to turn off any of the three components of the solve that will help reduce the complexity of the solver but at the cost of possibly slower convergence.
 
-\subsubsection{Outer Solve\label{sub:OuterSolve}}
+\subsubsection{Outer (Mixed) Solve\label{sub:OuterSolve}}
 The continuous in space equations that we wish to solve (motivated by the form used in the ENDGame incremental formulation) are
 \begin{eqnarray}
 \mathbf{u}' + \tau_{u}\Delta t c_{pd} \left(\theta'\nabla\Pi^{*} + \theta^{*}\nabla\Pi'\right) & = & R_{\mathbf{u}},\label{eq:si_u_continuous}\\
 \theta' + \tau_{\theta}\Delta t\mathbf{u}'.\nabla\theta^{*} & = & R_{\theta},\label{eq:si_theta_continuous}\\
-\rho' + \tau_{\rho}\Delta t\nabla.\left(\rho^{*}\mathbf{u}'\right) & = & R_{\rho},\label{eq:si_rho_continuous}\\
+\rho' + \tau_{\rho}\Delta t\nabla\cdot\left(\rho^{*}\mathbf{u}'\right) & = & R_{\rho},\label{eq:si_rho_continuous}\\
 \frac{1-\kappa}{\kappa}\frac{\Pi'}{\Pi^{*}} - \frac{\rho'}{\rho^{*}} - \frac{\theta'}{\theta^{*}} & = & R_{\Pi}.\label{eq:si_exner_continuous}
 \end{eqnarray}
-Optionally the diagnostic equation for the pressure increment $\Pi'$ \eqref{eq:si_exner_continuous} can be dropped and the pressure increment computed pointwise from the lhs of \eqref{eq:si_exner_continuous} where ever it is needed. The finite element discretisation is applied to  \eqref{eq:si_u_continuous}-\eqref{eq:si_exner_continuous} and they are rewritten in operator format
+The finite element discretisation is applied to  \eqref{eq:si_u_continuous}-\eqref{eq:si_exner_continuous} and they are rewritten in operator format
 \begin{eqnarray}
-M_{2}u' - \tau_{u}\Delta t c_{pd} \left[P_{2\theta}^{\Pi^{*}}\theta' + \left(D^{\theta^{*}}\right)^{T}\Pi'\right] & = & R_{\mathbf{u}},\label{eq:si_u_discrete}\\
-M_{\theta}\theta' + \tau_{\theta}\Delta tP_{\theta2}^{\theta^{*}}u' & = & R_{\theta},\label{eq:si_theta_discrete}\\
-M_{3}\rho' + \tau_{\rho}\Delta tD\left(\rho^{*}u'\right) & = & R_{\rho},\label{eq:si_rho_discrete}\\
-M_{3}^{\Pi^{*}}\Pi' - M_{3}^{\rho^{*}}\rho' - P_{3\theta}^{*}\theta' & = & R_{\Pi}.\label{eq:si_exner_discrete}
+N_u\left\{M_{2}u' - \left[P_{2\theta}^{\Pi^{*}}\theta' + \left(D^{\theta^{*}}\right)^{T}\Pi'\right]\right\} & = & N_u R_{\mathbf{u}},\label{eq:si_u_discrete}\\
+N_\theta\left(M_{\theta}\theta' + P_{\theta2}^{\theta^{*}}u'\right) & = & N_\theta R_{\theta},\label{eq:si_theta_discrete}\\
+N_\rho \left[M_{3}\rho' + \tau_{\rho}\Delta tD\left(\rho^{*}u'\right)\right] & = & N_\rho R_{\rho},\label{eq:si_rho_discrete}\\
+N_\Pi \left(M_{3}^{\Pi^{*}}\Pi' - M_{3}^{\rho^{*}}\rho' - P_{3\theta}^{*}\theta'\right) & = & N_\Pi R_{\Pi},\label{eq:si_exner_discrete}
 \end{eqnarray}
-where now the primed variables correspond to the degree of freedom vectors and the right hand side arrays are the integrated residual terms  \eqref{eq:Ru_combined}-\eqref{eq:Rrho_combined} with 
-\begin{equation}
-R_{\Pi} = 1 - \frac{p_{0}\left(\Pi^{\left(k\right)}\right)^{\frac{1-\kappa}{\kappa}}}{R_{d}\rho^{\left(k\right)}\theta^{\left(k\right)}},\label{eq:r_exner}
-\end{equation} 
-since $\Pi^{\left(k\right)}$ is obtained diagnostically from the equation of state using $\rho^{\left(k\right)}$ and $\theta^{\left(k\right)}$ then $R_{\Pi} \equiv 0$.
-The mass matrices are given by \eqref{eq:M0_mass_matrix} - \eqref{eq:M3_mass_matrix} with $M_{\theta}$ being the mass matrix for whichever space $\theta$ is in (currently $M_{\theta}\equiv M_{0}$). The other operators are
+where now the primed variables correspond to the degree of freedom vectors and the right hand side arrays are the integrated residual terms  \eqref{eq:Ru_combined}-\eqref{eq:Rpi_combined}. The mass matrices are given by \eqref{eq:M0_mass_matrix} - \eqref{eq:M3_mass_matrix}. The other operators are
 \begin{eqnarray}
-D & = & \left<\sigma,\nabla.\mathbf{v}\right>,\label{eq:divergence_operator}\\
-D^{\theta^{*}} & = & \left<\sigma,\nabla.\left(\theta^{*}\mathbf{v}\right)\right> \equiv \left<\sigma,\theta^{*}\nabla.\mathbf{v} + \nabla\theta^{*}.\mathbf{v} \right>,\label{eq:div_theta_star_operator}\\
-P_{2\theta}^{\Pi^{*}} & = & \left<\Pi^{*},\nabla.\left(\gamma\mathbf{v}\right)\right> \equiv \left<\nabla.\mathbf{v},\Pi^{*}\gamma\right> + \left<\mathbf{v},\Pi^{*}\nabla\gamma \right>,\label{eq:Ptheta2_star_operator}\\
+D & = & \left<\sigma,\nabla\cdot\mathbf{v}\right>,\label{eq:divergence_operator}\\
+D^{\theta^{*}} & = & \tau_u \Delta t c_{pd}\left[\left<\sigma,\theta^{*}\nabla\cdot\mathbf{v} + \nabla\theta^{*}.\mathbf{v} \right> - \llangle \{\sigma\}, \theta^{*}\mathbf{v}.\mathbf{n}\rrangle\right],\label{eq:div_theta_star_operatort}\\
+P_{2\theta}^{\Pi^{*}} & = & \tau_u \Delta t c_{pd} \left[\left<\nabla\cdot\mathbf{v},\Pi^{*}\gamma\right> + \left<\mathbf{v},\Pi^{*}\nabla\gamma \right> - \llangle \mathbf{v}.\mathbf{n},\{\Pi^{*}\}\gamma\rrangle\right],\label{eq:Ptheta2_star_operator}\\
 M_{3}^{\rho^{*}} & = & \left<\sigma,\frac{\sigma}{\rho^{*}}\det\left(J\right)\right>,\label{eq:M3_rho_star_operator}\\
 M_{3}^{\Pi^{*}} & = & \frac{1-\kappa}{\kappa}\left<\sigma,\frac{\sigma}{\Pi^{*}}\det\left(J\right)\right>,\label{eq:M3_p_star_operator}\\
-P_{\theta2}^{\theta^{*}} & = & \left<\gamma,\left(\nabla\theta^{*}\right)\cdot\mathbf{v} \right>,\label{eq:P2theta_operator}\\
+P_{\theta2}^{\theta^{*}} & = & \tau_{\theta} \Delta t \left[\llangle\gamma,\widehat{\theta^{*}\mathbf{v}}\cdot\mathbf{n}^-\rrangle - \left\langle\nabla_h\cdot\left(\gamma\mathbf{v}\right), \theta^{*}\right\rangle\right],\label{eq:P2theta_operator}\\
 P_{3\theta}^{*} & = & \left<\sigma,\frac{\gamma}{\theta^{*}}\det\left(J\right)\right>,\label{eq:Ptheta3_operator}
 \end{eqnarray}
-and all integrals and functions are evaluated in the computational domain. Where subscripted an operator $P_{ij}$ maps from $\mathbb{W}_j$ to $\mathbb{W}_i$ and a single subscript denotes a mass matrix $M_{i}$ that maps from $\mathbb{W}_{i}$ to itself, finally the $D$ operators are divergence mappings that map from $\mathbb{W}_{2}$ to $\mathbb{W}_{3}$. Whenever it is needed $\Pi^{*}$ is computed from the equation of state using $\rho^{*}$ and $\theta^{*}$.
+and all integrals and functions are evaluated in the computational domain. Where subscripted an operator $P_{ij}$ maps from $\mathbb{W}_j$ to $\mathbb{W}_i$ and a single subscript denotes a mass matrix $M_{i}$ that maps from $\mathbb{W}_{i}$ to itself, the $D$ operators are divergence mappings that map from $\mathbb{W}_{2}$ to $\mathbb{W}_{3}$. Finally the $N$ terms are normalisation operators that are applied to remove metric scalings from the weak form of equations \eqref{eq:si_u_discrete}-\eqref{eq:si_exner_discrete} and take the form:
+\begin{eqnarray}
+N_u & \equiv & \widehat{M}_2,\\
+N_\theta & \equiv & \left(M^*_\theta\right)^{-1},\\
+N_\rho & \equiv & M_3^{-1},\\
+N_\Pi & \equiv & M_3^{-1},
+\end{eqnarray}
+where $\widehat{M}_2 \equiv \sqrt{\left(J^TJ\mathbf{v}\right).\mathbf{v}}$ and is evaluated at the nodal points of the $\mathbb{W}_2$ function space and $M^*_\theta$ is the lumped mass matrix for $\mathbb{W}_\theta$.
 \smallskip{}
 
 \fbox{\begin{minipage}[t]{1\columnwidth}%
@@ -656,7 +730,7 @@ and all integrals and functions are evaluated in the computational domain. Where
 \begin{equation}
 \frac{1-\kappa}{\kappa}\frac{\Pi'_{i}}{\Pi^{*}_{i}} - \frac{\rho'_{i}}{\rho^{*}_{i}} - E_{i}\frac{\theta'}{\theta^{*}} = \left(R_{\Pi}\right)_{i},\label{eq:si_eos_discrete_pointwise}
 \end{equation}
-where $i$ is the index of the degree of freedom and $E_i$ is some averaging operator that takes degrees of freedom in the $\theta$ space ($\mathbb{W}_0$ or $\mathbb{W}_{\theta}$) to the nodal points of $\mathbb{W}_3$, for example a linear interpolation. The advantage of this approach is that there are less operators to compute: $E_i$ instead of $M_{3}^{\Pi^{*}}$,  $M_{3}^{\rho^{*}}$ and $P_{3\theta}^{*}$
+where $i$ is the index of the degree of freedom and $E_i$ is some averaging operator that takes degrees of freedom in the $\mathbb{W}_{\theta}$ space to the nodal points of $\mathbb{W}_3$, for example a linear interpolation. The advantage of this approach is that there are less operators to compute: $E_i$ instead of $M_{3}^{\Pi^{*}}$,  $M_{3}^{\rho^{*}}$ and $P_{3\theta}^{*}$
 }%
 \end{minipage}}
 
@@ -665,57 +739,66 @@ Equations \eqref{eq:si_u_continuous}-\eqref{eq:si_exner_continuous} are solved u
 
 
 \subsubsection{Inner (Pressure) Solve\label{sub:Helmholtz}}
-To precondition the outer solve, an inner system is formed for the pressure increment, this is equivalent to the Helmholtz equation used in ENDGame, however, since it is only used as a preconditioner, where an inverse operator is required only their lumped form, which is trivial to invert, is used. The elimination procedure is as follows: first eliminate $\theta'$ from \eqref{eq:si_u_discrete} using \eqref{eq:si_theta_discrete}
+To precondition the outer solve, an inner system is formed for the pressure increment, this is equivalent to the Helmholtz equation used in ENDGame, however, since it is only used as a preconditioner, a simpler form of the system \eqref{eq:si_u_discrete}-\eqref{eq:si_exner_discrete} is solved, namely 
+\begin{eqnarray}
+N_u\left\{M^*_{2}u' - \left[P_{2\theta}^{\Pi^{*}}\theta' + \left(D^{\theta^{*}}\right)^{T}\Pi'\right]\right\} & = & N_u R_{\mathbf{u}},\label{eq:si_u_discrete_helm}\\
+\theta' + N_\theta P_{\theta2V}^{\theta^{*}}u' & = & N_\theta R_{\theta},\label{eq:si_theta_discrete_helm}\\
+\rho' + \tau_{\rho}\Delta t N_\rho D\left(\rho^{*}u'\right) & = & N_\rho R_{\rho},\label{eq:si_rho_discrete_helm}\\
+N_\Pi \left\{M_{3}^{\Pi^{*}}\Pi' - M_{3}^{\rho^{*}}\rho' - P_{3\theta}^{*}\theta'\right\} & = & N_\Pi R_{\Pi},\label{eq:si_exner_discrete_helm}
+\end{eqnarray}
+where $M^*_{2}$ is the lumped form of the $\mathbb{W}_2$ mass matrix and $P_{\theta2V}^{\theta^{*}}$ is the restriction of $P_{\theta2}^{\theta^{*}}$ to the vertical components (essentially $\left(0,0,\partial\theta^*/\partial\chi_3\right).\mathbf{v}$).
+
+The elimination procedure is as follows: first eliminate $\theta'$ from \eqref{eq:si_u_discrete_helm} using \eqref{eq:si_theta_discrete_helm}
 \begin{equation}
-H_{B}u' - \tau_{u}\Delta tc_{pd}\left(D^{\theta{*}}\right)^T\Pi' = \mathfrak{R}_u \equiv R_u + \tau_{u}\Delta tc_{pd}P_{2\theta}^{\Pi^*}M_{\theta}^{-1}R_{\theta},\label{eq:si_u_discrete_theta_elim}
+H_{B}u' - N_u\left(D^{\theta{*}}\right)^T\Pi' = \mathfrak{R}_{\mathbf{u}} \equiv N_u\left\{ R_{\mathbf{u}} + P_{2\theta}^{\Pi^*}N_\theta R_{\theta}\right\},\label{eq:si_u_discrete_theta_elim}
 \end{equation}
-and define
+and define $H_B$ to be the the lumped (diagonal) of the operator
 \begin{equation}
-H_{B} \equiv M_{2} + \tau_{u}\tau_{\theta}\Delta t^{2}c_{pd}P_{2\theta}^{\Pi^{*}}M_{\theta}^{-1}P_{\theta2}^{\Pi^{*}}.\label{eq:H_B}
+H_{B} \equiv \left[N_u \left\{M^*_{2} + P_{2\theta}^{\Pi^{*}}N_{\theta}P_{\theta2V}^{\theta^{*}}\right\}\right]_{\rm{lumped}}.\label{eq:H_B}
 \end{equation}
-Now eliminate $\theta'$ from \eqref{eq:si_exner_discrete} using \eqref{eq:si_theta_discrete}
+Now eliminate $\theta'$ from \eqref{eq:si_exner_discrete_helm} using \eqref{eq:si_theta_discrete_helm}
 \begin{equation}
-\frac{1-\kappa}{\kappa}M_{3}^{\Pi^{*}}\Pi' - M_{3}^{\rho^{*}}\rho' + \tau_{\theta}\Delta tP_{3\theta}^{*}M_{\theta}^{-1}P_{\theta2}^{\theta^{*}}u' = R_{\Pi} + P_{3\theta}^{*}M_{\theta}^{-1}R_{\theta},\label{eq:si_exner_theta_elim}
+N_\Pi\left\{ M_{3}^{\Pi^{*}}\Pi' - M_{3}^{\rho^{*}}\rho' + P_{3\theta}^{*}N_{\theta}P_{\theta2V}^{\theta^{*}}u'\right\} = N_\Pi \left\{R_{\Pi} + P_{3\theta}^{*}N_{\theta}R_{\theta}\right\},\label{eq:si_exner_theta_elim}
 \end{equation}
-and eliminate $\rho'$ from \eqref{eq:si_exner_theta_elim} using \eqref{eq:si_rho_discrete}
+and eliminate $\rho'$ from \eqref{eq:si_exner_theta_elim} using \eqref{eq:si_rho_discrete_helm}
 \begin{equation}
-\frac{1-\kappa}{\kappa}M_{3}^{\Pi^{*}}\Pi' + \tau_{\rho}\Delta t M_{3}^{\rho^{*}}M_{3}^{-1}D\left(\rho^{*}u'\right) + \tau_{\theta}\Delta tP_{3\theta}^{*}M_{\theta}^{-1}P_{\theta2}^{\theta^{*}}u' = \mathfrak{R}_{\Pi} \equiv R_{\Pi} + P_{3\theta}^{*}M_{\theta}^{-1}R_{\theta} + M_{3}^{\rho^{*}}M_{3}^{-1}R_{\rho},\label{eq:si_exner_theta_rho_elim}
+N_\Pi\left\{M_{3}^{\Pi^{*}}\Pi' + \tau_{\rho}\Delta t M_{3}^{\rho^{*}}N_{\rho}D\left(\rho^{*}u'\right) + P_{3\theta}^{*}N_{\theta}P_{\theta2V}^{\theta^{*}}u'\right\} = \mathfrak{R}_{\Pi} \equiv N_\Pi\left\{R_{\Pi} + P_{3\theta}^{*}N_{\theta}R_{\theta} + M_{3}^{\rho^{*}}N_{\rho}R_{\rho}\right\},\label{eq:si_exner_theta_rho_elim}
 \end{equation}
 finally, eliminate $u'$ from \eqref{eq:si_exner_theta_rho_elim} using \eqref{eq:si_u_discrete_theta_elim} to obtain an equation for the pressure increment
 \begin{equation}
-\frac{1-\kappa}{\kappa}M_{3}^{\Pi^{*}}\Pi' + c_{pd}\tau_{u}\Delta t^{2}\left\{\tau_{\rho}D^{*}\left[\rho^{*}H_{B}^{-1}\left(D^{\theta^{*}}\right)^{T}\Pi'\right] + \tau_{\theta}P_{3\theta}^{*}M_{\theta}^{-1}P_{\theta2}^{\theta^{*}}H_{B}^{-1}\left(D^{\theta^{*}}\right)^{T}\Pi'\right\} = \mathfrak{R},\label{eq:helmholtz_lhs}
+N_\Pi \left\{M_{3}^{\Pi^{*}}\Pi' \left\{D^{*}\left[\rho^{*}H_{B}^{-1}\left(D^{\theta^{*}}\right)^{T}\Pi'\right] + P_{3\theta}^{*}N_{\theta}P_{\theta2V}^{\theta^{*}}H_{B}^{-1}\left(D^{\theta^{*}}\right)^{T}\Pi'\right\}\right\} = \mathfrak{R},\label{eq:helmholtz_lhs}
 \end{equation} 
 with
 \begin{equation}
-\mathfrak{R} \equiv \mathfrak{R}_{\Pi} -\tau_{\rho}\Delta t\left[D^{*}\left(\rho^{*}H_{B}^{-1}\mathfrak{R}_{u}\right) + P_{3\theta}^{*}M_{\theta}^{-1}P_{\theta2}^{\theta^{*}}H_{B}^{-1}\mathfrak{R}_u\right].\label{eq:helmholtz_rhs}
+\mathfrak{R} \equiv \mathfrak{R}_{\Pi} - N_\Pi \left[D^{*}\left(\rho^{*}H_{B}^{-1}\mathfrak{R}_{\mathbf{u}}\right) + P_{3\theta}^{*}N_{\theta}P_{\theta2V}^{\theta^{*}}H_{B}^{-1}\mathfrak{R}_u\right],\label{eq:helmholtz_rhs}
 \end{equation}
-where the compound operator 
+and the compound operator 
 \begin{equation}
-D^{*}\equiv M_{3}^{\rho^{*}}M_{3}^{-1}D.\label{eq:compoundD_star}
+D^{*}\equiv \tau_{\rho} \Delta t M_{3}^{\rho^{*}}N_{\rho}D.\label{eq:compoundD_star}
 \end{equation}
 By defining the function 
 \begin{equation}
-H\left(X\right) \equiv \tau_{\rho}D^{*}\left(\rho^{*}X\right) + \tau_{\theta}P_{3\theta}^{*}M_{\theta}^{-1}P_{\theta2}^{\theta^{*}}X,\label{eq:H_x}
+H\left(X\right) \equiv D^{*}\left(\rho^{*}X\right) + P_{3\theta}^{*}N_{\theta}P_{\theta2V}^{\theta^{*}}X,\label{eq:H_x}
 \end{equation}
 the Helmholtz equation can be simplified somewhat to
 \begin{equation}
-\frac{1-\kappa}{\kappa}M_{3}^{\Pi^{*}}\Pi' + c_{pd}\tau_{u}\Delta t^{2}H\left[H_{B}^{-1}\left(D^{\theta^{*}}\right)^{T}\Pi'\right] = \mathfrak{R},\label{helmholtz_lhs_simplified}
+N_\Pi \left\{ M_{3}^{\Pi^{*}}\Pi' + H\left[H_{B}^{-1}\left(D^{\theta^{*}}\right)^{T}\Pi'\right]\right\} = \mathfrak{R},\label{helmholtz_lhs_simplified}
 \end{equation}
 and the right hand side becomes
 \begin{equation}
-\mathfrak{R} \equiv \mathfrak{R}_{\Pi} - \Delta t H\left(H_{B}^{-1}\mathfrak{R}_{u}\right).\label{eq:helmholtz_rhs_simplified}
+\mathfrak{R} \equiv \mathfrak{R}_{\Pi} - H\left(H_{B}^{-1}\mathfrak{R}_{u}\right).\label{eq:helmholtz_rhs_simplified}
 \end{equation}
-In order to construct \eqref{eq:helmholtz_lhs} and \eqref{eq:helmholtz_rhs} a number of operator inverses are needed: $M_{3}^{-1}, M_{\theta}^{-1}$ and $H_{B}^{-1}$. The inverse of the $\mathbb{W}_3$ mass matrix is simple to compute since it is in a discontinuous space and so the element inverse can be cheaply computed and stored. The mass matrix for the $\theta$ space is either a global matrix (if $\theta\in\mathbb{W}_{0}$) or is a column matrix (if $\theta\in\mathbb{W}_{\theta}$) and it is therefore unlikely to be feasible to compute and store the exact inverse and instead it must be approximated, here by using the diagonal $M_{\theta}^{-1} \approx 1/\mathrm{diag}\left(M_{\theta}\right)$. Lastly the inverse of the $H_{B}$ operator is needed and again instead of computing the exact inverse, a lumped diagonal inverse is used. It should be noted that the diagonal will be inaccurate over orography as this would lose the orographic terms contained in the off-diagonal elements of $M_{2}$, In which case it may be better to form a sparse approximate inverse or use a small number of  iterations of a cheap iterative method, such as conjugate gradient or Jacobi to invert $H_{B}$, i.e. obtain $y$ such that $H_{B}y = x$. To solve the Helmholtz equation \eqref{eq:helmholtz_lhs} a Krylov method can be used, such as bicgstab or GMRes which only requires the application of the left hand side of \eqref{eq:helmholtz_lhs}. Once the pressure increment is obtained the other prognostic variables can be obtained by a back substitution process, $u'$ is obtained from
+In order to construct \eqref{eq:helmholtz_lhs} and \eqref{eq:helmholtz_rhs} the operator inverses $M_{3}^{-1}$ and $H_{B}^{-1}$  are needed. The inverse of the $\mathbb{W}_3$ mass matrix is simple to compute since it is in a discontinuous space and so the element inverse can be cheaply computed and stored. The inverse of the $H_{B}$ operator is needed and again instead of computing the exact inverse, a lumped diagonal inverse is used. It should be noted that the diagonal will be inaccurate over orography as this would lose the orographic terms contained in the off-diagonal elements of $M_{2}$, in which case it may be better to form a sparse approximate inverse or use a small number of  iterations of a cheap iterative method, such as conjugate gradient or Jacobi to invert $H_{B}$, i.e. obtain $y$ such that $H_{B}y = x$. To solve the Helmholtz equation \eqref{eq:helmholtz_lhs} a Krylov method can be used, such as bicgstab or GMRes which only requires the application of the left hand side of \eqref{eq:helmholtz_lhs}. Once the pressure increment is obtained the other prognostic variables can be obtained by a back substitution process, $u'$ is obtained from
 \begin{equation}
-u' =  H_{B}^{-1}\left[\mathfrak{R}_u + \tau_{u}\Delta tc_{pd}\left(D^{\theta^{*}}\right)^T\Pi'\right] ,\label{eq:si_u_backsub}
+u' =  H_{B}^{-1}\left[\mathfrak{R}_u + N_u\left(D^{\theta^{*}}\right)^T\Pi'\right] ,\label{eq:si_u_backsub}
 \end{equation}
 which requires one more inversion of $H_{B}$. $\theta'$ is obtained from \eqref{eq:si_theta_discrete}
 \begin{equation}
-\theta' =  M_{\theta}^{-1}\left(R_{\theta} - \tau_{\theta}\Delta tP_{\theta2}^{\theta^{*}}u'\right).\label{eq:si_theta_backsub}\\
+\theta' =  N_\theta\left(R_{\theta} - P_{\theta2}^{\theta^{*}}u'\right).\label{eq:si_theta_backsub}\\
 \end{equation}
-$\rho'$ can be obtained from \eqref{eq:si_rho_discrete}
+and $\rho'$ can be obtained from \eqref{eq:si_rho_discrete}
 \begin{equation}
-\rho' = M_{3}^{-1}\left[R_{\rho} - \tau_{\rho}\Delta tD\left(\rho^{*}u'\right)\right].\label{eq:si_rho_backsub}
+\rho' = N_{\rho}\left[R_{\rho} - \tau_{\rho}\Delta tD\left(\rho^{*}u'\right)\right].\label{eq:si_rho_backsub}
 \end{equation}
 The increments can then be added on to the full prognostic fields
 \begin{eqnarray}
@@ -723,7 +806,7 @@ u^{\left(k+1\right)} & = & u^{\left(k\right)} + u',\label{eq:u_inc}\\
 \theta^{\left(k+1\right)} & = & \theta^{\left(k\right)} + \theta',\label{eq:theta_inc}\\
 \rho^{\left(k+1\right)} & = & \rho^{\left(k\right)} + \rho',\label{eq:rho_inc}
 \end{eqnarray}
-and $\Pi^{\left(k+1\right)}$ will be diagnosed from the equation of state using $\rho^{\left(k+1\right)}$ and $\theta^{\left(k+1\right)}$.
+and $\Pi^{\left(k+1\right)}$ can be obtained either using the increment from the Helmholtz solve: $\Pi^{\left(k+1\right)} = \Pi^{\left(k\right)} + \Pi'$ or diagnosed from the equation of state using $\rho^{\left(k+1\right)}$ and $\theta^{\left(k+1\right)}$, the default method is to use the increment from the Helmholtz solve.
 
 \subsection{\label{sub:preconditioner}Vertical Preconditioner}
 Inspired by the vertical preconditioner used in ENDGame we seek to form a vertical tridiagonal preconditioner to be used for Gung-Ho. For lowest order elements the layout of dof's is the same as ENDGame and so we can use a form similar to that for a finite difference model. The goal is to seek pressure increments $\Pi'$ that solve the tridiagonal system of equations
@@ -742,104 +825,6 @@ All derivatives are computed in computational space, $\frac{\partial f}{\partial
 \end{equation}
 and only the terms that maps the vertical velocity component to itself of $J^T J$ is kept, (equivalent to $\Delta z^2$ in a uniform domain). To ensure stability this operator is forced to be positive by maxing it with a small positive constant.
 
-\section{\label{sec:Wtheta} Modifications for horizontally discontinuous potential temperature}
-
-As mentioned in Section \ref{sec:FEM-Discretisation}, in order to obtain a grid arrangement equivalent to the Charney-Phillips staggering, the potential temperature $\theta$ has to be
-placed in the same space as the vertical component of the velocity vector. $\mathbb{W}_\theta$ is therefore the space of scalar functions built from the tensor product of one $P^{k+1}$ polynomial (in the vertical
-direction) and two $P^k_{DG}$ polynomials (in the horizontal direction) with continuity in the vertical direction only. This Section explains the modifications in the formulation when considering
-$\theta\in\mathbb{W}_\theta$ instead of $\theta\in\mathbb{W}_0$. With an abuse of notation, we still denote as $\gamma$ the test function in $\mathbb{W}_\theta$. Moreover, we denote the boundary
-integral
-\begin{equation}
-\int_{\partial\Omega}tsdS,\label{eq:face_int_def}
-\end{equation}    
-with 
-\begin{equation}
-\llangle t, s\rrangle\label{eq:dbl_ang_brack_def}.
-\end{equation}    
-Above, $\partial\Omega$ denotes the boundary of the domain $\Omega$. Next, let $\mathcal{E}$ be a tessellation of $\Omega$, restricting our attention to extruded quadrilateral
-elements for simplicity. For a scalar or vector function $\varphi$, we denote by $\varphi^-$ and $\varphi^+$ the inner
-and outer traces on the boundary $\partial\mathcal{C}$ of an element $\mathcal{C}\in\mathcal{E}$ with outward-pointing normal vector $\mathbf{n}^-$ as follows:
-\begin{equation}
-\varphi^{\pm}(\mathbf{x}, t) =\lim_{\varepsilon\rightarrow0}\varphi(\mathbf{x}\pm\varepsilon\mathbf{n}^-, t). \label{eq:outwd_traces_def}
-\end{equation}
-Let $\mathcal{C}'\in\mathcal{E}$ be an element adjacent to element $\mathcal{C}$, with outward-pointing boundary $\mathbf{n}^+$. Let
-$\mathcal{F}$ be the set of all faces of $\mathcal{E}$, so that $\int_{\mathcal{F}}=\sum_{f\in\mathcal{F}}\int_f$.
-On an interior face $\mathcal{F}\backslash\partial\Omega\ni f=\partial\mathcal{C}\cap\partial\mathcal{C}'$ we set:
-\begin{equation}
-\{\varphi\}=\frac12\left(\varphi^++\varphi^-\right),\qquad\llbracket\varphi\rrbracket = \varphi^-\mathbf{n}^-+\varphi^+\mathbf{n}^+,\label{eq:jump_at_bd_face_def}
-\end{equation}
-whilst at boundary cells $\mathcal{C}$, i.e. for faces $f\in\mathcal{F}\cap\partial\Omega$, we set: 
-\begin{equation}
-\{\varphi\}=\varphi,\qquad\llbracket\varphi\rrbracket = \varphi\mathbf{n}^-.\label{eq:jump_at_bd_domain_def}
-\end{equation}
-If $\varphi$ is a vector, then the multiplications in the definition of $\llbracket\varphi\rrbracket$ are dot products.
-Therefore, if $\varphi$ is a scalar (respectively vector) quantity, then $\{\varphi\}$ is a scalar (resp. vector), and $\llbracket\varphi\rrbracket$ is a vector (resp. scalar).
-
-With this notation, and considering $\theta\in\mathbb{W}_\theta$, the weak form \eqref{eq:nonlinear_mom-1-1-1} of the momentum equation is modified as follows:
-\begin{equation}
-\left\langle \mathbf{v},\frac{\partial\mathbf{u}}{\partial t}\right\rangle  = -\left\langle \mathbf{v},\frac{\bm{\xi}}{\rho}\times\mathbf{F}+\nabla\Phi\right\rangle +\left\langle \nabla.\mathbf{v},K\right\rangle -c_{pd}\llangle\llbracket\theta\mathbf{v}, \Pi\rrbracket\rrangle +c_{pd}\left\langle \nabla_h.\left(\theta\mathbf{v}\right),\Pi\right\rangle -\left\langle \mathbf{v},2\bm{\Omega}\times\mathbf{u}\right\rangle ,\label{eq:nonlinear_mom-1-1-1_wth}
-\end{equation}
-where the boundary integral is to be taken on the internal faces $\mathcal{F}\backslash\partial\Omega$ only, and $\nabla_h\cdot(\theta\mathbf{v})$ is a function over $\Omega$
-whose restriction to the cell $\mathcal{C}$ is equal to $\nabla\cdot(\theta\mathbf{v})$. 
-As $\mathbf{v}$ has continuous normal component then for each face $f\in\mathcal{F}\backslash\partial\Omega$
-we have $\llbracket\theta\mathbf{v}\rrbracket = \theta^-\mathbf{v}^-\cdot\mathbf{n}^-+\theta^+\mathbf{v}^+\cdot\mathbf{n}^+=\mathbf{v}\cdot\mathbf{n^-}\left(\theta^--\theta^+\right)$,
-the jump of $\theta$ across the face $f$. In view of the continuity in the vertical direction for $\theta\in\mathbb{W}_\theta$,
-for each cell $\mathcal{C}$ the contribution of the boundary integral is equal to the sum of the
-integrals over the vertical faces ($f_1,f_2,f_3,f_4$) of $\partial\mathcal{C}$:
-\begin{equation}
--c_{p}\sum_{i=1}^4\int_{f_i}\mathbf{v}\cdot\mathbf{n^{-}}\theta^{-}{\Pi}\ dA.\label{eq:face_integral_vert_faces}
-\end{equation}
-As a value for $\Pi$ on $f$, the average between the values on either side of $f$ is taken, i.e., $\Pi_{|f}=\{\Pi\}$.
-
-Since $\theta\in\mathbb{W}_\theta$ is horizontally discontinuous, the advection term in the thermodynamic equation \eqref{eq:nonlinear_thermo-1-1} has to be integrated by parts. The result is:
-\begin{equation}
-\left\langle \gamma,\frac{\partial\theta}{\partial t}\right\rangle  = -\llangle\widehat{\theta\mathbf{u}}\cdot\mathbf{n}^-, \gamma\rrangle + \left\langle\nabla_h\cdot\left(\gamma\mathbf{u}\right), \theta\right\rangle, \label{eq:nonlinear_thermo-1-1_wth}
-\end{equation}
-where the boundary integral is to be taken on the internal faces $\mathcal{F}\backslash\partial\Omega$ only, and $\nabla_h\cdot(\gamma\mathbf{u})$ is a function over $\Omega$
-whose restriction to $\mathcal{C}$ is equal to $\nabla\cdot(\gamma\mathbf{u})$. Choices for the flux term $\widehat{\theta\mathbf{u}}$ in \eqref{eq:nonlinear_thermo-1-1_wth} include the centered flux:
-\begin{equation}
-\widehat{\theta\mathbf{u}} = \{\theta\mathbf{u}\}\label{eq:centered_flux_tdeq}
-\end{equation}
-and the upwind flux:
-\begin{equation}
-\widehat{\theta\mathbf{u}} = \{\theta\mathbf{u}\}+\frac12|\mathbf{u}\cdot\mathbf{n}^-|\llbracket\theta\rrbracket.\label{eq:upwind_flux_tdeq}
-\end{equation}
-
-With reference to section \ref{sec:Coordinate-Transforms}, the coordinate transform for functions in $\mathbb{W}_\theta$ is the same as for functions in $\mathbb{W}_0$. Hence, the momentum equation
-\eqref{eq:nonlinear_mom-pullback} and thermodynamic equation \eqref{eq:nonlinear_thermo-pullback} pulled back via the coordinate transform are modified for $\theta\in\mathbb{W}_\theta$ as:
-\begin{eqnarray}
-\left\langle J\hat{\mathbf{v}},\frac{J}{\det\left(J\right)}\frac{\partial\hat{\mathbf{u}}}{\partial t}\right\rangle & = & -\left\langle J\hat{\mathbf{v}},\frac{J^{-T}\hat{\bm{\xi}}}{\hat{\rho}\det\left(J\right)}\times J\hat{\mathbf{F}}\right\rangle -\left\langle \hat{\mathbf{v}},\nabla\Phi\right\rangle +\left\langle \nabla.\hat{\mathbf{v}},\frac{1}{2}\left(\frac{J\hat{\mathbf{u}}}{\det\left(J\right)}\right).\left(\frac{J\hat{\mathbf{u}}}{\det\left(J\right)}\right)\right\rangle \label{eq:nonlinear_mom-pullback_wt}\\
-& & -\left\langle \frac{J\hat{\mathbf{v}}}{\det\left(J\right)},2\bm{\Omega}\times\left(J\hat{\mathbf{u}}\right)\right\rangle -c_{pd}\llangle\llbracket\hat{\theta}\hat{\mathbf{v}}, \hat{\Pi}\rrbracket\rrangle +c_{pd}\left\langle \hat{\theta}\nabla.\hat{\mathbf{v}}+\hat{\mathbf{v}}.\nabla\hat{\theta},\Pi\right\rangle ,\nonumber
-\end{eqnarray}
-and 
-\begin{equation}
-\left\langle \hat{\gamma},\frac{\partial\hat{\theta}'}{\partial t}\det\left(J\right)\right\rangle = -\llangle\widehat{\hat{\theta}\hat{\mathbf{u}}}\cdot\mathbf{n}^-, \gamma\rrangle + \left\langle\nabla_h\cdot\left(\hat{\gamma}\hat{\mathbf{u}}\right), \hat{\theta}\right\rangle\label{eq:nonlinear_thermo-pullback_wt}
-\end{equation}
-respectively.
-
-As for time integration, in the case $\theta\in\mathbb{W}_\theta$ the mass matrix $M_\theta$, defined equivalently to $M_0$ in \eqref{eq:M0_mass_matrix}, replaces $M_0$ in \eqref{eq:theta_RK}.
-Moreover, the expression for the residuals in section \ref{sec:SI_timestepping} are modified as follows
-\begin{eqnarray}
-R_{\mathbf{u}}^{n+1} & = & \left\langle \mathbf{v},\mathbf{u}^{n+1}\right\rangle -\tau_u\Delta t\left[-\left\langle \mathbf{v},\nabla\Phi\right\rangle +\left\langle \nabla.\mathbf{v},K^{n+1}\right\rangle -c_{pd}\llangle\llbracket\theta^{n+1}\mathbf{v}, \Pi^{n+1}\rrbracket\rrangle\right. \label{eq:si_ru_np1_wt}\\
-                     &   & \left.+c_{pd}\left\langle \nabla.\left(\theta^{n+1}\mathbf{v}\right),\Pi^{n+1}\right\rangle -\left\langle \mathbf{v},2\bm{\Omega}\times\mathbf{u}^{n+1}\right\rangle \right],\nonumber\\
-R_{\mathbf{u}}^{n} & = & -\left\langle \mathbf{v},\mathbf{u}^{n}\right\rangle -\left(1-\tau_u\right)\Delta t\left[-\left\langle \mathbf{v},\nabla\Phi\right\rangle +\left\langle \nabla.\mathbf{v},K^{n}\right\rangle -c_{pd}\llangle\llbracket\theta^n\mathbf{v}, \Pi^n\rrbracket\rrangle\right. \label{eq:si_ru_n_wt}\\
-                   &   & \left.+c_{pd}\left\langle \nabla.\left(\theta^{n}\mathbf{v}\right),\Pi^{n}\right\rangle -\left\langle \mathbf{v},2\mathbf{\Omega}\times\mathbf{u}^{n}\right\rangle \right],  \nonumber\\
-R_{\theta}^{adv} & = & -\Delta t[\llangle\widehat{\theta^n\frac{\widetilde{\mathbf{F}}}{\widetilde{\rho}}}\cdot\mathbf{n}^-, \gamma\rrangle + \left\langle\nabla_h\cdot\left(\gamma\frac{\widetilde{\mathbf{F}}}{\widetilde{\rho}}\right), \theta^n\right\rangle].\label{eq:si_rtheta_adv_wt}
-\end{eqnarray}
-\subsection{\label{sub:WToperators}Modifications to operators}
-When using the horizontally discontinuous potential temperature space some of the operators \eqref{eq:divergence_operator}-\eqref{eq:Ptheta3_operator} need modifications. Firstly $D^{\theta^{*}}$ picks up a boundary integral term
-\begin{equation}
-D^{\theta^{*}} = \left<\sigma,\theta^{*}\nabla.\mathbf{v} + \nabla\theta^{*}.\mathbf{v} \right> - \llangle \{\sigma\}, \theta^{*}\mathbf{v}.\mathbf{n}\rrangle,\label{eq:div_theta_star_operator_wt}
-\end{equation}
-due to the averaging operator $\{\sigma\}$ each pressure dof will pick up a contribution from the integral on the left and right side of the face using the corresponding value of the discontinuous potential temperature field $\theta^{*}$ and so to keep the operator local to each cell the corresponding increments from both sides of the face to the pressure dof in the cell are computed at the same time. Secondly the projection from the potential temperature space to the velocity space $P_{2\theta}^{\Pi^{*}}$ also picks up a boundary term
-\begin{equation}
-P_{2\theta}^{\Pi^{*}} = \left<\nabla.\mathbf{v},\Pi^{*}\gamma\right> + \left<\mathbf{v},\Pi^{*}\nabla\gamma \right> - \llangle \mathbf{v}.\mathbf{n},\{\Pi^{*}\}\gamma\rrangle.\label{eq:Ptheta2_star_operator_wt}
-\end{equation}
-Finally the corresponding projection from the velocity space to the potential temperature space $P_{\theta2}^{\theta^{*}}$ picks up a corresponding boundary term
-\begin{equation}
-P_{\theta2}^{\theta^{*}} = \llangle\gamma,\widehat{\theta^{*}\mathbf{v}}\cdot\mathbf{n}^-\rrangle - \left\langle\nabla_h\cdot\left(\gamma\mathbf{v}\right), \theta^{*}\right\rangle,\label{eq:P2theta_operator_w2}
-\end{equation}
-or alternatively, for lowest order elements only, if it is left unchanged from \eqref{eq:P2theta_operator} then it only picks up the vertical contribution as in ENDGame since the horizontal component of $\nabla\theta^{*}\equiv 0$.
 
 \section{\label{sec:Advection}Advection}
 
@@ -854,7 +839,7 @@ for the continuity equation
 \end{eqnarray}
  for the momentum equation, and
 \begin{equation}
-\frac{\widetilde{\mathbf{F}}}{\rho}.\nabla\theta\label{eq:adv_p_temperature_advection}
+\frac{\widetilde{\mathbf{F}}}{\rho}\cdot\nabla\theta\label{eq:adv_p_temperature_advection}
 \end{equation}
  for the potential temperature equation, all for a given advecting
 wind field $\overline{\mathbf{u}}$.
@@ -878,7 +863,7 @@ into the mass flux space
 \begin{equation}
 \left\langle \mathbf{v},\widetilde{\mathbf{F}}\right\rangle =\left\langle \mathbf{v},\rho\overline{\mathbf{u}}\right\rangle .\label{eq:fem_mass_flux}
 \end{equation}
- The vortcity is defined as the projection of the weak curl of the
+ The vorticity is defined as the projection of the weak curl of the
 velocity into the $\mathbb{W}_{1}$ space.
 \begin{equation}
 \left\langle \mathbf{c},\bm{\xi}\right\rangle =\left\langle \nabla\times\mathbf{c},\overline{\mathbf{u}}\right\rangle ,\label{eq:fem_vorticity}
@@ -893,12 +878,12 @@ flux
 the projection into the potential temperature space, which for $\theta\in\mathbb{W}_{0}$
 is
 \begin{equation}
-\left\langle \gamma,\frac{\widetilde{\mathbf{F}}}{\rho}.\nabla\theta\right\rangle .\label{eq:fem_p_temperature_advection}
+\left\langle \gamma,\frac{\widetilde{\mathbf{F}}}{\rho}\cdot\nabla\theta\right\rangle .\label{eq:fem_p_temperature_advection}
 \end{equation}
  In all cases the mass flux is used as the advecting field for consistency,
 where this is normalised by the density, the same density as in the
 mass flux computation \eqref{eq:fem_mass_flux} is used. If $\theta$
-is continuous then the finite element advectino operator method can lead to a noisy advection scheme.
+is continuous then the finite element advection operator method can lead to a noisy advection scheme.
 A common method to combat this is to use the Streamline-Upwind-Petrov-Galerkin
 method, where the test function for the space is modified to include
 an upwinding, i.e
@@ -909,11 +894,11 @@ where $\mu$ is a user defined parameter and $\Delta$ is some measure
 of the average grid spacing. Applying \eqref{eq:supg} to \eqref{eq:nonlinear_thermo-1-1}
 and rearranging gives
 \begin{equation}
-\left\langle \gamma,\frac{\partial\theta}{\partial t}\right\rangle =-\left\langle \gamma,\mathbf{u}.\nabla\theta\right\rangle -R_{\theta}^{supg},\label{eq:theta_supg}
+\left\langle \gamma,\frac{\partial\theta}{\partial t}\right\rangle =-\left\langle \gamma,\mathbf{u}\cdot\nabla\theta\right\rangle -R_{\theta}^{supg},\label{eq:theta_supg}
 \end{equation}
 with
 \begin{equation}
-R_{\theta}^{supg}=\frac{\mu}{\Delta}\left\langle \frac{\widetilde{\mathbf{F}}}{\left|\widetilde{\mathbf{F}}\right|}.\nabla\gamma,\frac{\partial\theta}{\partial t}+\mathbf{u}.\nabla\theta\right\rangle \label{eq:Rtheta_supg}
+R_{\theta}^{supg}=\frac{\mu}{\Delta}\left\langle \frac{\widetilde{\mathbf{F}}}{\left|\widetilde{\mathbf{F}}\right|}\cdot\nabla\gamma,\frac{\partial\theta}{\partial t}+\mathbf{u}\cdot\nabla\theta\right\rangle \label{eq:Rtheta_supg}
 \end{equation}
 which is the residual error in the $\theta$ equation tested by the
 upwind component of the test function. To obtain a higher order scheme it may be possible to embed the operators in a higher order space and use some information from surrounding cells to constrain the extra degrees of freedom.
@@ -945,7 +930,7 @@ In both cases once an update in the computational $x$ direction is computed the 
 
 
 \subsection{Directionally split advection scheme\label{sub:COSMIC-Advection}}
-This section describes the directionally split advection scheme, commonly known as COSMIC (Conservative Operator Splitting in Multi-dimensions with Inherent Constancy), and its implementation within Dynamo. References for the scheme include \cite{Leonard_etal_1996}, \cite{putlin07} and \cite{lin_rood_96}. The scheme is currently coded assuming that $\rho\in \mathbb{W}_3$ and velocity ${\bf u}\in \mathbb{W}_2$ are both at lowest order, $k=0$, and has been implemented as a finite-volume transport method. The scheme has also only initially been written for the two horizontal directions on the orthogonal biperiodic domain. Within this section we refer to $\chi_1$ and $\chi_2$ coordinate directions as $x$ and $y$ directions respectively since this is simpler and consistent with the COSMIC literature.
+This section describes the directionally split advection scheme, commonly known as COSMIC (Conservative Operator Splitting in Multi-dimensions with Inherent Constancy), and its implementation within GungHo. References for the scheme include \cite{Leonard_etal_1996}, \cite{putlin07} and \cite{lin_rood_96}. The scheme is currently coded assuming that $\rho\in \mathbb{W}_3$ and velocity ${\bf u}\in \mathbb{W}_2$ are both at lowest order, $k=0$, and has been implemented as a finite-volume transport method. The scheme has also only initially been written for the two horizontal directions on the orthogonal biperiodic domain. Within this section we refer to $\chi_1$ and $\chi_2$ coordinate directions as $x$ and $y$ directions respectively since this is simpler and consistent with the COSMIC literature.
 
 Since the density field is at lowest order then the density values can be thought of as being the cell-volume mean. Formally though we introduce $\bar{\rho}$  which is
 \begin{equation}
@@ -1058,7 +1043,7 @@ It is possible to write equation (\ref{eq:rho_update}) in an alternative form wh
 \begin{equation}\label{eq:div_update}
 {\hat{\bar \rho}}^{n+1} = {\hat{\bar \rho}}^n - \Delta t {\hat \nabla} \cdot {\bf {\hat F}}
 \end{equation}
-where ${\bf {\hat F}}\in \mathbb{W}_2$ and is the flux such that equation (\ref{eq:rho_update}) is satisfied with the divergence operator ${\hat \nabla} \cdot ()$ being the discrete finite-element operator used in Dynamo. We now show that equation (\ref{eq:rho_update}) can be written in the form of equation (\ref{eq:div_update}).
+where ${\bf {\hat F}}\in \mathbb{W}_2$ and is the flux such that equation (\ref{eq:rho_update}) is satisfied with the divergence operator ${\hat \nabla} \cdot ()$ being the discrete finite-element operator used in GungHo. We now show that equation (\ref{eq:rho_update}) can be written in the form of equation (\ref{eq:div_update}).
 
 Substituting equations (\ref{eq:density_XY}) and (\ref{eq:density_YX}) into equation (\ref{eq:rho_update}) gives ${\hat{ \bar{\rho}}}^{n+1}$ as
 \begin{equation}\label{eq:cosmic_form}
@@ -1101,7 +1086,7 @@ Calculation of the departure points for the flux calculation is required to be p
 
 \subsection{Advective update}
 
-To perform the advective update it is possible to use the conservative operators $(I+X_C)$ and $(I+Y_C)$ but with a correction factor to ensure that it is an advective update. The advective update used is taken from equations (17) and (18) of \cite{putlin07} and has a multiplicative correction factor. The advective update used in Dynamo is given by the equation
+To perform the advective update it is possible to use the conservative operators $(I+X_C)$ and $(I+Y_C)$ but with a correction factor to ensure that it is an advective update. The advective update used is taken from equations (17) and (18) of \cite{putlin07} and has a multiplicative correction factor. The advective update used in GungHo is given by the equation
 \begin{equation}
 {\hat{\bar \rho}}_X^{adv} = (I+X_A)({\hat{\bar \rho}}^{n}) := \frac{(I+X_C)({\hat{\bar \rho}}^{n})}{(I+X_C)({\hat{\bar \rho}}=1)}.
 \end{equation}
@@ -1118,7 +1103,7 @@ momentum,
 \begin{eqnarray}
 M & = & \int_{\Omega}\rho dV,\label{eq:total_mass}\\
 E & = & \int_{\Omega}\rho\left[\Phi+\frac{1}{2}\mathbb{\mathbf{u}}.\mathbf{u}+c_{v}T\right]dV,\label{total_energy}\\
-P & = & \int_{\Omega}\bm{\xi}.\nabla\theta dV\label{total_pv}\\
+P & = & \int_{\Omega}\bm{\xi}\cdot\nabla\theta dV\label{total_pv}\\
 A & = & \int_{\Omega}\rho\tilde{\mathbf{z}}.\left[\mathbf{r}\times\left(\mathbf{u}+\bm{\Omega}\times\mathbf{r}\right)\right]dV,\label{eq:total_aam}
 \end{eqnarray}
 where $\tilde{\mathbf{z}}$ is a unit vector in the direction of $\bm{\Omega}$
@@ -1139,233 +1124,6 @@ A & = & \sum_{cell}\left\langle \hat{\rho}\tilde{\mathbf{z}},\mathbf{r}\times\le
 \end{eqnarray}
 For output the total quantities are normalised by the square of the
 planet radius and so the output quantities are: $M/a^{2},\, E/a^{2},\, P/a^{2},\, A/a^{2}$.
-
-
-\section{Results\label{sec:Results}}
-
-This section gives some indicative results obtained using Dynamo.
-For spherical results the resolution is given in form $CxLyKz$ where
-$x$ is the number of cells along one edge of a cubed-sphere panel,
-$y$ is the number of cells in the vertical and $z$ is the polynomial
-order of the $\mathbb{W}_{3}$ space, hence $C12L5K0$ would give
-a cubed-sphere of $6\times12^{2}$ cells in the horizontal and $5$
-cells in the vertical with lowest order elements. The total number
-of degrees of freedom at a given resolution for a $\mathbb{W}_{3}$
-field (and hence a measure of the cost of the simulation) is given
-by $6x^{2}y\left(z+1\right)^{3}$ which for the example above is $4320$
-dofs.
-
-
-\subsection{Vertical Slice Tests}
-
-Figure \eqref{fig:Density-current-test} shows the results after $900$s
-for the Density current test \citet{straka93} at $200$m resolution
-for both dynamo and ENDGame \citet{meldubwsz09}. Compared to the
-standard test set up detailed in \citet{straka93} the viscosity terms
-are ignored. The dynamo results use the SUPG stabilsation of the $\theta$
-advection with $\mu=5$ and $\Delta=1$.
-
-\begin{figure}
-\begin{centering}
-\subfloat[]{
-
-\includegraphics[scale=0.5]{DC_EG_dx200}
-
-}\subfloat[]{\includegraphics[scale=0.5]{DC_dynamo_dx200_supg}}
-\par\end{centering}
-
-\protect\caption{\label{fig:Density-current-test}Density current test, showing $\theta$
-perturbation after $900$s for (a) ENDGame and (b) dynamo with lowest
-order elements and explicit-iterative timestepping. Both models use
-$\Delta t=1/8$s.}
-
-
-\end{figure}
-
-
-
-\subsection{Spherical Tests}
-
-\begin{figure}
-\begin{centering}
-\subfloat[]{\includegraphics[scale=0.5]{GW_375DegL10_theta_t1_xy}}\subfloat[]{\includegraphics[scale=0.5]{GW_C24L10K0_theta_t1}}
-\par\end{centering}
-
-\begin{centering}
-\subfloat[]{\includegraphics[scale=0.5]{GW_375DegL10_theta_t1_xz}}\subfloat[]{\includegraphics[scale=0.5]{GW_C24L10K0_theta_t1_xz}}
-\par\end{centering}
-
-\centering{}\protect\caption{\label{fig:Spherical-Gravity-wave-test}Gravity wave test with (a)
-\& (c) ENDGame, at $3.75^{o}$ resolution ($46080$ cells) and (b)
-\& (d) Dynamo, on a $C24$ grid with lowest order elements ($34560$
-cells).}
-\end{figure}
-
-
-The gravity wave test from the dynamical core model intercomparison
-project, \citet{dcmip2012}, is run with the modification that the
-constant advecting velocity is removed. To facilate a comparison of
-results the same test is repeated in ENDGame \citet{wood_etal_13_eg}
-at similar resolution. Cross sections of the $\theta$ perturbation
-(difference from backgroud state) are shown in Figure \ref{fig:Spherical-Gravity-wave-test}.
-The conservation of mass, energy, pv and axial angular momentum as
-given by \eqref{eq:discrete_total_mass-1}-\eqref{eq:discrete_total_aam-1}
-are shown in Figure \ref{fig:conservation} for $C12L5K0$ resolution,
-shows that as expected mass is conserved exactly, panel (a) and energy
-is conserved to a very small error, panel (b). The Potential Vorticity
-(PV) is not conserved, panel (c), as the conservation law for PV is
-not enforced, (note the initial PV for this test is zero). As expected
-axial-angular momentum, panel (d), is also not conserved, furthermore
-it is not clear if this diagnostic has been correctly implemented
-and what it even means in the absence of rotation, this should be
-revisited when rotation is added to the nonlinear equations.
-
-\begin{figure}
-\begin{centering}
-\subfloat[]{\includegraphics[scale=0.5]{Conservation_of_mass_GW_C12L5k0}}\subfloat[]{\includegraphics[scale=0.5]{Conservation_of_energy_GW_C12L5k0}}
-\par\end{centering}
-
-\begin{centering}
-\subfloat[]{\includegraphics[scale=0.5]{Conservation_of_PV_GW_C12L5k0}}\subfloat[]{\includegraphics[scale=0.5]{Conservation_of_AAM_GW_C12L5k0}}
-\par\end{centering}
-
-\protect\caption{\label{fig:conservation}Conservation of (a) Mass, (b) Energy, (c)
-Potential vorticity and (d) Axial Angular Momentum for the gravity
-wave test of Figure \ref{fig:Spherical-Gravity-wave-test} but for
-$C12L5K0$ resolution. Note this test is on an unrotating planet.}
-\end{figure}
-The gravity wave test is then repeated, but on rotating planet and
-the results are shown in Figure \ref{fig:Spherical-Rotating-Gravity-wave-test} 
-and in Figure \ref{fig:Spherical-Rotating-Gravity-wave-test_p1} for higher order elements.
-
-\begin{figure}
-\begin{centering}
-\subfloat[]{\includegraphics[scale=0.5]{EG_DCMIP301_rotation_xy}}\subfloat[]{\includegraphics[scale=0.5]{EG_DCMIP301_rotation_xz}}
-\par\end{centering}
-
-\begin{centering}
-\subfloat[]{\includegraphics[scale=0.5]{GW_C24L10K0_theta_t1_rotating}}\subfloat[]{\includegraphics[scale=0.5]{GW_C24L10K0_theta_t1_xz_rotating}}
-\par\end{centering}
-
-\begin{centering}
-\subfloat[]{\includegraphics[scale=0.5]{GW_C24L10K0_theta_rotating_SI_dt10}}\subfloat[]{\includegraphics[scale=0.5]{GW_C24L10K0_theta_rotating_SI_dt10_xz}}
-\par\end{centering}
-
-\centering{}\protect\caption{\label{fig:Spherical-Rotating-Gravity-wave-test}Rotating gravity
-wave test with (a) \& (b) ENDGame, at $3.75^{o}$ resolution ($46080$
-cells) and Dynamo, on a $C24$ grid with lowest order elements ($34560$
-cells), and (c) \& (d) using the RK3 timstepping with $\Delta t=1$s,
-(e) \& (f) using semi-implicit timestepping with $\Delta t=10$ s.
-All with 10 vertical levels. Plots show the $\theta$ perturbation
-on the background balanced state.}
-\end{figure}
-
-\begin{figure}
-\begin{centering}
-\subfloat[]{\includegraphics[scale=0.5]{GW_C12L5K1_theta_rotating_RK_dt1}}\subfloat[]{\includegraphics[scale=0.5]{GW_C12L5K1_theta_rotating_RK_dt1_xz}}
-\par\end{centering}
-
-\centering{}\protect\caption{\label{fig:Spherical-Rotating-Gravity-wave-test_p1}Rotating gravity
-wave test with order $k=1$ elements and $C12$ grid with $10$ levels. Using explicit timestepping with $\Delta t = 1$s}
-\end{figure}
-
-\subsection{Advection\label{sec:Advection_results}}
-\begin{figure}
-\begin{centering}
-\subfloat[u]{\includegraphics[scale=0.5]{advection_u0}}\subfloat[v]{\includegraphics[scale=0.5]{advection_v0}}
-\par\end{centering}
-\centering{}\protect\caption{\label{fig:advection_initial_uv}Initial wind field for advection test with rotated flow so that one rotation takes 12 days}
-\end{figure}
-
-The method of lines advection scheme is tested through advection of a double Gaussian hill around a sphere for one rotation with a rotated flow. The velocities are prescribed and there is no vertical velocity so that the advection test is purely in 2D. The initial horizontal wind field is shown in Figure \ref{fig:advection_initial_uv}. Tracer proxies for density and potential temperarture are initialised in $\mathbb{W}_3$ and $\mathbb{W}_{\theta}$ respectively using lowest order elements and the advection equation is solved in conservative and advective form using the method of lines apporach with fv spatial operators. The timestepping uses a RKSSP(4,3) scheme ($4$-stages, $3^{\rm{rd}}$-order) and the spatial operators are either quadratic or quartic for $\mathbb{W}_3$ fields, and cubic or quintic for  $\mathbb{W}_{\theta}$ fields. 
-\begin{figure}
-\begin{centering}
-\includegraphics[scale=0.5]{mol_advection_errors}
-\par\end{centering}
-\centering{}\protect\caption{\label{fig:advection_errors}L2 errors after one rotation for the advection test. For comparison the first and second order conveergence lines are also shown}
-\end{figure}
-The test is initially run at C12 ($6\times12\times12$ cells) resolution with a timestep of $\Delta t=3600$ s and then the resolution is doubled and timestep halved each time. The final $L2$ errors are computed after one revolution, Figure \ref{fig:advection_errors}. The final profiles and errors for the quadratic FV polynomial fit to $\mathbb{W}_3$ is in Figure  \ref{fig:quadratic_w3} and for the cubic fit to  $\mathbb{W}_{\theta}$ is in Figure  \ref{fig:cubic_wt}. Repeating the experiment but using the Finite Element operators produces the results in Figures \ref{fig:fem_w3} and \ref{fig:fem_w0}.
-
-\begin{figure}
-\begin{centering}
-\subfloat[C12]{\includegraphics[scale=0.3]{c12_cubic_rho}}\subfloat[C12]{\includegraphics[scale=0.3]{c12_cubic_drho}}
-\par\end{centering}
-
-\begin{centering}
-\subfloat[C24]{\includegraphics[scale=0.3]{c24_cubic_rho}}\subfloat[C24]{\includegraphics[scale=0.3]{c24_cubic_drho}}
-\par\end{centering}
-
-\begin{centering}
-\subfloat[C48]{\includegraphics[scale=0.3]{c48_cubic_rho}}\subfloat[C48]{\includegraphics[scale=0.3]{c48_cubic_drho}}
-\par\end{centering}
-
-\begin{centering}
-\subfloat[C96]{\includegraphics[scale=0.3]{c96_cubic_rho}}\subfloat[C96]{\includegraphics[scale=0.3]{c96_cubic_drho}}
-\par\end{centering}
-\centering{}\protect\caption{\label{fig:quadratic_w3}
-Final profiles (left column) and errors (right column) for the conservative flux form advection of a $\mathbb{W}_3$ field with quadratic fv operators}
-\end{figure}
-
-\begin{figure}
-\begin{centering}
-\subfloat[C12]{\includegraphics[scale=0.3]{c12_cubic_theta}}\subfloat[C12]{\includegraphics[scale=0.3]{c12_cubic_dtheta}}
-\par\end{centering}
-
-\begin{centering}
-\subfloat[C24]{\includegraphics[scale=0.3]{c24_cubic_theta}}\subfloat[C24]{\includegraphics[scale=0.3]{c24_cubic_dtheta}}
-\par\end{centering}
-
-\begin{centering}
-\subfloat[C48]{\includegraphics[scale=0.3]{c48_cubic_theta}}\subfloat[C48]{\includegraphics[scale=0.3]{c48_cubic_dtheta}}
-\par\end{centering}
-
-\begin{centering}
-\subfloat[C96]{\includegraphics[scale=0.3]{c96_cubic_theta}}\subfloat[C96]{\includegraphics[scale=0.3]{c96_cubic_dtheta}}
-\par\end{centering}
-\centering{}\protect\caption{\label{fig:cubic_wt}
-Final profiles (left column) and errors (right column) for the nonconservative advective form advection of a $\mathbb{W}_{\theta}$ field with cubic fv operators}
-\end{figure}
-
-\begin{figure}
-\begin{centering}
-\subfloat[C12]{\includegraphics[scale=0.3]{c12_fem_rho}}\subfloat[C12]{\includegraphics[scale=0.3]{c12_fem_drho}}
-\par\end{centering}
-
-\begin{centering}
-\subfloat[C24]{\includegraphics[scale=0.3]{c24_fem_rho}}\subfloat[C24]{\includegraphics[scale=0.3]{c24_fem_drho}}
-\par\end{centering}
-
-\begin{centering}
-\subfloat[C48]{\includegraphics[scale=0.3]{c48_fem_rho}}\subfloat[C48]{\includegraphics[scale=0.3]{c48_fem_drho}}
-\par\end{centering}
-
-\begin{centering}
-\subfloat[C96]{\includegraphics[scale=0.3]{c96_fem_rho}}\subfloat[C96]{\includegraphics[scale=0.3]{c96_fem_drho}}
-\par\end{centering}
-\centering{}\protect\caption{\label{fig:fem_w3}
-Final profiles (left column) and errors (right column) for the conservative flux form advection of a $\mathbb{W}_3$ field with fem operators}
-\end{figure}
-
-
-\begin{figure}
-\begin{centering}
-\subfloat[C12]{\includegraphics[scale=0.3]{c12_fem_theta}}\subfloat[C12]{\includegraphics[scale=0.3]{c12_fem_dtheta}}
-\par\end{centering}
-
-\begin{centering}
-\subfloat[C24]{\includegraphics[scale=0.3]{c24_fem_theta}}\subfloat[C24]{\includegraphics[scale=0.3]{c24_fem_dtheta}}
-\par\end{centering}
-
-\begin{centering}
-\subfloat[C48]{\includegraphics[scale=0.3]{c48_fem_theta}}\subfloat[C48]{\includegraphics[scale=0.3]{c48_fem_dtheta}}
-\par\end{centering}
-
-\begin{centering}
-\subfloat[C96]{\includegraphics[scale=0.3]{c96_fem_theta}}\subfloat[C96]{\includegraphics[scale=0.3]{c96_fem_dtheta}}
-\par\end{centering}
-\centering{}\protect\caption{\label{fig:fem_w0}
-Final profiles (left column) and errors (right column) for the advective form advection of a $\mathbb{W}_0$ field with fem operators}
-\end{figure}
 
 \newpage\resetcounters
 
@@ -1510,13 +1268,13 @@ with the layout of the dofs in 2D shown in Figure \ref{fig:BDFM_dofs}.
 
 \begin{figure}
 \begin{centering}
-\subfloat[]{\includegraphics[bb=0bp 0bp 300bp 250bp,clip,scale=0.5]{BDFM1_V0}
+\subfloat[]{\includegraphics[clip,scale=0.5]{BDFM1_V0}
 
-}\subfloat[]{\includegraphics[bb=0bp 0bp 300bp 250bp,clip,scale=0.5]{BDFM1_V1}}
+}\subfloat[]{\includegraphics[clip,scale=0.5]{BDFM1_V1}}
 \par\end{centering}
 
 \begin{centering}
-\subfloat[]{\includegraphics[bb=0bp 0bp 300bp 250bp,clip,scale=0.5]{BDFM1_V2}}\subfloat[]{\includegraphics[bb=0bp 0bp 300bp 250bp,clip,scale=0.5]{BDFM1_N}}\protect\caption{\label{fig:BDFM_dofs}Location of degrees of freedom for the two-dimensional
+\subfloat[]{\includegraphics[clip,scale=0.5]{BDFM1_V2}}\subfloat[]{\includegraphics[clip,scale=0.5]{BDFM1_N}}\protect\caption{\label{fig:BDFM_dofs}Location of degrees of freedom for the two-dimensional
 $P_{1}^{+}-BDFM_{1}-P_{1}^{DG}$ element complex in spaces (a)$\mathbb{W}_{0}:$$P_{2}^{+}$,~(b)$\mathbb{W}_{1}:$$BDFM_{1}$,~
 (c)$\mathbb{W}_{2}:$$P_{1}^{DG}$ and (d) Rotation of $BDFM_{1}$
 space so that normal components are discontinuous and tangential components
@@ -1840,7 +1598,7 @@ through
 \int_{x^{m}}^{x^{m+1}}y(x)dx=\frac{h}{2}\int_{-1}^{+1}y\left(\frac{h}{2}z+x^{m+\frac{1}{2}}\right)dz.\label{eq:gauss2}
 \end{equation}
 where $h\equiv x^{m+1}-x^{m}$ and $x^{m+\frac{1}{2}}\equiv\frac{1}{2}\left(x^{m+1}+x^{m}\right).$
-For Dynamo the order of the Gaussian quadrature rule is chosen such
+For GungHo the order of the Gaussian quadrature rule is chosen such
 that it will be exact for all linear terms under the assumption of
 constant determinant of the Jacobian; this gives for Gauss-Legendre
 quadrature the order $n=k+2$ where $k$ is the order of the $\mathbb{W}_{3}$

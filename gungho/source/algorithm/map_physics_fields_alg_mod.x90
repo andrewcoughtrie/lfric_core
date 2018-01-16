@@ -9,7 +9,6 @@ module map_physics_fields_alg_mod
 
   use constants_mod,                         only: r_def, i_def
   use field_mod,                             only: field_type
-  use planet_config_mod,                     only: rd, kappa, p_zero
   use physics_mappings_mod,                  only: map_physics_winds, map_physics_scalars
   use formulation_config_mod,                only: use_wavedynamics
   implicit none
@@ -23,61 +22,37 @@ contains
   !> @details An algorithm for mapping native FE fields to the lowest order 
   !>          equivalents for use in the FD physics codes.
   !> @param[inout] u  3D wind field
+  !> @param[inout] exner Pressure
   !> @param[inout] rho Density
   !> @param[inout] theta Potential temperature
   !> @param[inout] u1_in_w3 component of wind on w3 space
   !> @param[inout] u2_in_w3 component of wind on w3 space
   !> @param[inout] u3_in_w3 component of wind on w3 space
-  !> @param[inout] rho_in_wth rho on wth space
   !> @param[inout] theta_in_w3 theta on w3 space
-  !> @param[inout] p_in_w3 pressure on w3 space
-  !> @param[inout] p_in_wth pressure on wth space
-  subroutine map_physics_fields_alg(u, rho, theta, rho_in_wth,                    &
+  !> @param[inout] exner_in_wth pressure on wth space
+  !> @param[inout] rho_in_wth rho on wth space
+  !> @param[in]    timestep Current timestep
+  subroutine map_physics_fields_alg(u, exner, rho, theta,                         &
                                     u1_in_w3, u2_in_w3, u3_in_w3, theta_in_w3,    &
-                                    p_in_w3, p_in_wth, timestep)
+                                    exner_in_wth, rho_in_wth, timestep)
     
     ! Prognostic fields
-    type( field_type ), intent(inout)        :: u, rho, theta, rho_in_wth
+    type( field_type ), intent(inout)        :: u, rho, theta, exner
     type( field_type ), intent(inout)        :: u1_in_w3, u2_in_w3, u3_in_w3, theta_in_w3
-    type( field_type ), intent(inout)        :: p_in_w3, p_in_wth
+    type( field_type ), intent(inout)        :: rho_in_wth, exner_in_wth
     ! Timestep value
     integer, intent(in) :: timestep
 
-    ! Local variables
-    real(kind=r_def)   :: coeff, exponent
+    call map_physics_scalars(theta_in_w3,  theta)
 
-    ! First map the scalar fields (only theta, since rho_in_wth done separately -
-    ! This may not be true in the long term)
-    call map_physics_scalars(theta_in_w3, theta)
+    if (timestep == 0 .or. use_wavedynamics) then
+      call map_physics_scalars(rho_in_wth,   rho)
+      call map_physics_scalars(exner_in_wth, exner)
+    end if
 
     ! Now the winds (this currently doesn't currently re-orientate the winds
     ! so they are not necessarily perpendicular or aligned lat-lon)
     call map_physics_winds(u1_in_w3, u2_in_w3, u3_in_w3, u)
-
-    ! Now use the co-located theta and rho to diagnose pressure fields where we
-    ! want them.  Again this might not be consistent with a dynamics pressure
-    ! field and should be re-visited if/when the dynamics introduces a prognostic 
-    ! pressure variable
-
-    ! Note that ticket #1045 has been opened to look into changing the following
-    ! into a bespoke built-in.
-    exponent = 1.0_r_def/(1.0_r_def - kappa)
-    coeff    = Rd/p_zero
-
-    if (timestep==0 .or. use_wavedynamics) then
-      ! Now p_in_w3 = p0*(Rd/p0*rho*theta_in_w3)**(1./(1-kappa))
-      call invoke( name = "Map rho to p",                  &
-           X_times_Y(p_in_w3, rho, theta_in_w3),   &
-           inc_a_times_X(coeff, p_in_w3),          &
-           inc_X_powreal_a(p_in_w3, exponent),     &
-           inc_a_times_X(p_zero, p_in_w3) )
-
-      ! now map p_in_w3 to p_in_wth
-      ! done like this because p is a smoother field than theta, so better
-      ! to map p rather than use the mapped theta and eqn of state
-      call map_physics_scalars(p_in_wth, p_in_w3)
-
-    end if ! timestep 0 or use_wavedynamics
 
   end subroutine map_physics_fields_alg
   

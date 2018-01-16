@@ -45,6 +45,18 @@ public :: analytic_density
 
 contains
 
+!>@brief Compute the vortex field from Nair and Jablonowski 08
+!>@details  Equations below have been taken from Nair and Jablonowski, "Moving vortices
+!> on the sphere: A test case for horizontal advection problems", AMS 2008,
+!> equations (18)-(22)
+!> lat_pole and lon_pole denote the position of one of the vortices
+!> Parameter values have been taken from the paper and are currently
+!> hard-wired
+!>@param[in] lat Latitude of point
+!>@param[in] long Longitude of point
+!>@param[in] radius Distance from the centre of the planet of the point
+!>@param[in] time Time to compute the vortex at
+!>@return density Value of the tracer field at this point
 function vortex_field(lat,long,radius,time) result(density)
   implicit none
   real(kind=r_def), intent(in) :: lat
@@ -71,10 +83,11 @@ function vortex_field(lat,long,radius,time) result(density)
   v0 = 38.61073731_r_def
   gamma_value = 5.0_r_def
 
-  lat_dash = asin(sin(lat)*sin(lat_pole) + cos(lat)*cos(lat_pole)   &
-                                                          *cos(long-lon_pole))
-  lon_dash = atan2(cos(lat)*sin(long-lon_pole),                     &
-         cos(lat)*sin(lat_pole)*cos(long-lon_pole) -  cos(lat_pole)*sin(lat) )
+  lat_dash = asin(sin(lat)*sin(lat_pole) &
+                + cos(lat)*cos(lat_pole)*cos(long-lon_pole))
+  lon_dash = atan2(cos(lat)*sin(long-lon_pole),              &
+                   cos(lat)*sin(lat_pole)*cos(long-lon_pole) &
+                 - cos(lat_pole)*sin(lat) )
 
   radial_distance = r0*cos(lat_dash)
   V = v0*3.0_r_def*(sqrt(3.0_r_def)/2.0_r_def)*  &

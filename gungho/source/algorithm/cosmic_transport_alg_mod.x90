@@ -24,7 +24,8 @@ module cosmic_transport_alg_mod
 
   use density_update_alg_mod,            only: density_update_alg
   use split_transport_alg_mod,           only: split_transport_alg
-  use runtime_constants_mod,             only: get_coordinates
+  use runtime_constants_mod,             only: get_coordinates, &
+                                               get_detj_at_w2
   use initial_u_kernel_mod,              only: initial_u_kernel_type
   use quadrature_xyoz_mod,               only: quadrature_xyoz_type
   use quadrature_rule_gaussian_mod,      only: quadrature_rule_gaussian_type
@@ -92,22 +93,24 @@ contains
 
   end subroutine cosmic_transport_init
 
-!> @brief An algorithm for testing the COSMIC transport scheme
-!> @details The algorithm iterates forwards in time and transports the density
-!>          field using the COSMIC advection scheme. This implementation
-!>          has currently been tested in the biperiodic planar domain and in
-!>          the horizontal direction only. The wind profile is defined
-!>          analytically.
-!> @param[inout] rho Density field
-  subroutine cosmic_transport_step( rho, detj_at_w2)
+  !> @brief An algorithm for testing the COSMIC transport scheme
+  !> @details The algorithm iterates forwards in time and transports the density
+  !>          field using the COSMIC advection scheme. This implementation
+  !>          has currently been tested in the biperiodic planar domain and in
+  !>          the horizontal direction only. The wind profile is defined
+  !>          analytically.
+  !> @param[inout] rho Density field
+  subroutine cosmic_transport_step( rho)
 
     implicit none
 
     type(field_type),    intent(inout) :: rho
     type(field_type), pointer :: chi(:) => null()
-    type(field_type),    intent(in)    :: detj_at_w2
+    ! Array to hold detj values at W2 dof locations
+    type(field_type), pointer :: detj_at_w2 => null()
 
-    chi => get_coordinates()
+    chi         => get_coordinates()
+    detj_at_w2  => get_detj_at_w2()
 
     call invoke( setval_X(rho_n, rho) )
 

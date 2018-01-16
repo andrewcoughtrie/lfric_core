@@ -3,10 +3,8 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
-!> @brief init functionality for physics
-
+!> @brief Init functionality for physics
 !> @details Handles initialization of prognostic fields
-
 module init_physics_mod
 
   use constants_mod,                  only : i_def
@@ -18,7 +16,6 @@ module init_physics_mod
   use log_mod,                        only : log_event,         &
                                              LOG_LEVEL_INFO,         &
                                              LOG_LEVEL_ERROR
-  use restart_control_mod,            only : restart_type
   use formulation_config_mod,         only : transport_only
   use transport_config_mod,           only : scheme, &
                                              operators, &
@@ -31,25 +28,42 @@ module init_physics_mod
   implicit none
 
 
-  contains
-
-  subroutine init_physics(mesh_id, twod_mesh_id, u, rho, theta, rho_in_wth,  &
+contains
+  !>@brief Routine to initialise the field objects required by the physics
+  !> @param[in] mesh_id Identifier of the mesh
+  !> @param[in] twod_mesh_id Identifier of the 2D (surface) mesh
+  !> @param[inout] u Wind field
+  !> @param[inout] exner Exner pressure field
+  !> @param[inout] rho Density field
+  !> @param[inout] theta Potential temperature field
+  !> @param[inout] rho_in_wth Density in the temperature space
+  !> @param[inout] u1_in_w3 First component of the wind field in W3 space
+  !> @param[inout] u2_in_w3 Second component of the wind field in W3 space
+  !> @param[inout] u3_in_w3 Third component of the wind field in W3 space
+  !> @param[inout] theta_in_w3 Potential temperature field in W3 space
+  !> @param[inout] exner_in_wth Pressure in the temperature space
+  !> @param[inout] tstar_2d Surface temperature
+  !> @param[inout] zh_2d Boundary layer depth
+  !> @param[inout] z0msea_2d Surface rougthness length
+  subroutine init_physics(mesh_id, twod_mesh_id, &
+                          u, exner, rho, theta, &
+                          rho_in_wth,  &
                           u1_in_w3, u2_in_w3, u3_in_w3, theta_in_w3,  &
-                          p_in_w3, p_in_wth, tstar_2d, zh_2d, z0msea_2d)
+                          exner_in_wth, tstar_2d, zh_2d, z0msea_2d)
 
     integer(i_def), intent(in)               :: mesh_id
     integer(i_def), intent(in)               :: twod_mesh_id
-    ! prognostic fields
-    type( field_type ), intent(inout)        :: u, rho, theta, rho_in_wth
+    ! Prognostic fields
+    type( field_type ), intent(inout)        :: u, exner, rho, theta
+    ! Diagnostic fields
     type( field_type ), intent(inout)        :: u1_in_w3, u2_in_w3, u3_in_w3, theta_in_w3
-    type( field_type ), intent(inout)        :: p_in_w3, p_in_wth
+    type( field_type ), intent(inout)        :: exner_in_wth, rho_in_wth
     ! UM 2d fields
     type( field_type ), intent(inout)        :: tstar_2d, zh_2d, z0msea_2d
 
     integer(i_def) :: theta_space
     call log_event( 'Physics: initialisation...', LOG_LEVEL_INFO )
     
-
     theta_space=theta%which_function_space()
     
     if (theta_space /= Wtheta)then
@@ -76,15 +90,12 @@ module init_physics_mod
     theta_in_w3 = field_type( vector_space = & 
        function_space_collection%get_fs(mesh_id, element_order, W3))
 
-    p_in_w3 = field_type( vector_space = & 
-       function_space_collection%get_fs(mesh_id, element_order, W3))
-
-    p_in_wth = field_type( vector_space = & 
+    exner_in_wth = field_type( vector_space = & 
        function_space_collection%get_fs(mesh_id, element_order, theta_space))
 
-    call map_physics_fields_alg( u, rho, theta, rho_in_wth,                    &
+    call map_physics_fields_alg( u, exner, rho, theta,                         &
                                  u1_in_w3, u2_in_w3, u3_in_w3, theta_in_w3,    &
-                                 p_in_w3, p_in_wth, 0)
+                                 exner_in_wth, rho_in_wth, 0)
 
     !========================================================================
     ! Here we create some 2d fields for the UM physics

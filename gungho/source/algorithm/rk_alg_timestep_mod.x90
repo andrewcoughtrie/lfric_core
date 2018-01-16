@@ -30,6 +30,7 @@ module rk_alg_timestep_mod
                                        get_qr, &
                                        get_inverse_lumped_mass_matrix, &
                                        theta_space_id, &
+                                       w3inv_id, &
                                        get_coordinates 
   use transport_config_mod,      only: operators, &
                                        transport_operators_fv
@@ -53,6 +54,7 @@ module rk_alg_timestep_mod
   use rotation_kernel_mod,                 only: rotation_kernel_type
   use hydrostatic_kernel_mod,              only: hydrostatic_kernel_type
   use kinetic_energy_gradient_kernel_mod,  only: kinetic_energy_gradient_kernel_type
+  use project_pressure_kernel_mod,         only: project_pressure_kernel_type
 
   ! Derived Types
   use field_mod,                         only: field_type
@@ -61,15 +63,14 @@ module rk_alg_timestep_mod
 
   ! Algorithms
   use solver_mod,                        only: solver_algorithm
-  use conservation_algorithm_mod,        only: conservation_algorithm
   use advection_alg_mod,                 only: advection_alg, advection_alg_init
   use si_solver_alg_mod,                 only: si_solver_alg, si_solver_init
 
   ! Field indices
-  use field_indices_mod,                 only: igh_u, igh_t, igh_d
+  use field_indices_mod,                 only: igh_u, igh_t, igh_d, igh_p
 
-  use output_config_mod,                   only: subroutine_timers 
-  use timer_mod,                           only: timer
+  use output_config_mod,                 only: subroutine_timers 
+  use timer_mod,                         only: timer
 
   implicit none
 
@@ -90,21 +91,20 @@ contains
   !> @param[inout] u 3D wind field
   !> @param[inout] rho Density
   !> @param[inout] theta Potential temperature
-
-  subroutine rk_alg_init( mesh_id, u, rho, theta)
+  !> @param[inout] exenr Exner pressure
+  subroutine rk_alg_init(mesh_id, u, rho, theta, exner)
     implicit none
 
     ! Mesh
     integer(i_def), intent(in)          :: mesh_id 
 
     ! Prognostic fields
-    type( field_type ), intent( inout ) :: u, rho, theta
+    type( field_type ), intent( inout ) :: u, rho, theta, exner
 
     ! Timestepping variables
-    integer :: stage
+    integer(i_def) :: stage
 
     !=== Allocate internal state field arrays ================================!
-
     allocate(state(bundle_size))   
     allocate(state_n(bundle_size))
     allocate(rhs(bundle_size))
@@ -117,6 +117,7 @@ contains
     state(igh_u) = field_type( vector_space = u%get_function_space() )
     state(igh_t) = field_type( vector_space = theta%get_function_space() )
     state(igh_d) = field_type( vector_space = rho%get_function_space() )
+    state(igh_p) = field_type( vector_space = exner%get_function_space() )
 
     call clone_bundle(state, state_n, bundle_size)
     call clone_bundle(state, rhs, bundle_size)
@@ -131,7 +132,8 @@ contains
     call invoke( name = "Copy fields to state",   &
                  setval_X(state(igh_u), u    ), &
                  setval_X(state(igh_t), theta), &
-                 setval_X(state(igh_d), rho  ) )
+                 setval_X(state(igh_d), rho  ), &
+                 setval_X(state(igh_p), exner) )
 
     call advection_alg_init(mesh_id)
 
@@ -151,12 +153,11 @@ contains
   !> @param[inout] rho Density
   !> @param[inout] theta Potential temperature
   !> @param[inout] xi Vorticity field  
-
-  subroutine rk_alg_step(u, rho, theta, xi)
-
-
+  subroutine rk_alg_step(u, rho, theta, exner, xi)
+     
+    implicit none
     ! Prognostic fields    
-    type( field_type ), intent( inout ) :: u, rho, theta, xi
+    type( field_type ), intent( inout ) :: u, rho, theta, exner, xi
 
     ! The quadrature object
     type( quadrature_xyoz_type ) :: qr
@@ -165,9 +166,10 @@ contains
     type( field_type )    :: diagnostic_field
 
     ! Temps for retrieving things from runtime_constants
-    type(field_type),   pointer :: mm_lumped_inv_wtheta => null()
-    type(field_type),   pointer :: geopotential => null()
-    type( field_type ), pointer :: chi(:) => null()
+    type(field_type),    pointer :: mm_lumped_inv_wtheta => null()
+    type(field_type),    pointer :: geopotential => null()
+    type( field_type ),  pointer :: chi(:) => null()
+    type(operator_type), pointer :: m3_inv => null()
 
     integer(i_def) :: st, stage
     if ( subroutine_timers ) call timer('rk_alg')
@@ -193,14 +195,14 @@ contains
                           state_n, xi, state(igh_u))
       ! Compute new rhs
       if ( rotating ) &
-        call invoke( rotation_kernel_type( rhs_prediction(1,stage), state(igh_u), chi, qr ) )
+        call invoke( rotation_kernel_type( rhs_prediction(igh_u,stage), state(igh_u), chi, qr ) )
       if( wtheta_on ) &
-        call invoke_ru_bd_kernel ( rhs_prediction(1, stage), state(igh_d), state(igh_t), qr ) 
+        call invoke_ru_bd_kernel ( rhs_prediction(igh_u, stage), state(igh_p), state(igh_t), qr ) 
       call invoke( name = "Compute new rhs",                            &
                    hydrostatic_kernel_type       &
-           ( rhs_prediction(1,stage), state(igh_d), state(igh_t), geopotential, qr ), &
+           ( rhs_prediction(igh_u,stage), state(igh_p), state(igh_t), geopotential, qr ), &
                    kinetic_energy_gradient_kernel_type &
-           ( rhs_prediction(1,stage), state(igh_u), chi, qr ),          &
+           ( rhs_prediction(igh_u,stage), state(igh_u), chi, qr ),          &
                    enforce_bc_kernel_type( rhs_prediction(1,stage) ) ) 
       call set_bundle_scalar(0.0_r_def, rhs, bundle_size)
 
@@ -221,15 +223,22 @@ contains
       call invoke( setval_X(inc(igh_d), rhs(igh_d)) )
 
       ! Add increments
+      call invoke( setval_c(inc(igh_p), 0.0_r_def) )
       call bundle_axpy(dt, inc, state_n, state, bundle_size)
-
+      ! Recompute exner from eos
+      m3_inv => get_mass_matrix(w3inv_id)
+      call invoke( project_pressure_kernel_type( state(igh_p), state(igh_d), state(igh_t), &
+                                                 chi, m3_inv, qr ) )
       ! Diagnostics
       diagnostic_field = inc(igh_t)
-      call diagnostic_field%log_minmax(LOG_LEVEL_TRACE, 'theta_inc');
+      call diagnostic_field%log_minmax(LOG_LEVEL_TRACE, 'theta_inc')
       diagnostic_field = inc(igh_u)
-      call diagnostic_field%log_minmax(LOG_LEVEL_TRACE, 'u_inc');
+      call diagnostic_field%log_minmax(LOG_LEVEL_TRACE, 'u_inc')
       diagnostic_field = inc(igh_d)
-      call diagnostic_field%log_minmax(LOG_LEVEL_TRACE, 'rho_inc');
+      call diagnostic_field%log_minmax(LOG_LEVEL_TRACE, 'rho_inc')
+      diagnostic_field = inc(igh_p)
+      call diagnostic_field%log_minmax(LOG_LEVEL_TRACE, 'exner_inc')
+      call inc(igh_t)%log_minmax(LOG_LEVEL_TRACE, 'theta_inc')
 
     end do
 
@@ -246,7 +255,8 @@ contains
     call invoke( name = "Return fields",        &
                  setval_X(u,     state(igh_u)), &
                  setval_X(theta, state(igh_t)), &
-                 setval_X(rho,   state(igh_d)) )
+                 setval_X(rho,   state(igh_d)), &
+                 setval_X(exner, state(igh_p)) )
     if ( subroutine_timers ) call timer('rk_alg')
 
   end subroutine rk_alg_step

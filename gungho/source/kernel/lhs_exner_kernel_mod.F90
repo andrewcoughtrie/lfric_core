@@ -28,12 +28,13 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: lhs_exner_kernel_type
   private
-  type(arg_type) :: meta_args(7) = (/                                  &
+  type(arg_type) :: meta_args(8) = (/                                  &
        arg_type(GH_FIELD,   GH_WRITE, W3),                             &
        arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1),                    &
        arg_type(GH_FIELD,   GH_READ,  W3),                             &
        arg_type(GH_FIELD,   GH_READ,  W3),                             &
        arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1),                    &
+       arg_type(GH_FIELD,   GH_READ,  W3),                             &
        arg_type(GH_FIELD,   GH_READ,  W3),                             &
        arg_type(GH_FIELD*3, GH_READ,  ANY_SPACE_9)                     &
        /)
@@ -52,7 +53,7 @@ end type
 ! Constructors
 !-------------------------------------------------------------------------------
 
-! overload the default structure constructor for function space
+! Overload the default structure constructor for function space
 interface lhs_exner_kernel_type
    module procedure lhs_exner_kernel_constructor
 end interface
@@ -75,6 +76,7 @@ end function lhs_exner_kernel_constructor
 !! @param[in] exner Exner pressure increment
 !! @param[in] theta_ref Potential temperature reference state
 !! @param[in] rho_ref Density reference state
+!! @param[in] exner_ref Exner pressure reference state
 !! @param[in] chi1 First coordinate array
 !! @param[in] chi2 Second coordinate array
 !! @param[in] chi3 Third coordinate array
@@ -92,23 +94,22 @@ end function lhs_exner_kernel_constructor
 !! @param[in] chi_diff_basis Differential basis functions evaluated at quadrature points 
 !! @param[in] nqp_h Number of quadrature points in the horizontal
 !! @param[in] nqp_v Number of quadrature points in the vertical
-!! @param[in] wqp_h horizontal quadrature weights
-!! @param[in] wqp_v vertical quadrature weights
+!! @param[in] wqp_h Horizontal quadrature weights
+!! @param[in] wqp_v Vertical quadrature weights
 subroutine lhs_exner_code(nlayers,                                         &
                           l_exner, theta, rho, exner,                      &
-                          theta_ref, rho_ref,                              &
+                          theta_ref, rho_ref, exner_ref,                   &
                           chi1, chi2, chi3,                                &
                           ndf_w3, undf_w3, map_w3, w3_basis,               &
                           ndf_w0, undf_w0, map_w0, w0_basis,               &
                           ndf_chi, undf_chi, map_chi, chi_diff_basis,      &
-                          nqp_h, nqp_v, wqp_h, wqp_v )
+                          nqp_h, nqp_v, wqp_h, wqp_v)
 
   use coordinate_jacobian_mod,  only: coordinate_jacobian
   use planet_config_mod,        only: kappa
-  use calc_exner_pointwise_mod, only: calc_exner_pointwise
 
   implicit none
-  !Arguments
+  ! Arguments
   integer(kind=i_def), intent(in) :: nlayers, nqp_h, nqp_v
   integer(kind=i_def), intent(in) :: ndf_w0, ndf_w3, ndf_chi
   integer(kind=i_def), intent(in) :: undf_w0, undf_w3, undf_chi
@@ -124,19 +125,19 @@ subroutine lhs_exner_code(nlayers,                                         &
   real(kind=r_def), dimension(undf_w0), intent(in)    :: theta
   real(kind=r_def), dimension(undf_w3), intent(in)    :: rho, exner
   real(kind=r_def), dimension(undf_w0), intent(in)    :: theta_ref
-  real(kind=r_def), dimension(undf_w3), intent(in)    :: rho_ref
+  real(kind=r_def), dimension(undf_w3), intent(in)    :: rho_ref, exner_ref
   real(kind=r_def), dimension(undf_chi), intent(in)    :: chi1, chi2, chi3
 
   real(kind=r_def), dimension(nqp_h), intent(in)      ::  wqp_h
   real(kind=r_def), dimension(nqp_v), intent(in)      ::  wqp_v
 
-  !Internal variables
+  ! Internal variables
   integer(kind=i_def) :: df, k 
   integer(kind=i_def) :: qp1, qp2
   
   real(kind=r_def), dimension(ndf_w0)  :: theta_e, theta_ref_e
   real(kind=r_def), dimension(ndf_chi) :: chi1_e, chi2_e, chi3_e
-  real(kind=r_def), dimension(ndf_w3)  :: rho_e, exner_e, rho_ref_e
+  real(kind=r_def), dimension(ndf_w3)  :: rho_e, exner_e, rho_ref_e, exner_ref_e
   real(kind=r_def), dimension(ndf_w3)  :: lhs_exner_e
   real(kind=r_def)                     :: rho_quad, theta_quad, exner_quad
   real(kind=r_def)                     :: rho_ref_quad, theta_ref_quad, exner_ref_quad
@@ -153,13 +154,14 @@ subroutine lhs_exner_code(nlayers,                                         &
     call coordinate_jacobian(ndf_chi, nqp_h, nqp_v, chi1_e, chi2_e, chi3_e,  &
                              chi_diff_basis, jac, dj)
     do df = 1, ndf_w0
-      theta_e(df) = theta(map_w0(df) + k)
+      theta_e(df)     = theta(map_w0(df) + k)
       theta_ref_e(df) = theta_ref(map_w0(df) + k)
     end do
     do df = 1, ndf_w3
-      exner_e(df)  = exner(map_w3(df) + k)
-      rho_e(df)    = rho(map_w3(df) + k)
+      exner_e(df)      = exner(map_w3(df) + k)
+      rho_e(df)        = rho(map_w3(df) + k)
       rho_ref_e(df)    = rho_ref(map_w3(df) + k)
+      exner_ref_e(df)  = exner_ref(map_w3(df) + k)
       lhs_exner_e(df) = 0.0_r_def
     end do
     do qp2 = 1, nqp_v
@@ -171,15 +173,16 @@ subroutine lhs_exner_code(nlayers,                                         &
           theta_ref_quad = theta_ref_quad + theta_ref_e(df)*w0_basis(1,df,qp1,qp2)
         end do
         exner_quad = 0.0_r_def
+        exner_ref_quad = 0.0_r_def
         rho_quad = 0.0_r_def
         rho_ref_quad = 0.0_r_def
         do df = 1, ndf_w3
-          exner_quad   = exner_quad   + exner_e(df)  *w3_basis(1,df,qp1,qp2)
-          rho_quad     = rho_quad     + rho_e(df)    *w3_basis(1,df,qp1,qp2)
-          rho_ref_quad = rho_ref_quad + rho_ref_e(df)*w3_basis(1,df,qp1,qp2)
+          exner_quad     = exner_quad     + exner_e(df)    *w3_basis(1,df,qp1,qp2)
+          rho_quad       = rho_quad       + rho_e(df)      *w3_basis(1,df,qp1,qp2)
+          rho_ref_quad   = rho_ref_quad   + rho_ref_e(df)  *w3_basis(1,df,qp1,qp2)
+          exner_ref_quad = exner_ref_quad + exner_ref_e(df)*w3_basis(1,df,qp1,qp2)
         end do
-        ! Recompute exner_ref from rho_ref & theta_ref
-        exner_ref_quad = calc_exner_pointwise(rho_ref_quad, theta_ref_quad)
+
         eos = (1.0_r_def - kappa)/kappa * exner_quad/exner_ref_quad &
             - rho_quad/rho_ref_quad - theta_quad/theta_ref_quad
         do df = 1, ndf_w3          

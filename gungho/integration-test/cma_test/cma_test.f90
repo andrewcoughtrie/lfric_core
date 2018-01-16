@@ -229,7 +229,7 @@ program cma_test
   end if
   deallocate( success_map )
 
-  call set_derived_config()
+  call set_derived_config(.false.)
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Initialise

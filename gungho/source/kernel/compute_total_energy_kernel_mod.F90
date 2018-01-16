@@ -30,9 +30,10 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: compute_total_energy_kernel_type
   private
-  type(arg_type) :: meta_args(6) = (/                                  &
+  type(arg_type) :: meta_args(7) = (/                                  &
        arg_type(GH_FIELD,   GH_WRITE, W3),                             &
        arg_type(GH_FIELD,   GH_READ,  W2),                             &
+       arg_type(GH_FIELD,   GH_READ,  W3),                             &
        arg_type(GH_FIELD,   GH_READ,  W3),                             &
        arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1),                    &
        arg_type(GH_FIELD,   GH_READ,  W0),                             &
@@ -55,7 +56,7 @@ end type
 ! Constructors
 !-------------------------------------------------------------------------------
 
-! overload the default structure constructor for function space
+! Overload the default structure constructor for function space
 interface compute_total_energy_kernel_type
    module procedure compute_total_energy_kernel_constructor
 end interface
@@ -75,6 +76,7 @@ end function compute_total_energy_kernel_constructor
 !! @param[out] energy The cell integrated energy
 !! @param[in] u The velocity array
 !! @param[in] rho The density
+!! @param[in] exner The Exner Pressure
 !! @param[in] theta Potential temperature
 !! @param[in] phi The geopotential
 !! @param[in] chi_1 The physical x coordinate in chi
@@ -107,7 +109,8 @@ end function compute_total_energy_kernel_constructor
 subroutine compute_total_energy_code(                                            &
                                      nlayers,                                    &
                                      energy,                                     &
-                                     u, rho, theta, phi, chi_1, chi_2, chi_3,    &
+                                     u, rho, exner, theta, phi,                  &
+                                     chi_1, chi_2, chi_3,                        &
                                      ndf_w3, undf_w3, map_w3, w3_basis,          &
                                      ndf_w2, undf_w2, map_w2, w2_basis,          &
                                      ndf_wtheta, undf_wtheta, map_wtheta,        &
@@ -117,9 +120,9 @@ subroutine compute_total_energy_code(                                           
                                      nqp_h, nqp_v, wqp_h, wqp_v                  &
                                      )
   use coordinate_jacobian_mod,  only: coordinate_jacobian
-  use calc_exner_pointwise_mod, only: calc_exner_pointwise
+  implicit none
 
-  !Arguments
+  ! Arguments
   integer, intent(in) :: nlayers, nqp_h, nqp_v
   integer, intent(in) :: ndf_w0, ndf_w2, ndf_w3, ndf_wtheta, ndf_chi
   integer, intent(in) :: undf_w0, undf_w2, undf_w3, undf_wtheta, undf_chi
@@ -135,24 +138,24 @@ subroutine compute_total_energy_code(                                           
   real(kind=r_def), dimension(1,ndf_w0,nqp_h,nqp_v), intent(in) :: w0_basis
   real(kind=r_def), dimension(3,ndf_chi,nqp_h,nqp_v), intent(in) :: chi_diff_basis
 
-  real(kind=r_def), dimension(undf_w3), intent(out)     :: energy
-  real(kind=r_def), dimension(undf_w2), intent(in)      :: u
-  real(kind=r_def), dimension(undf_w3), intent(in)      :: rho
+  real(kind=r_def), dimension(undf_w3),     intent(out) :: energy
+  real(kind=r_def), dimension(undf_w2),     intent(in)  :: u
+  real(kind=r_def), dimension(undf_w3),     intent(in)  :: rho, exner
   real(kind=r_def), dimension(undf_wtheta), intent(in)  :: theta
-  real(kind=r_def), dimension(undf_w0), intent(in)      :: phi 
-  real(kind=r_def), dimension(undf_chi), intent(in)     :: chi_1, chi_2, chi_3
+  real(kind=r_def), dimension(undf_w0),     intent(in)  :: phi 
+  real(kind=r_def), dimension(undf_chi),    intent(in)  :: chi_1, chi_2, chi_3
 
   real(kind=r_def), dimension(nqp_h), intent(in)      ::  wqp_h
   real(kind=r_def), dimension(nqp_v), intent(in)      ::  wqp_v
 
-  !Internal variables
+  ! Internal variables
   integer               :: df, k, loc
   integer               :: qp1, qp2
 
   real(kind=r_def), dimension(ndf_chi)          :: chi_1_e, chi_2_e, chi_3_e
   real(kind=r_def), dimension(nqp_h,nqp_v)     :: dj
   real(kind=r_def), dimension(3,3,nqp_h,nqp_v) :: jac
-  real(kind=r_def), dimension(ndf_w3)          :: rho_e, energy_e
+  real(kind=r_def), dimension(ndf_w3)          :: rho_e, energy_e, exner_e
   real(kind=r_def), dimension(ndf_w2)          :: u_e
   real(kind=r_def), dimension(ndf_wtheta)      :: theta_e
   real(kind=r_def), dimension(ndf_w0)          :: phi_e
@@ -163,7 +166,7 @@ subroutine compute_total_energy_code(                                           
                       ke_term, temperature_term
 
   do k = 0, nlayers-1
-  ! Extract element arrays of chi
+    ! Extract element arrays of chi
     do df = 1, ndf_chi
       loc = map_chi(df) + k
       chi_1_e(df) = chi_1( loc )
@@ -180,18 +183,21 @@ subroutine compute_total_energy_code(                                           
       theta_e(df) = theta( map_wtheta(df) + k)
     end do
     do df = 1, ndf_w3
-      rho_e(df) = rho( map_w3(df) + k )
+      rho_e(df)   = rho( map_w3(df) + k )
+      exner_e(df) = exner( map_w3(df) + k )
       energy_e(df) = 0.0_r_def
     end do
     do df = 1, ndf_w2
       u_e(df) = u( map_w2(df) + k )
     end do
-  ! compute the energy integrated over one cell
+    ! Compute the energy integrated over one cell
     do qp2 = 1, nqp_v
       do qp1 = 1, nqp_h
         rho_at_quad = 0.0_r_def
+        exner_at_quad = 0.0_r_def
         do df = 1, ndf_w3
-          rho_at_quad  = rho_at_quad + rho_e(df)*w3_basis(1,df,qp1,qp2) 
+          rho_at_quad    = rho_at_quad   + rho_e(df)  *w3_basis(1,df,qp1,qp2) 
+          exner_at_quad  = exner_at_quad + exner_e(df)*w3_basis(1,df,qp1,qp2) 
         end do
         theta_at_quad = 0.0_r_def
         phi_at_quad   = 0.0_r_def
@@ -202,10 +208,9 @@ subroutine compute_total_energy_code(                                           
           theta_at_quad   = theta_at_quad                                      &
                           + theta_e(df)*wtheta_basis(1,df,qp1,qp2)
         end do
-        exner_at_quad = calc_exner_pointwise(rho_at_quad, theta_at_quad)
-! Temperature term
+        ! Temperature term
         temperature_term = Cv*exner_at_quad*theta_at_quad
-! k.e term
+        ! k.e term
         u_at_quad(:) = 0.0_r_def
         do df = 1, ndf_w2
           u_at_quad(:) = u_at_quad(:) &

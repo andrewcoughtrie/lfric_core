@@ -33,6 +33,11 @@ import matplotlib.cm as cm
 from scipy.interpolate import griddata
 
 import sys
+# Use magma colormap
+from magma import magma_data
+from matplotlib.colors import ListedColormap
+magma = ListedColormap(magma_data, name='magma')
+plt.register_cmap(name='magma', cmap=magma)
 
 from read_data import read_nodal_data
 
@@ -40,7 +45,7 @@ levels = None
 data = None
 
        
-def make_figure(plotpath, field, component, timestep, levels):
+def make_figure(plotpath, field, component, timestep, levels, plotlevel):
 
   val_col = 'c' + str(component)
 
@@ -58,7 +63,7 @@ def make_figure(plotpath, field, component, timestep, levels):
   zmax = max(levels)*1000.0
 
   r2d = 180.0/np.pi;
-  nx,ny,nz = 360,180,len(levels)
+  nx,ny,nz = 720,360,len(levels)
 
   #create 2D plot
   x2d = np.linspace(xmin, xmax, nx)
@@ -71,37 +76,48 @@ def make_figure(plotpath, field, component, timestep, levels):
     zi[:,:,p] = griddata((p_data['x'].values, p_data['y'].values), p_data[val_col].values, (xi, yi), method='linear')
 
 
-  cc = np.linspace(np.amin(p_data[val_col].values),np.amax(p_data[val_col].values),13)
-
-  # Pressure plot
-  plotlevel = 1
+  # Specific settings for plotting theta and p
   if field == 'theta':
     cc = np.linspace(220,330,12)
+    plotlevel = 1
   elif field == 'exner':
     rd = 287.05
     p0 = 100000.0
     kappa = rd/1005.0
     zi = 0.01*zi**(1.0/kappa) * p0
-    cc = np.linspace(900,1000,11)
+    cc = np.linspace(916,1020,14)
     plotlevel = 0
+  else:
+    p_data = data.loc[data['level'] == levels[plotlevel]]
+    cc = np.linspace(np.amin(p_data[val_col].values),np.amax(p_data[val_col].values),13)
 
   fig = plt.figure(figsize=(10,5))
-  dz = zi[:,:,plotlevel]
-  c_map = cm.summer
-  cf = plt.contourf(xi *r2d, yi * r2d, dz, cc, cmap=c_map)
-  plt.colorbar(cf,  cmap=c_map)
+  # Extrapolate exner field to surface
+  if field == 'exner':
+    dz = 1.5*zi[:,:,0] - 0.5*zi[:,:,1]
+  else:
+    dz = zi[:,:,plotlevel]
+
+  plt.clf()
+  cf = plt.contourf(xi *r2d, yi * r2d, dz, cc, cmap=magma)
+  plt.colorbar(cf,cmap=magma)
   cl = plt.contour(xi * r2d, yi * r2d, dz, cc, linewidths=0.5, colors='k')
   plt.xlabel('Longitude')
   plt.ylabel('Latitude')
-  out_file_name = plotpath + "/" "slice_xy_" + field + "_" + timestep +  ".png"
+  if (field != 'u' and field !='xi'):
+    out_file_name = plotpath + "/" "baroclinic_xy_" + field + "_" + timestep +  ".png"
+  else:
+    out_file_name = plotpath + "/" "baroclinic_xy_" + field + str(component) + "_" + timestep +  ".png"
+  
   plt.savefig(out_file_name , bbox_inches='tight')
+
  
 if __name__ == "__main__":
 
   try:
-    config, datapath, fields, timesteps, plotpath = sys.argv[1:6]
+    config, datapath, fields, timesteps, plotpath, plotlevel = sys.argv[1:7]
   except ValueError:
-    print("Usage: {0} <config> <datapath> <fields_list> <timestep_list> <plotpath>".format(sys.argv[0]))
+    print("Usage: {0} <config> <datapath> <fields_list> <timestep_list> <plotpath> <plotlevel>".format(sys.argv[0]))
     exit(1)
 
   # Split out the list of fields
@@ -111,16 +127,43 @@ if __name__ == "__main__":
   ts_list = timesteps.split(':')
 
 
-  for ts in ts_list:
-    for field in field_list:
+  for field in field_list:
 
-      filestem =  datapath + "/" + config + "_nodal_" + field + "_" + ts + "*"      
+    if field in ['rho','theta','exner']:
+       # Scalar fields
+       ncomp = 1
+       comp = 1
+    else:
+       # Vector fields
+       ncomp = 3
+       # W3 projected U, V, W and XI components 
+       if field in ['w3projection_u1','w3projection_u2', 'w3projection_u3', 'w3projection_xi1','w3projection_xi2', 'w3projection_xi3']:
+          comp = 1
+       elif (field=='u' or field=='xi'):
+          comp = [1,2,3]    
 
-      data = read_nodal_data(filestem, 1, 1)
-      levels = data.level.unique()
+    for ts in ts_list:
 
-      # Only try to plot if we found some files for this timestep
-      if len(levels) > 0:
-        make_figure(plotpath, field, 1, ts, levels)
+      filestem =  datapath + "/" + config + "_nodal_" + field + "_" + ts + "*"   
+
+      if (field !='u' and field !='xi'):
+        data = read_nodal_data(filestem, ncomp, comp)
+
+        levels = data.level.unique()
+
+
+        # Only try to plot if we found some files for this timestep
+        if len(levels) > 0:
+          make_figure(plotpath,field, comp, ts, levels, plotlevel)
+
+      else:
+        for comp_u in comp:
+          data = read_nodal_data(filestem, ncomp, comp_u)
+
+          levels = data.level.unique()
+
+        # Only try to plot if we found some files for this timestep
+        if len(levels) > 0:
+          make_figure(plotpath, field, comp_u, ts, levels, plotlevel)
 
 

@@ -66,7 +66,7 @@ end type
 ! Constructors
 !-------------------------------------------------------------------------------
 
-! overload the default structure constructor for function space
+! Overload the default structure constructor for function space
 interface hydrostatic_kernel_type
    module procedure hydrostatic_kernel_constructor
 end interface
@@ -84,7 +84,7 @@ end function hydrostatic_kernel_constructor
 !> @brief Compute the pressure and geopotential gradient components of the momentum equation
 !! @param[in] nlayers Number of layers
 !! @param[inout] r_u Momentum equation right hand side
-!! @param[in] rho Density field
+!! @param[in] exner Exner pressure field
 !! @param[in] theta Potential temperature field
 !! @param[in] phi Geopotential field
 !! @param[in] ndf_w2 Number of degrees of freedom per cell for w2
@@ -107,20 +107,19 @@ end function hydrostatic_kernel_constructor
 !! @param[in] w0_diff_basis Differential of the basis functions evaluated at quadrature points
 !! @param[in] nqp_h Number of quadrature points in the horizontal
 !! @param[in] nqp_v Number of quadrature points in the vertical
-!! @param[in] wqp_h horizontal quadrature weights
-!! @param[in] wqp_v vertical quadrature weights
+!! @param[in] wqp_h Horizontal quadrature weights
+!! @param[in] wqp_v Vertical quadrature weights
 subroutine hydrostatic_code(nlayers,                                          &
-                            r_u, rho, theta, phi,                             &
+                            r_u, exner, theta, phi,                           &
                             ndf_w2, undf_w2, map_w2, w2_basis, w2_diff_basis, &
                             ndf_w3, undf_w3, map_w3, w3_basis,                &
                             ndf_wt, undf_wt, map_wt, wt_basis, wt_diff_basis, &
                             ndf_w0, undf_w0, map_w0, w0_diff_basis,           &
                             nqp_h, nqp_v, wqp_h, wqp_v                        &
                             )
-                           
-  use calc_exner_pointwise_mod, only: calc_exner_pointwise
-  
-  !Arguments
+  implicit none
+                         
+  ! Arguments
   integer, intent(in) :: nlayers,nqp_h, nqp_v
   integer, intent(in) :: ndf_wt, ndf_w2, ndf_w3, ndf_w0
   integer, intent(in) :: undf_wt, undf_w2, undf_w3, undf_w0
@@ -137,31 +136,31 @@ subroutine hydrostatic_code(nlayers,                                          &
   real(kind=r_def), dimension(3,ndf_w0,nqp_h,nqp_v), intent(in) :: w0_diff_basis   
 
   real(kind=r_def), dimension(undf_w2), intent(inout) :: r_u
-  real(kind=r_def), dimension(undf_w3), intent(in)    :: rho
+  real(kind=r_def), dimension(undf_w3), intent(in)    :: exner
   real(kind=r_def), dimension(undf_wt), intent(in)    :: theta
   real(kind=r_def), dimension(undf_w0), intent(in)    :: phi
 
   real(kind=r_def), dimension(nqp_h), intent(in)      ::  wqp_h
   real(kind=r_def), dimension(nqp_v), intent(in)      ::  wqp_v
 
-  !Internal variables
+  ! Internal variables
   integer               :: df, k 
   integer               :: qp1, qp2
   
-  real(kind=r_def), dimension(ndf_w3)          :: rho_e
+  real(kind=r_def), dimension(ndf_w3)          :: exner_e
   real(kind=r_def), dimension(ndf_w2)          :: ru_e
   real(kind=r_def), dimension(ndf_wt)          :: theta_e
   real(kind=r_def), dimension(ndf_w0)          :: phi_e
 
   real(kind=r_def) :: grad_theta_at_quad(3), v(3)
-  real(kind=r_def) :: exner_at_quad, rho_at_quad, theta_at_quad, &
+  real(kind=r_def) :: exner_at_quad, theta_at_quad, &
                       grad_term, dv
   real(kind=r_def) :: grad_phi_at_quad(3)
   real(kind=r_def) :: geo_term
   
   do k = 0, nlayers-1
     do df = 1, ndf_w3
-      rho_e(df) = rho( map_w3(df) + k )
+      exner_e(df) = exner( map_w3(df) + k )
     end do    
     do df = 1, ndf_wt
       theta_e(df) = theta( map_wt(df) + k )
@@ -172,7 +171,7 @@ subroutine hydrostatic_code(nlayers,                                          &
     do df = 1, ndf_w0
       phi_e(df)   = phi(map_w0(df) + k)
     end do   
-  ! compute the RHS integrated over one cell    
+    ! Compute the RHS integrated over one cell    
     do qp2 = 1, nqp_v
       do qp1 = 1, nqp_h
 
@@ -184,9 +183,9 @@ subroutine hydrostatic_code(nlayers,                                          &
         end do
 
         ! Pressure gradient
-        rho_at_quad = 0.0_r_def 
+        exner_at_quad = 0.0_r_def 
         do df = 1, ndf_w3
-          rho_at_quad  = rho_at_quad + rho_e(df)*w3_basis(1,df,qp1,qp2) 
+          exner_at_quad  = exner_at_quad + exner_e(df)*w3_basis(1,df,qp1,qp2) 
         end do
         theta_at_quad = 0.0_r_def
         grad_theta_at_quad(:) = 0.0_r_def
@@ -198,18 +197,16 @@ subroutine hydrostatic_code(nlayers,                                          &
 
         end do
 
-        exner_at_quad = calc_exner_pointwise(rho_at_quad, theta_at_quad)
-
         do df = 1, ndf_w2
           v  = w2_basis(:,df,qp1,qp2)
           dv = w2_diff_basis(1,df,qp1,qp2)
 
-!pressure gradient term
+          ! Pressure gradient term
           grad_term = cp*exner_at_quad * (                           & 
                       theta_at_quad * dv                             &
                     + dot_product( grad_theta_at_quad(:),v)          &
                                          )
-! geopotential term                                         
+          ! Geopotential term                                         
           geo_term = dot_product( grad_phi_at_quad(:), v)
 
           ru_e(df) = ru_e(df) +  wqp_h(qp1)*wqp_v(qp2)*(grad_term-geo_term)

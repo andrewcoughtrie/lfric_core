@@ -94,7 +94,7 @@ program io_miniapp
 
   call get_initial_filename( filename )
   call load_configuration( filename )
-  call set_derived_config()
+  call set_derived_config( .true. )
   deallocate( filename )
 
 

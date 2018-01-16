@@ -14,7 +14,11 @@ module init_prognostic_fields_alg_mod
   use constants_mod,                   only: r_def, i_def
 
   use solver_mod,                      only: solver_algorithm
-  use runtime_constants_mod,           only: get_coordinates, get_height
+  use runtime_constants_mod,           only: get_coordinates, &
+                                             get_mass_matrix, &
+                                             w3inv_id,        &
+                                             get_height
+  use physics_mappings_mod,            only: map_physics_scalars
 
   ! Configuration and restart/checkpoint options
   use finite_element_config_mod,       only: element_order
@@ -25,46 +29,50 @@ module init_prognostic_fields_alg_mod
 
   ! PsyKAl-lite kernels
   use psykal_lite_mod,                 only: invoke_initial_mr_kernel, &
-                                             invoke_initial_rho_sample_kernel
+                                             invoke_initial_rho_sample_kernel, &
+                                             invoke_initial_exner_sample_kernel
 
   ! PsyKAl PSYClone kernels
   use set_rho_kernel_mod,              only: set_rho_kernel_type
+  use set_exner_kernel_mod,            only: set_exner_kernel_type
   use initial_u_kernel_mod,            only: initial_u_kernel_type
   use enforce_bc_kernel_mod,           only: enforce_bc_kernel_type
   use initial_theta_kernel_mod,        only: initial_theta_kernel_type
+  use project_pressure_kernel_mod,     only: project_pressure_kernel_type
   use hydrostatic_rho_kernel_mod,      only: hydrostatic_rho_kernel_type
 
   ! Derived Types
   use field_mod,                       only: field_type
   use quadrature_xyoz_mod,             only: quadrature_xyoz_type
   use quadrature_rule_gaussian_mod,    only: quadrature_rule_gaussian_type
+  use operator_mod,                    only: operator_type
 
   ! Handles
   use fs_continuity_mod,               only: W3, Wtheta
   use mr_indices_mod,                  only: nummr
-  use map_rho_to_theta_mod,            only: map_rho_to_theta
   implicit none
 
   private
   public :: init_prognostic_fields_alg
 
 contains
+
   !> @details An algorithm for initialising prognostic fields for 
   !>          all solvers.
-  !> @param[in] mesh_id Id of Mesh object on which the model runs
-  !> @param[inout] u  The 3D wind field
-  !> @param[inout] rho The density
-  !> @param[inout] theta The potential temperature
+  !> @param[inout] u 3D Wind field
+  !> @param[inout] rho Density
+  !> @param[inout] theta Potential temperature
+  !> @param[inout] exner Exner pressure
+  !> @param[inout] rho_in_wth Density field stored in the theta function space
+  !> @param[inout] mr Field bundle containing the moisture mixring ratios
   !> @param[inout] xi The vorticity field 
   !> @param[in] restart Checkpoint/restart type with timestepping information
-  subroutine init_prognostic_fields_alg( mesh_id, u, rho, theta, rho_in_wth, mr, xi, restart)
+  subroutine init_prognostic_fields_alg(u, rho, theta, exner, rho_in_wth, mr, xi, restart)
 
     implicit none
 
-    ! Mesh id
-    integer(i_def),  intent(in)           :: mesh_id
     ! Prognostic fields
-    type( field_type ), intent( inout )   :: u, rho, theta, xi, mr(nummr), rho_in_wth
+    type( field_type ), intent( inout ) :: u, rho, theta, exner, xi, mr(nummr), rho_in_wth
     ! Control
     type( restart_type ), intent(in)      :: restart
 
@@ -75,6 +83,8 @@ contains
     type( field_type ), pointer           :: chi(:) => null(), &
                                              height_wth => null(), &
                                              height_w3 => null()
+    ! Operators
+    type(operator_type), pointer        :: m3_inv => null()
 
     integer :: i
     character(5) :: name
@@ -113,15 +123,22 @@ contains
                                                   height_w3 ) )
       else
         if(sample_init_rho) then
-          call invoke_initial_rho_sample_kernel( rho, chi, initial_time )
+          call invoke_initial_rho_sample_kernel  ( rho,   chi, initial_time )
+          call invoke_initial_exner_sample_kernel( exner, chi, initial_time )
         else
-          call invoke( set_rho_kernel_type ( rho, chi, initial_time, qr ) )
+          call invoke( set_rho_kernel_type   ( rho,   chi, initial_time, qr ), &
+                       set_exner_kernel_type ( exner, chi, initial_time, qr ) )
         end if
       end if
 
-      call log_event( "Gungho: Mapping rho->rho_in_wth in same space as theta..", LOG_LEVEL_INFO )
+      call log_event( "Gungho: Computing initial pressure as projection..", LOG_LEVEL_INFO )
+      m3_inv => get_mass_matrix(w3inv_id)
+      qr = quadrature_xyoz_type(1, quadrature_rule)
+      call invoke( project_pressure_kernel_type( exner, rho, theta, &
+                                                 chi, m3_inv, qr ) )
 
-      call map_rho_to_theta(rho, theta, rho_in_wth)      
+      call log_event( "Gungho: Mapping rho->rho_in_wth in same space as theta..", LOG_LEVEL_INFO )
+      call map_physics_scalars(rho_in_wth, rho) 
       if (use_moisture) call invoke_initial_mr_kernel( theta, rho_in_wth, mr(:), chi )
 
       call log_event( "Gungho: Initialised prognostic fields", LOG_LEVEL_INFO )
@@ -147,6 +164,12 @@ contains
       call theta%read_restart(trim(restart%startfname("theta")))
 
       write(log_scratch_space,'(A,A)') "Reading file:", &
+            trim(restart%startfname("exner"))
+      call log_event(log_scratch_space,LOG_LEVEL_INFO)
+
+      call exner%read_restart(trim(restart%startfname("exner")))
+
+      write(log_scratch_space,'(A,A)') "Reading file:", &
             trim(restart%startfname("xi"))
       call log_event(log_scratch_space,LOG_LEVEL_INFO)
 
@@ -161,7 +184,7 @@ contains
 
 
       call log_event( "Gungho: Mapping rho->rho_in_wth in same space as theta..", LOG_LEVEL_INFO )
-      call map_rho_to_theta(rho, theta, rho_in_wth)
+      call map_physics_scalars(rho_in_wth, rho) 
 
       call log_event( "Gungho: Read prognostic fields from files", LOG_LEVEL_INFO )
     end if

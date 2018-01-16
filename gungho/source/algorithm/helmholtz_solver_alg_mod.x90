@@ -5,7 +5,6 @@
 !-----------------------------------------------------------------------------
 !>@brief Routines for solving the semi-implicit equation set by
 !!       eliminating all variables in favour of the exner pressure increment
-
 module helmholtz_solver_alg_mod
   use field_mod,                 only: field_type
   use constants_mod,             only: i_def, r_def
@@ -13,47 +12,47 @@ module helmholtz_solver_alg_mod
                                        get_m3_exner_star, &
                                        get_compound_div, &
                                        get_div_star, &
-                                       get_ptheta2, &
+                                       get_ptheta2v, &
                                        get_p2theta, &
                                        get_p3theta, &
                                        get_rho_at_u, &
                                        get_tri_precon, &
                                        get_helm_diag
-  use runtime_constants_mod,     only: get_coordinates, &
-                                       get_mass_matrix, &
-                                       get_mass_matrix_diagonal, &
+  use runtime_constants_mod,     only: get_mass_matrix, &
                                        get_div, &
-                                       get_inverse_lumped_mass_matrix, &
+                                       get_normalisation, &
                                        w2_id, w3inv_id, theta_space_id
-  use solver_config_mod,         only: normalise
-  use derived_config_mod,        only: si_bundle_size, bundle_size
+  use solver_config_mod,         only: normalise                              
+  use derived_config_mod,        only: bundle_size
   use field_indices_mod,         only: igh_u, igh_t, igh_d, igh_p
   use output_config_mod,         only: subroutine_timers 
   use timer_mod,                 only: timer
-  use timestepping_config_mod,   only: tau_u, tau_t, tau_r
   implicit none
 
   private 
-  real(kind=r_def),    private, parameter :: sc_err_min = 1.0e-5_r_def
-  type(field_type),    private            :: helmholtz_rhs
-  type(field_type),    private            :: exner_increment
+  real(kind=r_def), private            :: sc_err_min
+  type(field_type), private            :: helmholtz_rhs
+  type(field_type), private            :: exner_increment
   ! Auxiliary constants to group invokes
-  real(kind=r_def), private               :: const1, const2, const3
+  real(kind=r_def), private            :: const1
 
   ! Temporary fields needed for: 
   ! Fields for bicgstab (all W3)
   type(field_type), private :: res, p, v, s, t, z, y
   ! For building rhs
-  type(field_type), private :: r_u, r_p, u_term, rho_at_u, &
-                               flux, theta_adv_term, m2_u, mt_r_t
+  type(field_type), private :: r_u, r_p, u_term, &
+                               flux, theta_adv_term, m2_u
   ! For applying lhs
-  type(field_type), private :: grad_p
+  type(field_type), private :: grad_p, l_p
   ! For Back substitute
   type(field_type), private, allocatable :: rhs_inc(:)
   type(field_type), private :: rho_inc, u_inc, theta_inc
 
   type(field_type) :: hb_inv
 
+  ! Fields for gcr (all W3)
+  integer, parameter :: GCRk = 8
+  type(field_type),allocatable  :: s_gcr(:), v_gcr(:)
 
   ! Sub algorithms used for solving the helmholtz equation
   public  :: helmholtz_solver_init
@@ -62,20 +61,30 @@ module helmholtz_solver_alg_mod
   public  :: compute_inv_hb
   private :: apply_helmholtz_lhs
   private :: bicgstab
+  private :: gcr
+  private :: gmres
   private :: back_substitute 
   private :: helmholtz_precondition
+
 contains
+
 !=============================================================================!
-!>@brief Create all the required fields for the Helmholtz solver
+  !>@brief Create all the required fields for the Helmholtz solver
+  !>@param[in] state Field bundle used to creat all the fields needed for the 
+  !!                 algortihms in this module
   subroutine helmholtz_solver_init(state)
-    use function_space_mod,        only: function_space_type
-    use field_bundle_mod,          only: clone_bundle
+    use function_space_mod, only: function_space_type
+    use field_bundle_mod,   only: clone_bundle
+    use solver_config_mod,  only: si_pressure_method, &
+                                  solver_si_pressure_method_gmres,    &
+                                  solver_si_pressure_method_gcr, &
+                                  si_tolerance    
     implicit none
     type(field_type), intent(in)       :: state(bundle_size)
     type(function_space_type), pointer :: w3 => null(), &
                                           w2 => null(), &
                                           wtheta => null()
-
+    integer :: i
     ! Get needed function spaces
     w3     => state(igh_d)%get_function_space()
     w2     => state(igh_u)%get_function_space()
@@ -91,22 +100,22 @@ contains
     flux           = field_type(vector_space = w2)
     theta_adv_term = field_type(vector_space = wtheta)
     m2_u           = field_type(vector_space = w2)
-    mt_r_t         = field_type(vector_space = wtheta)
 
     ! Create invert_h_b fields
     hb_inv = field_type(vector_space = w2)
 
     ! Create bicgstab fields
-    v   = field_type( vector_space = w3)
-    z   = field_type( vector_space = w3)
-    p   = field_type( vector_space = w3)
-    t   = field_type( vector_space = w3)
-    s   = field_type( vector_space = w3)
-    y   = field_type( vector_space = w3)
-    res = field_type( vector_space = w3)
+    v   = field_type(vector_space = w3)
+    z   = field_type(vector_space = w3)
+    p   = field_type(vector_space = w3)
+    t   = field_type(vector_space = w3)
+    s   = field_type(vector_space = w3)
+    y   = field_type(vector_space = w3)
+    res = field_type(vector_space = w3)
     
     ! Apply lhs
     grad_p  = field_type(vector_space = w2)
+    l_p     = field_type(vector_space = w3)
 
     ! Back substitute
     allocate( rhs_inc(bundle_size) )
@@ -115,27 +124,62 @@ contains
     u_inc     = field_type(vector_space = w2)
     theta_inc = field_type(vector_space = wtheta)
 
+    ! For gcr
+    if ( si_pressure_method == solver_si_pressure_method_gmres &
+    .or. si_pressure_method == solver_si_pressure_method_gcr) then
+      allocate( s_gcr(GCRk), v_gcr(GCRk) )
+      do i = 1,GCRK
+        v_gcr(i) = field_type(vector_space = w3)
+        s_gcr(i) = field_type(vector_space = w3)
+      end do
+    end if
+    call invoke( setval_c(exner_increment, 0.0_r_def) )
+
+    ! Set the minimum absolute error level to the tolerance of the si solver
+    sc_err_min = si_tolerance
+
   end subroutine helmholtz_solver_init
 
 !=============================================================================!
-!>@brief Control routine for the helmholtz solver
-!>@details Control routine for the helmholtz solver:
-!>         1) Builds the helmholtz rhs 
-!>         2) Solves for the presssure increment using a Krylov method
-!>         3) Back substitutes to find remaining field increments
-
+  !>@brief Control routine for the helmholtz solver
+  !>@details Control routine for the helmholtz solver:
+  !>         1) Builds the helmholtz rhs 
+  !>         2) Solves for the presssure increment using a Krylov method
+  !>         3) Back substitutes to find remaining field increments
+  ! > Assumes the equations are in Normalised form
+   !> \f[ L\mathbf{x} = \mathbf{x} \f]
+  !> With:
+  !> \f[ 
+  !>    N_u^2 u' - \left(D^* \Pi' + P_{2\theta}\theta' \right) = R_u
+  !>    \theta' + N_{\theta}P_{\theta2}u' = R_\theta
+  !>    \rho' + M_3^{-1}D\left(\rho^{*}u'\right) = R_\rho
+  !>    M_3^{-1}\left(M_3^\Pi \Pi' - P_{3\theta}\theta' - M_3^\rho \rho' = R_\Pi
+  !> \f]
+  !>@param[inout] x0 Field bundle to compute increments for
+  !>@param[in]    rhs0 Field bundle containing residuals
   subroutine helmholtz_solver_alg(x0, rhs0)
+    use solver_config_mod, only: si_pressure_method, &
+                                 solver_si_pressure_method_bicgstab, &
+                                 solver_si_pressure_method_gmres,    &
+                                 solver_si_pressure_method_gcr
     implicit none
 
-    type(field_type), intent(inout) :: x0(si_bundle_size)
-    type(field_type), intent(in)    :: rhs0(si_bundle_size)
+    type(field_type), intent(inout) :: x0(bundle_size)
+    type(field_type), intent(in)    :: rhs0(bundle_size)
 
     if ( subroutine_timers ) call timer('helmholtz_solver_alg')
     ! Build Helmholtz RHS
     call build_helmholtz_rhs(helmholtz_rhs, rhs0)
 
     ! Krylov solver to obtain pressure increment
-    call bicgstab(exner_increment, helmholtz_rhs)
+    select case(si_pressure_method)
+    case(solver_si_pressure_method_bicgstab)
+      call bicgstab(exner_increment, helmholtz_rhs)
+    case(solver_si_pressure_method_gmres)
+      call gmres(exner_increment, helmholtz_rhs)
+    case(solver_si_pressure_method_gcr)
+      call gcr(exner_increment, helmholtz_rhs)
+    end select
 
     ! Back substitution to obtain other fields
     call back_substitute(x0, exner_increment, rhs0)
@@ -144,20 +188,23 @@ contains
   end subroutine helmholtz_solver_alg
 
 !=============================================================================!
-!>@brief Compute the rhs to the helmholtz equation for the pressure increment
+  !>@brief Compute the rhs to the helmholtz equation for the pressure increment
+  !>@param[inout] helmholtz_rhs The rhs of the Helmholtz equation
+  !>@param[in]    rhs0 Field bundle containing residuals
   subroutine build_helmholtz_rhs(helmholtz_rhs, rhs0)
     use matrix_vector_kernel_mod,     only: matrix_vector_kernel_type
     use dg_matrix_vector_kernel_mod,  only: dg_matrix_vector_kernel_type
-    use apply_variable_hx_kernel_mod, only: apply_variable_hx_kernel_type
-    use timestepping_config_mod,      only: dt
-    use planet_config_mod,            only: cp
+    use apply_variable_hx_kernel_mod, only: apply_variable_hx_kernel_type, &
+                                            opt_apply_variable_hx_kernel_type
     use operator_mod,                 only: operator_type
     use enforce_bc_kernel_mod,        only: enforce_bc_kernel_type
     use log_mod,                      only: LOG_LEVEL_DEBUG
+    use finite_element_config_mod,    only: element_order, wtheta_on
+    use psykal_lite_mod,              only: invoke_raise_field
 
     implicit none
     type(field_type),                intent(inout) :: helmholtz_rhs
-    type(field_type),                intent(in)    :: rhs0(si_bundle_size)
+    type(field_type),                intent(in)    :: rhs0(bundle_size)
 
     type(operator_type), pointer :: m3_rho_star => null(), &
                                     m3_inv => null(), &
@@ -166,73 +213,87 @@ contains
                                     p3theta => null(), &
                                     compound_div => null()
     type(field_type),    pointer :: mt_lumped_inv => null()
-    type(field_type),    pointer :: H_diag => null()
-    real(kind=r_def)             :: mdt
+    type(field_type),    pointer :: u_normalisation => null()
+    type(field_type),    pointer :: h_diag => null()
+    real(kind=r_def), parameter  :: mone = -1.0_r_def
 
+    if ( subroutine_timers ) call timer('helmholtz rhs')
     p2theta       => get_p2theta()
-    ptheta2       => get_ptheta2()
+    ptheta2       => get_ptheta2v()
     p3theta       => get_p3theta()
     m3_rho_star   => get_m3_rho_star()
-    mt_lumped_inv => get_inverse_lumped_mass_matrix(theta_space_id)
     m3_inv        => get_mass_matrix(w3inv_id)
     compound_div  => get_compound_div()
+    u_normalisation => get_normalisation(w2_id)
    
-    ! r_u = rhs_u + tau*dt*cp*P02*M0^-1*rhs_t
-    const1 = tau_u*dt*cp
-    call invoke( name = "Compute r_u",                            &
-                 X_times_Y(mt_r_t, rhs0(igh_t), mt_lumped_inv),   &
-                 setval_c(r_u, 0.0_r_def),                        &
-                 matrix_vector_kernel_type(r_u, mt_r_t, p2theta), &
-                 inc_aX_plus_Y(const1, r_u, rhs0(igh_u)),         &
-    ! Compute H_B * u_term = r_u
-                 enforce_bc_kernel_type(r_u),                     &
+    ! r_u = rhs_u + UNORM*P02*rhs_t
+    call invoke( name = "Compute helmholtz R_u",                       &
+                 setval_c(r_u, 0.0_r_def),                             &
+                 matrix_vector_kernel_type(r_u, rhs0(igh_t), p2theta), &
+                 inc_X_times_Y(r_u, u_normalisation),                  &
+                 inc_X_plus_Y(r_u, rhs0(igh_u)),                       &
+                 enforce_bc_kernel_type(r_u),                          &
                  X_times_Y(u_term, r_u, hb_inv) )
 
     ! Compute H(u_term)
-    ! r_pi = rhs_pi + P03*M0^-1*rhs_t + M3rho*M3^-1*rhs_r
-    ! rhs_pi \equiv 0
+    ! r_pi = M3^-1*(rhs_pi + P03*M0^-1*rhs_t + M3rho*M3^-1*rhs_r)
     ! r_rho already contains M3^-1 factor
-    mdt = -dt   
-    call invoke( apply_variable_hx_kernel_type( helmholtz_rhs, u_term, mt_lumped_inv, rhs0(igh_d), &
-                                                compound_div, p3theta, ptheta2, m3_rho_star, &
-                                                tau_t, mdt), &
-                 matrix_vector_kernel_type(helmholtz_rhs, mt_r_t, p3theta) )
+    mt_lumped_inv => get_normalisation(theta_space_id)
+    if ( wtheta_on .and. element_order == 0 ) then
+      call invoke( opt_apply_variable_hx_kernel_type( r_p, u_term, mt_lumped_inv, rhs0(igh_d), &
+                                                      compound_div, p3theta, ptheta2, m3_rho_star,&
+                                                      mone), &
+                   matrix_vector_kernel_type(r_p, rhs0(igh_t), p3theta), &
+                   dg_matrix_vector_kernel_type(helmholtz_rhs, r_p, m3_inv), &
+                   inc_X_plus_Y(helmholtz_rhs, rhs0(igh_p)) )
+    else
+      call invoke( apply_variable_hx_kernel_type( r_p, u_term, mt_lumped_inv, rhs0(igh_d),  &
+                                                  compound_div, p3theta, ptheta2, m3_rho_star,&
+                                                  mone), &
+                   matrix_vector_kernel_type(r_p, rhs0(igh_t), p3theta), &
+                   dg_matrix_vector_kernel_type(helmholtz_rhs, r_p, m3_inv), &
+                   inc_X_plus_Y(helmholtz_rhs, rhs0(igh_p)) )
+    end if
 
-    if ( normalise ) then 
-      H_diag => get_helm_diag()
-      call invoke( inc_X_times_Y(helmholtz_rhs, H_diag) )
+    if ( normalise ) then
+      h_diag => get_helm_diag()
+      call invoke( inc_X_times_Y(helmholtz_rhs, h_diag) )
     end if
 
     call helmholtz_rhs%log_minmax(LOG_LEVEL_DEBUG, 'helmholtz_rhs')
+    if ( subroutine_timers ) call timer('helmholtz rhs')
 
   end subroutine build_helmholtz_rhs
 
 !=============================================================================!
-!>@brief Compute the lumped inverse H_B operator
-  subroutine compute_inv_hb
-    use timestepping_config_mod,  only: dt
-    use planet_config_mod,        only: cp
+  !>@brief Compute the lumped inverse H_B operator
+  subroutine compute_inv_hb()
     use psykal_lite_mod,          only: invoke_raise_field
     use matrix_vector_kernel_mod, only: matrix_vector_kernel_type
     use operator_mod,             only: operator_type
-    use enforce_bc_kernel_mod,    only: enforce_bc_kernel_type
+    use log_mod,                  only: LOG_LEVEL_INFO
 
     implicit none
-    type(operator_type), pointer                   :: m2, p2theta,         &
-                                                      ptheta2 => null()
-    type(field_type),    pointer                   :: mt_lumped_inv => null()
-    real(kind=r_def)                               :: timestep_term
-    type(field_type)                               :: ones
+    type(operator_type), pointer :: m2      => null(),         & 
+                                    p2theta => null(),         &
+                                    ptheta2 => null()
+    type(field_type),    pointer :: u_normalisation => null(), &
+                                    t_normalisation => null() 
+    real(kind=r_def)             :: timestep_term
+    type(field_type)             :: ones    
+    if ( subroutine_timers ) call timer('helmholtz HB')
 
-   timestep_term = cp*tau_u*tau_t*dt**2
 
     m2            => get_mass_matrix(w2_id)
     p2theta       => get_p2theta()
-    ptheta2       => get_ptheta2()
-    mt_lumped_inv => get_inverse_lumped_mass_matrix(theta_space_id)
+    ptheta2       => get_ptheta2v()
+
+    u_normalisation => get_normalisation(w2_id)
+    t_normalisation => get_normalisation(theta_space_id)
 
     ones = field_type( vector_space = hb_inv%get_function_space() )
 
+    timestep_term = 1.0_r_def 
     call invoke( name = "Compute lumped inverse H_B operator",               &
                  setval_c(ones, 1.0_r_def),                                  &
                  setval_c(hb_inv, 0.0_r_def),                                &
@@ -240,20 +301,23 @@ contains
                  setval_c(theta_adv_term, 0.0_r_def),                        &
                  matrix_vector_kernel_type(m2_u, ones, m2),                  &
                  matrix_vector_kernel_type(theta_adv_term, ones, ptheta2),   &
-                 inc_X_times_Y(theta_adv_term, mt_lumped_inv),               &
+                 inc_X_times_Y(theta_adv_term, t_normalisation),             &
                  matrix_vector_kernel_type(hb_inv, theta_adv_term, p2theta), & 
-                 inc_aX_plus_Y(timestep_term, hb_inv, m2_u) )
+                 inc_aX_plus_Y(timestep_term, hb_inv, m2_u),                 &
+                 inc_X_times_Y(hb_inv, u_normalisation) )
     ! PSyclone does not currently support raising field to an integer power
     call invoke_raise_field(hb_inv, -1_i_def)
+    if ( subroutine_timers ) call timer('helmholtz HB')
 
   end subroutine compute_inv_hb
 
 !=============================================================================!
-!>@brief Apply the full Helmholtz lhs to a pressure field p, this is the Ax
-!>       routine called from the Krylov solver 
+  !>@brief Apply the full Helmholtz lhs to a pressure field p, this is the Ax
+  !>       routine called from the Krylov solver 
+  !>@param[inout] Hp Field containg the result of multiplying the Helmhopltz
+  !!                 matrix H by the field p
+  !>@param[in] p Field to apply the helmholtz matrix to
   subroutine apply_helmholtz_lhs(Hp, p)
-    use timestepping_config_mod,         only: dt
-    use planet_config_mod,               only: cp
     use scaled_matrix_vector_kernel_mod, only: scaled_matrix_vector_kernel_type, &
                                                opt_scaled_matrix_vector_kernel_type
     use operator_mod,                    only: operator_type
@@ -263,59 +327,69 @@ contains
     use finite_element_config_mod,       only: element_order, wtheta_on
 
     implicit none
-    type(field_type),                intent(inout) :: Hp
-    type(field_type),                intent(in)    :: p
-
+    type(field_type),  intent(inout) :: Hp
+    type(field_type),  intent(in)    :: p
     type(operator_type), pointer :: m3_exner_star => null(), &
                                     div_star => null(), &
                                     compound_div => null(), &
                                     ptheta2 => null(), &
-                                    p3theta => null()
-    real(kind=r_def)             :: timestep_term
-    type(field_type),    pointer :: H_diag => null(), &
-                                    mt_lumped_inv => null()
+                                    p3theta => null(), &
+                                    m3_inv => null()
+    real(kind=r_def), parameter  :: one = 1.0_r_def
+    type(field_type),    pointer :: mt_lumped_inv => null(), &
+                                    u_normalisation => null(), &
+                                    h_diag => null()
 
-    m3_exner_star => get_m3_exner_star()
-    div_star      => get_div_star()
-    compound_div  => get_compound_div()
-    ptheta2       => get_ptheta2()
-    mt_lumped_inv => get_inverse_lumped_mass_matrix(theta_space_id)
-    p3theta       => get_p3theta()
+    if ( subroutine_timers ) call timer('helmholtz lhs')
 
-    ! Compute M3*p + cp*tau_u*dt*H[ D{\theta*}*p ]
-    timestep_term = cp*tau_u*dt**2
+    m3_exner_star   => get_m3_exner_star()
+    div_star        => get_div_star()
+    compound_div    => get_compound_div()
+    ptheta2         => get_ptheta2v()
+    mt_lumped_inv   => get_normalisation(theta_space_id)
+    p3theta         => get_p3theta()
+    u_normalisation => get_normalisation(w2_id)
+
+    ! Compute M3*p + H[ D{\theta*}*p ]
     if ( wtheta_on .and. element_order == 0 ) then
       ! Hard wired optimisation for desired configuration
       call invoke( setval_c( grad_p, 0.0_r_def ),                              &
                    opt_scaled_matrix_vector_kernel_type(grad_p, p, div_star,   &
-                                                        hb_inv),               &
-                   enforce_bc_kernel_type( grad_p ),                           &
+                                                        hb_inv, u_normalisation),&
                    opt_apply_variable_hx_kernel_type(                          &
-                       Hp, grad_p, mt_lumped_inv, p,                           &
+                       l_p, grad_p, mt_lumped_inv, p,                          &
                        compound_div, p3theta, ptheta2, m3_exner_star,          &
-                       tau_t, timestep_term) )
+                       one) )
     else
       call invoke( setval_c( grad_p, 0.0_r_def ),                              &
                    scaled_matrix_vector_kernel_type(grad_p, p, div_star,       &
-                                                    hb_inv),                   &
+                                                    hb_inv, u_normalisation),  &
                    enforce_bc_kernel_type( grad_p ),                           &
                    apply_variable_hx_kernel_type(                              &
-                         Hp, grad_p, mt_lumped_inv, p,                         &
+                         l_p, grad_p, mt_lumped_inv, p,                        &
                          compound_div, p3theta, ptheta2, m3_exner_star,        &
-                         tau_t, timestep_term) )
+                         one) )
 
     end if
-    if ( normalise ) then 
-      H_diag => get_helm_diag()
-      call invoke( inc_X_times_Y(Hp, H_diag) )
+
+    m3_inv => get_mass_matrix(w3inv_id)
+    call invoke( dg_matrix_vector_kernel_type(Hp, l_p, m3_inv) )
+
+    if ( normalise ) then
+      h_diag => get_helm_diag()
+      call invoke( inc_X_times_Y(Hp, h_diag) )
     end if
+
+    if ( subroutine_timers ) call timer('helmholtz lhs')
 
   end subroutine apply_helmholtz_lhs
 
 !=============================================================================!
-!>@brief Krylov solver specifically for solving the Helmholtz equation 
+  !>@brief Krylov solver specifically for solving the Helmholtz equation 
+  !>@param[inout] lhs Field to solve H*lhs = rhs for
+  !>@param[in] rhs Residual field
   subroutine bicgstab(lhs, rhs)
-    use solver_config_mod,     only: maximum_iterations, &
+    use solver_config_mod,     only: si_pressure_maximum_iterations, &
                                      si_pressure_tolerance
     use log_mod,               only: log_event,         &
                                      log_scratch_space, &
@@ -327,14 +401,15 @@ contains
     type(field_type),             intent(inout) :: lhs
     type(field_type),             intent(in)    :: rhs
 
-    ! the scalars
+    ! The scalars
     real(kind=r_def)                   :: rho, alpha, omega, beta, norm
     real(kind=r_def)                   :: ts, tt
-    ! others
+    ! Others
     real(kind=r_def)                   :: err, sc_err, init_err
     integer(kind=i_def)                :: iter
-    
-    ! compute the residual this is a global sum to the PSy ---
+    if ( subroutine_timers ) call timer('helmholtz bicg')
+ 
+    ! Compute the residual this is a global sum to the PSy ---
     call invoke( X_innerproduct_X(sc_err, rhs) )
     sc_err = max(sqrt(sc_err), sc_err_min)
     write( log_scratch_space, '(A,E15.8)' ) &
@@ -345,27 +420,29 @@ contains
     omega  = 1.0_r_def
     norm   = 1.0_r_def
 
-    call invoke( setval_c(lhs, 0.0_r_def), &
-                 setval_X(res, rhs),       &
+    call invoke( setval_c(y, 0.0_r_def), &
+                 X_minus_Y(res, rhs, y), &
+                 setval_c(lhs, 0.0_r_def), &
                  X_innerproduct_X(err, res) )
+
     err = sqrt(err)/sc_err
-    init_err=err
+    init_err=sc_err
     if (err < si_pressure_tolerance) then
       write( log_scratch_space, '(A,I3,A,E12.4,A,E15.8)') &
            "helmholtz solver_algorithm:converged in ", 0, &
            " iters, init=", init_err," final=", err
-      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
       return
     end if
 
     call invoke( setval_c(v, 0.0_r_def), &
                  setval_c(p, 0.0_r_def) )
 
-    do iter = 1, maximum_iterations
+    do iter = 1, si_pressure_maximum_iterations
 
       call invoke( X_innerproduct_Y(rho, res, rhs) )
       beta = (rho/norm) * (alpha/omega)
-      ! p = r + beta*(p - omega*v)
+      ! Compute p = r + beta*(p - omega*v) broken down into individual invokes
       const1 = -beta*omega
       call invoke( inc_aX_plus_Y(beta, p, res), &
                    inc_X_plus_bY(p, const1, v) )
@@ -383,7 +460,7 @@ contains
 
       omega = ts/tt
 
-      ! lhs = lhs + omega * z + alpha * y
+      ! Compute lhs = lhs + omega * z + alpha * y broken down into individual invokes
       call invoke( inc_X_plus_bY(lhs, omega, z), &
                    inc_X_plus_bY(lhs, alpha, y), &
                    X_minus_bY(res, s, omega, t) )
@@ -395,103 +472,354 @@ contains
       err = sqrt(err)/sc_err
 
       write( log_scratch_space, '(A,I3,A,E15.8)' ) &
-             "solver_algorithm[", iter, "]: res = ", err
+             "solver_algorithm[", iter, "]: res = ", err*sc_err
       call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
 
       if (err < si_pressure_tolerance) then
         write( log_scratch_space, '(A,I3,A,E12.4,A,E15.8)' )      &
              "Helmholtz solver_algorithm:converged in ", iter,    &
-             " iters, init=", init_err, " final=", err
+             " iters, init=", init_err, " final=", err*sc_err
         call log_event( log_scratch_space, LOG_LEVEL_INFO )
+        if ( subroutine_timers ) call timer('helmholtz bicg')
         exit
       end if
     end do
 
-    if(iter >= maximum_iterations) then
+    if(iter >= si_pressure_maximum_iterations) then
+      if ( subroutine_timers ) call timer('helmholtz bicg')
       write(log_scratch_space, '(A, I3, A, E15.8)')               &
            "Helmholtz solver_algorithm: NOT converged in ", iter, &
            " iters, Res=", err
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end if
   end subroutine bicgstab
+!=============================================================================!
+  !> @brief GCR solver for the system H.lhs = rhs
+  !> @details Solves H.lhs = rhs where the operation A.lhs is encoded in a kernel using
+  !! the Preconditioned GCR(k) algorithm from Wesseling. The choice of matrix is
+  !! encoded in the matrix vector kernel that is called. 
+  !>@param[inout] lhs Field to solve H*lhs = rhs for
+  !>@param[in] rhs Residual field
+  subroutine gcr(lhs, rhs)
+    use solver_config_mod,     only: si_pressure_maximum_iterations, &
+                                     si_pressure_tolerance
+    use log_mod,               only: log_event,         &
+                                     log_scratch_space, &
+                                     LOG_LEVEL_ERROR,   &
+                                     LOG_LEVEL_INFO,    &
+                                     LOG_LEVEL_DEBUG,   &
+                                     LOG_LEVEL_TRACE
+    implicit none
+    type(field_type),             intent(inout) :: lhs
+    type(field_type),             intent(in)    :: rhs
+
+    ! The scalars
+    real(kind=r_def)                   :: alpha
+    ! Others
+    real(kind=r_def)                   :: err, sc_err, init_err
+    integer(i_def)                     :: iter, m, n
+
+    if ( subroutine_timers ) call timer('helmholtz gcr')
+
+    call invoke( X_innerproduct_X(sc_err, rhs) )
+    sc_err = max(sqrt(sc_err), sc_err_min)
+
+    call invoke( setval_c(lhs, 0.0_r_def), &
+                 setval_c(y, 0.0_r_def),   &
+                 X_minus_Y(res, rhs, y),   &
+                 X_innerproduct_X(err, res) )
+
+    err = sqrt(err)/sc_err
+    init_err = err
+
+    if (err < si_pressure_tolerance) then
+      write( log_scratch_space, '(A, I2, A, E12.4, A, E15.8)' ) &
+           "gcr solver_algorithm:converged in ", 0,             &
+           " iters, init=", init_err,                           &
+           " final=", err
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+      if ( subroutine_timers ) call timer('helmholtz gcr')
+      return
+    end if
+
+    do iter = 1, si_pressure_maximum_iterations
+      do m = 1, GCRk
+        call helmholtz_precondition( s_gcr(m), res )
+        call apply_helmholtz_lhs( v_gcr(m), s_gcr(m))
+
+        do n = 1, m-1
+          call invoke( X_innerproduct_Y(alpha, v_gcr(m), v_gcr(n)), &
+                       inc_X_minus_bY(v_gcr(m), alpha, v_gcr(n)),   &
+                       inc_X_minus_bY(s_gcr(m), alpha, s_gcr(n)) )
+        end do
+        call invoke( X_innerproduct_X(err, v_gcr(m)) )
+        alpha = sqrt(err)
+        const1 = 1.0_r_def/alpha
+        call invoke( inc_a_times_X(const1, v_gcr(m)),      &
+                     inc_a_times_X(const1, s_gcr(m)),      &
+                     X_innerproduct_Y(alpha, res, v_gcr(m)), &
+                     inc_X_plus_bY(lhs, alpha, s_gcr(m)),  &
+                     inc_X_minus_bY(res, alpha, v_gcr(m)) )
+      end do
+
+      call invoke( X_innerproduct_X(err, res) )
+      err = sqrt( err )/sc_err
+      if ( err <  si_pressure_tolerance ) then
+        write( log_scratch_space, '(A,I3,A,E12.4,A,E15.8)' )      &
+             "Helmholtz solver_algorithm:converged in ", iter,    &
+             " iters, init=", init_err, " final=", err
+        call log_event( log_scratch_space, LOG_LEVEL_INFO )
+        if ( subroutine_timers ) call timer('helmholtz gcr')
+        exit
+      else
+        write( log_scratch_space, '(A,I3,A,E12.4,A,E15.8)' )      &
+             "Helmholtz solver_algorithm:", iter,    &
+             " iters, init=", init_err, " final=", err
+        call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+      end if
+    end do
+
+    if ( subroutine_timers ) call timer('helmholtz gcr')
+    if(iter >= si_pressure_maximum_iterations) then
+      write(log_scratch_space, '(A, I3, A, E15.8)')               &
+           "Helmholtz solver_algorithm: NOT converged in ", iter, &
+           " iters, Res=", err
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine gcr
 
 !=============================================================================!
-!>@brief Obtain the increments to each field from the pressure field given by
-!>       the helmholtz equation
-  subroutine back_substitute( state, exner_inc, rhs)
+  !> @brief GMRes solver for the system H.lhs = rhs
+  !> @details Solves H.lhs = rhs where the operation A.lhs is encoded in a kernel using
+  !! the flexible GMRes algorithm. The choice of matrix is
+  !! encoded in the matrix vector kernel that is called. 
+  !>@param[inout] lhs Field to solve H*lhs = rhs for
+  !>@param[in] rhs Residual field
+  subroutine gmres(lhs, rhs)
+    use solver_config_mod,     only: si_pressure_maximum_iterations, &
+                                     si_pressure_tolerance
+    use log_mod,               only: log_event,         &
+                                     log_scratch_space, &
+                                     LOG_LEVEL_ERROR,   &
+                                     LOG_LEVEL_INFO,    &
+                                     LOG_LEVEL_DEBUG,   &
+                                     LOG_LEVEL_TRACE
+
+    implicit none
+    type(field_type),    intent(inout) :: lhs
+    type(field_type),    intent(in)    :: rhs
+  
+    ! The scalars
+    real(kind=r_def)                   :: h(GCRK+1, GCRK), u(GCRK), g(GCRK+1)
+    real(kind=r_def)                   :: beta, si, ci, nrm, h1, h2, pp, q
+    ! Others
+    real(kind=r_def)                   :: err, sc_err, init_err
+    integer(kind=i_def)                :: iter, i, j, k, m
+
+    if ( subroutine_timers ) call timer('helmholtz gmres')
+
+    call invoke( X_innerproduct_X(err, rhs) )
+    sc_err = max( sqrt(err), sc_err_min )
+    init_err = sc_err
+
+    call invoke( setval_c(lhs, 0.0_r_def), &
+                 setval_c(y, 0.0_r_def),   &
+                 X_minus_Y(res, rhs, y),   &
+                 setval_X(s, res),         & ! Precon step
+                 X_innerproduct_X(err, s) )
+
+    err = sqrt(err)/sc_err
+    if (err < si_pressure_tolerance) then
+      write( log_scratch_space, '(A, I2, A, E12.4, A, E15.8)' ) &
+           "gmres solver_algorithm:converged in ", 0,           &
+           " iters, init=", init_err,                           &
+           " final=", err
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+      if ( subroutine_timers ) call timer('helmholtz gmres')
+      return
+    end if
+
+    beta = sqrt(err)
+
+    const1 = 1.0_r_def/beta
+    call invoke( a_times_X(v_gcr(1), const1, s) )
+
+    h(:,:) = 0.0_r_def
+    g(:)   = 0.0_r_def
+    g(1)   = beta
+
+    do iter = 1, si_pressure_maximum_iterations
+
+      do j = 1, GCRk
+      
+        call helmholtz_precondition( s_gcr(j), v_gcr(j) )
+        call apply_helmholtz_lhs( s, s_gcr(j) )
+        call invoke( setval_X(t, s) )
+
+        do k = 1,j
+          call invoke( X_innerproduct_Y(h(k,j), v_gcr(k), t), &
+                       inc_X_minus_bY(t, h(k,j), v_gcr(k)) )
+        end do
+        call invoke( X_innerproduct_X(err, t) )
+        h(j+1,j) = sqrt( err )
+        if ( j < gcrk ) then
+          const1 = 1.0_r_def/h(j+1,j)
+          call invoke( a_times_X(v_gcr(j+1), const1, t) )
+        end if
+      end do
+
+      ! Solve (7.23) of Wesseling (see Saad's book)
+      do m = 1, GCRK
+        nrm    = sqrt( h(m,m)*h(m,m) + h(m+1,m)*h(m+1,m) )
+        si     = h(m+1,m)/nrm
+        ci     = h(m,m)/nrm
+        pp     = ci*g(m) + si*g(m+1)
+        q      = -si*g(m) + ci*g(m+1)
+        g(m)   = pp
+        g(m+1) = q
+        do j = m, GCRK
+          h1       = ci*h(m,j)   + si*h(m+1,j)
+          h2       =-si*h(m,j)   + ci*h(m+1,j)
+          h(m,j)   = h1
+          h(m+1,j) = h2
+        end do
+      end do
+
+      u(GCRK) = g(GCRK)/h(GCRK,GCRK)
+      do i = GCRK-1, 1, -1
+        u(i) = g(i)
+        do j = i+1, GCRK
+          u(i) = u(i) - h(i,j)*u(j)
+        end do
+        u(i) = u(i)/h(i,i)
+      end do
+
+      do i = 1, GCRK
+        call invoke( inc_X_plus_bY(lhs, u(i), s_gcr(i)) )
+      end do
+
+      ! Check for convergence
+      call apply_helmholtz_lhs( y, lhs)
+      call invoke( X_minus_Y(res, rhs, y) )
+      call invoke( X_innerproduct_X(err, res) )
+      beta = sqrt(err)
+      err = beta/sc_err
+      if( err <  si_pressure_tolerance ) then
+        write( log_scratch_space, '(A, I2, A, E12.4, A, E15.8)' ) &
+             "GMRES solver_algorithm:converged in ", iter,        &
+             " iters, init=", init_err,                           &
+             " final=", err
+        call log_event( log_scratch_space, LOG_LEVEL_INFO )
+        if ( subroutine_timers ) call timer('helmholtz gmres')
+        exit
+      end if
+
+      call invoke( setval_X(s, res) ) 
+      const1 = 1.0_r_def/beta
+      call invoke( a_times_X(v_gcr(1), const1, s) )
+
+      g(:) = 0.0_r_def
+      g(1) = beta
+
+    end do
+
+    if ( subroutine_timers ) call timer('helmholtz gmres')
+
+    if( iter >= si_pressure_maximum_iterations .and. err >  si_pressure_tolerance ) then
+      write( log_scratch_space, '(A, I3, A, E15.8)')          &
+           "GMRES solver_algorithm: NOT converged in ", iter, &
+           " iters, Res=", err
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine gmres
+
+!=============================================================================!
+  !>@brief Obtain the increments to each field from the pressure field given by
+  !>       the helmholtz equation
+  !>@param[inout] state Field bundle to increment
+  !>@param[in]    exner_inc Pressure increment obtained from the Helmholtz solver
+  !>@param[in]    rhs Initial residuals uise to compute increments
+  subroutine back_substitute(state, exner_inc, rhs)
     use log_mod,                     only: LOG_LEVEL_DEBUG, &
                                            LOG_LEVEL_INFO
-    use timestepping_config_mod,     only: dt
-    use planet_config_mod,           only: cp
     use matrix_vector_kernel_mod,    only: matrix_vector_kernel_type
     use dg_matrix_vector_kernel_mod, only: dg_matrix_vector_kernel_type
     use operator_mod,                only: operator_type  
     use enforce_bc_kernel_mod,       only: enforce_bc_kernel_type
-    use formulation_config_mod,      only: eliminate_p
+    use timestepping_config_mod,     only: tau_r, dt
 
     implicit none
-    type(field_type),                intent(inout) :: state(si_bundle_size)
+    type(field_type),                intent(inout) :: state(bundle_size)
     type(field_type),                intent(in)    :: exner_inc
-    type(field_type),                intent(in)    :: rhs(si_bundle_size)
+    type(field_type),                intent(in)    :: rhs(bundle_size)
 
-    type(field_type),    pointer :: mt_lumped_inv => null(), &
-                                    rho_at_u => null()
+    type(field_type),    pointer :: rho_at_u => null(), &
+                                    t_normalisation => null(), &
+                                    u_normalisation => null()
     type(operator_type), pointer :: div_star => null(), &
                                     ptheta2 => null(),  &
                                     div => null(),      &
                                     m3_inv => null()
+    real(r_def), parameter :: minus_one = -1.0_r_def
+    real(r_def)            :: tau_dt
+    if ( subroutine_timers ) call timer('helmholtz back sub')
 
     ! Need to pass in mathfrak{R}_u
-    mt_lumped_inv => get_inverse_lumped_mass_matrix(theta_space_id)
+    u_normalisation => get_normalisation(w2_id)
+    t_normalisation => get_normalisation(theta_space_id)
+
     div_star      => get_div_star()
-    ptheta2       => get_ptheta2()
+    ptheta2       => get_ptheta2v()
     rho_at_u      => get_rho_at_u()
     div           => get_div()
     m3_inv        => get_mass_matrix(w3inv_id)
     ! Initialise increment fields
     call invoke( setval_c(rhs_inc(igh_u), 0.0_r_def), &
-                 setval_c(rhs_inc(igh_t), 0.0_r_def) )
+                 setval_c(theta_inc,      0.0_r_def) )
 
     ! u increment
-    const1 = tau_u*dt*cp
-    call invoke( name = "Compute U increment",                                   &
-                 matrix_vector_kernel_type(rhs_inc(igh_u), exner_inc, div_star), &
-                 inc_aX_plus_Y(const1, rhs_inc(igh_u), r_u),                     &
-                 enforce_bc_kernel_type( rhs_inc(igh_u) ),                       &
-                 X_times_Y(u_inc, rhs_inc(igh_u), hb_inv) )
-
+    tau_dt = -tau_r*dt
+    call invoke( name = "Compute increments",                                   &
+    ! u increment
+                 matrix_vector_kernel_type(rhs_inc(igh_u), exner_inc, div_star),&
+                 inc_X_times_Y(rhs_inc(igh_u), u_normalisation),                &
+                 inc_X_plus_Y(rhs_inc(igh_u), r_u),                             &
+                 enforce_bc_kernel_type( rhs_inc(igh_u) ),                      &
+                 X_times_Y(u_inc, rhs_inc(igh_u), hb_inv),                      &
     ! theta increment
-    const2 = -tau_t*dt
-    call invoke( name = "Compute theta increment",                          &
-                 matrix_vector_kernel_type(rhs_inc(igh_t), u_inc, ptheta2), &
-                 inc_aX_plus_Y(const2, rhs_inc(igh_t), rhs(igh_t)),         & 
-                 X_times_Y(theta_inc, rhs_inc(igh_t), mt_lumped_inv) )
-
+                 matrix_vector_kernel_type(theta_inc, u_inc, ptheta2),          &
+                 inc_X_times_Y(theta_inc, t_normalisation),                     &
+                 inc_aX_plus_Y(minus_one, theta_inc, rhs(igh_t)),               &
     ! rho increment
-    const3 = -tau_r*dt
-    call invoke( name = "Compute rho increment",                                &
                  X_times_Y(flux, rho_at_u, u_inc),                              &
                  dg_matrix_vector_kernel_type(rhs_inc(igh_d), flux, div),       &
                  dg_matrix_vector_kernel_type(rho_inc, rhs_inc(igh_d), m3_inv), &
-                 inc_aX_plus_Y(const3, rho_inc, rhs(igh_d)) )
+                 inc_aX_plus_Y(tau_dt, rho_inc, rhs(igh_d)),                    &
+    ! Increment state array
+                 inc_X_plus_Y(state(igh_u), u_inc),                             &
+                 inc_X_plus_Y(state(igh_t), theta_inc),                         &
+                 inc_X_plus_Y(state(igh_d), rho_inc),                           &
+                 inc_X_plus_Y(state(igh_p), exner_inc) )
 
     call exner_inc%log_minmax(LOG_LEVEL_DEBUG, 'exner increment ') 
     call u_inc    %log_minmax(LOG_LEVEL_DEBUG, 'u increment     ') 
     call theta_inc%log_minmax(LOG_LEVEL_DEBUG, 'theta increment ') 
     call rho_inc  %log_minmax(LOG_LEVEL_DEBUG, 'rho increment   ')
  
-    call invoke( name = "Increment all states",         &
-                 inc_X_plus_Y(state(igh_u), u_inc),     &
-                 inc_X_plus_Y(state(igh_t), theta_inc), &
-                 inc_X_plus_Y(state(igh_d), rho_inc) )
-    if ( .not. eliminate_p ) call invoke( inc_X_plus_Y(state(igh_p), exner_inc) )
+    if ( subroutine_timers ) call timer('helmholtz back sub')
 
   end subroutine back_substitute
+
 !=============================================================================!
-!>@brief Preconditioner for the helmholtz equation 
-!>@details Options to precondition the helmholtz equation, currently allows only
-!>         preconditioning with the inverse mass matrix or no preconditioner
-  subroutine helmholtz_precondition( y, x, prec)
+  !>@brief Preconditioner for the helmholtz equation 
+  !>@details Options to precondition the helmholtz equation, currently allows only
+  !>         preconditioning with the inverse mass matrix or no preconditioner
+  !>@param[inout] y Preconditioned field to compute
+  !>@param[in] x Initial field to precondition
+  !>@param[in] prec Optional flag to specify whic preconditioner to use
+  subroutine helmholtz_precondition(y, x, prec)
     use dg_matrix_vector_kernel_mod, only: dg_matrix_vector_kernel_type
     use operator_mod,                only: operator_type 
     use tri_solve_kernel_mod,        only: tri_solve_kernel_type
@@ -507,6 +835,7 @@ contains
     integer                      :: precon
     type(operator_type), pointer :: m3_inv => null()
     type(field_type),    pointer :: tri(:) => null()
+    if ( subroutine_timers ) call timer('helmholtz precon')
 
     if ( .not. present(prec) ) then
       precon = si_pressure_preconditioner
@@ -523,7 +852,10 @@ contains
       case default
         call invoke( setval_X(y, x) )
     end select
+    if ( subroutine_timers ) call timer('helmholtz precon')
+
   end subroutine helmholtz_precondition
+
 !=============================================================================!
 end module helmholtz_solver_alg_mod
 

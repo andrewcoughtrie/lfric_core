@@ -64,8 +64,8 @@ end function bl_kernel_constructor
 !! @param[inout] theta_in_wth Potential temperature field
 !! @param[in] rho_in_w3 density field in potential density space
 !! @param[in] rho_in_wth density field in potential temperature space
-!! @param[in] p_in_w3 Pressure field in density space
-!! @param[in] p_in_wth Pressure field in potential temperature space
+!! @param[in] exner_in_w3 Exner pressure field in density space
+!! @param[in] exner_in_wth Exner pressure field in potential temperature space
 !! @param[in] u1_in_w3 'zonal' wind in density space
 !! @param[in] u2_in_w3 'meridional' wind in density space
 !! @param[in] heigh_w3 Height of density space levels above surface
@@ -87,8 +87,8 @@ subroutine bl_code(nlayers, &
                    theta_in_wth, &
                    rho_in_w3, &
                    rho_in_wth, &
-                   p_in_w3, &
-                   p_in_wth, &
+                   exner_in_w3, &
+                   exner_in_wth, &
                    u1_in_w3, &
                    u2_in_w3, &
                    height_w3, &
@@ -140,10 +140,10 @@ subroutine bl_code(nlayers, &
   integer(kind=i_def), dimension(ndf_2d),  intent(in) :: map_2d
 
   real(kind=r_def), dimension(undf_wth), intent(inout):: theta_in_wth
-  real(kind=r_def), dimension(undf_w3),  intent(in)   :: rho_in_w3, p_in_w3, &
+  real(kind=r_def), dimension(undf_w3),  intent(in)   :: rho_in_w3, exner_in_w3, &
                                                          u1_in_w3, u2_in_w3, &
                                                          height_w3
-  real(kind=r_def), dimension(undf_wth), intent(in)   :: rho_in_wth, p_in_wth,&
+  real(kind=r_def), dimension(undf_wth), intent(in)   :: rho_in_wth, exner_in_wth,&
                                                          height_wth
   real(kind=r_def), dimension(undf_2d), intent(inout) :: tstar_2d, zh_2d, &
                                                          z0msea_2d
@@ -302,9 +302,9 @@ subroutine bl_code(nlayers, &
       ! wet density on rho levels
       rho_wet(1,1,k) = rho_in_w3(map_w3(1) + k-1)
       ! pressure on rho levels
-      p(1,1,k) = p_in_w3(map_w3(1) + k-1)
+      p(1,1,k) = p_zero*(exner_in_w3(map_w3(1) + k-1))**(1.0_r_def/kappa)
       ! pressure on theta levels
-      p_layer_centres(1,1,k) = p_in_wth(map_wth(1) + k)
+      p_layer_centres(1,1,k) = p_zero*(exner_in_wth(map_wth(1) + k))**(1.0_r_def/kappa)
       ! u wind on rho levels
       u_p(1,1,k) = u1_in_w3(map_w3(1) + k-1)
       ! v wind on rho levels
@@ -318,7 +318,7 @@ subroutine bl_code(nlayers, &
     end do
 
     ! surface pressure
-    p_layer_centres(1,1,0) = p_in_wth(map_wth(1) + 0)
+    p_layer_centres(1,1,0) = p_zero*(exner_in_wth(map_wth(1) + 0))**(1.0_r_def/kappa)
     p_star(1,1) = p_layer_centres(1,1,0)
     ! exner pressure on rho and theta levels
     exner_rho_levels = (p/p_zero)**kappa

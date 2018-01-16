@@ -79,6 +79,7 @@ def make_figure(plotpath, field, component, timestep, plotlong, plotlat, plotlev
     p_data = data.loc[data['level'] == levels[p]]
     zi[:,:,p] = griddata((p_data['x'].values, p_data['y'].values), p_data[val_col].values, (xi, yi), method='linear')
 
+  
   cc = np.linspace(np.amin(data[val_col].values),np.amax(data[val_col].values),13)
 
   c_map = cm.summer
@@ -100,7 +101,10 @@ def make_figure(plotpath, field, component, timestep, plotlong, plotlat, plotlev
     plt.title('max: %e, min: %e'%(np.max(dz),np.min(dz)))
     plt.xlabel('Longitude')
     plt.ylabel('z')
-    out_file_name = plotpath + "/" "slice_xz_" + field + "_" + timestep +  ".png"
+    if (field != 'u' and field !='xi'):
+      out_file_name = plotpath + "/" "slice_xz_" + field + "_" + timestep +  ".png"
+    else:
+      out_file_name = plotpath + "/" "slice_xz_" + field + str(component) + "_" + timestep +  ".png"
     plt.savefig(out_file_name , bbox_inches='tight')
 
   # yz plot
@@ -118,7 +122,10 @@ def make_figure(plotpath, field, component, timestep, plotlong, plotlat, plotlev
     plt.title('max: %e, min: %e'%(np.max(dz),np.min(dz)))
     plt.xlabel('Latitude')
     plt.ylabel('z')
-    out_file_name = plotpath + "/" "slice_yz_" + field + "_" + timestep +  ".png"
+    if (field != 'u' and field !='xi'):
+      out_file_name = plotpath + "/" "slice_yz_" + field + "_" + timestep +  ".png"
+    else:
+      out_file_name = plotpath + "/" "slice_yz_" + field + str(component) + "_" + timestep +  ".png"
     plt.savefig(out_file_name , bbox_inches='tight')
 
   # xy plot
@@ -130,9 +137,13 @@ def make_figure(plotpath, field, component, timestep, plotlong, plotlat, plotlev
     plt.colorbar(cf,  cmap=c_map)
     cl = plt.contour(xi * r2d, yi * r2d, dz, cc, linewidths=0.5,colors='k')
     plt.xlabel('Longitude')
-    plt.ylabel('Latitude')
-    out_file_name = plotpath + "/" "slice_xy_" + field + "_" + timestep +  ".png"
+    plt.ylabel('Latitude') 
+    if (field != 'u' and field !='xi'):
+      out_file_name = plotpath + "/" "slice_xy_" + field + "_" + timestep +  ".png"
+    else:
+      out_file_name = plotpath + "/" "slice_xy_" + field + str(component) + "_" + timestep +  ".png"
     plt.savefig(out_file_name , bbox_inches='tight')
+
  
 if __name__ == "__main__":
 
@@ -150,16 +161,43 @@ if __name__ == "__main__":
 
   for field in field_list:
 
+    if field in ['rho','theta','exner','buoyancy']:
+       # Scalar fields
+       ncomp = 1
+       comp = 1
+    else:
+       # Vector fields
+       ncomp = 3
+       # W3 projected U, V, W and XI components 
+       if field in ['w3projection_u1','w3projection_u2', 'w3projection_u3', 'w3projection_xi1','w3projection_xi2', 'w3projection_xi3']:
+          comp = 1
+       elif (field=='u' or field=='xi'):
+          comp = [1,2,3]    
+
     for ts in ts_list:
 
 
       filestem =  datapath + "/" + config + "_nodal_" + field + "_" + ts + "*"
       
-      data = read_nodal_data(filestem, 1, 1)
+      if (field !='u' and field !='xi'):
+        data = read_nodal_data(filestem, ncomp, comp)
 
-      levels = data.level.unique()
+        levels = data.level.unique()
 
-      # Only try to plot if we found some files for this timestep
-      if len(levels) > 0:
-        make_figure(plotpath,field, 1, ts, plotlong, plotlat, plotlevel)
+
+        # Only try to plot if we found some files for this timestep
+        if len(levels) > 0:
+          make_figure(plotpath,field, comp, ts, plotlong, plotlat, plotlevel)
+
+      else:
+        for comp_u in comp:
+          data = read_nodal_data(filestem, ncomp, comp_u)
+
+          levels = data.level.unique()
+
+
+          # Only try to plot if we found some files for this timestep
+          if len(levels) > 0:
+            make_figure(plotpath, field, comp_u, ts, plotlong, plotlat, plotlevel)
+
 
