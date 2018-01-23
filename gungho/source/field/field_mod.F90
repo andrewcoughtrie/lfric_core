@@ -49,7 +49,7 @@ module field_mod
     integer(kind=i_def), allocatable :: halo_dirty(:)
     !> Flag that determines whether the copy constructor should copy the data.
     !! false to start with, true thereafter.
-    logical(kind=l_def) :: extant = .false.
+    logical(kind=l_def) :: data_extant = .false.
 
     ! IO interface procedure pointers
 
@@ -63,6 +63,10 @@ module field_mod
     !! field_type.
     procedure, public :: get_proxy
 
+    ! Routine to return a deep, but empty copy of a field
+    procedure, public :: copy_field_properties
+
+    ! Logging procedures
     procedure, public :: log_field
     procedure, public :: log_dofs
     procedure, public :: log_minmax
@@ -266,7 +270,7 @@ contains
     type(field_type), target :: self
     ! only associate the vspace pointer, copy constructor does the rest.
     self%vspace => vector_space
-    self%extant = .false.
+    self%data_extant = .false.
 
     ! Set the output function space if given, otherwise default
     ! to native function space
@@ -353,17 +357,16 @@ contains
 
   end subroutine field_destructor_array2d
 
-  !> Assignment operator between field_type pairs.
+  !> Create new empty field that inherits the properties of source field
   !>
-  !> @param[out] dest   field_type lhs
-  !> @param[in]  source field_type rhs
-  subroutine field_type_assign(dest, source)
-
+  !> @param[in]  self  field_type 
+  !> @param[out] dest  field_type new field
+  subroutine copy_field_properties(self, dest)
     use log_mod,         only : log_event, &
                                 LOG_LEVEL_ERROR
     implicit none
-    class(field_type), intent(out)     :: dest
-    class(field_type), intent(in)      :: source
+    class(field_type), target, intent(in)  :: self
+    class(field_type), target, intent(out)  :: dest
 
     integer(i_halo_index), allocatable :: global_dof_id(:)
     integer(i_def) :: rc
@@ -371,27 +374,27 @@ contains
 
     type (mesh_type), pointer   :: mesh => null()
 
-    dest%vspace => source%vspace
-    dest%ospace = source%ospace
-    dest%write_field_method => source%write_field_method
-    dest%checkpoint_method => source%checkpoint_method
-    dest%restart_method => source%restart_method
+    dest%vspace => self%vspace
+    dest%ospace = self%ospace
+    dest%write_field_method => self%write_field_method
+    dest%checkpoint_method => self%checkpoint_method
+    dest%restart_method => self%restart_method
 
-    allocate(global_dof_id(source%vspace%get_last_dof_halo()))
-    call source%vspace%get_global_dof_id(global_dof_id)
+    allocate(global_dof_id(self%vspace%get_last_dof_halo()))
+    call self%vspace%get_global_dof_id(global_dof_id)
 
-    halo_start  = source%vspace%get_last_dof_owned()+1
-    halo_finish = source%vspace%get_last_dof_halo()
+    halo_start  = self%vspace%get_last_dof_owned()+1
+    halo_finish = self%vspace%get_last_dof_halo()
     !If this is a serial run (no halos), halo_start is out of bounds - so fix it
-    if(halo_start > source%vspace%get_last_dof_halo())then
-      halo_start  = source%vspace%get_last_dof_halo()
-      halo_finish = source%vspace%get_last_dof_halo() - 1
+    if(halo_start > self%vspace%get_last_dof_halo())then
+      halo_start  = self%vspace%get_last_dof_halo()
+      halo_finish = self%vspace%get_last_dof_halo() - 1
     end if
     ! Create an ESMF array - this allows us to perform halo exchanges
     ! This call allocates the memory for the field data - we can extract a
     ! pointer to that allocated memory next
     dest%esmf_array = &
-      ESMF_ArrayCreate( distgrid=source%vspace%get_distgrid(), &
+      ESMF_ArrayCreate( distgrid=self%vspace%get_distgrid(), &
                         typekind=ESMF_TYPEKIND_R8, &
                         haloSeqIndexList= &
                                       global_dof_id( halo_start:halo_finish ), &
@@ -405,19 +408,34 @@ contains
       call log_event( 'ESMF failed to allocate space for field data.', &
                       LOG_LEVEL_ERROR )
 
+    ! Set the data_extant to be .true. now that the data array has been allocated.
+    dest%data_extant = .true.
+
     deallocate(global_dof_id)
 
     ! Create a flag for holding whether a halo depth is dirty or not
-    ! and initialise it with a copy of the source data
     mesh=>dest%vspace%get_mesh()
     allocate(dest%halo_dirty(mesh%get_halo_depth()))
     dest%halo_dirty(:) = 1
 
-    if(source%extant) then
+  end subroutine copy_field_properties
+
+  !> Assignment operator between field_type pairs.
+  !>
+  !> @param[out] dest   field_type lhs
+  !> @param[in]  source field_type rhs
+  subroutine field_type_assign(dest, source)
+
+    implicit none
+    class(field_type), intent(in)  :: source
+    class(field_type), intent(out) :: dest
+
+    call source%copy_field_properties(dest)
+
+    if(source%data_extant) then
        dest%data(:) = source%data(:)
        dest%halo_dirty(:)=source%halo_dirty(:)
-    end if
-    dest%extant = .true. 
+    end if 
 
   end subroutine field_type_assign
 

@@ -139,10 +139,10 @@ contains
     ! Initialise internal state field objects
     !--------------------------------------------------------------------
 
-    state(igh_u) = field_type( vector_space = u%get_function_space() )
-    state(igh_t) = field_type( vector_space = theta%get_function_space() )
-    state(igh_d) = field_type( vector_space = rho%get_function_space() )
-    state(igh_p) = field_type( vector_space = exner%get_function_space() )
+    call u%copy_field_properties( state(igh_u) )
+    call theta%copy_field_properties( state(igh_t) )
+    call rho%copy_field_properties( state(igh_d) )
+    call exner%copy_field_properties( state(igh_p) )
 
     call clone_bundle(state, state_n,   bundle_size)
     call clone_bundle(state, rhs_n,     bundle_size)
@@ -175,7 +175,7 @@ contains
     call si_solver_init(state)
     call advection_alg_init(mesh_id)
 
-    u_adv = field_type( vector_space = u%get_function_space() ) 
+    call u%copy_field_properties( u_adv )
 
     ! Set initial reference state 
     call copy_bundle(state, reference_state, bundle_size)
