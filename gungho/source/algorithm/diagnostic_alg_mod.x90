@@ -22,6 +22,11 @@ module diagnostic_alg_mod
 
 contains
 
+  !> @details Calculates the l2 error norm for wind divergence and outputs to
+  !> file the wind divergence field.
+  !> @param[in] u       3D wind fieldDensity
+  !> @param[in] t       Timestep
+  !> @param[in] mesh_id Mesh_id
   subroutine divergence_diagnostic_alg(u, t, mesh_id)
     use dg_matrix_vector_kernel_mod, only: dg_matrix_vector_kernel_type
     use runtime_constants_mod,       only: get_mass_matrix, &
@@ -80,6 +85,11 @@ contains
   end subroutine divergence_diagnostic_alg
 
 !=============================================================================!
+  !> @details Algorithm which outputs of file the exner pressure field.
+  !> @param[in] rho     Density
+  !> @param[in] theta   Potential temperature
+  !> @param[in] t       Timestep
+  !> @param[in] mesh_id Mesh_id
   subroutine pressure_diagnostic_alg(rho, theta, t, mesh_id)
     use runtime_constants_mod,        only: get_mass_matrix, &
                                             get_qr, &
@@ -133,9 +143,9 @@ contains
   !>          It is capable of calculating the error at each timestep by using
   !>          set_rho_alg algorithm which will return the analytic density value
   !>          at each timestep.
-  !> @param[in] rho Density
+  !> @param[in] rho_num  Density
   !> @param[in] timestep Timestep
-  subroutine density_diagnostic_alg(rho, timestep)
+  subroutine density_diagnostic_alg(rho_num, timestep)
     use runtime_constants_mod,        only: get_qr, &
                                             get_coordinates
     use operator_mod,                 only: operator_type
@@ -145,33 +155,55 @@ contains
     use log_mod,                      only: log_event,         &
                                             log_scratch_space, &
                                             LOG_LEVEL_INFO
+    use runtime_constants_mod,        only: get_mass_matrix, w3_id
+
 
     implicit none
 
-    type(field_type), intent(in) :: rho
+    type(field_type), intent(in) :: rho_num
     integer(i_def),   intent(in) :: timestep
 
     type(field_type)             :: rho_analytic
     type(field_type)             :: rho_diff
+    type(field_type)             :: w3_rho_diff
+    type(field_type)             :: w3_rho_analytic
     type(quadrature_xyoz_type)   :: qr
 
     type(field_type), pointer    :: chi(:) => null()
-    real(r_def)                  :: l2
+    real(r_def)                  :: sum_diff, sum_analytic
+    type(operator_type), pointer :: mm_w3 => null()
 
     qr = get_qr()
     chi => get_coordinates()
 
-    rho_analytic = field_type( vector_space = rho%get_function_space() )
-    rho_diff     = field_type( vector_space = rho%get_function_space() )
+    rho_analytic = field_type( vector_space = rho_num%get_function_space() )
+    rho_diff     = field_type( vector_space = rho_num%get_function_space() )
+    w3_rho_diff  = field_type( vector_space = rho_num%get_function_space() )
+    w3_rho_analytic  = field_type( vector_space = rho_num%get_function_space() )
+
+    mm_w3 => get_mass_matrix(w3_id)
+
     call set_rho_alg( rho_analytic, timestep)
 
-    call invoke( X_minus_Y( rho_diff, rho, rho_analytic ), &
-    ! Note that this method of calculating the error gives equal weighting to all
-    ! the cells. It may be better to use a weighted average of the l2 error by
-    ! using the cell volumes and the w3 mass matrix.
-                 X_innerproduct_X( l2, rho_diff ) )
+    ! The normalised l2 error norm with cell volume weightings is calculated as:
+    ! l2 = sqrt(I((rho_num - rho_analytic)^2))/sqrt(I(rho_analtyic^2))
+    ! where I(rho) = sum(rho_i*volume_of_cell_i).
+    ! Here we let sum_diff = I((rho_num - rho_analytic)^2)
+    ! and         sum_analytic = I(rho_analtyic^2)
+    ! To calculate sum_diff we use the inner product operator and multiply one of
+    ! the differences by the W3 matrix which contains the cell volumes.
+    ! sum_diff = inner_product( rho_num-rho_analytic, W3*(rho_num-rho_analytic))
+    ! Similarly for sum_analytic the following is calculated:
+    ! sum_analytic = inner_product( rho_analytic, W3*rho_analytic)
+
+    call invoke( X_minus_Y( rho_diff, rho_num, rho_analytic ),                            &
+                 dg_matrix_vector_kernel_type( w3_rho_diff, rho_diff , mm_w3 ),           &
+                 X_innerproduct_Y( sum_diff, w3_rho_diff, rho_diff ),                     &
+                 dg_matrix_vector_kernel_type( w3_rho_analytic, rho_analytic , mm_w3 ),   &
+                 X_innerproduct_Y( sum_analytic, w3_rho_analytic, rho_analytic ) )
+
     write( log_scratch_space, '(A,E16.8)' )  &
-       'L2 of rho difference =',sqrt(l2)
+       'L2 of rho difference =',sqrt(sum_diff)/sqrt(sum_analytic)
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
   end subroutine density_diagnostic_alg

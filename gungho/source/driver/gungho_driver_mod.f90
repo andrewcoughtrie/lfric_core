@@ -310,13 +310,13 @@ contains
           case ( transport_scheme_cusph_cosmic)
             call cusph_cosmic_transport_init(mesh_id, u, timestep)
             call cusph_cosmic_transport_step( mesh_id, rho)
-            call density_diagnostic_alg(rho, timestep)
-            call conservation_algorithm(timestep, rho, u, theta, exner, xi)
           case default
           call log_event("Dynamo: Incorrect transport option chosen, "// &
                           "stopping program! ",LOG_LEVEL_ERROR)
           stop
         end select
+        call density_diagnostic_alg(rho, timestep)
+        call conservation_algorithm(timestep, rho, u, theta, exner, xi)
       else
         select case( method )
           case( timestepping_method_semi_implicit )  ! Semi-Implicit
