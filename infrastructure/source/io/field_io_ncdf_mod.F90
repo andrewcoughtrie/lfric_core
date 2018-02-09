@@ -9,7 +9,7 @@
 !-------------------------------------------------------------------------------
 module field_io_ncdf_mod
 
-use constants_mod, only: r_def, str_max_filename
+use constants_mod, only: r_def, str_max_filename, str_long
 use netcdf, only: nf90_max_name, nf90_open, nf90_write, nf90_noerr,        &
                   nf90_strerror, nf90_put_var, nf90_get_var, nf90_put_att, &      
                   nf90_def_var, nf90_inq_varid, nf90_int, nf90_double,     &
@@ -72,15 +72,14 @@ subroutine file_open(self, file_name)
 
   !Internal variables
   integer :: ierr
+  character(*), parameter :: routine = 'file_open'
+  character(str_long) :: cmess
 
   self%file_name = file_name
 
+  cmess = 'Opening file, "'//trim(self%file_name)//'"'
   ierr = nf90_open( trim(self%file_name), nf90_write, self%ncid )
-  if (ierr /= nf90_noerr) then 
-   call fatal('Error in ncdf_open: '   &
-      //trim(nf90_strerror(ierr))      &
-      //': '//trim(self%file_name))
-  end if
+  call check_err(ierr, routine, cmess)
 
   !Set up the variable ids
   call inquire_ids(self)
@@ -102,11 +101,12 @@ subroutine file_close(self)
 
   !Internal variables
   integer :: ierr
+  character(*), parameter :: routine = 'file_close'
+  character(str_long) :: cmess  = ''
 
+  cmess = 'Closing file, "'//trim(self%file_name)//'"'
   ierr = nf90_close( self%ncid )
-  if (ierr /= nf90_noerr) then
-    call fatal('Error in ncdf_close: '//trim(nf90_strerror(ierr)))
-  end if
+  call check_err(ierr, routine, cmess)
 
   return
 end subroutine file_close
@@ -130,17 +130,18 @@ subroutine file_new(self, file_name)
 
   !Internal variables
   integer :: ierr
+  character(*), parameter :: routine = 'file_new'
+  character(str_long) :: cmess   = ''
 
   self%file_name = file_name
 
   ! Create the NetCDF file with 64-bit offsets to support large file sizes
-  ierr = nf90_create( path=trim(self%file_name), &
+  cmess = 'Creating file, "'//trim(self%file_name)//'"'
+  ierr = nf90_create( path=trim(self%file_name),                 &
                       cmode=ior(nf90_clobber,nf90_64bit_offset), &
                       ncid=self%ncid )
 
-  if (ierr /= NF90_NOERR) then
-    call fatal('Error in ncdf_create: '//trim(nf90_strerror(ierr)))
-  end if
+  call check_err(ierr, routine, cmess)
 
   return
 end subroutine file_new
@@ -163,11 +164,14 @@ subroutine define_dimensions(self)
 
   !Internal variables
   integer :: ierr
+  character(*), parameter :: routine = 'define_dimensions'
+  character(str_long) :: cmess   = ''
 
   ! define dimensions
+  cmess = 'Defining dimension, "field_size"'
   ierr = nf90_def_dim(self%ncid, 'field_size',  self%field_size,     &
                                                 self%field_dim_id)
-  call check_err(ierr)
+  call check_err(ierr, routine, cmess)
 
   return
 end subroutine define_dimensions
@@ -190,10 +194,14 @@ subroutine define_variables(self)
 
   !Internal variables
   integer :: ierr
+  character(*), parameter :: routine = 'define_variables'
+  character(str_long) :: cmess   = ''
 
+  cmess = 'Defining variable, "field_data"'
   ierr = nf90_def_var(self%ncid, 'field_data', nf90_double,     &
                       [self%field_dim_id], self%field_data_id)
-  call check_err(ierr)
+
+  call check_err(ierr, routine, cmess)
 
   return
 end subroutine define_variables
@@ -216,10 +224,13 @@ subroutine assign_attributes(self)
 
   !Internal variables
   integer :: ierr
+  character(*), parameter :: routine = 'assign_attributes'
+  character(str_long) :: cmess
 
+  cmess = 'Asssigning attirbute, "field_data"'
   ierr = nf90_put_att(self%ncid, self%field_data_id,       &
                       'field_data', 'Field data array.')
-  call check_err(ierr)
+  call check_err(ierr, routine, cmess)
 
   return
 end subroutine assign_attributes
@@ -243,13 +254,16 @@ subroutine inquire_ids(self)
 
   !Internal variables
   integer :: ierr
+  character(*), parameter :: routine = 'inquire_ids'
+  character(str_long) :: cmess
 
   !Field size
+  cmess = 'Getting variable-id for, "field_size"'
   ierr = nf90_inq_dimid(self%ncid, 'field_size', self%field_dim_id)
-  call check_err(ierr)
-
+  call check_err(ierr, routine, cmess)
+  cmess = 'Getting variable-id for, "field_data"'
   ierr = nf90_inq_varid(self%ncid, 'field_data', self%field_data_id)
-  call check_err(ierr)
+  call check_err(ierr, routine, cmess)
 
   return
 end subroutine inquire_ids
@@ -260,45 +274,28 @@ end subroutine inquire_ids
 !!  @details  Checks the error code returned by the NetCDF file. If an error is
 !!            detected, the relevant error message is passed to the logger.
 !!
-!!  @param[in] ierr   The error code to check.
+!!  @param[in] ierr    The error code to check.
+!!  @param[in] routine The routine name that call the error check
+!!  @param[in] cmess   Comment message for the error report
 !-------------------------------------------------------------------------------
 
-subroutine check_err(ierr)
+subroutine check_err(ierr, routine, cmess)
   use log_mod, only: log_event, log_scratch_space, LOG_LEVEL_ERROR
   implicit none
 
   !Arguments
-  integer, intent(in) :: ierr
+  integer,             intent(in) :: ierr
+  character(*),        intent(in) :: routine
+  character(str_long), intent(in) :: cmess
 
   if (ierr /= NF90_NOERR) then
-    write(log_scratch_space,*) 'Error in ncdf_field: '//  nf90_strerror(ierr)
+    write(log_scratch_space,*) 'Error in field_io_ncdf ['//routine//']: '//&
+      trim(cmess) // ' ' // trim(nf90_strerror(ierr))
     call log_event( trim(log_scratch_space), LOG_LEVEL_ERROR ) 
   end if 
 
   return
 end subroutine check_err
-
-!-------------------------------------------------------------------------------
-!>  @brief    Passes error message to logger, and terminates execution.
-!!
-!!  @details  Passes error message to logger, and terminates execution.  
-!!
-!!  @param[in] message   The error message to pass to the logger.
-!-------------------------------------------------------------------------------
-
-subroutine fatal(message)
-  use log_mod, only: log_event, LOG_LEVEL_ERROR
-  implicit none
-
-  !Arguments
-  character(len=*), intent(in) :: message
-
-  call log_event( trim(message), LOG_LEVEL_ERROR ) 
-
-  stop
-
-  return
-end subroutine fatal
 
 !-------------------------------------------------------------------------------
 !>  @brief    Gets dimension information from the NetCDF file, as integers.
@@ -318,11 +315,14 @@ subroutine get_dimensions(self, field_size)
   integer,                    intent(out)   :: field_size
 
   integer :: ierr
+  character(*), parameter :: routine = 'get_dimenstions'
+  character(str_long) :: cmess
 
   !Get dimension lengths
+  cmess = 'Getting dimensions for, "field_size"'
   ierr = nf90_inquire_dimension(self%ncid, self%field_dim_id,   &
                                        len=self%field_size)
-  call check_err(ierr)
+  call check_err(ierr, routine, cmess)
 
   !Set output values.
   field_size = self%field_size
@@ -348,10 +348,13 @@ subroutine read_field_data(self, field_data)
 
   !Internal variables
   integer :: ierr
+  character(*), parameter :: routine = 'read_field_data'
+  character(str_long) :: cmess
 
   !Field data itself
+  cmess = 'Reading field data'
   ierr = nf90_get_var(self%ncid, self%field_data_id, field_data(:))
-  call check_err(ierr)
+  call check_err(ierr, routine, cmess)
 
   return
 end subroutine read_field_data
@@ -375,6 +378,8 @@ subroutine write_field_data(self, field_data)
 
   !Internal variables
   integer :: ierr
+  character(*), parameter :: routine = 'write_field_data'
+  character(str_long) :: cmess
 
   !Set array lengths
   self%field_size = size(field_data)
@@ -385,12 +390,14 @@ subroutine write_field_data(self, field_data)
   call assign_attributes (self)
 
   !End definitions before putting data in.
+  cmess = 'Closing definitions'
   ierr = nf90_enddef(self%ncid)
-  call check_err(ierr)
+  call check_err(ierr, routine, cmess)
 
-  !Node coordinates
+  ! Write field data
+  cmess = 'Writing field data'
   ierr = nf90_put_var(self%ncid, self%field_data_id, field_data(:))
-  call check_err(ierr)
+  call check_err(ierr, routine, cmess)
 
   return
 end subroutine write_field_data

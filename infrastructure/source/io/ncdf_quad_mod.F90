@@ -19,8 +19,9 @@ use netcdf,         only : nf90_max_name, nf90_open, nf90_write, nf90_noerr,   &
                            nf90_def_var, nf90_inq_varid, nf90_int, nf90_double,&
                            nf90_clobber, nf90_enddef, nf90_inquire_dimension,  &
                            nf90_inq_dimid, nf90_def_dim, nf90_create,          &
-                           nf90_inq_attname, nf90_redef,                       &
-                           nf90_close, nf90_put_att, nf90_64bit_offset
+                           nf90_inq_attname, nf90_inquire_attribute,           &
+                           nf90_redef, nf90_close, nf90_put_att,               &
+                           nf90_64bit_offset
 use log_mod,        only : log_event, log_scratch_space, LOG_LEVEL_ERROR,      &
                            LOG_LEVEL_INFO
 
@@ -132,15 +133,14 @@ subroutine file_open(self, file_name)
 
   ! Internal variables
   integer(i_def) :: ierr
+  character(*), parameter :: routine = 'file_open'
+  character(str_long) :: cmess
 
   self%file_name = file_name
 
+  cmess = 'Opening file, "'//trim(self%file_name)//'"'
   ierr = nf90_open( trim(self%file_name), nf90_write, self%ncid )
-  if (ierr /= nf90_noerr) then
-    write (log_scratch_space,*) 'Error in ncdf_open: '                         &
-                    // trim(nf90_strerror(ierr)) //' : '// trim(self%file_name)
-    call log_event( trim(log_scratch_space), LOG_LEVEL_ERROR )
-  end if
+  call check_err(ierr, routine, cmess)
 
   return
 end subroutine file_open
@@ -160,13 +160,12 @@ subroutine file_close(self)
 
   ! Internal variables
   integer(i_def) :: ierr
+  character(*), parameter :: routine = 'file_close'
+  character(str_long) :: cmess
 
+  cmess = 'Closing file, "'//trim(self%file_name)//'"'
   ierr = nf90_close( self%ncid )
-  if (ierr /= nf90_noerr) then
-    write (log_scratch_space,*) 'Error in ncdf_close: '                        &
-                    // trim(nf90_strerror(ierr)) //' : '// trim(self%file_name)
-    call log_event( trim(log_scratch_space), LOG_LEVEL_ERROR )
-  end if
+  call check_err(ierr, routine, cmess)
 
   return
 end subroutine file_close
@@ -189,19 +188,17 @@ subroutine file_new(self, file_name)
 
   ! Internal variables
   integer(i_def) :: ierr
+  character(*), parameter :: routine = 'file_new'
+  character(str_long) :: cmess
 
   self%file_name = file_name
 
   ! Create the NetCDF file with 64-bit offsets to support large file sizes
-  ierr = nf90_create( path=trim(self%file_name), &
+  cmess = 'Creating file, "'//trim(self%file_name)//'"'
+  ierr = nf90_create( path=trim(self%file_name),                 &
                       cmode=ior(nf90_clobber,nf90_64bit_offset), &
                       ncid=self%ncid )
-
-  if (ierr /= NF90_NOERR) then
-    write (log_scratch_space,*) 'Error in ncdf_create: '                       &
-                    // trim(nf90_strerror(ierr)) //' : '// trim(self%file_name)
-    call log_event( trim(log_scratch_space), LOG_LEVEL_ERROR )
-  end if
+  call check_err(ierr, routine, cmess)
 
   return
 end subroutine file_new
@@ -224,15 +221,12 @@ subroutine define_dimensions(self)
   ! Internal variables
   integer(i_def) :: ierr, i, source_id
 
-  character(str_long) :: routine
+  character(*), parameter :: routine = 'define_dimensions'
   character(str_long) :: cmess
   character(str_long) :: dim_name
   character(str_long) :: target_mesh_name
 
   type(global_mesh_map_type), pointer :: global_mesh_map => null()
-
-  routine = 'define_dimensions'
-  cmess = ''
 
   ! Define dimensions connected to the mesh
   dim_name = 'n'//trim(self%mesh_name)//'_node'
@@ -281,15 +275,21 @@ subroutine define_dimensions(self)
     target_mesh_name = self%target_mesh_names(i)
     dim_name = 'n'//trim(target_mesh_name)// &
                '_cells_per_'//trim(self%mesh_name)//'_cell'
-    cmess = 'Defining '//trim(dim_name)
+
 
     global_mesh_map => self%target_mesh_maps%get_global_mesh_map(source_id,i+1)
 
-    ierr = nf90_def_dim( self%ncid, trim(dim_name),                            &
-                         global_mesh_map%get_ntarget_cells_per_source_cell(),  &
-                         self%ntargets_per_source_dim_id(i) )
+    ierr = nf90_inq_dimid(self%ncid, trim(dim_name), self%ntargets_per_source_dim_id(i))
 
-    call check_err(ierr,routine, cmess)
+    if (ierr /= nf90_noerr) then
+      ierr = nf90_def_dim( self%ncid, trim(dim_name),                            &
+                           global_mesh_map%get_ntarget_cells_per_source_cell(),  &
+                           self%ntargets_per_source_dim_id(i) )
+
+      cmess = 'Defining '//trim(dim_name)
+      call check_err(ierr, routine, cmess)
+    end if
+
   end do
 
   return
@@ -325,12 +325,9 @@ subroutine define_variables(self)
   integer(i_def) :: mesh_node_x_dims(MESH_NODE_X_RANK)
   integer(i_def) :: mesh_node_y_dims(MESH_NODE_Y_RANK)
 
-  character(str_long) :: routine
+  character(*), parameter :: routine = 'define_variables'
   character(str_long) :: cmess
   character(str_long) :: var_name
-
-  routine = 'define_variables'
-  cmess = ''
 
 
   cmess = 'Defining '//trim(self%mesh_name)
@@ -434,7 +431,7 @@ subroutine assign_attributes(self)
   character(str_def)  :: long_y_name
   character(str_def)  :: coord_units
 
-  character(str_long) :: routine
+  character(*), parameter :: routine = 'assign_attributes'
   character(str_long) :: cmess
 
   character(str_long) :: target_mesh_names_str
@@ -443,9 +440,6 @@ subroutine assign_attributes(self)
   character(nf90_max_name) :: var_name
   character(nf90_max_name) :: source_mesh_name
   character(nf90_max_name) :: target_mesh_name
-
-  routine = 'assign_attributes'
-  cmess = ''
 
   target_mesh_names_str = ''
 
@@ -816,11 +810,8 @@ subroutine inquire_ids(self, mesh_name)
 
   logical(l_def) :: mesh_present
 
-  character(str_long) :: routine
+  character(*), parameter :: routine = 'inquire_ids'
   character(str_long) :: cmess
-
-  routine = 'inquire_ids'
-  cmess = ''
 
   mesh_present = self%is_mesh_present(mesh_name)
 
@@ -830,7 +821,9 @@ subroutine inquire_ids(self, mesh_name)
     call log_event(trim(log_scratch_space), LOG_LEVEL_ERROR)
   end if
 
+  cmess = 'Getting mesh netcdf id for"'//trim(mesh_name)//'"'
   ierr = nf90_inq_varid( self%ncid, trim(mesh_name), self%mesh_id )
+  call check_err(ierr, routine, cmess)
 
   ! Numbers of entities
   dim_name = 'n'//trim(mesh_name)//'_node'
@@ -922,11 +915,12 @@ subroutine check_err(ierr, routine, cmess)
 
   ! Arguments
   integer(i_def),      intent(in) :: ierr
-  character(str_long), intent(in) :: routine
+  character(*),        intent(in) :: routine
   character(str_long), intent(in) :: cmess
 
+
   if (ierr /= NF90_NOERR) then
-    write(log_scratch_space,*) 'Error in ncdf_quad ['//trim(routine)//']: '//  &
+    write(log_scratch_space,*) 'Error in ncdf_quad ['//routine//']: '//  &
         trim(cmess) // ' ' // trim(nf90_strerror(ierr))
     call log_event( trim(log_scratch_space), LOG_LEVEL_ERROR )
   end if
@@ -1023,25 +1017,25 @@ subroutine get_dimensions( self,               &
 
   integer(i_def) :: ierr
 
-  character(str_long) :: routine
+  character(*), parameter :: routine = 'get_dimensions'
   character(str_long) :: cmess
 
   call inquire_ids(self, mesh_name)
 
-  routine='get_dimensions'
-  cmess=''
-
   ! Get dimension lengths
+  cmess = 'Getting number of nodes on mesh, "'//trim(mesh_name)//'"'
   ierr = nf90_inquire_dimension( self%ncid,               &
                                  self%nmesh_nodes_dim_id, &
                                  len=self%nmesh_nodes )
   call check_err(ierr, routine, cmess)
 
+  cmess = 'Getting number of edges on mesh, "'//trim(mesh_name)//'"'
   ierr = nf90_inquire_dimension( self%ncid,               &
                                  self%nmesh_edges_dim_id, &
                                  len=self%nmesh_edges )
   call check_err(ierr, routine, cmess)
 
+  cmess = 'Getting number of faces on mesh, "'//trim(mesh_name)//'"'
   ierr = nf90_inquire_dimension( self%ncid,               &
                                  self%nmesh_faces_dim_id, &
                                  len=self%nmesh_faces )
@@ -1101,45 +1095,54 @@ subroutine read_mesh( self, mesh_name, mesh_class, constructor_inputs,&
   ! Internal variables
   integer(i_def) :: ierr, upper_bound, i
 
-  character(str_long) :: routine
+  character(*), parameter :: routine = 'read_mesh'
   character(str_long) :: cmess
   character(str_long) :: target_mesh_names_str
 
+
   call inquire_ids(self, mesh_name)
 
-  routine = 'read_mesh'
-  cmess   = ''
-
   ! Mesh class
+  cmess = 'Getting attribute, "mesh_class"'
   ierr = nf90_get_att( self%ncid, self%mesh_id, &
                        'mesh_class', mesh_class )
+  call check_err(ierr, routine, cmess)
 
   ! Ugrid mesh constructor inputs
+  cmess = 'Getting attribute, "constructor_inputs"'
   ierr = nf90_get_att( self%ncid, self%mesh_id, &
                        'constructor_inputs', constructor_inputs )
+  call check_err(ierr, routine, cmess)
 
   ! Number of mesh maps
+  cmess = 'Getting attribute, "n_mesh_maps"'
   ierr = nf90_get_att( self%ncid, self%mesh_id, &
                        'n_mesh_maps', num_targets )
+  call check_err(ierr, routine, cmess)
 
   ! Target mesh maps
-  ierr = nf90_get_att( self%ncid, self%mesh_id, &
-                       'maps_to', target_mesh_names_str )
-
-  allocate(target_mesh_names(num_targets))
-  do i =1, num_targets
-    upper_bound=index(target_mesh_names_str,' ')
-    target_mesh_names(i) = trim(target_mesh_names_str(1:upper_bound))
-    target_mesh_names_str(1:upper_bound) = ' '
-    target_mesh_names_str = trim(adjustl(target_mesh_names_str))
-  end do
-
+  ierr = nf90_inquire_attribute(self%ncid, self%mesh_id, "maps_to")
+  if (ierr == nf90_noerr) then
+    cmess = 'Getting attribute, "maps_to"'
+    ierr = nf90_get_att( self%ncid, self%mesh_id, &
+                         'maps_to', target_mesh_names_str )
+    call check_err(ierr, routine, cmess)
+    allocate(target_mesh_names(num_targets))
+    do i =1, num_targets
+      upper_bound=index(target_mesh_names_str,' ')
+      target_mesh_names(i) = trim(target_mesh_names_str(1:upper_bound))
+      target_mesh_names_str(1:upper_bound) = ' '
+      target_mesh_names_str = trim(adjustl(target_mesh_names_str))
+    end do
+  end if
 
   ! Node coordinates
+  cmess = 'Getting node x coords for mesh "'//trim(mesh_name)//'"'
   ierr = nf90_get_var( self%ncid, self%mesh_node_x_id, &
                        node_coordinates(1,:))
   call check_err(ierr, routine, cmess)
 
+  cmess = 'Getting node y coords for mesh "'//trim(mesh_name)//'"'
   ierr = nf90_get_var( self%ncid, self%mesh_node_y_id, &
                        node_coordinates(2,:))
   call check_err(ierr, routine, cmess)
@@ -1147,6 +1150,7 @@ subroutine read_mesh( self, mesh_name, mesh_class, constructor_inputs,&
 
 
   ! Face node connectivity
+  cmess = 'Getting face-node connectivity for mesh "'//trim(mesh_name)//'"'
   ierr = nf90_get_var( self%ncid, self%mesh_face_nodes_id, &
                        face_node_connectivity(:,:) )
   call check_err(ierr, routine, cmess)
@@ -1154,6 +1158,7 @@ subroutine read_mesh( self, mesh_name, mesh_class, constructor_inputs,&
 
 
   ! Edge node connectivity
+  cmess = 'Getting edge-node connectivity for mesh "'//trim(mesh_name)//'"'
   ierr = nf90_get_var( self%ncid, self%mesh_edge_nodes_id, &
                        edge_node_connectivity(:,:) )
   call check_err(ierr, routine, cmess)
@@ -1161,6 +1166,7 @@ subroutine read_mesh( self, mesh_name, mesh_class, constructor_inputs,&
 
 
   ! Face edge connectivity
+  cmess = 'Getting face-edge connectivity for mesh "'//trim(mesh_name)//'"'
   ierr = nf90_get_var( self%ncid, self%mesh_face_edges_id, &
                        face_edge_connectivity(:,:) )
   call check_err(ierr, routine, cmess)
@@ -1168,6 +1174,7 @@ subroutine read_mesh( self, mesh_name, mesh_class, constructor_inputs,&
 
 
   ! Face face connectivity
+  cmess = 'Getting face-face connectivity for mesh "'//trim(mesh_name)//'"'
   ierr = nf90_get_var( self%ncid, self%mesh_face_links_id, &
                        face_face_connectivity(:,:))
   call check_err(ierr, routine, cmess)
@@ -1227,19 +1234,17 @@ subroutine write_mesh( self, mesh_name, mesh_class, constructor_inputs,   &
 
 
   ! Internal variables
-  integer(i_def)      :: ierr, i, ratio,cell
-  character(str_long) :: routine
+  integer(i_def)      :: ierr, i, ratio, cell
+  character(*), parameter :: routine = 'write_mesh'
   character(str_long) :: cmess
 
   integer(i_def), allocatable :: cell_map(:,:), tmp_cell_map(:,:)
 
   type(global_mesh_map_type), pointer :: mesh_map => null()
 
-  routine = 'write_mesh'
-  cmess   = ''
 
-  self%mesh_name        = mesh_name
-  self%mesh_class       = mesh_class
+  self%mesh_name     = mesh_name
+  self%mesh_class    = mesh_class
   self%constructor_inputs = constructor_inputs
 
   self%nmesh_nodes   = num_nodes
@@ -1270,33 +1275,40 @@ subroutine write_mesh( self, mesh_name, mesh_class, constructor_inputs,   &
 
 
   ! End definitions before putting data in.
+  cmess = 'Closing netCDF definitions'
   ierr = nf90_enddef(self%ncid)
   call check_err(ierr, routine, cmess)
 
 
   ! Node coordinates
+  cmess = 'Writing node x-coords for mesh, "'//trim(mesh_name)//'"'
   ierr = nf90_put_var( self%ncid, self%mesh_node_x_id, node_coordinates(1,:) )
   call check_err(ierr, routine, cmess)
 
+  cmess = 'Writing node y-coords for mesh, "'//trim(mesh_name)//'"'
   ierr = nf90_put_var( self%ncid, self%mesh_node_y_id, node_coordinates(2,:) )
   call check_err(ierr, routine, cmess)
 
   ! Face node connectivity
+  cmess = 'Writing face-node connectivity for mesh, "'//trim(mesh_name)//'"'
   ierr = nf90_put_var( self%ncid, self%mesh_face_nodes_id, &
                        face_node_connectivity(:,:) )
   call check_err(ierr, routine, cmess)
 
   ! Edge node connectivity
+  cmess = 'Writing edge-node connectivity for mesh, "'//trim(mesh_name)//'"'
   ierr = nf90_put_var( self%ncid, self%mesh_edge_nodes_id, &
                        edge_node_connectivity(:,:) )
   call check_err(ierr, routine, cmess)
 
   ! Face edge connectivity
+  cmess = 'Writing face-edge connectivity for mesh, "'//trim(mesh_name)//'"'
   ierr = nf90_put_var( self%ncid, self%mesh_face_edges_id, &
                        face_edge_connectivity(:,:) )
   call check_err(ierr, routine, cmess)
 
   ! Face face connectivity
+  cmess = 'Writing face-face connectivity for mesh, "'//trim(mesh_name)//'"'
   ierr = nf90_put_var( self%ncid, self%mesh_face_links_id, &
                        face_face_connectivity(:,:) )
   call check_err(ierr, routine, cmess)
@@ -1312,6 +1324,9 @@ subroutine write_mesh( self, mesh_name, mesh_class, constructor_inputs,   &
       call mesh_map%get_cell_map([cell], tmp_cell_map)
       cell_map(:,cell) = tmp_cell_map(:,1)
     end do
+    cmess = 'Writing mesh-mesh connectivity for meshes, "'// &
+            trim(self%mesh_name)//'"->"'//                   &
+            trim(self%target_mesh_names(i))//'"'
     ierr = nf90_put_var( self%ncid, self%mesh_mesh_links_id(i), cell_map(:,:) )
     deallocate(cell_map)
     deallocate(tmp_cell_map)
@@ -1408,12 +1423,10 @@ subroutine append_mesh( self, mesh_name, mesh_class, constructor_inputs,   &
 
   ! Internal variables
   integer(i_def)      :: ierr
-  character(str_long) :: routine
+  character(*), parameter :: routine = 'append_mesh'
   character(str_long) :: cmess
   logical(l_def)      :: mesh_present
 
-  routine='append_mesh'
-  cmess=''
 
   mesh_present = self%is_mesh_present(mesh_name)
 
@@ -1424,6 +1437,7 @@ subroutine append_mesh( self, mesh_name, mesh_class, constructor_inputs,   &
     return
   end if
 
+  cmess = 'Opening definitions for netCDF file'
   ierr = nf90_redef(self%ncid)
   call check_err(ierr, routine, cmess)
 
@@ -1478,13 +1492,13 @@ subroutine scan_for_topologies(self, mesh_names, nmeshes)
 
   integer(i_def) :: n_mesh_topologies
 
-  character(str_long) :: routine
+  character(*), parameter :: routine = 'get_mesh_names'
   character(str_long) :: cmess
 
-  routine = 'get_mesh_names'
-  cmess = ''
 
+  cmess = 'Requesting number of variables'
   ierr = nf90_inquire(ncid=self%ncid, nvariables=n_variables )
+  call check_err(ierr, routine, cmess)
 
   allocate(var_names(n_variables))
   allocate(var_n_attributes(n_variables))
