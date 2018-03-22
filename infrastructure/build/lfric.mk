@@ -112,7 +112,7 @@ export Q
 # interpret them...
 #
 ifneq 'x$(TERM)' 'x'
-  MESSAGE = @echo -e \\x1b[1m$(1)\\x1b[0m $(2)
+  MESSAGE = @printf "\\033[1m$(1)\\033[0m %s\n" $(2)
 else
   MESSAGE = @echo *$(1)* $(2)
 endif
