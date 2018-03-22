@@ -121,6 +121,7 @@
         [[[environment]]]
             SOURCE_ROOT = $CYLC_SUITE_SHARE_DIR/source
             OUTPUT_ROOT = $CYLC_SUITE_SHARE_DIR/output
+            PYTHONPATH  = $CYLC_SUITE_RUN_DIR/lib/python:$PYTHONPATH
 
     [[ LOCAL ]]
         [[[remote]]]
@@ -212,8 +213,8 @@
                  RELATIVE_SOURCE_DIRECTORY=`echo $SOURCE_DIRECTORY | sed "s|$HOME/||"`
                  ssh $HOST mkdir -p $RELATIVE_SOURCE_DIRECTORY
                  rsync -avz $SOURCE_DIRECTORY/ $HOST:$RELATIVE_SOURCE_DIRECTORY/
-		 unset TMP_SOURCE_DIR
-		 unset TMP_TARGET_DIR
+                 unset TMP_SOURCE_DIR
+                 unset TMP_TARGET_DIR
                  """
 
         [[[environment]]]
@@ -324,7 +325,7 @@
                      scp {{TARGET_HOST}}:$(cat api.log.path).out .
                      scp {{TARGET_HOST}}:$(cat api.log.path).err .
                      """
-        script = rose task-run --app-key=publish --command-key=doxygen
+        script = rose task-run --app-key=publish_doxygen
         [[[environment]]]
             LOG_STATUS = $DESTINATION_DIRECTORY/api/job.status
             LOG_ERR    = $DESTINATION_DIRECTORY/api/job.err
@@ -370,6 +371,7 @@
 {%- endif %}
 
     # Run locally as they need workstation tools like Inkscape.
+    #
 {%- if 'design_documentation' in scheduledTasks %}
     [[design_documentation]]
         inherit = DOCUMENTATION, LOCAL, TECHNICAL
@@ -380,6 +382,8 @@
                                     LOCAL_REVEAL_SETUP )}}
                      """
         script = make -C $SOURCE_DIRECTORY document-latex {{verboseMake()}}
+        [[[job]]]
+            execution retry delays = 5*PT30S
 {%- endif %}
 
 {%- if 'publish_design_documentation' in scheduledTasks %}
@@ -408,6 +412,7 @@
         [[[environment]]]
             SOURCE_DIRECTORY      = $SOURCE_ROOT/{{projectName}}
             DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{label}}
+            BIN_DIR               = $DESTINATION_DIRECTORY/bin
             COMPILER              = {{compiler}}
             {#- We can't define WORKING_DIR here as it may contain    #}
             {#- target specific variables not existing on the local machine #}
@@ -437,7 +442,6 @@
         [[[environment]]]
             SOURCE_DIRECTORY      = $SOURCE_ROOT/{{projectName}}
             WORKING_DIR           = {{TARGET_BUILD_ROOT}}/{{label}}
-            BIN_DIR               = $DESTINATION_DIRECTORY/bin
             TARGET                = build
             PROFILE               = {{build}}
             LFRIC_TARGET_PLATFORM = {{TARGET_OPT}}
@@ -446,6 +450,21 @@
 {%-       for DIRECTIVE in TARGET_BUILD_BATCHER_DIRECTIVES %}
             {{DIRECTIVE}}
 {%-       endfor %}
+{%-     endif %}
+
+{%-     if 'publish_' + label + '_compile' in scheduledTasks %}
+    [[publish_{{label}}_compile]]
+        inherit = COMPILATION_INFO, {{family}}
+        pre-script = """
+                     {{ensureDestination()}}
+                     """
+        script = rose task-run --app-key=publish_compile
+        [[[environment]]]
+            HOST     = {{TARGET_HOST}}
+            CONTEXT  = {{build}}
+            DIR_FILE = compile.log.path
+        [[[job]]]
+            execution retry delays = PT5S, 10*PT1M
 {%-     endif %}
 
 {%-     if 'compile_mesh_tools_with_' + label in scheduledTasks %}
@@ -466,7 +485,6 @@
         [[[environment]]]
             SOURCE_DIRECTORY      = $SOURCE_ROOT/mesh_tools
             WORKING_DIR           = {{TARGET_BUILD_ROOT}}/{{label}}
-            BIN_DIR               = $DESTINATION_DIRECTORY/bin
             TARGET                = build
             PROFILE               = {{build}}
             LFRIC_TARGET_PLATFORM = {{TARGET_OPT}}
@@ -483,26 +501,6 @@
     [[COMPILATION_INFO]]
         inherit = PUBLISH, LOCAL
 {%-        endif %}
-
-    [[publish_{{label}}_compile]]
-        inherit = COMPILATION_INFO, {{family}}
-        pre-script = """
-                     {{ensureDestination()}}
-                     mkdir -p $DESTINATION_DIRECTORY/compile
-                     RELATIVE_DESTINATION_DIRECTORY=`echo $DESTINATION_DIRECTORY | sed "s|$HOME/||"`
-                     cd $DESTINATION_DIRECTORY/compile
-                     scp {{TARGET_HOST}}:$RELATIVE_DESTINATION_DIRECTORY/compile.log.path .
-                     scp {{TARGET_HOST}}:$(cat compile.log.path).status .
-                     scp {{TARGET_HOST}}:$(cat compile.log.path).out .
-                     scp {{TARGET_HOST}}:$(cat compile.log.path).err .
-                     """
-        script = rose task-run --app-key=publish --command-key=compile
-        [[[environment]]]
-            CONTEXT  = {{build}}
-            COMPILER = {{compiler}}
-            LOG_STATUS = $DESTINATION_DIRECTORY/compile/job.status
-            LOG_OUT    = $DESTINATION_DIRECTORY/compile/job.out
-            LOG_ERR    = $DESTINATION_DIRECTORY/compile/job.err
 {%-     endif %}
 
 
@@ -556,6 +554,8 @@
 {%-       for DIRECTIVE in TARGET_BUILD_BATCHER_DIRECTIVES %}
             {{DIRECTIVE}}
 {%-       endfor %}
+        [[[job]]]
+            execution retry delays = PT5S, 10*PT30S
 {%-     endif %}
 
 
@@ -744,7 +744,7 @@
 
                       # Future publisher stages need this information
                       RELATIVE_LOG_ROOT=$(echo $CYLC_TASK_LOG_ROOT | sed "s|$HOME/||")
-                      echo $RELATIVE_LOG_ROOT > $DESTINATION_DIRECTORY/{{pathFragment}}/run_log.path
+                      echo $RELATIVE_LOG_ROOT > $DESTINATION_DIRECTORY/{{pathFragment}}/run.log.path
                       """
 
         [[[environment]]]
@@ -849,22 +849,17 @@
         inherit = PUBLISH_OUTPUT, {{appLabel|upper}}_{{label|upper}}
         pre-script = """
                      {{ensureDestination()}}
-                     mkdir -p $DESTINATION_DIRECTORY/{{pathFragment}}
-                     RELATIVE_DESTINATION_DIRECTORY=`echo $DESTINATION_DIRECTORY | sed "s|$HOME/||"`
-                     cd $DESTINATION_DIRECTORY/{{pathFragment}}
-                     scp {{TARGET_HOST}}:$RELATIVE_DESTINATION_DIRECTORY/{{pathFragment}}/run_log.path .
-                     scp {{TARGET_HOST}}:$(cat run_log.path).status .
-                     scp {{TARGET_HOST}}:$(cat run_log.path).out .
-                     scp {{TARGET_HOST}}:$(cat run_log.path).err .
                      """
-        script = rose task-run --app-key=publish --command-key=run
+        script = rose task-run --app-key=publish_run
         [[[environment]]]
+            HOST          = {{TARGET_HOST}}
+            DIR_FILE      = {{pathFragment}}/run.log.path
             APP_NAME      = {{appName}}
             CONTEXT       = {{build}}
             CONFIGURATION = {{configuration}}
             COMPILER      = {{compiler}}
-            LOG_STATUS    = $DESTINATION_DIRECTORY/{{pathFragment}}/job.status
-            LOG_ERR       = $DESTINATION_DIRECTORY/{{pathFragment}}/job.err
+        [[[job]]]
+            execution retry delays = PT5S, 10*PT1M
 {%-               endif %}
 
 

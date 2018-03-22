@@ -9,7 +9,8 @@
 {%- macro run_application( appName, configuration,
                            plotstr=None, resolutions=[('')],
                            run_with_compilers=[TARGET_SCIENCE_COMPILER],
-                           support_meshes=[''], env=None, checkkgo=True ) %}
+                           support_meshes=[''], env=None, checkkgo=True,
+                           publish=False) %}
 
 {%    set crun = 1 %}
 {%    if env %}
@@ -84,9 +85,11 @@
 {%-           endif %}
 {%-         endif %}
 
+{%-         if publish %}
+            run_{{appName_res_label}}_{{label}}:finish => publish_{{appName_res_label}}_{{label}}
+{%-         endif %}
 {%-         if plotstr and crun < 2 %}
 {%-           do plot_config.update( {appLabel : plotstr} ) %}
-            run_{{appName_res_label}}_{{label}}:finish  => publish_{{appName_res_label}}_{{label}}
             run_{{appName_res_label}}_{{label}}:finish  => plot_{{appName_res_label}}_{{label}}
             plot_{{appName_res_label}}_{{label}}:finish => publish_{{appName_res_label}}_{{label}}_plots
 {%-         endif %}
@@ -140,7 +143,7 @@
             export_source => uml_documentation
             uml_documentation    => publish_uml_documentation
             export_source => design_documentation
-{%-     if publish == True %}
+{%-     if publish %}
             api_documentation    => publish_api_documentation
             api_documentation    => publish_api_log
             design_documentation => publish_design_documentation
@@ -189,7 +192,7 @@
 {%-     if compiler in TARGET_PERFORM_UNIT_TESTS %}
             export_source => unit_test_with_{{label}}
 {%-     endif %}
-{%-     if publish == True %}
+{%-     if publish %}
             compile_{{projectName}}_with_{{label}}:finish => publish_{{label}}_compile
 {%-     endif %}
 
@@ -201,7 +204,7 @@
             compile_mesh_tools_with_{{label}} => generate_mesh{{res_label}}_{{label}}
             generate_mesh{{res_label}}_{{label}} => run_{{appLabel_res}}_{{label}}
             compile_{{projectName}}_with_{{label}} => run_{{appLabel_res}}_{{label}}
-{%-           if publish == True %}
+{%-           if publish %}
             run_{{appLabel_res}}_{{label}}:finish => publish_{{appLabel_res}}_{{label}}
 {%-           endif %}
 {%-           if compiler in TARGET_PERFORM_KGO_TESTS %}

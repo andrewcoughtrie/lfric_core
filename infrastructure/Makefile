@@ -89,7 +89,7 @@ document-api: api-documentation
 unit-tests: export PROJECT      = infrastructure
 unit-tests: export SOURCE_DIR   = unit-test
 unit-tests: export WORKING_DIR := $(WORKING_DIR)/unit-tests
-unit-tests: export BIN_DIR      = $(PROJECT_DIR)/test
+unit-tests: export BIN_DIR     ?= $(PROJECT_DIR)/test
 unit-tests: export PROGRAMS     = infrastructure_unit_tests
 unit-tests: export EXTERNAL_STATIC_LIBRARIES += pfunit
 unit-tests: export FFLAGS      += $(FFLAGS_DEBUG) $(FFLAGS_NO_OPTIMISATION) $(FFLAGS_INIT)
@@ -116,7 +116,7 @@ extract-unit-tests: ALWAYS
 .PHONY: integration-tests
 integration-tests: export PROJECT      = infrastructure
 integration-tests: export WORKING_DIR := $(WORKING_DIR)/integration-tests
-integration-tests: export BIN_DIR      = $(PROJECT_DIR)/test
+integration-tests: export BIN_DIR     ?= $(PROJECT_DIR)/test
 integration-tests: export SOURCE_DIR   = integration-test
 integration-tests: $(addprefix integration-test-run/,$(basename $(shell find integration-test -name '*.[Ff]90' -exec egrep -l "^\s*program" {} \;)))
 	$(Q)echo > /dev/null

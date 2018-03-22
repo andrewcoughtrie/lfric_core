@@ -14,8 +14,9 @@
     'canned_test(gravity_wave)',
     'run_application( gravity_wave, default, resolutions=[("C24",100.0)],
                       plotstr="slices.py gravity_wave $NODAL_DATA_DIR buoyancy T000036 150 0 6 $PLOT_DIR" )',
-    'check_compilers( gravity_wave, default, fast-debug, resolutions=[("C24",100.0)] )',
-    'godliness',
+    'check_compilers( gravity_wave, default, fast-debug,
+                      resolutions=[("C24",100.0)], publish=True )',
+    'godliness( publish=True )',
     'cleanliness'],
                   } %}
 

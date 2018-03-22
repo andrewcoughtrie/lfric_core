@@ -65,6 +65,7 @@
     [[[environment]]]
       SOURCE_ROOT = $CYLC_SUITE_SHARE_DIR/source
       OUTPUT_ROOT = $CYLC_SUITE_SHARE_DIR/output
+      PYTHONPATH  = $CYLC_SUITE_RUN_DIR/lib/python:$PYTHONPATH
 
   [[ LOCAL ]]
     [[[remote]]]
@@ -83,7 +84,6 @@
       DESTINATION = {{publish_destination}}
 
 ##############################################################################
-
 
 {# HOUSEKEEPING #}
 {%- if 'housekeeping' not in rose_suite_gui_headers %}
@@ -200,10 +200,10 @@
 {%-         do rose_suite_gui_headers.append(family) %}
 
   [[{{family}}]]
-
     [[[environment]]]
       SOURCE_DIRECTORY      = $SOURCE_ROOT/{{projectName}}
       DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{label}}
+      BIN_DIR               = $DESTINATION_DIRECTORY/bin
       COMPILER              = {{compiler}}
       PLATFORM_OPT          = {{PLATFORM_OPT}}
       {#- We can't define WORKING_DIR here as it may contain    #}
@@ -223,7 +223,6 @@
                  """
     script      = rose task-run --app-key=compile
     post-script = """
-                  cp -rp $WORKING_DIR $SOURCE_DIRECTORY/build
                   {{deleteDirectory("$WORKING_DIR")}}
                   # Future publisher stages need this information
                   echo $CYLC_TASK_LOG_ROOT > $DESTINATION_DIRECTORY/lfric.mesher.{{compiler}}.log
@@ -232,7 +231,6 @@
     [[[environment]]]
       SOURCE_DIRECTORY      = $SOURCE_ROOT/{{projectName}}
       WORKING_DIR           = {{TARGET_BUILD_ROOT}}/{{label}}/mesh_tools
-      BIN_DIR               = $DESTINATION_DIRECTORY/bin
       BUILD_TARGET          = {{build}}
       LFRIC_TARGET_PLATFORM = {{PLATFORM_OPT}}
       PROFILE               = {{build}}
@@ -246,29 +244,16 @@
 {%-     endif %} {#- if 'compile_'+ projectName + '_with_' + label in scheduledTasks #}
 
 {%-     if 'publish_' + label + '_compile' in scheduledTasks %}
-
   [[publish_{{label}}_compile]]
-    inherit = PUBLISH, {{family}}, LOCAL
-    pre-script = """
-                 {{ensureDestination()}}
-                 mkdir -p $DESTINATION_DIRECTORY
-                 RELATIVE_DESTINATION_DIRECTORY=`echo $DESTINATION_DIRECTORY | sed "s|$HOME/||"`
-                 scp {{TARGET_HOST}}:$RELATIVE_DESTINATION_DIRECTORY/lfric.mesher.{{compiler}}.log .
-                 scp {{TARGET_HOST}}:`cat lfric.mesher.{{compiler}}.log`.status \
-                     $DESTINATION_DIRECTORY/lfric.mesher.{{compiler}}.status
-                 scp {{TARGET_HOST}}:`cat lfric.mesher.{{compiler}}.log`.out \
-                     $DESTINATION_DIRECTORY/lfric.mesher.{{compiler}}.out
-                 scp {{TARGET_HOST}}:`cat lfric.mesher.{{compiler}}.log`.err \
-                     $DESTINATION_DIRECTORY/lfric.mesher.{{compiler}}.err
-                 """
-    script = rose task-run --debug --app-key=publish --command-key=compile
-
-    [[[environment]]]
-      CONTEXT  = {{build}}
-      COMPILER = {{compiler}}
-      LOG_STATUS = $DESTINATION_DIRECTORY/lfric.mesher.{{compiler}}.status
-      LOG_OUT    = $DESTINATION_DIRECTORY/lfric.mesher.{{compiler}}.out
-      LOG_ERR    = $DESTINATION_DIRECTORY/lfric.mesher.{{compiler}}.err
+      inherit = PUBLISH, {{family}}, LOCAL
+      pre-script = """
+                   {{ensureDestination()}}
+                   """
+      script = rose task-run --app-key=publish_compile
+      [[[environment]]]
+          HOST={{TARGET_HOST}}
+          CONTEXT  = {{build}}
+          DIR_FILE=lfric.mesher.{{compiler}}.log
 {%-     endif %} {#- if 'publish_' + label + '_compile' in scheduledTasks #}
 
 {%-     if 'unit_test_with_' + label in scheduledTasks %}
@@ -282,8 +267,7 @@
                  """
     script      = rose task-run --app-key=compile
     post-script = """
-                  {{'\n'|commandList( "cp -rp $WORKING_DIR $SOURCE_DIRECTORY/working",
-                                      deleteDirectory('$WORKING_DIR') )}}
+                  {{'\n'|commandList( deleteDirectory('$WORKING_DIR') )}}
                   """
     [[[environment]]]
       TARGET               = unit-tests
@@ -311,7 +295,6 @@
                  """
     script = "rose task-run --app-key=mesh --opt-conf-key={{mesh}}"
     [[[environment]]]
-      BIN_DIR     = $DESTINATION_DIRECTORY/bin
       OUTPUT_FILE = $DESTINATION_DIRECTORY/{{mesh}}.nc
 
     [[[directives]]]
@@ -342,7 +325,6 @@
                   """
 
     [[[environment]]]
-      BIN_DIR      = $DESTINATION_DIRECTORY/bin
       MESH_FILE    = $DESTINATION_DIRECTORY/{{mesh}}.nc
       SUMMARY_FILE = $DESTINATION_DIRECTORY/summary_{{mesh}}_ugrid.txt
 
@@ -373,7 +355,6 @@
     script = rose task-run --app-key=check_summary
 
     [[[environment]]]
-      BIN_DIR      = $DESTINATION_DIRECTORY/bin
       SUMMARY_KGO  = summary_{{mesh}}_ugrid.kgo.txt
       SUMMARY_FILE = $DESTINATION_DIRECTORY/summary_{{mesh}}_ugrid.txt
 

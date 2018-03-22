@@ -125,7 +125,7 @@ generate-psykal: ALWAYS
 unit-tests: export PROJECT      = gungho
 unit-tests: export SOURCE_DIR   = unit-test
 unit-tests: export WORKING_DIR := $(WORKING_DIR)/unit-tests
-unit-tests: export BIN_DIR      = $(PROJECT_DIR)/test
+unit-tests: export BIN_DIR     ?= $(PROJECT_DIR)/test
 unit-tests: export PROGRAMS     = gungho_unit_tests
 unit-tests: export EXTERNAL_STATIC_LIBRARIES += pfunit
 unit-tests: export FFLAGS      += $(FFLAGS_DEBUG) $(FFLAGS_NO_OPTIMISATION) $(FFLAGS_INIT)
@@ -156,7 +156,7 @@ extract-unit-tests:
 integration-tests: export PROJECT      = gungho
 integration-tests: export SOURCE_DIR   = integration-test
 integration-tests: export WORKING_DIR := $(WORKING_DIR)/integration-tests
-integration-tests: export BIN_DIR      = $(PROJECT_DIR)/test
+integration-tests: export BIN_DIR     ?= $(PROJECT_DIR)/test
 integration-tests: $(addprefix integration-test-run/,$(basename $(shell find integration-test -name '*.[Ff]90' -exec egrep -l "^\s*program" {} \;)))
 	$(Q)echo > /dev/null
 

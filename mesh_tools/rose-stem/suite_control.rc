@@ -1,4 +1,4 @@
-{%- set groups = {'developer': ['check_compilers(fast-debug)'],
+{%- set groups = {'developer': ['check_compilers(fast-debug, publish=True)'],
                   'nightly'  : ['check_compilers(full-debug, publish=True)',
                                 'publish_commit']} %}
 

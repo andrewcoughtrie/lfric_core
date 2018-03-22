@@ -35,9 +35,9 @@
   [[events]]
     mail events = timeout
     abort on timeout = True
-#{%- if 'nightly' in groupsToRun %}
+{%- if 'nightly' in groupsToRun %}
     abort on stalled = True
-#{%- endif %}
+{%- endif %}
     timeout = PT3H
 
 [scheduling]
@@ -68,6 +68,7 @@
     [[[environment]]]
       SOURCE_ROOT = $CYLC_SUITE_SHARE_DIR/source
       OUTPUT_ROOT = $CYLC_SUITE_SHARE_DIR/output
+      PYTHONPATH  = $CYLC_SUITE_RUN_DIR/lib/python:$PYTHONPATH
 
   [[ LOCAL ]]
     [[[remote]]]
@@ -127,7 +128,7 @@
              mkdir -p `dirname $TMP_TARGET_DIR/documentation`
              mkdir -p `dirname $TMP_TARGET_DIR/build`
 
-	     svn export --force $TMP_SOURCE_DIR/source           $TMP_TARGET_DIR/source
+             svn export --force $TMP_SOURCE_DIR/source           $TMP_TARGET_DIR/source
              svn export --force $TMP_SOURCE_DIR/unit-test        $TMP_TARGET_DIR/unit-test
              svn export --force $TMP_SOURCE_DIR/integration-test $TMP_TARGET_DIR/integration-test
              svn export --force $TMP_SOURCE_DIR/documentation    $TMP_TARGET_DIR/documentation
@@ -140,7 +141,7 @@
              rsync -avz $SOURCE_DIRECTORY/ $HOST:$RELATIVE_SOURCE_DIRECTORY/
 
              unset TMP_SOURCE_DIR
-	     unset TMP_TARGET_DIR
+             unset TMP_TARGET_DIR
              """
     [[[environment]]]
       SOURCE_DIRECTORY = $SOURCE_ROOT
@@ -233,7 +234,7 @@
                      RELATIVE_DESTINATION_DIRECTORY=`echo $DESTINATION_DIRECTORY | sed "s|$HOME/||"`
                      ssh {{TARGET_HOST}} "cat $RELATIVE_DESTINATION_DIRECTORY/api.pax" | pax -r
                      """
-        script = rose task-run --app-key=publish --command-key=doxygen
+        script = rose task-run --app-key=publish_doxygen
         [[[environment]]]
             LOG_STATUS = $DESTINATION_DIRECTORY/api/job.status
             LOG_ERR    = $DESTINATION_DIRECTORY/api/job.err
@@ -293,7 +294,13 @@
                                     compiler_setup[TARGET_TECHNICAL_COMPILER],
                                       TARGET_REVEAL_SETUP)}}
                    """
-      script = make -C $SOURCE_DIRECTORY/build/tools
+      script = rose task-run --app-key=unit_test_build_tools
+    [[[directives]]]
+{%-   for DIRECTIVE in TARGET_BUILD_BATCHER_DIRECTIVES %}
+      {{DIRECTIVE}}
+{%-   endfor %}
+    [[[job]]]
+        execution retry delays = PT5S, 10*PT1M
 {%- endif %}
 
 ##############################################################################
@@ -310,6 +317,7 @@
     [[[environment]]]
       SOURCE_DIRECTORY      = $SOURCE_ROOT/{{projectName}}
       DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{label}}
+      BIN_DIR               = $DESTINATION_DIRECTORY/bin
       COMPILER              = {{compiler}}
       {#- We can't define WORKING_DIR here as it may contain    #}
       {#- target specific variables not existing on the local machine #}
@@ -327,8 +335,7 @@
                  """
     script = rose task-run --app-key=compile
     post-script = """
-                  {{'\n'|commandList('cp -rp $WORKING_DIR $SOURCE_DIRECTORY/working',
-                                     deleteDirectory("$WORKING_DIR"))}}
+                  {{'\n'|commandList(deleteDirectory("$WORKING_DIR"))}}
                   """
     [[[environment]]]
       TARGET       = unit-tests
@@ -352,8 +359,7 @@
                  """
     script = rose task-run --app-key=compile
     post-script = """
-                  {{'\n'|commandList('cp -rp $WORKING_DIR $SOURCE_DIRECTORY/build',
-                                     deleteDirectory("$WORKING_DIR"))}}
+                  {{'\n'|commandList(deleteDirectory("$WORKING_DIR"))}}
                   """
     [[[environment]]]
       TARGET       = integration-tests

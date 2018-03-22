@@ -96,7 +96,7 @@ extract: ALWAYS
 unit-tests: export PROJECT      = mesh_tools
 unit-tests: export SOURCE_DIR   = unit-test
 unit-tests: export WORKING_DIR := $(WORKING_DIR)/unit-tests
-unit-tests: export BIN_DIR      = $(PROJECT_DIR)/tests
+unit-tests: export BIN_DIR     ?= $(PROJECT_DIR)/tests
 unit-tests: export PROGRAMS     = mesh_tools_unit_tests
 unit-tests: export EXTERNAL_STATIC_LIBRARIES += pfunit
 unit-tests: export FFLAGS      += $(FFLAGS_DEBUG) $(FFLAGS_NO_OPTIMISATION) $(FFLAGS_INIT)

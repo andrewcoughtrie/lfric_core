@@ -15,6 +15,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 
 ##############################################################################
 class AbstractTest(object):
@@ -232,6 +233,12 @@ class EsmfTest(MpiTest):
     This should only be attempted if the executable completed normally.
     i.e. It completed of its own volition, not as the result of a signal.
          An error condition is "normal" in these terms.
+
+    Some filing systems (Lustre for instance) suffer a lag between a file
+    being closed and it becoming visible for reading. To try and mitigate
+    this a number of attempts will be made to open the file with a sleep
+    period between them. It is only after these attempts are exhausted will
+    the file be reported missing.
     '''
     if return_code < 128:
       for number in range(0, self._processes):
@@ -239,6 +246,21 @@ class EsmfTest(MpiTest):
         filenameFormat = 'PET{{number:0{width}d}}.{{name}}'
         filename = filenameFormat.format( width=width ).format( number=number,
                                                     name=self._application_name)
-        with open( filename, 'r' ) as handle:
-          self._esmfLog[number] = handle.read()
+        number_retries = 10
+        delay_seconds = 60
+        for attempt in range(1, number_retries + 1):
+            try:
+                with open( filename, 'r' ) as handle:
+                    self._esmfLog[number] = handle.read()
+            except FileNotFoundError:
+                if attempt < number_retries:
+                    message = '{timestamp}: File "{filename}" not found, ' \
+                              + 'waiting {delay} seconds...'
+                    print(message.format(timestamp=time.clock(),
+                                         filename=fielname,
+                                         delay=delay_seconds),
+                          file=sys.stderr)
+                    time.sleep(delay_seconds)
+                else:
+                    raise
 

@@ -120,6 +120,7 @@
         [[[environment]]]
             SOURCE_ROOT = $CYLC_SUITE_SHARE_DIR/source
             OUTPUT_ROOT = $CYLC_SUITE_SHARE_DIR/output
+            PYTHONPATH  = $CYLC_SUITE_RUN_DIR/lib/python:$PYTHONPATH
 
     [[ LOCAL ]]
         [[[remote]]]
@@ -328,7 +329,7 @@
                      scp {{TARGET_HOST}}:$(cat api.log.path).out .
                      scp {{TARGET_HOST}}:$(cat api.log.path).err .
                      """
-        script = rose task-run --app-key=publish --command-key=doxygen
+        script = rose task-run --app-key=publish_doxygen
         [[[environment]]]
             LOG_STATUS = $DESTINATION_DIRECTORY/api/job.status
             LOG_ERR    = $DESTINATION_DIRECTORY/api/job.err
@@ -374,6 +375,7 @@
 {%- endif %}
 
     # Run locally as they need workstation tools like Inkscape.
+    #
 {%- if 'design_documentation' in scheduledTasks %}
     [[design_documentation]]
         inherit = DOCUMENTATION, LOCAL, TECHNICAL
@@ -444,12 +446,12 @@
             PROFILE               = {{build}}
             LFRIC_TARGET_PLATFORM = {{TARGET_OPT}}
             MAKE_THREADS          = 4
-
         [[[directives]]]
 {%-       for DIRECTIVE in TARGET_BUILD_BATCHER_DIRECTIVES %}
             {{DIRECTIVE}}
 {%-       endfor %}
 {%-     endif %}
+
 
 {%-     if 'compile_mesh_tools_with_' + label in scheduledTasks %}
     [[compile_mesh_tools_with_{{label}}]]
@@ -494,21 +496,14 @@
         inherit = COMPILATION_INFO, {{family}}
         pre-script = """
                      {{ensureDestination()}}
-                     mkdir -p $DESTINATION_DIRECTORY/compile
-                     RELATIVE_DESTINATION_DIRECTORY=`echo $DESTINATION_DIRECTORY | sed "s|$HOME/||"`
-                     cd $DESTINATION_DIRECTORY/compile
-                     scp {{TARGET_HOST}}:$RELATIVE_DESTINATION_DIRECTORY/compile.log.path .
-                     scp {{TARGET_HOST}}:$(cat compile.log.path).status .
-                     scp {{TARGET_HOST}}:$(cat compile.log.path).out .
-                     scp {{TARGET_HOST}}:$(cat compile.log.path).err .
                      """
-        script = rose task-run --app-key=publish --command-key=compile
+        script = rose task-run --app-key=publish_compile
         [[[environment]]]
+            HOST     = {{TARGET_HOST}}
+            DIR_FILE = compile.log.path
             CONTEXT  = {{build}}
-            COMPILER = {{compiler}}
-            LOG_STATUS = $DESTINATION_DIRECTORY/compile/job.status
-            LOG_OUT    = $DESTINATION_DIRECTORY/compile/job.out
-            LOG_ERR    = $DESTINATION_DIRECTORY/compile/job.err
+        [[[job]]]
+            execution retry delays = PT5S, 10*PT1M
 {%-     endif %}
 
 
@@ -563,6 +558,8 @@
 {%-       for DIRECTIVE in TARGET_BUILD_BATCHER_DIRECTIVES %}
             {{DIRECTIVE}}
 {%-       endfor %}
+        [[[job]]]
+            execution retry delays = PT5S, 10*PT1M
 {%-     endif %}
 
 {# CANNED CONFIGURATIONS #}
@@ -797,6 +794,18 @@
 
 {%-               endif %} {# 'run_' + configuration_label_res #}
 
+{%-               if 'wait_for_' + configuration_label_res + '_logs' in scheduledTasks%}
+    [[wait_for_{{configuration_label_res}}_logs]]
+        inherit = PUBLISH, {{appLabel|upper}}_{{label|upper}}, TARGET
+        script = rose task-run --app-key=wait_for_target_logs
+        [[[environment]]]
+            LOG_DIR = $(dirname $CYLC_TASK_LOG_ROOT)/../../run_{{configuration_label_res}}/01
+        [[[directives]]]
+{%-       for DIRECTIVE in TARGET_BUILD_BATCHER_DIRECTIVES %}
+            {{DIRECTIVE}}
+{%-       endfor %}
+{%-               endif %}
+
 {# CHECK THE APP OUTPUT #}
 {%-               if 'check_' + configuration_label_res in scheduledTasks %}
     [[check_{{configuration_label_res}}]]
@@ -857,7 +866,7 @@
                      scp {{TARGET_HOST}}:$(cat run_log.path).out .
                      scp {{TARGET_HOST}}:$(cat run_log.path).err .
                      """
-        script = rose task-run --app-key=publish --command-key=run
+        script = rose task-run --app-key=publish_run
         [[[environment]]]
             APP_NAME      = {{appName}}
             CONTEXT       = {{build}}
@@ -865,6 +874,8 @@
             COMPILER      = {{compiler}}
             LOG_STATUS    = $DESTINATION_DIRECTORY/{{pathFragment}}/job.status
             LOG_ERR       = $DESTINATION_DIRECTORY/{{pathFragment}}/job.err
+        [[[job]]]
+            execution retry delays = PT5S, 10*PT1M
 {%-               endif %}
 
 
@@ -884,6 +895,8 @@
                  rsync -avz {{TARGET_HOST}}:$RELATIVE_DESTINATION_DIRECTORY/{{pathFragment}}/plots/ \
                             $DESTINATION/{{compiler}}/{{build}}/{{pathFragment}}/
                  """
+        [[[job]]]
+            execution retry delays = PT5S, 10*PT1M
 {%-               endif %}
 
 

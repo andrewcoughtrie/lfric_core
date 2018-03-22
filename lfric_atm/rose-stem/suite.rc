@@ -123,6 +123,7 @@
         [[[environment]]]
             SOURCE_ROOT = $CYLC_SUITE_SHARE_DIR/source
             OUTPUT_ROOT = $CYLC_SUITE_SHARE_DIR/output
+            PYTHONPATH  = $CYLC_SUITE_RUN_DIR/lib/python:$PYTHONPATH
 
     [[ LOCAL ]]
         [[[remote]]]
@@ -335,7 +336,7 @@
                      scp {{TARGET_HOST}}:$(cat api.log.path).out .
                      scp {{TARGET_HOST}}:$(cat api.log.path).err .
                      """
-        script = rose task-run --app-key=publish --command-key=doxygen
+        script = rose task-run --app-key=publish_doxygen
         [[[environment]]]
             LOG_STATUS = $DESTINATION_DIRECTORY/api/job.status
             LOG_ERR    = $DESTINATION_DIRECTORY/api/job.err
@@ -381,6 +382,10 @@
 {%- endif %}
 
     # Run locally as they need workstation tools like Inkscape.
+    #
+    # The sleep is stupid and annoying but it helps mitigate problems with
+    # overloaded Lustre filesystems.
+    #
 {%- if 'design_documentation' in scheduledTasks %}
     [[design_documentation]]
         inherit = DOCUMENTATION, LOCAL, TECHNICAL
@@ -388,7 +393,8 @@
                      {{'\n                     '|
                        commandList( LOCAL_BASE_SETUP,
                                     LOCAL_TECHNICAL_SETUP,
-                                    LOCAL_REVEAL_SETUP )}}
+                                    LOCAL_REVEAL_SETUP,
+                                    'sleep 30' )}}
                      """
         script = make -C $SOURCE_DIRECTORY document-latex {{verboseMake()}}
 {%- endif %}
@@ -419,6 +425,7 @@
         [[[environment]]]
             SOURCE_DIRECTORY      = $SOURCE_ROOT/lfric_atm
             DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{label}}
+            BIN_DIR               = $DESTINATION_DIRECTORY/bin
             COMPILER              = {{compiler}}
             {#- We can't define WORKING_DIR here as it may contain    #}
             {#- target specific variables not existing on the local machine #}
@@ -448,7 +455,6 @@
         [[[environment]]]
             SOURCE_DIRECTORY      = $SOURCE_ROOT/{{projectName}}
             WORKING_DIR           = {{TARGET_BUILD_ROOT}}/{{label}}
-            BIN_DIR               = $DESTINATION_DIRECTORY/bin
             TARGET                = build
             PROFILE               = {{build}}
             LFRIC_TARGET_PLATFORM = {{TARGET_OPT}}
@@ -477,7 +483,6 @@
         [[[environment]]]
             SOURCE_DIRECTORY      = $SOURCE_ROOT/mesh_tools
             WORKING_DIR           = {{TARGET_BUILD_ROOT}}/{{label}}
-            BIN_DIR               = $DESTINATION_DIRECTORY/bin
             TARGET                = build
             PROFILE               = {{build}}
             LFRIC_TARGET_PLATFORM = {{TARGET_OPT}}
@@ -499,21 +504,12 @@
         inherit = COMPILATION_INFO, {{family}}
         pre-script = """
                      {{ensureDestination()}}
-                     mkdir -p $DESTINATION_DIRECTORY/compile
-                     RELATIVE_DESTINATION_DIRECTORY=`echo $DESTINATION_DIRECTORY | sed "s|$HOME/||"`
-                     cd $DESTINATION_DIRECTORY/compile
-                     scp {{TARGET_HOST}}:$RELATIVE_DESTINATION_DIRECTORY/compile.log.path .
-                     scp {{TARGET_HOST}}:$(cat compile.log.path).status .
-                     scp {{TARGET_HOST}}:$(cat compile.log.path).out .
-                     scp {{TARGET_HOST}}:$(cat compile.log.path).err .
                      """
-        script = rose task-run --app-key=publish --command-key=compile
+        script = rose task-run --app-key=publish_compile
         [[[environment]]]
+            HOST     = {{TARGET_HOST}}
+            DIR_FILE = compile.log.path
             CONTEXT  = {{build}}
-            COMPILER = {{compiler}}
-            LOG_STATUS = $DESTINATION_DIRECTORY/compile/job.status
-            LOG_OUT    = $DESTINATION_DIRECTORY/compile/job.out
-            LOG_ERR    = $DESTINATION_DIRECTORY/compile/job.err
 {%-     endif %}
 
 
@@ -754,7 +750,7 @@
 
                       # Future publisher stages need this information
                       RELATIVE_LOG_ROOT=$(echo $CYLC_TASK_LOG_ROOT | sed "s|$HOME/||")
-                      echo $RELATIVE_LOG_ROOT > $DESTINATION_DIRECTORY/{{pathFragment}}/run_log.path
+                      echo $RELATIVE_LOG_ROOT > $DESTINATION_DIRECTORY/{{pathFragment}}/run.log.path
                       """
 
         [[[environment]]]
@@ -860,22 +856,15 @@
         inherit = PUBLISH_OUTPUT, {{appLabel|upper}}_{{label|upper}}
         pre-script = """
                      {{ensureDestination()}}
-                     mkdir -p $DESTINATION_DIRECTORY/{{pathFragment}}
-                     RELATIVE_DESTINATION_DIRECTORY=`echo $DESTINATION_DIRECTORY | sed "s|$HOME/||"`
-                     cd $DESTINATION_DIRECTORY/{{pathFragment}}
-                     scp {{TARGET_HOST}}:$RELATIVE_DESTINATION_DIRECTORY/{{pathFragment}}/run_log.path .
-                     scp {{TARGET_HOST}}:$(cat run_log.path).status .
-                     scp {{TARGET_HOST}}:$(cat run_log.path).out .
-                     scp {{TARGET_HOST}}:$(cat run_log.path).err .
                      """
-        script = rose task-run --app-key=publish --command-key=run
+        script = rose task-run --app-key=publish_run
         [[[environment]]]
+            HOST          = {{TARGET_HOST}}
+            DIR_FILE      = {{pathFragment}}/run.log.path
             APP_NAME      = {{appName}}
             CONTEXT       = {{build}}
             CONFIGURATION = {{configuration}}
             COMPILER      = {{compiler}}
-            LOG_STATUS    = $DESTINATION_DIRECTORY/{{pathFragment}}/job.status
-            LOG_ERR       = $DESTINATION_DIRECTORY/{{pathFragment}}/job.err
 {%-               endif %}
 
 
