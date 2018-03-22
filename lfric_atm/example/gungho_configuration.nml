@@ -92,19 +92,33 @@
 /
 
 &solver
-  method                     = 'bicgstab'
-  maximum_iterations         = 399
-  tolerance                  = 1.0e-6
-  preconditioner             = 'diagonal'
-  si_tolerance               = 1.0e-6
-  si_preconditioner          = 'none'
-  si_postconditioner         = 'pressure'
-  si_pressure_preconditioner = 'tridiagonal'
-  si_pressure_tolerance      = 1.0e-6
-  gcrk                       = 10
-  helmholtz_solve            = .true.
-  use_operators              = .true.
-  normalise                  = .true.
+  method                         = 'bicgstab'
+  preconditioner                 = 'diagonal'
+  maximum_iterations             = 399
+  tolerance                      = 1.0e-12
+  gcrk                           = 18
+/
+
+&mixed_solver
+  si_method                      = 'gcr'
+  si_postconditioner             = 'pressure'
+  si_preconditioner              = 'none'
+  si_maximum_iterations          = 10
+  gcrk                           = 18
+  si_tolerance                   = 1.0e-6
+  guess_np1                      = .F
+  reference_reset_freq           = 4
+  normalise                      = .T
+  use_operators                  = .T
+/
+
+&helmholtz_solver
+  gcrk                           = 18
+  si_pressure_method             = 'bicgstab'
+  si_pressure_preconditioner     = 'tridiagonal'
+  si_pressure_tolerance          = 1.0e-6
+  si_pressure_maximum_iterations = 400
+  normalise                      = .T
 /
 
 &subgrid

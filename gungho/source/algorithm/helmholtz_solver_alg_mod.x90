@@ -6,27 +6,36 @@
 !>@brief Routines for solving the semi-implicit equation set by
 !!       eliminating all variables in favour of the exner pressure increment
 module helmholtz_solver_alg_mod
-  use field_mod,                 only: field_type
-  use constants_mod,             only: i_def, r_def
-  use si_operators_alg_mod,      only: get_m3_rho_star, &
-                                       get_m3_exner_star, &
-                                       get_compound_div, &
-                                       get_div_star, &
-                                       get_ptheta2v, &
-                                       get_p2theta, &
-                                       get_p3theta, &
-                                       get_rho_at_u, &
-                                       get_tri_precon, &
-                                       get_helm_diag
-  use runtime_constants_mod,     only: get_mass_matrix, &
-                                       get_div, &
-                                       get_normalisation, &
-                                       w2_id, w3inv_id, theta_space_id
-  use solver_config_mod,         only: normalise                              
-  use derived_config_mod,        only: bundle_size
-  use field_indices_mod,         only: igh_u, igh_t, igh_d, igh_p
-  use output_config_mod,         only: subroutine_timers 
-  use timer_mod,                 only: timer
+  use field_mod,                   only: field_type
+  use constants_mod,               only: i_def, r_def
+  use si_operators_alg_mod,        only: get_m3_rho_star, &
+                                         get_m3_exner_star, &
+                                         get_compound_div, &
+                                         get_div_star, &
+                                         get_ptheta2v, &
+                                         get_p2theta, &
+                                         get_p3theta, &
+                                         get_rho_at_u, &
+                                         get_tri_precon, &
+                                         get_helm_diag
+  use runtime_constants_mod,       only: get_mass_matrix, &
+                                         get_div, &
+                                         get_normalisation, &
+                                         w2_id, w3inv_id, theta_space_id
+  use helmholtz_solver_config_mod, only: normalise,                      &
+                                         si_pressure_maximum_iterations, &
+                                         si_pressure_tolerance                             
+  use derived_config_mod,          only: bundle_size
+  use field_indices_mod,           only: igh_u, igh_t, igh_d, igh_p
+  use output_config_mod,           only: subroutine_timers 
+  use timer_mod,                   only: timer
+  use log_mod,                     only: log_event,         &
+                                         log_scratch_space, &
+                                         LOG_LEVEL_ERROR,   &
+                                         LOG_LEVEL_INFO,    &
+                                         LOG_LEVEL_DEBUG,   &
+                                         LOG_LEVEL_TRACE
+
   implicit none
 
   private 
@@ -73,12 +82,12 @@ contains
   !>@param[in] state Field bundle used to creat all the fields needed for the 
   !!                 algortihms in this module
   subroutine helmholtz_solver_init(state)
-    use function_space_mod, only: function_space_type
-    use field_bundle_mod,   only: clone_bundle
-    use solver_config_mod,  only: si_pressure_method, &
-                                  solver_si_pressure_method_gmres,    &
-                                  solver_si_pressure_method_gcr, &
-                                  si_tolerance    
+    use function_space_mod,           only: function_space_type
+    use field_bundle_mod,             only: clone_bundle
+    use helmholtz_solver_config_mod,  only: method,                        &
+                                            helmholtz_solver_method_gmres, &
+                                            helmholtz_solver_method_gcr
+    use mixed_solver_config_mod,      only: si_tolerance    
     implicit none
     type(field_type), intent(in)       :: state(bundle_size)
     type(function_space_type), pointer :: w3 => null(), &
@@ -125,8 +134,8 @@ contains
     theta_inc = field_type(vector_space = wtheta)
 
     ! For gcr
-    if ( si_pressure_method == solver_si_pressure_method_gmres &
-    .or. si_pressure_method == solver_si_pressure_method_gcr) then
+    if ( method == helmholtz_solver_method_gmres &
+    .or. method == helmholtz_solver_method_gcr) then
       allocate( s_gcr(GCRk), v_gcr(GCRk) )
       do i = 1,GCRK
         v_gcr(i) = field_type(vector_space = w3)
@@ -158,10 +167,10 @@ contains
   !>@param[inout] x0 Field bundle to compute increments for
   !>@param[in]    rhs0 Field bundle containing residuals
   subroutine helmholtz_solver_alg(x0, rhs0)
-    use solver_config_mod, only: si_pressure_method, &
-                                 solver_si_pressure_method_bicgstab, &
-                                 solver_si_pressure_method_gmres,    &
-                                 solver_si_pressure_method_gcr
+    use helmholtz_solver_config_mod, only: method,                           &
+                                           helmholtz_solver_method_bicgstab, &
+                                           helmholtz_solver_method_gmres,    &
+                                           helmholtz_solver_method_gcr
     implicit none
 
     type(field_type), intent(inout) :: x0(bundle_size)
@@ -172,12 +181,12 @@ contains
     call build_helmholtz_rhs(helmholtz_rhs, rhs0)
 
     ! Krylov solver to obtain pressure increment
-    select case(si_pressure_method)
-    case(solver_si_pressure_method_bicgstab)
+    select case(method)
+    case(helmholtz_solver_method_bicgstab)
       call bicgstab(exner_increment, helmholtz_rhs)
-    case(solver_si_pressure_method_gmres)
+    case(helmholtz_solver_method_gmres)
       call gmres(exner_increment, helmholtz_rhs)
-    case(solver_si_pressure_method_gcr)
+    case(helmholtz_solver_method_gcr)
       call gcr(exner_increment, helmholtz_rhs)
     end select
 
@@ -198,7 +207,6 @@ contains
                                             opt_apply_variable_hx_kernel_type
     use operator_mod,                 only: operator_type
     use enforce_bc_kernel_mod,        only: enforce_bc_kernel_type
-    use log_mod,                      only: LOG_LEVEL_DEBUG
     use finite_element_config_mod,    only: element_order, wtheta_on
     use psykal_lite_mod,              only: invoke_raise_field
 
@@ -271,7 +279,6 @@ contains
     use psykal_lite_mod,          only: invoke_raise_field
     use matrix_vector_kernel_mod, only: matrix_vector_kernel_type
     use operator_mod,             only: operator_type
-    use log_mod,                  only: LOG_LEVEL_INFO
 
     implicit none
     type(operator_type), pointer :: m2      => null(),         & 
@@ -389,14 +396,6 @@ contains
   !>@param[inout] lhs Field to solve H*lhs = rhs for
   !>@param[in] rhs Residual field
   subroutine bicgstab(lhs, rhs)
-    use solver_config_mod,     only: si_pressure_maximum_iterations, &
-                                     si_pressure_tolerance
-    use log_mod,               only: log_event,         &
-                                     log_scratch_space, &
-                                     LOG_LEVEL_ERROR,   &
-                                     LOG_LEVEL_INFO,    &
-                                     LOG_LEVEL_DEBUG,   &
-                                     LOG_LEVEL_TRACE
     implicit none
     type(field_type),             intent(inout) :: lhs
     type(field_type),             intent(in)    :: rhs
@@ -494,14 +493,6 @@ contains
   !>@param[inout] lhs Field to solve H*lhs = rhs for
   !>@param[in] rhs Residual field
   subroutine gcr(lhs, rhs)
-    use solver_config_mod,     only: si_pressure_maximum_iterations, &
-                                     si_pressure_tolerance
-    use log_mod,               only: log_event,         &
-                                     log_scratch_space, &
-                                     LOG_LEVEL_ERROR,   &
-                                     LOG_LEVEL_INFO,    &
-                                     LOG_LEVEL_DEBUG,   &
-                                     LOG_LEVEL_TRACE
     implicit none
     type(field_type),             intent(inout) :: lhs
     type(field_type),             intent(in)    :: rhs
@@ -590,15 +581,6 @@ contains
   !>@param[inout] lhs Field to solve H*lhs = rhs for
   !>@param[in] rhs Residual field
   subroutine gmres(lhs, rhs)
-    use solver_config_mod,     only: si_pressure_maximum_iterations, &
-                                     si_pressure_tolerance
-    use log_mod,               only: log_event,         &
-                                     log_scratch_space, &
-                                     LOG_LEVEL_ERROR,   &
-                                     LOG_LEVEL_INFO,    &
-                                     LOG_LEVEL_DEBUG,   &
-                                     LOG_LEVEL_TRACE
-
     implicit none
     type(field_type),    intent(inout) :: lhs
     type(field_type),    intent(in)    :: rhs
@@ -735,8 +717,6 @@ contains
   !>@param[in]    exner_inc Pressure increment obtained from the Helmholtz solver
   !>@param[in]    rhs Initial residuals uise to compute increments
   subroutine back_substitute(state, exner_inc, rhs)
-    use log_mod,                     only: LOG_LEVEL_DEBUG, &
-                                           LOG_LEVEL_INFO
     use matrix_vector_kernel_mod,    only: matrix_vector_kernel_type
     use dg_matrix_vector_kernel_mod, only: dg_matrix_vector_kernel_type
     use operator_mod,                only: operator_type  
@@ -816,9 +796,9 @@ contains
     use dg_matrix_vector_kernel_mod, only: dg_matrix_vector_kernel_type
     use operator_mod,                only: operator_type 
     use tri_solve_kernel_mod,        only: tri_solve_kernel_type
-    use solver_config_mod,           only: si_pressure_preconditioner, &
-                                           solver_si_pressure_preconditioner_tridiagonal, & 
-                                           solver_si_pressure_preconditioner_diagonal 
+    use helmholtz_solver_config_mod, only: preconditioner,                              &
+                                           helmholtz_solver_preconditioner_tridiagonal, & 
+                                           helmholtz_solver_preconditioner_diagonal 
 
     implicit none
     type(field_type),  intent(inout) :: y
@@ -831,15 +811,15 @@ contains
     if ( subroutine_timers ) call timer('helmholtz precon')
 
     if ( .not. present(prec) ) then
-      precon = si_pressure_preconditioner
+      precon = preconditioner
     else
       precon = prec
     end if
     select case ( precon )
-      case ( solver_si_pressure_preconditioner_diagonal )       
+      case ( helmholtz_solver_preconditioner_diagonal )       
         m3_inv   => get_mass_matrix(w3inv_id)
         call invoke( dg_matrix_vector_kernel_type(y, x, m3_inv) )     
-      case ( solver_si_pressure_preconditioner_tridiagonal )
+      case ( helmholtz_solver_preconditioner_tridiagonal )
         tri => get_tri_precon()
         call invoke( tri_solve_kernel_type(y, x, tri) )
       case default

@@ -14,9 +14,9 @@ module si_operators_alg_mod
   use log_mod,                   only: log_event,      &
                                        LOG_LEVEL_INFO, &
                                        LOG_LEVEL_ERROR
-  use solver_config_mod,         only: si_pressure_preconditioner, &
-                                       solver_si_pressure_preconditioner_tridiagonal, &
-                                       normalise
+  use helmholtz_solver_config_mod, only: preconditioner,                              &
+                                         helmholtz_solver_preconditioner_tridiagonal, &
+                                         normalise
   use output_config_mod,         only: subroutine_timers 
   use timer_mod,                 only: timer
 
@@ -94,7 +94,7 @@ contains
 
     rho_at_u  = field_type(vector_space = w2_fs)
 
-    if ( si_pressure_preconditioner == solver_si_pressure_preconditioner_tridiagonal ) then
+    if ( preconditioner == helmholtz_solver_preconditioner_tridiagonal ) then
       if ( element_order /= 0 ) then
         call log_event( "tridiagonal precon only valid for order 0", &
                         LOG_LEVEL_ERROR )
@@ -212,11 +212,11 @@ contains
                                                rho_at_u, const1) )
 
     ! Compute terms for tridiagonal preconditioner
-    if ( si_pressure_preconditioner == solver_si_pressure_preconditioner_tridiagonal ) then
+    if ( preconditioner == helmholtz_solver_preconditioner_tridiagonal ) then
       call invoke( compute_tri_precon_kernel_type(tri_precon, theta, rho, exner, chi) )
     end if
     if ( normalise ) then
-      if ( si_pressure_preconditioner == solver_si_pressure_preconditioner_tridiagonal) then
+      if ( preconditioner == helmholtz_solver_preconditioner_tridiagonal) then
         Helm_diag = tri_precon(1)
         ! PSyclone does not currently support raising field to an integer power
         call invoke_raise_field(Helm_diag, -1_i_def)

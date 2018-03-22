@@ -35,19 +35,19 @@ module si_solver_alg_mod
                                        LOG_LEVEL_TRACE,   &
                                        LOG_LEVEL_INFO
   use operator_mod,              only: operator_type
-  use solver_config_mod,         only: si_maximum_iterations, &
+  use mixed_solver_config_mod,   only: si_maximum_iterations, &
                                        si_tolerance, &
                                        si_preconditioner, &
                                        si_postconditioner, &
-                                       solver_si_preconditioner_none, &
-                                       solver_si_preconditioner_diagonal, &
-                                       solver_si_preconditioner_pressure, &
-                                       solver_si_postconditioner_none, &
-                                       solver_si_postconditioner_diagonal, &
-                                       solver_si_postconditioner_pressure, &
-                                       solver_si_method_gmres, &
-                                       solver_si_method_gcr, &
-                                       solver_si_method_jacobi, &
+                                       mixed_solver_si_preconditioner_none, &
+                                       mixed_solver_si_preconditioner_diagonal, &
+                                       mixed_solver_si_preconditioner_pressure, &
+                                       mixed_solver_si_postconditioner_none, &
+                                       mixed_solver_si_postconditioner_diagonal, &
+                                       mixed_solver_si_postconditioner_pressure, &
+                                       mixed_solver_si_method_gmres, &
+                                       mixed_solver_si_method_gcr, &
+                                       mixed_solver_si_method_jacobi, &
                                        si_method, &
                                        gcrk
 
@@ -105,11 +105,11 @@ contains
     call rhs0(igh_p)%log_minmax(LOG_LEVEL_DEBUG,'max/min r_p = ')
 
     select case (si_method)
-      case (solver_si_method_gmres)
+      case (mixed_solver_si_method_gmres)
         call mixed_gmres_alg(x0, rhs0, x_ref, tau_u_dt, tau_t_dt, tau_r_dt)
-      case (solver_si_method_gcr)
+      case (mixed_solver_si_method_gcr)
         call mixed_gcr_alg(x0, rhs0, x_ref, tau_u_dt, tau_t_dt, tau_r_dt)
-      case (solver_si_method_jacobi)
+      case (mixed_solver_si_method_jacobi)
         call mixed_jacobi_alg(x0, rhs0, x_ref, tau_u_dt, tau_t_dt, tau_r_dt)
     end select
 
@@ -465,21 +465,21 @@ contains
     integer(kind=i_def)                :: i
 
     select case (option)
-      case (solver_si_preconditioner_none, &
-            solver_si_postconditioner_none)
+      case (mixed_solver_si_preconditioner_none, &
+            mixed_solver_si_postconditioner_none)
         do i = 1,bundle_size
           call invoke_copy_field_data( x(i), y(i) )
           ! call invoke( setval_X(y(i), x(i)) )
         end do
-      case (solver_si_preconditioner_diagonal, &
-            solver_si_postconditioner_diagonal)
+      case (mixed_solver_si_preconditioner_diagonal, &
+            mixed_solver_si_postconditioner_diagonal)
         do i = 1,bundle_size
           call invoke_copy_field_data( x(i), y(i) )
           ! call invoke( setval_X(y(i), x(i)) )
         end do
         call bundle_divide(y, mm, bundle_size)
-      case (solver_si_preconditioner_pressure, &
-            solver_si_postconditioner_pressure)
+      case (mixed_solver_si_preconditioner_pressure, &
+            mixed_solver_si_postconditioner_pressure)
         call set_bundle_scalar(0.0_r_def, y, bundle_size)
         call helmholtz_solver_alg(y, x)
       case default

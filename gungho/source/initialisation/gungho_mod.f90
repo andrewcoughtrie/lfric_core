@@ -38,13 +38,15 @@ contains
     character(*), intent(in) :: filename
 
     character(*), parameter :: &
-                  required_configuration(20) = ['finite_element             ', &
+                  required_configuration(22) = ['finite_element             ', &
                                                 'formulation                ', &
                                                 'base_mesh                  ', &
                                                 'initial_wind               ', &
                                                 'planet                     ', &
                                                 'restart                    ', &
                                                 'solver                     ', &
+                                                'mixed_solver               ', &
+                                                'helmholtz_solver           ', &
                                                 'subgrid                    ', &
                                                 'timestepping               ', &
                                                 'biperiodic_deppt           ', &

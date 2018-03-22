@@ -98,6 +98,10 @@
   preconditioner                 = 'diagonal'
   maximum_iterations             = 399
   tolerance                      = 1.0e-12
+  gcrk                           = 18
+/
+
+&mixed_solver
   si_method                      = 'gcr'
   si_postconditioner             = 'pressure'
   si_preconditioner              = 'none'
@@ -106,13 +110,17 @@
   si_tolerance                   = 1.0e-6
   guess_np1                      = .F
   reference_reset_freq           = 4
-  si_pressure_method             = 'bicgstab'
-  si_pressure_preconditioner     = 'tridiagonal'
-  si_pressure_tolerance          = 1.0e-6
-  si_pressure_maximum_iterations = 400
-  helmholtz_solve                = .T
   normalise                      = .T
   use_operators                  = .T
+/
+
+&helmholtz_solver
+  gcrk                           = 18
+  method                         = 'bicgstab'
+  preconditioner                 = 'tridiagonal'
+  si_pressure_tolerance          = 1.0e-6
+  si_pressure_maximum_iterations = 400
+  normalise                      = .T
 /
 
 &subgrid

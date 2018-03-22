@@ -62,10 +62,14 @@
 /
 
 &solver
-  method                         = 'bicgstab',
-  preconditioner                 = 'diagonal',
-  maximum_iterations             = 199,
-  tolerance                      = 1.0e-4,
+  method                         = 'bicgstab'
+  preconditioner                 = 'diagonal'
+  maximum_iterations             = 399
+  tolerance                      = 1.0e-12
+  gcrk                           = 18
+/
+
+&mixed_solver
   si_method                      = 'gmres',
   si_preconditioner              = 'pressure',
   si_postconditioner             = 'none',
@@ -74,13 +78,17 @@
   si_tolerance                   = 1.0e-4,
   guess_np1                      = .F
   reference_reset_freq           = 1
-  si_pressure_method             = 'bicgstab',
-  si_pressure_preconditioner     = 'diagonal',
-  si_pressure_tolerance          = 1.0e-4,
-  si_pressure_maximum_iterations = 199,
-  helmholtz_solve                = .F,
   normalise                      = .true.,
   use_operators                  = .T,
+/
+
+&helmholtz_solver
+  gcrk                           = 4,
+  method                         = 'bicgstab',
+  preconditioner                 = 'diagonal',
+  si_pressure_tolerance          = 1.0e-4,
+  si_pressure_maximum_iterations = 199,
+  normalise                      = .true.,
 /
 
 

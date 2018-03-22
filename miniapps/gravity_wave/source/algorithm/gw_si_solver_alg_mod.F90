@@ -15,39 +15,41 @@ module gw_si_solver_alg_mod
   use, intrinsic :: ieee_arithmetic
 
   use constants_mod,           only: r_def, str_def, i_def
-  use field_bundle_mod,        only: clone_bundle,                       &
-                                     set_bundle_scalar,                  &
-                                     bundle_axpy,                        &
-                                     copy_bundle,                        &
-                                     minus_bundle,                       &
-                                     bundle_ax,                          &
-                                     bundle_divide,                      &
-                                     bundle_minmax,                      &
+  use field_bundle_mod,        only: clone_bundle,                              &
+                                     set_bundle_scalar,                         &
+                                     bundle_axpy,                               &
+                                     copy_bundle,                               &
+                                     minus_bundle,                              &
+                                     bundle_ax,                                 &
+                                     bundle_divide,                             &
+                                     bundle_minmax,                             &
                                      bundle_inner_product
   use field_mod,               only: field_type
   use gw_lhs_alg_mod,          only: gw_lhs_alg
-  use log_mod,                 only: log_event,                          &
-                                     log_scratch_space,                  &
-                                     LOG_LEVEL_ERROR,                    &
-                                     LOG_LEVEL_DEBUG,                    &
-                                     LOG_LEVEL_TRACE,                    &
+  use log_mod,                 only: log_event,                                &
+                                     log_scratch_space,                        &
+                                     LOG_LEVEL_ERROR,                          &
+                                     LOG_LEVEL_DEBUG,                          &
+                                     LOG_LEVEL_TRACE,                          &
                                      lOG_LEVEL_INFO
   use operator_mod,            only: operator_type
-  use solver_config_mod,       only: maximum_iterations,                 &
-                                     si_tolerance,                       &
-                                     si_preconditioner,                  &
-                                     si_postconditioner,                 &
-                                     solver_si_preconditioner_none,      &
-                                     solver_si_preconditioner_diagonal,  &
-                                     solver_si_preconditioner_pressure,  &
-                                     solver_si_postconditioner_pressure, &
-                                     solver_si_postconditioner_none,     &
-                                     solver_si_postconditioner_diagonal, &
-                                     gcrk
+  use mixed_solver_config_mod, only: si_maximum_iterations,                    &
+                                     si_tolerance,                             &
+                                     si_preconditioner,                        &
+                                     si_postconditioner,                       &
+                                     mixed_solver_si_preconditioner_none,      &
+                                     mixed_solver_si_preconditioner_diagonal,  &
+                                     mixed_solver_si_preconditioner_pressure,  &
+                                     mixed_solver_si_postconditioner_pressure, &
+                                     mixed_solver_si_postconditioner_none,     &
+                                     mixed_solver_si_postconditioner_diagonal, &
+                                     gcrk,                                     &
+                                     mixed_solver_si_method_gmres,             &
+                                     mixed_solver_si_method_jacobi,            &
+                                     si_method
 
   use timestepping_config_mod, only: dt
   use derived_config_mod,      only: bundle_size
-  use solver_config_mod,       only: helmholtz_solve
   use field_indices_mod,       only: igw_u, igw_p, igw_b
   use output_config_mod,       only: subroutine_timers 
   use timer_mod,               only: timer
@@ -55,7 +57,7 @@ module gw_si_solver_alg_mod
 
   private
   type(field_type), allocatable :: mm_diagonal(:)
-  type(field_type), allocatable :: dx(:), Ax(:), residual(:), s(:),      &
+  type(field_type), allocatable :: dx(:), Ax(:), residual(:), s(:),            &
                                    w(:)
   type(field_type), allocatable :: v(:,:)
 
@@ -87,9 +89,10 @@ contains
     type(field_type),             intent(in) :: x0(bundle_size)
     integer                                  :: iter
 
-    if ( si_preconditioner  == solver_si_preconditioner_pressure .or.  &
-         si_postconditioner == solver_si_postconditioner_pressure .or. &
-         helmholtz_solve ) call gw_pressure_solver_init(x0)
+    if ( si_preconditioner  == mixed_solver_si_preconditioner_pressure .or.  &
+         si_postconditioner == mixed_solver_si_postconditioner_pressure .or. &
+         si_method == mixed_solver_si_method_jacobi )                        &
+      call gw_pressure_solver_init(x0)
 
     allocate( dx         (bundle_size), &
               Ax         (bundle_size), &
@@ -140,12 +143,14 @@ contains
     call rhs0(igw_p)%log_minmax(LOG_LEVEL_INFO,'max/min r_p = ')
     call rhs0(igw_b)%log_minmax(LOG_LEVEL_INFO,'max/min r_b = ')
 
-    if ( helmholtz_solve ) then
-      ! Use jacobi method with a single iterations
-      call jacobi(x0,rhs0,1)
-    else
-      call gmres(x0, rhs0)
-    end if
+    select case ( si_method )
+      case ( mixed_solver_si_method_jacobi )
+        call jacobi(x0, rhs0, si_maximum_iterations)
+      case ( mixed_solver_si_method_gmres )
+        call gmres(x0, rhs0)
+      case default
+        call log_event( 'Invalid option for gravity wave mixed solver', LOG_LEVEL_ERROR )
+    end select
     if ( subroutine_timers ) call timer('gw_si_solver_alg')
  
   end subroutine gw_si_solver_alg
@@ -209,7 +214,7 @@ contains
     integer(kind=i_def)            :: iter, i, j, k, m
     integer(kind=i_def)            :: max_gmres_iter
 
-    max_gmres_iter = maximum_iterations
+    max_gmres_iter = si_maximum_iterations
 
     err = bundle_inner_product(rhs0, rhs0, bundle_size)
     sc_err = max( sqrt(err), 1.0e-16_r_def )
@@ -355,8 +360,8 @@ contains
     integer(kind=i_def), intent(in)    :: option
     integer(kind=i_def)                :: i
 
-    if (  option == solver_si_preconditioner_pressure .or.           &
-          option == solver_si_postconditioner_pressure ) then
+    if (  option == mixed_solver_si_preconditioner_pressure .or.           &
+          option == mixed_solver_si_postconditioner_pressure ) then
       call set_bundle_scalar(0.0_r_def, y, bundle_size)
       call gw_pressure_solver_alg(y, x)
     else
@@ -364,8 +369,8 @@ contains
         call invoke_copy_field_data( x(i), y(i) )
         ! call invoke( setval_X( y(i), x(i) ) )
       end do
-      if ( option == solver_si_preconditioner_diagonal .or.          &
-           option == solver_si_postconditioner_diagonal) then
+      if ( option == mixed_solver_si_preconditioner_diagonal .or.          &
+           option == mixed_solver_si_postconditioner_diagonal) then
         call bundle_divide(y, mm, bundle_size)
       end if
     end if

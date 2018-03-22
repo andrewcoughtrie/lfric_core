@@ -20,8 +20,12 @@ module iter_timestep_alg_mod
                                        use_wavedynamics,          &
                                        dry_static_adjust
   use output_config_mod,         only: diagnostic_frequency, subroutine_timers
-  use solver_config_mod,         only: method, helmholtz_solve, use_operators, &
-                                       guess_np1, &
+  use mixed_solver_config_mod,   only: si_preconditioner,                        &
+                                       si_postconditioner,                       &
+                                       mixed_solver_si_preconditioner_pressure,  &
+                                       mixed_solver_si_postconditioner_pressure, &
+                                       use_operators,                            &
+                                       guess_np1,                                &
                                        reference_reset_freq
   use timestepping_config_mod,   only: dt, alpha, &
                                        outer_iterations, inner_iterations, &
@@ -109,7 +113,7 @@ module iter_timestep_alg_mod
   type( field_type ) :: w_physics ! copy of vertical winds for physics
   type( field_type ) :: dtheta ! increment to theta
   type( field_type ) :: du ! increment to u
-
+  logical            :: helmholtz_solve
 
   public :: iter_alg_init, iter_alg_step, iter_alg_final
 
@@ -181,6 +185,12 @@ contains
     !--------------------------------------------------------------------
     ! Operators for si solves
     !--------------------------------------------------------------------
+    if ( si_preconditioner  == mixed_solver_si_preconditioner_pressure .or. &
+         si_postconditioner == mixed_solver_si_postconditioner_pressure ) then
+      helmholtz_solve = .true.
+    else
+      helmholtz_solve = .false.
+    end if
     if ( helmholtz_solve ) call helmholtz_solver_init(state)
     if ( helmholtz_solve .or. use_operators ) call create_si_operators(mesh_id)
 

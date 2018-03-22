@@ -85,8 +85,8 @@ contains
   !> @param[inout] state Current model prognostic state
   !> @param[in] ref_state Reference state of the model fields
   subroutine lhs_alg(lhs, state, ref_state, tau_u_dt, tau_t_dt, tau_r_dt)
-  use derived_config_mod, only: bundle_size
-  use solver_config_mod,  only: use_operators
+  use derived_config_mod,      only: bundle_size
+  use mixed_solver_config_mod, only: use_operators
 
   implicit none
   ! Form of state and lhs is [u,theta,rho,exner]
