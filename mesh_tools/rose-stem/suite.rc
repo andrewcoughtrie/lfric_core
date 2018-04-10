@@ -254,6 +254,8 @@
           HOST={{TARGET_HOST}}
           CONTEXT  = {{build}}
           DIR_FILE=lfric.mesher.{{compiler}}.log
+      [[[job]]]
+          execution retry delays = PT5S, 10*PT1M
 {%-     endif %} {#- if 'publish_' + label + '_compile' in scheduledTasks #}
 
 {%-     if 'unit_test_with_' + label in scheduledTasks %}
