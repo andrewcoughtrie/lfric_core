@@ -74,7 +74,7 @@ end function calc_cell_orientation_kernel_constructor
 !--------------------------------------------------------------------------------
 function index_of_interest_map(branch, orientation)
 
-integer :: index_of_interest_map, branch, orientation
+  integer(kind=i_def) :: index_of_interest_map, branch, orientation
 
   index_of_interest_map = mod(orientation + 2 + branch, 4) + 1
 
@@ -89,7 +89,8 @@ end function index_of_interest_map
 !--------------------------------------------------------------------------------
 function orientation_of_cell(branch,ii)
 
-  integer :: orientation_of_cell, branch, ii
+  integer(kind=i_def) :: branch, ii
+  real(kind=r_def)    :: orientation_of_cell
 
   orientation_of_cell = real(mod(ii + 6 - branch, 4) + 1,r_def)
 
@@ -130,21 +131,21 @@ subroutine calc_cell_orientation_code(  nlayers,                       &
 
   implicit none
 
-  integer, intent(in)                     :: nlayers
-  integer, intent(in)                     :: undf_w3
-  integer, intent(in)                     :: ndf_w3
-  real(kind=r_def), intent(inout)         :: orientation(1:undf_w3)
-  integer, dimension(ndf_w3), intent(in)  :: map_w3
-  integer, intent(in)                     :: ndf_w2
-  integer, intent(in)                     :: size_of_stencil
-  integer, intent(in)                     :: stencil_map_w2_cross(1:ndf_w2,1:size_of_stencil)
-  integer, intent(in)                     :: stencil_map_w3_cross(1:ndf_w3,1:size_of_stencil)
+  integer(kind=i_def), intent(in)                     :: nlayers
+  integer(kind=i_def), intent(in)                     :: undf_w3
+  integer(kind=i_def), intent(in)                     :: ndf_w3
+  real(kind=r_def), intent(inout)                     :: orientation(1:undf_w3)
+  integer(kind=i_def), dimension(ndf_w3), intent(in)  :: map_w3
+  integer(kind=i_def), intent(in)                     :: ndf_w2
+  integer(kind=i_def), intent(in)                     :: size_of_stencil
+  integer(kind=i_def), intent(in)                     :: stencil_map_w2_cross(1:ndf_w2,1:size_of_stencil)
+  integer(kind=i_def), intent(in)                     :: stencil_map_w3_cross(1:ndf_w3,1:size_of_stencil)
 
-  integer :: k, ii, branch, stencil ! iteration counters
-  integer :: cell_inner, cell_outer
-  integer :: cell_inner_index_of_interest
-  integer :: shared_dof_of_interest
-  integer :: halo_depth, cross_stencil_branches
+  integer(kind=i_def) :: k, ii, branch, stencil ! iteration counters
+  integer(kind=i_def) :: cell_inner, cell_outer
+  integer(kind=i_def) :: cell_inner_index_of_interest
+  integer(kind=i_def) :: shared_dof_of_interest
+  integer(kind=i_def) :: halo_depth, cross_stencil_branches
 
   halo_depth = (size_of_stencil-1)/4
   cross_stencil_branches = 4
