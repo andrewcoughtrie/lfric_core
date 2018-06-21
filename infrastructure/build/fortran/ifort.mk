@@ -28,7 +28,7 @@ FORTRAN_RUNTIME       =
 # This will be removed by #1490
 LFRIC_INTEL_FIX_ARG         = -qoverride-limits
 
-FFLAGS_COMPILER           = 
+FFLAGS_COMPILER           =
 FFLAGS_NO_OPTIMISATION    = -O0
 FFLAGS_SAFE_OPTIMISATION  = -O2 -fp-model strict
 FFLAGS_RISKY_OPTIMISATION = -O3 -xhost

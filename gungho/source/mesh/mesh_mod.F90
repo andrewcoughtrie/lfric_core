@@ -275,7 +275,7 @@ module mesh_mod
   ! Module parameters
   ! -------------------------------------------------------------------------
 
-  !> Counter variable to keep track of the next mesh id number to uniquely 
+  !> Counter variable to keep track of the next mesh id number to uniquely
   !! identify each different mesh
   integer(i_def), save :: mesh_id_counter = 0
 
@@ -350,7 +350,7 @@ contains
       vert_lid_gid_map(:)           ! Vertices local-to-global id map
 
     ! Vertices connected to local 2d cell.
-    integer(i_def), allocatable :: vert_on_cell_2d (:,:) 
+    integer(i_def), allocatable :: vert_on_cell_2d (:,:)
 
     ! Edges connected to local 2d cell.
     integer(i_def), allocatable :: edge_on_cell_2d (:,:)
@@ -436,7 +436,7 @@ contains
          partition%get_total_ranks() == 1 ) then
 
       ! Note: For a single partition, the global ids should be the same
-      !       as the local cell ids, so we can simply extract "map" and 
+      !       as the local cell ids, so we can simply extract "map" and
       !       cell_next_2d arrays.
       allocate( cell_next_2d(nedges_per_2d_cell, self%ncells_2d_with_ghost) )
 
@@ -715,7 +715,7 @@ contains
         allocate ( self%mesh_maps, source = mesh_map_collection_type() )
 
     if ( .not. allocated(self%face_id_in_adjacent_cell) )           &
-      allocate ( self%face_id_in_adjacent_cell( nedges_per_2d_cell, & 
+      allocate ( self%face_id_in_adjacent_cell( nedges_per_2d_cell, &
                                                 self%ncells_2d_with_ghost) )
 
     call calc_face_id_in_adjacent_cell(                                      &
@@ -821,7 +821,7 @@ contains
     real(r_def),      intent(out) :: vertex_coords(:)
 
     vertex_coords(:) = self%vertex_coords(:,vert_lid)
-    
+
   end subroutine get_vert_coords
 
 
@@ -998,7 +998,7 @@ contains
 
   !> @details Returns local cell id of adjacent cell on the specified face
   !>          (iface) of the given cell (icell)
-  !> @param[in] iface         The index (on the known cell with local id, 
+  !> @param[in] iface         The index (on the known cell with local id,
   !>                          @c cell_lid ) of the face common to both cells
   !> @param[in] cell_lid      The local id of the known cell
   !> @return                  The local id of cell adjacent to the
@@ -1530,7 +1530,8 @@ contains
 
   end function get_last_inner_cell
 
-  !> @brief  Gets the number of cells of a given colour up to the specified inner halo 
+  !> @brief  Gets the number of cells of a given colour up to the specified
+  !>         inner halo
   !> @param[in] colour Colour of cells to return number of
   !> @param[in] depth The depth of the halo being queried
   !> @return ncells_colour The number of this coloured cells in the partition up
@@ -1555,7 +1556,7 @@ contains
   end function get_last_inner_cell_per_colour
 
   !> Get the number of edge cells from the partition object
-  !> @return edge_cells The total number of edge cells on the 
+  !> @return edge_cells The total number of edge cells on the
   !> local partition
   !============================================================================
   function get_num_cells_edge( self ) result ( edge_cells )
@@ -1587,7 +1588,7 @@ contains
 
   !> @brief  Gets the index of the last edge cell in a 2d slice on the local
   !>         partition for a given colour
-  !> @return last_edge_cell The index of the last of "edge" cell on 
+  !> @return last_edge_cell The index of the last of "edge" cell on
   !>         the local partition for the requested colour
   !============================================================================
   function get_last_edge_cell_per_colour( self, colour ) &
@@ -1644,7 +1645,7 @@ contains
 
   end function get_num_cells_halo
 
-  !> @brief  Gets the index of the last cell in the specified halo 
+  !> @brief  Gets the index of the last cell in the specified halo
   !> @details Returns the index of the last cell in a particular depth
   !>          of halo in a 2d slice on the local partition
   !> @param[in] depth The depth of the halo being queried
@@ -1668,7 +1669,7 @@ contains
 
   end function get_last_halo_cell_any
 
-  !> @brief  Gets the number of cells of a given colour up to the specified halo 
+  !> @brief  Gets the number of cells of a given colour up to the specified halo
   !> @param[in] colour Colour of cells to return number of
   !> @param[in] depth The depth of the halo being queried
   !> @return ncells_colour The number of this coloured cells in the partition up
@@ -1719,7 +1720,7 @@ contains
   !>         for each colour
   !> @details In the PSy layer, we need to loop over various subsets of the mesh
   !>         such as up to a given halo depth (inner or outer) or up to the last
-  !>         edge cell. In order for this to work with colouring, we need to 
+  !>         edge cell. In order for this to work with colouring, we need to
   !>         know the number of cells of each colour in each subset.
   !============================================================================
   subroutine init_last_cell_per_colour( self )
@@ -1760,7 +1761,7 @@ contains
         end do
       end do
     end if
-    
+
     ! Do calculations for the range excluding halos
     allocate(self%last_edge_cell_per_colour(self%ncolours))
     last_cell = self%get_last_edge_cell()
@@ -1771,10 +1772,10 @@ contains
       end do
       self%last_edge_cell_per_colour(colour) = cell
     end do
- 
+
   end subroutine init_last_cell_per_colour
 
-  !> @brief  Gets the index of the last cell in the deepest halo 
+  !> @brief  Gets the index of the last cell in the deepest halo
   !> @details Returns the index of the last cell in a particular depth
   !>          of halo in a 2d slice on the local partition
   !> @return last_halo_cell The index of the last cell in the particular depth
@@ -1862,7 +1863,7 @@ contains
     implicit none
 
     class(mesh_type), intent(in) :: self
-    integer(i_def)               :: total_ranks 
+    integer(i_def)               :: total_ranks
 
     total_ranks = self%partition%get_total_ranks()
 
@@ -1912,7 +1913,7 @@ contains
   !============================================================================
   !> @brief Populates args with colouring info.
   !> @param[in] self  The mesh_type instance.
-  !> @param[out] ncolours  Number of colours used to colour this mesh. 
+  !> @param[out] ncolours  Number of colours used to colour this mesh.
   !> @param[out] ncells_per_colour  Count of cells in each colour.
   !> @param[out] colour_map         Indices of cells in each colour.
   !============================================================================
@@ -1933,7 +1934,7 @@ contains
   !> @brief  Returns state of colouring: has colouring yet been applied to
   !>         this mesh?
   !>
-  !> @return  Logical true is mesh coloured, false if not. 
+  !> @return  Logical true is mesh coloured, false if not.
   !============================================================================
   function is_coloured(self) result(cstat)
     implicit none
@@ -1946,10 +1947,10 @@ contains
       cstat = .true.
     end if
 
-  end function is_coloured 
+  end function is_coloured
 
   !============================================================================
-  !> @brief  Add a mesh map to this objects mesh map collection. The 
+  !> @brief  Add a mesh map to this objects mesh map collection. The
   !>         map will be from this mesh to the specified
   !>         target mesh.
   !>
@@ -2020,7 +2021,7 @@ contains
            source_global_mesh%get_global_mesh_map(target_global_mesh_id)
 
       if (.not. associated(global_mesh_map)) then
-        ! Error, no valid global mesh map 
+        ! Error, no valid global mesh map
       end if
 
       ntarget_cells_per_source_cell = &
@@ -2064,7 +2065,7 @@ contains
   end subroutine add_mesh_map
 
   !============================================================================
-  !> @brief  Returns a pointer to the mesh_map object that maps this 
+  !> @brief  Returns a pointer to the mesh_map object that maps this
   !>         mesh_type object (source) to another mesh_type_object (target).
   !>
   !> @param[in] target_mesh   Pointer to target mesh object.
@@ -2100,7 +2101,7 @@ contains
   !============================================================================
   !> @details Compute the local id of each face in the adjacent cells
   subroutine calc_face_id_in_adjacent_cell( face_id_in_adjacent_cell, &
-                                            num_face_per_cell, & 
+                                            num_face_per_cell, &
                                             cell_next, nfaces, &
                                             ncells )
 
@@ -2118,7 +2119,7 @@ contains
           next_cell = cell_next(face,cell)
           do next_face = 1, num_face_per_cell
             if ( cell_next(next_face,next_cell) == cell ) then
-              ! We have found the local id in next_cell that takes us back to 
+              ! We have found the local id in next_cell that takes us back to
               ! the original cell, so store this value in the array
               face_id_in_adjacent_cell(face,cell) = next_face
             end if
@@ -2133,9 +2134,9 @@ contains
 
   end subroutine calc_face_id_in_adjacent_cell
 
-  !> @details This function returns the local id of faces in 
+  !> @details This function returns the local id of faces in
   !> horizontally adjacent faces
-  !> @return adjacent_face local id of faces in neighbouring cells  
+  !> @return adjacent_face local id of faces in neighbouring cells
   !============================================================================
   function get_adjacent_face(self) result (adjacent_face)
 
