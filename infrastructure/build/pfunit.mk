@@ -7,7 +7,7 @@
 # Run this make file to generate pFUnit source in WORKING_DIR from test
 # descriptions in SOURCE_DIR.
 #
-PF_FILES = $(shell find $(SOURCE_DIR) -name '*.pf' -printf '%P\n')
+PF_FILES = $(shell find $(SOURCE_DIR) -name '*.pf' -print | sed "s|$(SOURCE_DIR)||")
 
 .PHONY: prepare-pfunit
 prepare-pfunit: $(patsubst %.pf,$(WORKING_DIR)/%.F90,$(PF_FILES)) \
