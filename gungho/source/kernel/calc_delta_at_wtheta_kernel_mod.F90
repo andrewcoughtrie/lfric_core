@@ -14,7 +14,7 @@ module calc_delta_at_wtheta_kernel_mod
 use argument_mod,            only : arg_type,              &
                                     GH_FIELD, GH_READ, GH_WRITE,        &
                                     CELLS
-use constants_mod,           only : r_def, i_def, LARGE_REAL
+use constants_mod,           only : r_def, i_def, LARGE_REAL_POSITIVE
 use fs_continuity_mod,       only : W2, Wtheta
 use kernel_mod,              only : kernel_type
 
@@ -85,10 +85,10 @@ subroutine calc_delta_at_wtheta_code(nlayers,                                   
   integer(kind=i_def)               :: df, k
   real(kind=r_def)    :: mindx
 
-  delta_at_wtheta(map_wtheta(1)) = LARGE_REAL
+  delta_at_wtheta(map_wtheta(1)) = LARGE_REAL_POSITIVE
 
   do k = 0, nlayers-1
-    mindx = LARGE_REAL
+    mindx = LARGE_REAL_POSITIVE
     do df = 1, 4
       mindx = min(mindx,dx_at_w2(map_w2(df) + k))
     end do

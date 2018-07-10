@@ -16,7 +16,7 @@
 !>          is the mass flux in x and y directions separately.
 module conservative_flux_alg_mod
 
-  use constants_mod,                     only: r_def, i_def
+  use constants_mod,                     only: r_def, i_def, LARGE_REAL_NEGATIVE
   use field_mod,                         only: field_type
   use function_space_mod,                only: function_space_type
   use fs_continuity_mod,                 only: W0, W3
@@ -96,20 +96,18 @@ contains
     rho_x_corrected = field_type( vector_space = rho_fs )
     rho_y_corrected = field_type( vector_space = rho_fs )
 
-    call invoke_set_field_scalar(-999999.0_r_def,a0_x)
-    call invoke_set_field_scalar(-999999.0_r_def,a1_x)
-    call invoke_set_field_scalar(-999999.0_r_def,a2_x)
-
-    call invoke_set_field_scalar(-999999.0_r_def,a0_y)
-    call invoke_set_field_scalar(-999999.0_r_def,a1_y)
-    call invoke_set_field_scalar(-999999.0_r_def,a2_y)
-
-    call invoke_set_field_scalar(-999999.0_r_def,mass_flux_x)
-    call invoke_set_field_scalar(-999999.0_r_def,mass_flux_y)
-
-    call invoke_set_field_scalar(-999999.0_r_def,rho_x_corrected)
-    call invoke_set_field_scalar(-999999.0_r_def,rho_y_corrected)
-
+    ! Initialise to a large negative value to ensure bugs show up clearly
+    call invoke( setval_c(a0_x            , LARGE_REAL_NEGATIVE), &
+                 setval_c(a1_x            , LARGE_REAL_NEGATIVE), &
+                 setval_c(a2_x            , LARGE_REAL_NEGATIVE), &
+                 setval_c(a0_y            , LARGE_REAL_NEGATIVE), &
+                 setval_c(a1_y            , LARGE_REAL_NEGATIVE), &
+                 setval_c(a2_y            , LARGE_REAL_NEGATIVE), &
+                 setval_c(mass_flux_x     , LARGE_REAL_NEGATIVE), &
+                 setval_c(mass_flux_y     , LARGE_REAL_NEGATIVE), &
+                 setval_c(rho_x_corrected , LARGE_REAL_NEGATIVE), &
+                 setval_c(rho_y_corrected , LARGE_REAL_NEGATIVE)  &
+                 )
 
     call invoke_subgrid_coeffs_conservative(  a0_x, a1_x, a2_x,                 &
                                               a0_y, a1_y, a2_y,                 &

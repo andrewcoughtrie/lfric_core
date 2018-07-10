@@ -90,10 +90,10 @@ contains
   !> @details Initialisation procedure for the rk timestepping algorithm
   !>          Initialises various internal fields
   !> @param[in]    mesh_id Id of mesh object on which the model runs
-  !> @param[inout] u 3D wind field
-  !> @param[inout] rho Density
-  !> @param[inout] theta Potential temperature
-  !> @param[inout] exenr Exner pressure
+  !> @param[in]    u 3D wind field
+  !> @param[in]    rho Density
+  !> @param[in]    theta Potential temperature
+  !> @param[in]    exenr Exner pressure
   subroutine rk_alg_init(mesh_id, u, rho, theta, exner)
     implicit none
 
@@ -101,7 +101,7 @@ contains
     integer(i_def), intent(in)          :: mesh_id 
 
     ! Prognostic fields
-    type( field_type ), intent( inout ) :: u, rho, theta, exner
+    type( field_type ), intent( in ) :: u, rho, theta, exner
 
     ! Timestepping variables
     integer(i_def) :: stage

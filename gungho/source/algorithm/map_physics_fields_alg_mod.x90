@@ -7,11 +7,11 @@
 !>@brief Map fields to spaces required by the FD physics routines
 module map_physics_fields_alg_mod
 
-  use constants_mod,          only: r_def, i_def
-  use field_mod,              only: field_type
-  use field_collection_mod,   only: field_collection_type
-  use physics_mappings_mod,   only: map_physics_winds, map_physics_scalars
-  use formulation_config_mod, only: use_wavedynamics
+  use constants_mod,            only: r_def, i_def
+  use field_mod,                only: field_type
+  use field_collection_mod,     only: field_collection_type
+  use physics_mappings_alg_mod, only: map_physics_winds, map_physics_scalars
+  use formulation_config_mod,   only: use_wavedynamics
 
   implicit none
 
@@ -23,15 +23,15 @@ contains
 
   !> @details An algorithm for mapping native FE fields to the lowest order 
   !>          equivalents for use in the FD physics codes.
-  !> @param[inout] u  3D wind field
-  !> @param[inout] exner Pressure
-  !> @param[inout] rho Density
-  !> @param[inout] theta Potential temperature
+  !> @param[in]    u 3D wind field
+  !> @param[in]    exner Pressure
+  !> @param[in]    rho Density
+  !> @param[in]    theta Potential temperature
   !> @param[inout] derived_fields Group of derived fields
   subroutine map_physics_fields_alg(u, exner, rho, theta, &
                                     derived_fields)
     ! Prognostic fields
-    type( field_type ), intent(inout)          :: u, rho, theta, exner
+    type( field_type ), intent(in)               :: u, rho, theta, exner
     type( field_collection_type ), intent(inout) :: derived_fields
 
     type( field_type ), pointer :: theta_in_w3 => null()

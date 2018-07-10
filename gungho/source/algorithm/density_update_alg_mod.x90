@@ -35,9 +35,10 @@ contains
 !> @details  Inputs are the the mass flux and rho at time level n. Output is rho at
 !>           time level n+1. The divergence of the mass flux is calculated and
 !>           multiplied by dt and added to the density rho at time n.
-!> @param[in] rho_n      density at time n
-!> @param[in] mass_flux  mass flux
-!> @param[inout] rho     density at time n+1
+!> @param[in]    rho_n       density at time n
+!> @param[in]    mass_flux   mass flux
+!> @param[inout] rho         density at time n+1
+!> @param[in]    detj_at_w2  field containing the detj values at W2 locations
   subroutine density_update_alg(  rho_n,          &
                                   mass_flux,      &
                                   rho,            &
@@ -46,7 +47,7 @@ contains
     implicit none
  
     type(field_type),    intent(in)       :: rho_n
-    type(field_type),    intent(inout)    :: mass_flux
+    type(field_type),    intent(in)       :: mass_flux
     type(field_type),    intent(inout)    :: rho
     type(field_type),    intent(in)       :: detj_at_w2
 

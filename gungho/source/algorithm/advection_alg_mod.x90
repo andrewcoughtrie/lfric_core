@@ -81,7 +81,7 @@ module advection_alg_mod
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !> @brief Initialises the system for running the advenction algorithm.
+  !> @brief Initialises the system for running the advection algorithm.
   !>
   !> @param[in] mesh_id Identity of the mesh to create all fields on
   !>
@@ -170,7 +170,7 @@ contains
   !>         Using a method of lines algorithm
   !> @param[inout] advection Advective terms
   !> @param[in]    state Current state of the model prognostics
-  !> @param[in]    xi Relative vorticity field
+  !> @param[inout] xi Relative vorticity field
   !> @param[in]    advecting_wind Wind field used to advect all quantities
   subroutine advection_alg( advection, &
                             state, &

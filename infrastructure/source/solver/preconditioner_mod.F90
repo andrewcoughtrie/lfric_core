@@ -26,14 +26,14 @@ module preconditioner_mod
   abstract interface
      !> abstract interface defined for the apply procedure of a preconditioner
      !! y = P.x
-     !> @param[in] self, a preconditioner
-     !> @param[inout] x a vector that the preconditioner is applied to.
+     !> @param[in] self a preconditioner
+     !> @param[in]    x a vector that the preconditioner is applied to.
      !> @param[inout] y a vector, the result.
      subroutine apply_interface(self, x, y)
        import :: abstract_vector_type
        import :: abstract_preconditioner_type
-       class(abstract_preconditioner_type), intent(in)    :: self
-       class(abstract_vector_type),               intent(inout)    :: x
+       class(abstract_preconditioner_type),      intent(in)    :: self
+       class(abstract_vector_type),              intent(in)    :: x
        class(abstract_vector_type),              intent(inout) :: y
      end subroutine apply_interface
   end interface

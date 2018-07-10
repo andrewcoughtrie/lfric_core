@@ -10,7 +10,7 @@
 !>          timestep n.
 module cusph_split_transport_alg_mod
 
-  use constants_mod,                     only: r_def, i_def
+  use constants_mod,                     only: r_def, i_def, LARGE_REAL_NEGATIVE
   use field_mod,                         only: field_type
   use function_space_mod,                only: function_space_type
   use flux_direction_mod,                only: x_direction, y_direction
@@ -78,10 +78,10 @@ contains
     integer(i_def),      intent(in)     :: mesh_id
     type(field_type),    intent(inout)  :: mass_flux_x
     type(field_type),    intent(inout)  :: mass_flux_y
-    type(field_type),    intent(inout)  :: detj_at_w2
+    type(field_type),    intent(in)     :: detj_at_w2
 
     type( field_type ) :: dep_pts_x, dep_pts_y
-    type( field_type ) :: rho_n, rho_adv_x, rho_adv_y, rho_hat_adv_x, rho_hat_adv_y
+    type( field_type ) :: rho_adv_x, rho_adv_y, rho_hat_adv_x, rho_hat_adv_y
     type( field_type ) :: rho_x, rho_y
     type( field_type ) :: u_x_fem_n, u_y_fem_n, u_x_fem_np1, u_y_fem_np1
     type( field_type ) :: dep_wind_x_n, dep_wind_y_n
@@ -120,13 +120,17 @@ contains
     u_x_fem_np1        = field_type( vector_space = w2_fs )
     u_y_fem_np1        = field_type( vector_space = w2_fs )
 
-    ! Separate finite-element wind field into x and y components
-    call invoke( name = "Initialise wind fields",    & 
-                 setval_c(u_x_fem_n,   -99.0_r_def), &
-                 setval_c(u_y_fem_n,   -99.0_r_def), &
-                 setval_c(u_x_fem_np1, -99.0_r_def), &
-                 setval_c(u_y_fem_np1, -99.0_r_def) )
+    ! Initialise fields to large negative numbers so bugs cause failures
+    call invoke( name = "initialise_fields",    & 
+                 setval_c(u_x_fem_n,   LARGE_REAL_NEGATIVE), &
+                 setval_c(u_y_fem_n,   LARGE_REAL_NEGATIVE), &
+                 setval_c(u_x_fem_np1, LARGE_REAL_NEGATIVE), &
+                 setval_c(u_y_fem_np1, LARGE_REAL_NEGATIVE), &
+                 setval_c(dep_pts_x,   LARGE_REAL_NEGATIVE), &
+                 setval_c(dep_pts_y,   LARGE_REAL_NEGATIVE)  &
+                 )
 
+    ! Separate finite-element wind field into x and y components
     call invoke_extract_xy(u_x_fem_n,u_y_fem_n,u_n,cell_orientation)
     call invoke_extract_xy(u_x_fem_np1,u_y_fem_np1,u_np1,cell_orientation)
 
@@ -146,8 +150,6 @@ contains
                                 dep_wind_x_np1,dep_wind_y_np1,cell_orientation,y_direction)
 
     ! Calculate the departure points for W2 nodal points at lowest order
-    call invoke_set_field_scalar(-99.0_r_def,dep_pts_x)
-    call invoke_set_field_scalar(-99.0_r_def,dep_pts_y)
     call invoke_calc_deppts(corrected_dep_wind_x_n, corrected_dep_wind_x_np1, dep_pts_x,   &
                    cell_orientation, x_direction, method, dep_pt_stencil_extent)
     call invoke_calc_deppts(corrected_dep_wind_y_n, corrected_dep_wind_y_np1, dep_pts_y,   &
@@ -163,7 +165,7 @@ contains
                                   cell_orientation, detj_at_w2, rho, rho_adv_y)
 
     ! Average the two advective density updates with the density at timestep level n
-    call invoke( name = "Average Rho and init Mass fluxes",                       &
+    call invoke( name = "average_rho_and_init_mass_fluxes",                       &
                  aX_plus_bY(rho_hat_adv_x, 0.5_r_def, rho, 0.5_r_def, rho_adv_x), &
                  aX_plus_bY(rho_hat_adv_y, 0.5_r_def, rho, 0.5_r_def, rho_adv_y), &
 

@@ -10,7 +10,7 @@
 !>           type fields.
 module cusph_fv_density_update_alg_mod
   
-  use constants_mod,                     only: i_def, r_def
+  use constants_mod,                     only: i_def, r_def, LARGE_REAL_NEGATIVE
   use field_mod,                         only: field_type
   use timestepping_config_mod,           only: dt
   use psykal_lite_mod,                   only: invoke_set_field_scalar, &
@@ -73,10 +73,11 @@ contains
     mass_flux_mult_x  = field_type( vector_space = detj_at_w2%get_function_space() )
     mass_flux_mult_y  = field_type( vector_space = detj_at_w2%get_function_space() )
 
-    call invoke_set_field_scalar(-99.0_r_def, div)
-    call invoke_set_field_scalar(-99.0_r_def, div_temp)
-    call invoke_set_field_scalar(-99.0_r_def, mass_flux_mult_x)
-    call invoke_set_field_scalar(-99.0_r_def, mass_flux_mult_y)
+    call invoke( setval_c(div,                 LARGE_REAL_NEGATIVE),  &
+                 setval_c(div_temp,            LARGE_REAL_NEGATIVE),  &
+                 setval_c(mass_flux_mult_x,    LARGE_REAL_NEGATIVE),  &
+                 setval_c(mass_flux_mult_y,    LARGE_REAL_NEGATIVE)   &
+                 )
 
     ! Multiply mass flux by detJ at W2 dofs
     call invoke_multiply_field_data(mass_flux_x,detj_at_w2,mass_flux_mult_x)

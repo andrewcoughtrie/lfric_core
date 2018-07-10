@@ -318,7 +318,7 @@ contains
             call rk_transport_step( u, rho, theta)
           case ( transport_scheme_yz_bip_cosmic )
             call cusph_cosmic_transport_init(mesh_id,u,timestep)
-            call yz_bip_cosmic_step(rho,u,mesh_id,timestep)
+            call yz_bip_cosmic_step(rho,u,mesh_id)
           case ( transport_scheme_horz_cosmic )
             call cusph_cosmic_transport_init(mesh_id, u, timestep)
             call cusph_cosmic_transport_step( mesh_id, rho)

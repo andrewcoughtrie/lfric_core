@@ -10,7 +10,7 @@
 !>          the horizontal direction only.
 module cusph_cosmic_transport_alg_mod
 
-  use constants_mod,                     only: r_def, i_def
+  use constants_mod,                     only: r_def, i_def, LARGE_REAL_NEGATIVE
   use field_mod,                         only: field_type
   use function_space_mod,                only: function_space_type
   use function_space_collection_mod,     only: function_space_collection
@@ -128,13 +128,14 @@ contains
     cell_orientation => get_cell_orientation()
     detj_at_w2       => get_detj_at_w2()
 
-    call invoke( setval_X(rho_n, rho) )
+    call invoke( setval_X(rho_n, rho),                  &
+                 setval_c(rho_np1, LARGE_REAL_NEGATIVE) &
+                 )
 
     ! Call algorithm to calculate mass fluxes using COSMIC scheme
     call cusph_split_transport_alg( u_n, u_np1, rho_n, chi, cell_orientation,  &
                                  mesh_id, mass_flux_x, mass_flux_y, detj_at_w2 )
 
-    call invoke( setval_c(rho_np1, -99.0_r_def) )
     call cusph_fv_density_update_alg(rho_n, mass_flux_x, mass_flux_y, rho_temp,     &
                                       cell_orientation, x_direction, detj_at_w2)
 

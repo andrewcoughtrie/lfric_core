@@ -81,7 +81,7 @@ contains
 
 !=============================================================================!
   !>@brief Create all the required fields for the Helmholtz solver
-  !>@param[in] state Field bundle used to creat all the fields needed for the 
+  !>@param[in] state Field bundle used to create all the fields needed for the 
   !!                 algortihms in this module
   subroutine helmholtz_solver_init(state)
     use function_space_mod,           only: function_space_type

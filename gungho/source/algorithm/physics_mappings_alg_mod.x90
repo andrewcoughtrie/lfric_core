@@ -5,7 +5,7 @@
 !-------------------------------------------------------------------------------
 
 !>@brief A wrapper for mappings of FE fields to physics fields
-module physics_mappings_mod
+module physics_mappings_alg_mod
 
   use constants_mod,                         only: r_def, i_def
   use field_mod,                             only: field_type
@@ -27,13 +27,15 @@ contains
   !> @details An algorithm to map native FE scalar fields to the appropriate
   !>          location for the FD physics codes
   !> @param[inout] target_field Field in the target space
-  !> @param[inout] source_field Field in the source (native) space
+  !> @param[in]    source_field Field in the source (native) space
   subroutine map_physics_scalars(target_field, source_field)
-    
+
+    implicit none
+
     ! Prognostic fields
     type( field_type ), intent( inout ) :: target_field
-    type( field_type ), intent( inout ) :: source_field
-    ! quatrature rule
+    type( field_type ), intent( in )    :: source_field
+    ! quadrature rule
     type( quadrature_xyoz_type )          :: qr
     type( quadrature_rule_gaussian_type ) :: quadrature_rule
     type( field_type )                    :: projected_field(1)
@@ -53,12 +55,14 @@ contains
   !> @param[inout] u1_field Component of wind in the target space
   !> @param[inout] u2_field Component of wind in the target space
   !> @param[inout] u3_field Component of wind in the target space
-  !> @param[inout] source_field Wind field in the source (native) space
+  !> @param[in]    source_field Wind field in the source (native) space
   subroutine map_physics_winds(u1_field, u2_field, u3_field, source_field)
     
+    implicit none
+
     ! Prognostic fields
     type( field_type ), intent( inout ) :: u1_field, u2_field, u3_field
-    type( field_type ), intent( inout ) :: source_field
+    type( field_type ), intent( in )    :: source_field
     ! quatrature rule
     type( quadrature_xyoz_type )          :: qr
     type( quadrature_rule_gaussian_type ) :: quadrature_rule
@@ -80,4 +84,4 @@ contains
 
   end subroutine map_physics_winds
 
-end module physics_mappings_mod
+end module physics_mappings_alg_mod

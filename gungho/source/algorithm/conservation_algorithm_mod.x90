@@ -58,7 +58,7 @@ contains
 
 
     ! Prognostic fields    
-    type( field_type ), intent( inout ) :: u, rho, theta, exner, xi
+    type( field_type ), intent( in ) :: u, rho, theta, exner, xi
 
     ! Local variables
     type( field_type ), pointer :: geopotential => null()

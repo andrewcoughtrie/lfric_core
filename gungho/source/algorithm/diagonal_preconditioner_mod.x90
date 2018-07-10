@@ -29,9 +29,9 @@ module diagonal_preconditioner_mod
    contains
      !> overide the (abstract interface) for apply defined for the apply procedure
      !! of a preconditioner  y = P.x
-     !> @param[in] self, a preconditioner
-     !> @param[inout] x a vector that the preconditioner is applied to.
-     !> @param[inout] y a vector, the result.
+     !> @param[in]  self a preconditioner
+     !> @param[in]     x a vector that the preconditioner is applied to.
+     !> @param[inout]  y a vector, the result.
      procedure :: apply => apply_diagonal
      !> Applies the field vector as a preconditioner
      procedure :: apply_diagonal
@@ -67,7 +67,7 @@ contains
   subroutine apply_diagonal(self, x, y)
     implicit none    
     class(diagonal_preconditioner_type), intent(in)    :: self
-    class(abstract_vector_type),         intent(inout) :: x
+    class(abstract_vector_type),         intent(in)    :: x
     class(abstract_vector_type),         intent(inout) :: y    
     integer :: fctr
     

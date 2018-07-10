@@ -53,8 +53,8 @@ contains
     integer,            intent(in)    :: space_dimension
 ! Field to output
     type( field_type ), intent(inout) :: f_out(space_dimension)
-! Field to intput
-    type( field_type ), intent(inout)        :: f_in  
+! Field to input
+    type( field_type ), intent(in)           :: f_in  
     integer( i_def ),   intent(in)           :: mesh
     type( quadrature_xyoz_type ), intent(in) :: qr
 ! Coordinate fields

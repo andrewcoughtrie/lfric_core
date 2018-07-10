@@ -128,7 +128,7 @@ contains
   !============================================================================!
   !>@brief Apply LHS terms with operators computed on the fly
   !> @param[inout] lhs Bundle to store the left hand side of the semi-implicit operator
-  !> @param[inout] state Current model prognostic state
+  !> @param[in]    state Current model prognostic state
   !> @param[in] ref_state Reference state of the model fields
   !> @param[in] tau_{u,t,r}_dt Relaxation parameter times the timestep
   subroutine on_the_fly_lhs_alg(lhs, state, ref_state, tau_u_dt, tau_t_dt, tau_r_dt)
@@ -151,7 +151,7 @@ contains
 
   real(kind=r_def),             intent(in)    :: tau_u_dt, tau_t_dt, tau_r_dt
   ! Form of state and lhs is [u,theta,rho,exner]
-  type(field_type), target,     intent(inout) :: state(bundle_size)
+  type(field_type), target,     intent(in) :: state(bundle_size)
   type(field_type), target,     intent(in)    :: ref_state(bundle_size)
   type(field_type),             intent(inout) :: lhs(bundle_size)
 
@@ -278,7 +278,7 @@ contains
   !============================================================================!
   !>@brief Apply LHS terms with precomputed operators
   !> @param[inout] lhs Bundle to store the left hand side of the semi-implicit operator
-  !> @param[inout] state Current model prognostic state
+  !> @param[in]    state Current model prognostic state
   !> @param[in] tau_r_dt Density relaxation parameter times the timestep
   !> @param[in] tau_u_dt Velocity relaxation parameter times the timestep
   subroutine operator_lhs_alg(lhs, state, tau_r_dt, tau_u_dt)
@@ -297,7 +297,7 @@ contains
   implicit none
 
   ! Form of state and lhs is [u,theta,rho,exner]
-  type(field_type), target,        intent(inout) :: state(bundle_size)
+  type(field_type), target,        intent(in)    :: state(bundle_size)
   type(field_type),                intent(inout) :: lhs(bundle_size)
   real(kind=r_def),                intent(in)    :: tau_r_dt, tau_u_dt
 

@@ -90,7 +90,7 @@ module iter_timestep_alg_mod
  
   ! Field mappings
   use map_physics_fields_alg_mod, only: map_physics_fields_alg
-  use physics_mappings_mod,       only: map_physics_winds
+  use physics_mappings_alg_mod,   only: map_physics_winds
 
   ! Moisture species
   use mr_indices_mod,             only: nummr

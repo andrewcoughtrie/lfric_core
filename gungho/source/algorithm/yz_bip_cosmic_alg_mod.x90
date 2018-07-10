@@ -12,14 +12,13 @@
 !>          only.
 module yz_bip_cosmic_alg_mod
 
-  use constants_mod,                     only: r_def, i_def
+  use constants_mod,                     only: r_def, i_def, LARGE_REAL_NEGATIVE
   use field_mod,                         only: field_type
   use function_space_mod,                only: function_space_type
   use function_space_collection_mod,     only: function_space_collection
   use finite_element_config_mod,         only: element_order
   use fs_continuity_mod,                 only: W2, W3
   use runtime_constants_mod,             only: get_coordinates
-  use quadrature_rule_gaussian_mod,      only: quadrature_rule_gaussian_type
   use io_mod,                            only: output_nodal
   use runtime_constants_mod,             only: get_detJ_at_w2
   use fv_divergence_kernel_mod,          only: fv_divergence_kernel_type
@@ -56,15 +55,13 @@ contains
   !> @param[inout] rho      Density field
   !> @param[in]    u        Wind field
   !> @param[in]    mesh_id  Mesh_id
-  !> @param[in]    timestep Timestep
-  subroutine yz_bip_cosmic_step( rho, u, mesh_id, timestep)
+  subroutine yz_bip_cosmic_step( rho, u, mesh_id)
 
     implicit none
 
     type(field_type), intent(inout) :: rho
     type(field_type), intent(in)    :: u
     integer(i_def),   intent(in)    :: mesh_id
-    integer(i_def),   intent(in)    :: timestep
 
     type(field_type) :: rho_n
     type(field_type) :: u_n, u_np1
@@ -75,8 +72,6 @@ contains
     type(field_type) :: rho_adv_z, rho_hat_adv_z
     type(field_type) :: rho_adv_y, rho_hat_adv_y
     type(field_type) :: rho_temp
-
-    type(quadrature_rule_gaussian_type) :: quadrature_rule
 
     type(function_space_type), pointer :: w2_fs     => null()
     type(function_space_type), pointer :: w3_fs     => null()
@@ -108,8 +103,8 @@ contains
     rho_temp           = field_type( vector_space = w3_fs )
 
     ! Calculate the departure points for W2 nodal points at lowest order
-    call invoke( name = "Initialise departure points",    &
-                 setval_c(dep_pts_y,        -99.0_r_def), &
+    call invoke( name = "initialise_departure_points",    &
+                 setval_c(dep_pts_y,        LARGE_REAL_NEGATIVE), &
                  setval_c(cell_orientation, 1.0_r_def) )
 
     call invoke( setval_X(rho_n, rho),  &
@@ -127,7 +122,7 @@ contains
                                           y_direction,method,dep_pt_stencil_extent)
 
     ! Calculate the departure points in the z-direction.
-    call invoke( setval_c(dep_pts_z,-987.0_r_def),  &
+    call invoke( setval_c(dep_pts_z,LARGE_REAL_NEGATIVE),  &
                  vertical_trapezoidal_kernel_type(dep_pts_z,departure_wind_n,departure_wind_np1) )
 
     ! Perform advective update in the Y direction.
@@ -138,7 +133,7 @@ contains
 
     ! This step is equation (37) of Leonard, Lock and MacVean (1996) or equivalenlty
     ! equations (17) and (18) of Putman and Lin, 2007. Also see LFRic Ticket #359 for details.
-    call invoke( name = "Average advective density", &
+    call invoke( name = "average_advective_density", &
                  aX_plus_bY(rho_hat_adv_y, 0.5_r_def, rho_n, 0.5_r_def, rho_adv_y), &
                  aX_plus_bY(rho_hat_adv_z, 0.5_r_def, rho_n, 0.5_r_def, rho_adv_z) )
 

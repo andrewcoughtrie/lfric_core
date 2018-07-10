@@ -100,7 +100,7 @@ contains
     ! Mesh id
     integer(i_def),  intent(in) :: mesh_id
     ! Prognostic fields
-    type( field_type ), intent( inout ) :: u, rho, theta
+    type( field_type ), intent( in ) :: u, rho, theta
 
     type(function_space_type), pointer :: u_fs     => null()
     type(function_space_type), pointer :: rho_fs   => null()

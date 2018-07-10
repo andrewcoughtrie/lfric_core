@@ -11,7 +11,7 @@
 !> drho/dt + u dot grad(rho) = 0. The wind u is taken outside of the divergence term.
 module vert_advective_cosmic_alg_mod
 
-  use constants_mod,                     only: r_def, i_def
+  use constants_mod,                     only: r_def, i_def, LARGE_REAL_NEGATIVE
   use field_mod,                         only: field_type
   use function_space_mod,                only: function_space_type
   use vert_conservative_cosmic_alg_mod,  only: vert_conservative_cosmic_alg
@@ -30,7 +30,7 @@ contains
   !>
   !> @details The algorithm calculates the density which solves the advection equation
   !> drho/dt + u dot grad(rho) = 0. The wind u is taken outside of the divergence term.
-  !> @param[in]  rho_adv           Advected density at time level n+1
+  !> @param[inout]  rho_adv        Advected density at time level n+1
   !> @param[in]  rho               Density at time level n
   !> @param[in]  dep_pts           Winds at time level n
   !> @param[in]  cell_orientation  Cell orientation
@@ -45,7 +45,7 @@ contains
 
     type(field_type),    intent(inout)  :: rho_adv
     type(field_type),    intent(in)     :: rho
-    type(field_type),    intent(inout)  :: dep_pts
+    type(field_type),    intent(in)     :: dep_pts
     type(field_type),    intent(in)     :: cell_orientation
     real(r_def),         intent(in)     :: dt
 
@@ -79,7 +79,7 @@ contains
     !
     ! Part 1. Calculate rho_n - dt*div(mass_flux(rho=rho_n))
     !
-    call invoke( setval_c(mass_flux,-999999.0_r_def) )
+    call invoke( setval_c(mass_flux, LARGE_REAL_NEGATIVE) )
     call vert_conservative_cosmic_alg(mass_flux, rho, dep_pts, dt )
     call cosmic_density_update_alg(rho_np1, rho, mass_flux, detj_at_w2, cell_orientation, z_direction)
 
@@ -87,7 +87,7 @@ contains
     ! Part 2. Calculate (rho=1) - dt*div(mass_flux(rho=1))
     !
     call invoke( setval_c(rho_constant_1,1.0_r_def) )
-    call invoke( setval_c(mass_flux,-999999.0_r_def) )
+    call invoke( setval_c(mass_flux, LARGE_REAL_NEGATIVE) )
     call vert_conservative_cosmic_alg(mass_flux, rho_constant_1, dep_pts, dt)
     call cosmic_density_update_alg(rho_constant_1_np1, rho_constant_1, mass_flux, detj_at_w2, cell_orientation, z_direction)
 
