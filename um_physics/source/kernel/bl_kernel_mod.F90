@@ -91,8 +91,8 @@ contains
   !! @param[in] u1_star 'zonal' wind predictor after advection
   !! @param[in] u2_star 'meridional' wind predictor after advection
   !! @param[in] u3_star 'vertical' wind predictor after advection
-  !! @param[in] heigh_w3 Height of density space levels above surface
-  !! @param[in] heigh_wth Height of temperature space levels above surface
+  !! @param[in] height_w3 Height of density space levels above surface
+  !! @param[in] height_wth Height of temperature space levels above surface
   !! @param[inout] tstar_2d   Surface tempature
   !! @param[inout] zh_2d      Boundary layer depth
   !! @param[inout] z0msea_2d  Roughness length

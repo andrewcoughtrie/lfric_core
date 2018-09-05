@@ -26,7 +26,7 @@ contains
   !> For some unknown reason the bl kernel code accesses uninitialized values when extending
   !> into the halos.  As a result we can't use psyclone for this kernel as it will
   !> loop into the halos with the automatic openmp transformations
-  !> This will be investigated in ticket #<open up a ticket for this>
+  !> This will be investigated in ticket #(open up a ticket for this)
   subroutine invoke_bl_kernel(outer, theta_in_wth, rho_in_w3, rho_in_wth,    &
                               exner_in_w3, exner_in_wth, u1_in_w3, u2_in_w3, &
                               u3_in_wth, m_v_n, m_cl_n, theta_star,          &

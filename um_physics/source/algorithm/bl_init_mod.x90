@@ -50,19 +50,11 @@ contains
     use model_domain_mod, only: model_type
     use nlsizes_namelist_mod, only: model_levels, bl_levels, row_length,   &
          rows, land_field, ntiles, sm_levels, tr_vars
-    use planet_constants_mod, only: set_planet_constants, i_planet,        &
-         cp_um => cp, cv_um => cv, g, kappa_um => kappa, omega_um => omega,&
-         p_zero_um => p_zero, planet_radius, r, pref, two_omega,           &
-         recip_p_zero, recip_kappa, grcp, lcrcp, lfrcp, lsrcp, recip_a2,   &
-         g_over_r
-    use water_constants_mod, only: lc, lf
     use timestep_mod, only: timestep
     use tuning_segments_mod, only: bl_segment_size
 
     ! LFRic modules
     use field_mod, only : field_type, field_proxy_type
-    use planet_config_mod, only: cp, cv, gravity, kappa, omega, p_zero,    &
-         radius, rd
     use mesh_mod, only : mesh_type
     use timestepping_config_mod, only: dt
 
@@ -97,29 +89,6 @@ contains
     nice_use=1
     tr_vars=0
 
-    ! set up constants for earth
-    i_planet=3
-    call set_planet_constants()
-    ! over-write with LFRic constants
-    cp_um = cp
-    cv_um = cv
-    g = gravity
-    kappa_um = kappa
-    omega_um = omega
-    p_zero_um = p_zero
-    planet_radius = radius
-    r = rd
-    ! re-derive relevant derived constants
-    pref = p_zero
-    two_omega     = 2.0*omega
-    recip_p_zero  = 1.0/pref
-    recip_kappa   = 1.0/kappa
-    grcp          = g/cp
-    lcrcp         = lc/cp
-    lfrcp         = lf/cp
-    lsrcp         = (lc+lf)/cp
-    recip_a2      = 1.0/(planet_radius*planet_radius)
-    g_over_r      = g/r
 
     ! set up array sizes for a single column model
     model_type=5
