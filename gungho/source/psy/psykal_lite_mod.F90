@@ -3482,7 +3482,6 @@ end subroutine invoke_sample_poly_adv
     ndf_w2  = detj_at_w2_p%vspace%get_ndf( )
     undf_w2 = detj_at_w2_p%vspace%get_undf()
     dim_u = detj_at_w2_p%vspace%get_dim_space()
-    allocate(nodal_basis_u(dim_u, ndf_w2, ndf_w2))
 
     ndf_chi  = chi_p(1)%vspace%get_ndf( )
     undf_chi = chi_p(1)%vspace%get_undf()
@@ -3494,12 +3493,6 @@ end subroutine invoke_sample_poly_adv
     do df_w2 = 1, ndf_w2
       do df_chi = 1, ndf_chi
         diff_basis_chi(:,df_chi,df_w2) = chi_p(1)%vspace%call_function(DIFF_BASIS,df_chi,nodes(:,df_w2))
-      end do
-    end do
-
-    do df_w2 = 1, ndf_w2
-      do df_chi = 1, ndf_w2
-        nodal_basis_u(:,df_chi,df_w2) =  detj_at_w2_p%vspace%call_function(BASIS,df_chi,nodes(:,df_w2))
       end do
     end do
 
@@ -3520,7 +3513,6 @@ end subroutine invoke_sample_poly_adv
 
     end do
 
-    deallocate(nodal_basis_u)
     deallocate(diff_basis_chi)
 
   end subroutine invoke_mpi_detj_at_w2
