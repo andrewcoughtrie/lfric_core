@@ -13,7 +13,7 @@
 module initial_buoyancy_kernel_mod
 
     use argument_mod, only: arg_type, func_type,        &
-        GH_FIELD, GH_WRITE, GH_READ,                    &
+        GH_FIELD, GH_INC, GH_READ,                      &
         ANY_SPACE_9, ANY_SPACE_1, GH_BASIS,             &
         GH_DIFF_BASIS,                                  &
         CELLS, GH_EVALUATOR
@@ -29,7 +29,7 @@ module initial_buoyancy_kernel_mod
     type, public, extends(kernel_type) :: initial_buoyancy_kernel_type
         private
         type(arg_type) :: meta_args(2) = (/                               &
-            arg_type(GH_FIELD,   GH_WRITE, ANY_SPACE_1),                  &
+            arg_type(GH_FIELD,   GH_INC,  ANY_SPACE_1),                   &
             arg_type(GH_FIELD*3, GH_READ, ANY_SPACE_9)                    &
             /)
         type(func_type) :: meta_funcs(1) = (/                             &

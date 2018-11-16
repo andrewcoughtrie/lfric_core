@@ -11,7 +11,7 @@
 module compute_dof_level_kernel_mod
 use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,                     &
-                                    GH_FIELD, GH_WRITE,                      &
+                                    GH_FIELD, GH_INC,                        &
                                     ANY_SPACE_1, GH_BASIS,                   &
                                     CELLS
 use constants_mod,           only : r_def
@@ -24,8 +24,8 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: compute_dof_level_kernel_type
   private
-  type(arg_type) :: meta_args(1) = (/                                  &
-       arg_type(GH_FIELD,    GH_WRITE, ANY_SPACE_1)                    &
+  type(arg_type) :: meta_args(1) = (/                                &
+       arg_type(GH_FIELD,    GH_INC, ANY_SPACE_1)                    &
        /)
   integer :: iterates_over = CELLS
 contains

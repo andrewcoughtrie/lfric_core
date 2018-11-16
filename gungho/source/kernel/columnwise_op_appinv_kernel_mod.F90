@@ -22,7 +22,7 @@ module columnwise_op_appinv_kernel_mod
 use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,                    &
                                     GH_FIELD, GH_COLUMNWISE_OPERATOR,       &
-                                    GH_READ, GH_WRITE,                      &
+                                    GH_READ, GH_INC,                        &
                                     ANY_SPACE_1,                            &
                                     GH_COLUMN_INDIRECTION_DOFMAP,           &
                                     CELLS 
@@ -38,7 +38,7 @@ implicit none
 type, public, extends(kernel_type) :: columnwise_op_appinv_kernel_type
   private
   type(arg_type) :: meta_args(3) = (/                                      &
-       arg_type(GH_FIELD,    GH_WRITE, ANY_SPACE_1),                       &
+       arg_type(GH_FIELD,    GH_INC,   ANY_SPACE_1),                       &
        arg_type(GH_FIELD,    GH_READ,  ANY_SPACE_1),                       &
        arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_1) &
        /)
