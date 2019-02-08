@@ -126,6 +126,10 @@ contains
                  setval_c( dep_pts_z, LARGE_REAL_NEGATIVE ),                        &
                  setval_c( departure_wind_n, LARGE_REAL_NEGATIVE ),                 &
                  setval_c( departure_wind_np1, LARGE_REAL_NEGATIVE ),               &
+                 setval_c( u_x_fem_n, LARGE_REAL_NEGATIVE ),                        &
+                 setval_c( u_y_fem_n, LARGE_REAL_NEGATIVE ),                        &
+                 setval_c( u_x_fem_np1, LARGE_REAL_NEGATIVE ),                      &
+                 setval_c( u_y_fem_np1, LARGE_REAL_NEGATIVE ),                      &
                  calc_departure_wind_kernel_type( departure_wind_n, wind, chi ),    &
                  calc_departure_wind_kernel_type( departure_wind_np1, wind, chi ),  &
                  vertical_trapezoidal_kernel_type( dep_pts_z, departure_wind_n,     &

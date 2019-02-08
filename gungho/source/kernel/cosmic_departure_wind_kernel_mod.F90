@@ -109,9 +109,11 @@ contains
 
     ! Divide the input Piola wind values by the corresponding detJ value.
     do k = 0, nlayers-1
-      do df = 1,ndf
+      do df = 1,4
         u_departure_wind(map(df)+k) = mult_factor*u_piola(map(df)+k)/detj_at_w2(map(df)+k)
       end do
+      u_departure_wind(map(5)+k) = -9999.0
+      u_departure_wind(map(6)+k) = -9999.0
     end do
 
   end subroutine cosmic_departure_wind_code

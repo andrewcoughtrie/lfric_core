@@ -99,8 +99,6 @@ contains
                  setval_c(a0_y            , LARGE_REAL_NEGATIVE), &
                  setval_c(a1_y            , LARGE_REAL_NEGATIVE), &
                  setval_c(a2_y            , LARGE_REAL_NEGATIVE), &
-                 setval_c(mass_flux_x     , LARGE_REAL_NEGATIVE), &
-                 setval_c(mass_flux_y     , LARGE_REAL_NEGATIVE), &
                  setval_c(rho_x_corrected , LARGE_REAL_NEGATIVE), &
                  setval_c(rho_y_corrected , LARGE_REAL_NEGATIVE)  &
                  )

@@ -24,7 +24,7 @@ module extract_x_kernel_mod_test
     real(kind=r_def), allocatable :: w2_field_in(:), orientation(:), x_field(:)
 
     integer(i_def) :: map_w3(1)
-    integer(i_def) :: map_w2(1:4)
+    integer(i_def) :: map_w2(1:6)
   contains
     procedure setUp
     procedure tearDown
@@ -35,8 +35,8 @@ module extract_x_kernel_mod_test
   end type extract_x_test_type
 
     integer(i_def), parameter :: nlayers = 1
-    integer(i_def), parameter :: ndf_w2  = 4
-    integer(i_def), parameter :: undf_w2 = 4
+    integer(i_def), parameter :: ndf_w2  = 6
+    integer(i_def), parameter :: undf_w2 = 6
     integer(i_def), parameter :: ndf_w3  = 1
     integer(i_def), parameter :: undf_w3 = 1
 
@@ -50,11 +50,11 @@ contains
     class(extract_x_test_type), intent(inout) :: this
 
     this%map_w3 = 1
-    this%map_w2 = (/ 1,2,3,4 /)
+    this%map_w2 = (/ 1,2,3,4,5,6 /)
 
     allocate( this%orientation(1) )
-    allocate( this%w2_field_in(1:4) )
-    allocate( this%x_field(1:4) )
+    allocate( this%w2_field_in(1:6) )
+    allocate( this%x_field(1:6) )
 
   end subroutine setUp
 

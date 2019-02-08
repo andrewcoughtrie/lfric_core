@@ -109,7 +109,7 @@ subroutine extract_x_code( nlayers,                      &
   integer(kind=i_def) :: orientation_of_cell
   integer(kind=i_def) :: dof_vector(1:4)
 
-  orientation_of_cell = int(cell_orientation(map_w3(1)),i_def)
+  orientation_of_cell = nint(cell_orientation(map_w3(1)),i_def)
 
   if (orientation_of_cell > 0_i_def .and. orientation_of_cell < 5_i_def ) then
     dof_vector = (/ w2_dof(orientation_of_cell,1),     &
@@ -123,6 +123,9 @@ subroutine extract_x_code( nlayers,                      &
       x_field(map_w2(dof_vector(2))+k) = -9999.0_r_def
       x_field(map_w2(dof_vector(3))+k) = w2_field_in(map_w2(dof_vector(3))+k)
       x_field(map_w2(dof_vector(4))+k) = -9999.0_r_def
+      ! Initialise unused top and bottom faces
+      x_field(map_w2(5)+k) = -9999.0_r_def
+      x_field(map_w2(6)+k) = -9999.0_r_def
 
     end do
   end if
