@@ -8,7 +8,8 @@
 						      'wet_conv_bl_conv_scm',
                                                       'wet_conv_bl_cld_mphys_scm',
                                                       'wet_conv_bl_rad_scm',
-                                                      'wet_conv_bl_cld_scm_checkrestart'],
+                                                      'wet_conv_bl_cld_scm_checkrestart',
+                                                      'robert-moist-smag'],
                                      } %}
 
 {%- set canned_configurations  = ['lfric_atm'] %}
@@ -37,6 +38,10 @@
                      resolutions=[("BiP4x4-10000x10000",600.0)] ,
                      env={"crun":2, "nrun":24},                     
                      plotstr="plot_scm_checkrestart.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR")',
+    'run_application("lfric_atm", "robert-moist-smag",
+                     resolutions=[("BiP50x4-20x20",2.5)] , 
+                     env={"crun":2, "nrun":100}, 
+                     plotstr="robert_plot.py $NODAL_DATA_DIR 50 4 theta:w3projection_xi2:m_v T000000:T000100:T000200 $PLOT_DIR")',
     'check_compilers("lfric_atm", "dry_conv_bl_scm", "fast-debug",
                      resolution=("BiP4x4-10000x10000",600.0))',
     'canned_test("lfric_atm")',

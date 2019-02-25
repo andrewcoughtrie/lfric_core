@@ -69,10 +69,15 @@ contains
     end do
 
 
-     call calc_delta_at_wtheta_code(nlayers,                         &
-                          delta_at_wtheta, dx_at_w2,                                                     &
-                       ndftheta, undftheta, maptheta,   &
-                       ndf2, undf2, map2)
+     call calc_delta_at_wtheta_code( nlayers, &
+                          delta_at_wtheta,    &
+                          dx_at_w2,           &
+                          ndftheta,           &
+                          undftheta,          &
+                          maptheta,           &
+                          ndf2,               &
+                          undf2,              &
+                          map2 )
 
     answer = (/ 1.0,1.0,2.0,3.0 /)
     @assertEqual(answer,delta_at_wtheta,tol)

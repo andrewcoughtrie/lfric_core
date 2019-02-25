@@ -24,6 +24,7 @@ module runtime_constants_mod
                                                transport_scheme_yz_bip_cosmic, &
                                                transport_scheme_cosmic_3D
   use mixing_config_mod,                 only: smagorinsky
+  use timestepping_config_mod,           only: dt
 
   ! Derived Types
   use field_mod,                         only: field_type
@@ -90,6 +91,7 @@ module runtime_constants_mod
   type(field_type), target              :: detj_at_w2_shifted
   type(field_type), target              :: dA_at_w2
   type(field_type), target              :: delta_at_wtheta
+  type(field_type), target              :: max_diff_wtheta
   type(operator_type), target           :: grad, curl, div, &
                                            div_v, div_h,    &
                                            broken_div
@@ -131,6 +133,7 @@ module runtime_constants_mod
   public :: get_detj_at_w2
   public :: get_detj_at_w2_shifted
   public :: get_dA_at_w2
+  public :: get_max_diff
   public :: get_delta_at_wtheta
   public :: get_mass_matrix
   public :: get_mass_matrix_diagonal
@@ -184,7 +187,8 @@ contains
 
     ! Auxiliary parameters for PSyclone builtins
     integer(i_def), parameter :: i_minus_one = -1_i_def
-
+    integer(i_def) :: iconst
+    real(r_def) :: const
 
     if ( subroutine_timers ) call timer('runtime_constants_alg')
     call log_event( "Gungho: creating runtime_constants", LOG_LEVEL_INFO )
@@ -418,11 +422,25 @@ contains
 
     !================ Create edge lengths and delta values ==================!
 
+    ! Need to define field properties outside IF test as the fields are passed
+    ! to the BL scheme, even if Smagorinsky is false
+    dx_at_w2 = field_type( vector_space = w2_fs )
+    delta_at_wtheta = field_type( vector_space = wtheta_fs )
+    max_diff_wtheta = field_type( vector_space = wtheta_fs )
+
     if (smagorinsky) then
-      dx_at_w2 = field_type( vector_space = w2_fs )
-      delta_at_wtheta = field_type( vector_space = wtheta_fs )
       call invoke( X_divideby_Y(dx_at_w2, detj_at_w2, dA_at_w2),&
                    calc_delta_at_wtheta_kernel_type(delta_at_wtheta, dx_at_w2)  )
+
+      ! calculate maximum diffusion coefficient allowed in this run for stability
+      ! based on UMDP 28 equation 32: max_diff = dx^2/(8*dt)
+      const = 0.125_r_def/dt
+      iconst = 2_i_def
+      max_diff_wtheta = delta_at_wtheta
+      call invoke( inc_X_powint_n (max_diff_wtheta, iconst),  & 
+                   inc_a_times_X(const, max_diff_wtheta),     &
+                   )	
+
     end if
 
 
@@ -540,6 +558,15 @@ contains
     delta => delta_at_wtheta
 
   end function get_delta_at_wtheta
+
+  !> @brief Function to return the max Smagorinsky diffusion allowed in this run at wtheta
+  !> @return The max_diff_wtheta field
+  function get_max_diff() result(max_diff_smag)
+    implicit none
+    type(field_type), pointer :: max_diff_smag
+    max_diff_smag => max_diff_wtheta
+
+  end function get_max_diff
 
   !> @brief Function to return a pointer to a mass matrix
   !> @param[in] i the index of the desired mass matrix field

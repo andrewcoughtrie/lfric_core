@@ -10,6 +10,7 @@ module um_init_mod
   use constants_mod,         only : i_def, i_um, r_def, r_um
   use extrusion_config_mod,  only : domain_top
   use field_collection_mod,  only : field_collection_type
+  use mixing_config_mod,     only : smagorinsky
   use physics_config_mod,    only : cloud_scheme,               &
                                     physics_cloud_scheme_none,  &
                                     physics_cloud_scheme_smith, &
@@ -73,6 +74,7 @@ contains
     use timestep_mod, only: timestep
     use trignometric_mod, only: cos_theta_latitude
     use tuning_segments_mod, only: bl_segment_size, precip_segment_size
+    use turb_diff_ctl_mod, only: visc_m, visc_h, max_diff, delta_smag
 
     ! LFRic modules with information we need
     use conversions_mod, only: pi_over_180
@@ -302,6 +304,26 @@ contains
     sice_pts_ncat(:)=0
     sice_index_ncat(:,:)=0
     sice_frac_ncat(:,:)=0.0_r_um
+
+    !-----------------------------------------------------------------------
+    ! Code to prepare for Smagorinsky turbulence scheme
+    !-----------------------------------------------------------------------
+	
+    if ( smagorinsky ) then
+
+      allocate ( visc_h(row_length, rows, nlayers) )
+      allocate ( visc_m(row_length, rows, nlayers) )
+      allocate ( max_diff  (row_length, rows) )
+      allocate ( delta_smag(row_length, rows) )
+
+    else
+
+      allocate ( visc_h(1,1,1) )
+      allocate ( visc_m(1,1,1) )
+      allocate ( max_diff(1,1) )
+      allocate ( delta_smag(1,1) )
+
+    end if 
 
     !-----------------------------------------------------------------------
     ! Final error checking

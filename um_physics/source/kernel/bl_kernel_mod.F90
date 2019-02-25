@@ -15,6 +15,7 @@ module bl_kernel_mod
   use formulation_config_mod, only : use_moisture
   use fs_continuity_mod,      only : W3, Wtheta
   use kernel_mod,             only : kernel_type
+  use mixing_config_mod,      only : smagorinsky
   use physics_config_mod,     only : l_flux_bc, fixed_flux_e, fixed_flux_h, &
                                      cloud_scheme, physics_cloud_scheme_none
   use timestepping_config_mod, only: outer_iterations
@@ -30,7 +31,7 @@ module bl_kernel_mod
   !>
   type, public, extends(kernel_type) :: bl_kernel_type
     private
-    type(arg_type) :: meta_args(39) = (/         &
+    type(arg_type) :: meta_args(44) = (/         &
         arg_type(GH_INTEGER,  GH_READ),          &
         arg_type(GH_FIELD,   GH_READ,   WTHETA), &
         arg_type(GH_FIELD,   GH_READ,   W3),     &
@@ -50,6 +51,9 @@ module bl_kernel_mod
         arg_type(GH_FIELD,   GH_READ,   WTHETA), &
         arg_type(GH_FIELD,   GH_READ,   W3),     &
         arg_type(GH_FIELD,   GH_READ,   WTHETA), &
+        arg_type(GH_FIELD,   GH_READ,   WTHETA), &     ! shear
+        arg_type(GH_FIELD,   GH_READ,   WTHETA), &     ! delta
+        arg_type(GH_FIELD,   GH_READ,   WTHETA), &     ! max_diff_smag
         arg_type(GH_FIELD,   GH_INC,  ANY_SPACE_1), &
         arg_type(GH_FIELD,   GH_INC,  ANY_SPACE_1), &
         arg_type(GH_FIELD,   GH_INC,  ANY_SPACE_1), &
@@ -69,7 +73,9 @@ module bl_kernel_mod
         arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &
         arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &
         arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA)  &
+        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &
+        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), & ! visc_m_blend
+        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA)  & ! visc_h_blend
         /)
     integer :: iterates_over = CELLS
   contains
@@ -119,6 +125,9 @@ contains
   !! @param[in]     u3_star       'Vertical' wind predictor after advection
   !! @param[in]     height_w3     Height of density space levels above surface
   !! @param[in]     height_wth    Height of theta space levels above surface
+  !! @param[in]     shear         3D wind shear on wtheta points
+  !! @param[in]     delta         Edge length on wtheta points
+  !! @param[in]     max_diff_smag Maximum diffusion coefficient allowed in this run
   !! @param[in,out] tstar_2d      Surface temperature
   !! @param[in,out] zh_2d         Boundary layer depth
   !! @param[in,out] z0msea_2d     Roughness length
@@ -139,6 +148,8 @@ contains
   !! @param[in,out] cf_liq        Liquid cloud fraction
   !! @param[in,out] cf_bulk       Bulk cloud fraction
   !! @param[in,out] rhcrit_in_wth Critical rel humidity in pot temperature space
+  !! @param[in,out] visc_m_blend  Blended BL-Smag diffusion coefficient for momentum
+  !! @param[in,out] visc_h_blend  Blended BL-Smag diffusion coefficient for scalars
   !! @param[in]     ndf_wth       Number of degrees of freedom per cell for potential temperature space
   !! @param[in]     undf_wth      Number unique of degrees of freedom  for potential temperature space
   !! @param[in]     map_wth       Dofmap for the cell at the base of the column for potential temperature space
@@ -168,6 +179,9 @@ contains
                      u3_star,      &
                      height_w3,    &
                      height_wth,   &
+                     shear,        &
+                     delta,        &
+                     max_diff_smag,&
                      tstar_2d,     &
                      zh_2d,        &
                      z0msea_2d,    &
@@ -188,6 +202,8 @@ contains
                      cf_liq,       &
                      cf_bulk,      &
                      rhcrit_in_wth,&
+                     visc_m_blend, &
+                     visc_h_blend, &
                      ndf_wth,      &
                      undf_wth,     &
                      map_wth,      &
@@ -221,6 +237,7 @@ contains
          sm_levels, ntiles, model_levels, bl_levels, tr_vars
     use planet_constants_mod, only: p_zero, kappa, planet_radius
     use timestep_mod, only: timestep
+    use turb_diff_ctl_mod, only: visc_m, visc_h, max_diff, delta_smag
 
     implicit none
 
@@ -240,7 +257,9 @@ contains
     real(kind=r_def), dimension(undf_wth), intent(inout):: m_v, m_cl, m_ci,    &
                                                            cf_area, cf_ice,    &
                                                            cf_liq, cf_bulk,    &
-                                                           rhcrit_in_wth
+                                                           rhcrit_in_wth,      &
+                                                           visc_h_blend,       &
+                                                           visc_m_blend
     real(kind=r_def), dimension(undf_w3),  intent(in)   :: rho_in_w3,          &
                                                            wetrho_in_w3,       &
                                                            exner_in_w3,        &
@@ -256,6 +275,9 @@ contains
                                                            theta_star,         &
                                                            u3_star,            &
                                                            height_wth,         &
+                                                           shear,              &
+                                                           delta,              &
+                                                           max_diff_smag,      &
                                                            dt_conv, dmv_conv,  &
                                                            dtl_mphys, dmt_mphys
     real(kind=r_def), dimension(undf_2d), intent(inout) :: tstar_2d, zh_2d,    &
@@ -476,6 +498,16 @@ contains
       ! rhcrit
       rhcpt(1,1,k) = rhcrit_in_wth(map_wth(1) + k) 
     end do
+
+    if ( smagorinsky ) then
+      delta_smag(1,1) = delta(map_wth(1))
+      max_diff(1,1) = max_diff_smag(map_wth(1))
+      do k = 1, nlayers
+        visc_m(1,1,k) = shear(map_wth(1) + k)
+        visc_h(1,1,k) = shear(map_wth(1) + k)
+      end do
+    end if
+
     ! surface pressure
     p_layer_centres(1,1,0) = p_zero*(exner_in_wth(map_wth(1) + 0))**(1.0_r_def/kappa)
     p_layer_boundaries(1,1,0) = p_layer_centres(1,1,0)
@@ -853,6 +885,14 @@ contains
     m_ci(map_wth(1) + 0) = m_ci(map_wth(1) + 1)
     dt_bl(map_wth(1)+0)  = dt_bl(map_wth(1)+1)
     dmv_bl(map_wth(1)+0) = dmv_bl(map_wth(1)+1)
+
+    ! update blended Smagorinsky diffusion coefficients only if using Smagorinsky scheme
+    if ( smagorinsky ) then
+      do k = 1, nlayers
+        visc_m_blend(map_wth(1) + k) = visc_m(1,1,k)
+        visc_h_blend(map_wth(1) + k) = visc_h(1,1,k)
+      end do
+    endif
 
     ! update cloud fractions only if using cloud scheme and only on last
     ! dynamics iteration

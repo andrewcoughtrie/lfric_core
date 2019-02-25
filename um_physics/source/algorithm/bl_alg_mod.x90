@@ -39,17 +39,24 @@ contains
   !>@param[in]     rho             Dry density in its native (w3) space
   !>@param[in]     mr_n            Mixing ratios at time level n
   !>@param[in]     exner           Exner Pressure in the w3 space
+  !>@param[in]     shear           3D wind shear on wtheta points
+  !>@param[in]     delta           Edge length on wtheta points
+  !>@param[in]     max_diff_smag   Maximum diffusion coefficient allowed in this run
   !>@param[in]     height_w3       Height in w3
   !>@param[in]     height_wth      Height in wth
   !>@param[in,out] derived_fields  Group of derived fields
   !>@param[in,out] cloud_fields    Group of cloud fields
   !>@param[in,out] twod_fields     Group of 2D fields
   !>@param[in,out] physics_incs    Group of physics increments
+  !>@param[in,out] visc_m_blend    Blended BL-Smag diffusion coefficient for momentum
+  !>@param[in,out] visc_h_blend    Blended BL-Smag diffusion coefficient for scalars
   !>@param[in]     convection_done Flag on whether convection has been done
   !>@param[in]     timestep        Model timestep number
-  subroutine bl_alg_step(dtheta_bl, mr, outer, theta, rho, mr_n, exner, &
-                         height_w3, height_wth, derived_fields,         &
-                         cloud_fields, twod_fields, physics_incs,       &
+  subroutine bl_alg_step(dtheta_bl, mr, outer, theta, rho, mr_n, exner,           &
+                         shear, delta, max_diff_smag,                             &
+                         height_w3, height_wth,                                   & 
+                         derived_fields, cloud_fields, twod_fields, physics_incs, &
+                         visc_m_blend, visc_h_blend,                              &
                          convection_done, timestep)
 
     use bl_kernel_mod, only: bl_kernel_type
@@ -60,10 +67,12 @@ contains
     type( field_type ), intent( inout )     :: dtheta_bl, mr(nummr)
     type( field_type ), intent( in )        :: theta, rho, exner, mr_n(nummr)
     type( field_type ), intent( in )        :: height_w3, height_wth
+    type( field_type ), intent( in )        :: shear, delta, max_diff_smag
     type( field_collection_type ), intent(inout) :: derived_fields
     type( field_collection_type ), intent(inout) :: cloud_fields
     type( field_collection_type ), intent(inout) :: twod_fields
     type( field_collection_type ), intent(inout) :: physics_incs
+    type( field_type ), intent( inout )     :: visc_m_blend, visc_h_blend
     integer(kind=i_def), intent(in)         :: outer, timestep
     logical, intent(in)                     :: convection_done
 
@@ -146,12 +155,15 @@ contains
                            u1_in_w3, u2_in_w3, w_physics,                      &
                            mr_n(imr_v), mr_n(imr_cl), mr_n(imr_ci), theta_star,&
                            u1_in_w3_star, u2_in_w3_star, w_physics_star,       &
-                           height_w3, height_wth, tstar_2d, zh_2d,             &
+                           height_w3, height_wth,                              & 
+                           shear, delta, max_diff_smag,                        &
+                           tstar_2d, zh_2d,                                    &
                            z0msea_2d, ntml_2d, cumulus_2d, dtheta_bl,          &
                            dt_bl, dmv_bl, dt_conv, dmv_conv,                   &
                            dtl_mphys, dmt_mphys,                               &
                            mr(imr_v), mr(imr_cl),mr(imr_ci), cf_area,          &
-                           cf_ice, cf_liq, cf_bulk, rhcrit_in_wth ))
+                           cf_ice, cf_liq, cf_bulk, rhcrit_in_wth,             &
+                           visc_m_blend, visc_h_blend ))
 
     if (write_diag .and. use_xios_io) then
       call write_scalar_diagnostic("dt_bl", dt_bl, timestep, &

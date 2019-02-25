@@ -18,7 +18,6 @@ use constants_mod,           only : r_def, i_def, LARGE_REAL_POSITIVE
 use fs_continuity_mod,       only : W2, Wtheta
 use kernel_mod,              only : kernel_type
 
-
 implicit none
 
 !-------------------------------------------------------------------------------
@@ -28,7 +27,7 @@ implicit none
 type, public, extends(kernel_type) :: calc_delta_at_wtheta_kernel_type
   private
   type(arg_type) :: meta_args(2) = (/                                  &
-       arg_type(GH_FIELD,   GH_WRITE,  Wtheta),                          &
+       arg_type(GH_FIELD,   GH_WRITE,  Wtheta),                        &
        arg_type(GH_FIELD,   GH_READ, W2)                               &
        /)
   integer :: iterates_over = CELLS
@@ -65,8 +64,8 @@ end function calc_delta_at_wtheta_kernel_constructor
 !! @param[in] ndf_w2 Number of degrees of freedom per cell for w2
 !! @param[in] undf_w2 Number of unique degrees of freedom for w2
 !! @param[in] map_w2 Dofmap for the cell at the base of the column for w2
-subroutine calc_delta_at_wtheta_code(nlayers,                                                               &
-                       delta_at_wtheta, dx_at_w2,                                                     &
+subroutine calc_delta_at_wtheta_code(nlayers,                 &
+                       delta_at_wtheta, dx_at_w2,             &
                        ndf_wtheta, undf_wtheta, map_wtheta,   &
                        ndf_w2, undf_w2, map_w2)
   implicit none
@@ -79,7 +78,7 @@ subroutine calc_delta_at_wtheta_code(nlayers,                                   
   integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
 
   real(kind=r_def), dimension(undf_wtheta), intent(inout) :: delta_at_wtheta
-  real(kind=r_def), dimension(undf_w2), intent(in)    :: dx_at_w2
+  real(kind=r_def), dimension(undf_w2), intent(in)        :: dx_at_w2
 
   ! Internal variables
   integer(kind=i_def)               :: df, k
@@ -94,7 +93,9 @@ subroutine calc_delta_at_wtheta_code(nlayers,                                   
     end do
     delta_at_wtheta(map_wtheta(2) + k) = mindx
     delta_at_wtheta(map_wtheta(1) + k) = min(mindx, delta_at_wtheta(map_wtheta(1) + k))
+
   end do
+
 end subroutine calc_delta_at_wtheta_code
 
 end module calc_delta_at_wtheta_kernel_mod

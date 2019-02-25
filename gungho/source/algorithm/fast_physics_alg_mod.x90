@@ -42,24 +42,31 @@ contains
 
   !> @details Collection of procedures for subgrid physics that act
   !>          within the outer loop of the solver
-  !> @param[in,out] du     Increment to wind field 
-  !> @param[in,out] dtheta Increment to theta field 
-  !> @param[in,out] mr     Mixing ratios
-  !> @param[in]     outer  Outer loop counter
-  !> @param[in]     theta  Theta field 
-  !> @param[in]     rho    Rho on w3 space
-  !> @param[in]     exner  Exner pressure on w3 space
-  !> @param[in]     mr_n   Mixing ratios at time level n
+  !> @param[in,out] du             Increment to wind field 
+  !> @param[in,out] dtheta         Increment to theta field 
+  !> @param[in,out] mr             Mixing ratios
+  !> @param[in]     outer          Outer loop counter
+  !> @param[in]     theta          Theta field 
+  !> @param[in]     rho            Rho on w3 space
+  !> @param[in]     exner          Exner pressure on w3 space
+  !> @param[in]     mr_n           Mixing ratios at time level n
+  !> @param[in]     shear          3D wind shear on wtheta points
+  !> @param[in]     delta          Edge length on wtheta points
+  !> @param[in]     max_diff_smag  Maximum diffusion coefficient allowed in this run
   !> @param[in,out] derived_fields Group of derived fields
   !> @param[in,out] cloud_fields   Group of cloud fields
   !> @param[in,out] twod_fields    Group of 2D fields
   !> @param[in,out] physics_incs   Group of physics increments
-  !> @param[in]     height_w3  Height in w3
-  !> @param[in]     height_wth Height in wth
-  !> @param[in]     chi        Coordinate array
-  !> @param[in]     timestep   Model timestep number
+  !> @param[in,out] visc_m_blend   Blended BL-Smag diffusion coefficient for momentum
+  !> @param[in,out] visc_h_blend   Blended BL-Smag diffusion coefficient for scalars
+  !> @param[in]     height_w3      Height in w3
+  !> @param[in]     height_wth     Height in wth
+  !> @param[in]     chi            Coordinate array
+  !> @param[in]     timestep       Model timestep number
   subroutine fast_physics(du, dtheta, mr, outer, theta, rho, exner, mr_n, &
+                          shear, delta, max_diff_smag,                    &
                           derived_fields, cloud_fields, twod_fields,      &
+                          visc_m_blend, visc_h_blend,                     &
                           physics_incs, height_w3, height_wth, chi,       &
                           timestep)
 
@@ -67,7 +74,9 @@ contains
 
     ! Fields    
     type( field_type ), intent( inout ) :: du, dtheta
+    type( field_type ), intent( inout ) :: visc_m_blend, visc_h_blend
     type( field_type ), intent( in )    :: theta, rho, exner
+    type( field_type ), intent( in )    :: shear, delta, max_diff_smag
 
     ! Field bundles
     type( field_type ), intent( inout )    :: mr(nummr)
@@ -123,9 +132,11 @@ contains
       call dtheta%copy_field_properties(dtheta_bl)
       call invoke( setval_c(dtheta_bl, 0.0_r_def) )
       call bl_alg_step(dtheta_bl, mr, outer, theta, rho, mr_n, exner,       &
+                       shear, delta, max_diff_smag,                         &
                        height_w3, height_wth, derived_fields, cloud_fields, &
-                       twod_fields, physics_incs, convection_done,          &
-                       timestep)
+                       twod_fields, physics_incs,                           &
+                       visc_m_blend, visc_h_blend,                          &
+                       convection_done, timestep)
       boundary_layer_done=.true. ! We've done it, so need to collect this term later on
     end if
 #endif

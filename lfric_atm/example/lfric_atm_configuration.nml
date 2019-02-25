@@ -226,7 +226,7 @@
     smagorinsky  = .false.,
     viscosity    = .false.,
     viscosity_mu = 0.0,
-    mix_factor = 0.0
+    mix_factor = 0.0,
 /
 
 &physics
