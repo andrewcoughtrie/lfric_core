@@ -24,9 +24,9 @@ module initial_cloud_kernel_mod_test
     private
     real(kind=r_def), allocatable :: answer_cfarea(:), answer_cfice(:),  &
                                      answer_cfliq(:),  answer_cfbulk(:), &
-                                     answer_rhcrit(:), cfarea(:),        &
+                                     answer_rh_crit_wth(:), cfarea(:),   &
                                      cfliq(:), cfice(:), cfbulk(:),      &
-                                     rhcrit(:)
+                                     rh_crit_wth(:)
   contains
     procedure setUp
     procedure tearDown
@@ -38,10 +38,16 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
 
-    use gungho_feign_config_mod,       only : feign_physics_config
-    use physics_config_mod,            only : cloud_scheme,              &
-                                              physics_cloud_scheme_smith, &
-                                              physics_radiation_placement_none
+    use gungho_feign_config_mod, only : feign_physics_config,           &
+                                        feign_cloud_um_config,          &
+				        feign_extrusion_config
+    use physics_config_mod, only : physics_cloud_scheme_smith,          &
+                                   physics_radiation_placement_none,    &
+				   physics_blayer_placement_none,       &
+                                   physics_convection_placement_none,   &
+				   physics_microphysics_placement_none
+    use extrusion_config_mod, only: extrusion_method_uniform
+
     implicit none
 
     class(cloud_test_type), intent(inout) :: this
@@ -54,34 +60,40 @@ contains
     ! Store the MPI communicator for later use
     call store_comm(this%getMpiCommunicator())
 
-    call feign_physics_config( boundary_layer_placement=0,     &
-                               convection_placement=0,         &
-                               radiation_placement             &
-                                 = physics_radiation_placement_none, &
-                               heldsuarez_thermo_placement=-1, &
-                               heldsuarez_wind_placement=-1,   &
-                               hs_random=.false.,              &
-                               l_flux_bc=.false.,              &
-                               fixed_flux_e=0.0_r_def,         &
-                               fixed_flux_h=0.0_r_def,         &
-                               cloud_scheme = physics_cloud_scheme_smith, &
-                               rhcritical=[0.5_r_def],         &
-                               microphysics_placement=0)
-
     undf_wth  = 1_i_def
-    nlayers  = 1_i_def
+    nlayers  = 3_i_def
 
-    allocate( this%answer_cfarea(undf_wth) )
-    allocate( this%answer_cfliq(undf_wth) )
-    allocate( this%answer_cfice(undf_wth) )
-    allocate( this%answer_cfbulk(undf_wth) )
-    allocate( this%answer_rhcrit(undf_wth) )
+    call feign_physics_config( blayer_placement                           &
+                                = physics_blayer_placement_none,          &
+                               convection_placement                       &
+                                = physics_convection_placement_none,      &
+                               radiation_placement                        &
+                                = physics_radiation_placement_none,       &
+                               heldsuarez_thermo_placement=-1,            &
+                               heldsuarez_wind_placement=-1,              &
+                               hs_random=.false.,                         &
+                               cloud_scheme = physics_cloud_scheme_smith, &
+                               microphysics_placement                     &
+                                = physics_microphysics_placement_none)
 
-    allocate( this%cfarea(undf_wth) )
-    allocate( this%cfliq(undf_wth) )
-    allocate( this%cfice(undf_wth) )
-    allocate( this%cfbulk(undf_wth) )
-    allocate( this%rhcrit(undf_wth) )
+   call feign_extrusion_config( method=extrusion_method_uniform, &
+                             	domain_top=1000.0_r_def,         &
+                             	number_of_layers=nlayers )
+
+
+    call feign_cloud_um_config(rh_crit=[0.96_r_def,0.9_r_def,0.8_r_def])
+
+    allocate( this%answer_cfarea(undf_wth + nlayers) )
+    allocate( this%answer_cfliq(undf_wth + nlayers) )
+    allocate( this%answer_cfice(undf_wth + nlayers) )
+    allocate( this%answer_cfbulk(undf_wth + nlayers) )
+    allocate( this%answer_rh_crit_wth(undf_wth + nlayers) )
+
+    allocate( this%cfarea(undf_wth + nlayers) )
+    allocate( this%cfliq(undf_wth + nlayers) )
+    allocate( this%cfice(undf_wth + nlayers) )
+    allocate( this%cfbulk(undf_wth + nlayers) )
+    allocate( this%rh_crit_wth(undf_wth + nlayers) )
 
   end subroutine setUp
 
@@ -96,9 +108,9 @@ contains
 
     deallocate( this%answer_cfarea, this%answer_cfliq,  &
                 this%answer_cfice,  this%answer_cfbulk, &
-                this%answer_rhcrit, this%cfarea,        &
+                this%answer_rh_crit_wth, this%cfarea,   &
                 this%cfliq, this%cfice, this%cfbulk,    &
-                this%rhcrit)
+                this%rh_crit_wth)
 
     ! Finalise YAXT
     call xt_finalize()
@@ -128,7 +140,7 @@ contains
     integer          :: ndf_wth
     integer          :: undf_wth
 
-    nlayers  = 1_i_def
+    nlayers  = 3_i_def
     ndf_wth  = 1_i_def
     undf_wth = 1_i_def
 
@@ -140,30 +152,30 @@ contains
     this%answer_cfliq(:)  = 0.0_r_def
     this%answer_cfice(:)  = 0.0_r_def
     this%answer_cfbulk(:) = 0.0_r_def
-    this%answer_rhcrit(:) = 0.5_r_def
+    this%answer_rh_crit_wth(:) = (/ 0.96_r_def, 0.96_r_def, 0.9_r_def, 0.8_r_def /)
 
     ! Make up initial wrong fields    
     this%cfarea(:) = -9.0_r_def
     this%cfliq(:)  = -9.0_r_def
     this%cfice(:)  = -9.0_r_def
     this%cfbulk(:) = -9.0_r_def
-    this%rhcrit(:) = -9.0_r_def
+    this%rh_crit_wth(:) = -9.0_r_def
 
-    call initial_cloud_code(nlayers, &
-                           this%cfarea(:), &
-                           this%cfice(:), &
-                           this%cfliq(:), &
-                           this%cfbulk(:), &
-                           this%rhcrit(:), &
-                           ndf_wth,  & 
-                           undf_wth, &
+    call initial_cloud_code(nlayers,            &
+                           this%cfarea(:),      &
+                           this%cfice(:),       &
+                           this%cfliq(:),       &
+                           this%cfbulk(:),      &
+                           this%rh_crit_wth(:), &
+                           ndf_wth,             & 
+                           undf_wth,            &
                            map_wth)
 
     @assertEqual( this%answer_cfarea(:), this%cfarea(:), tol )
     @assertEqual( this%answer_cfice(:),  this%cfice(:), tol )
     @assertEqual( this%answer_cfliq(:),  this%cfliq(:), tol )
     @assertEqual( this%answer_cfbulk(:), this%cfbulk(:), tol )
-    @assertEqual( this%answer_rhcrit(:), this%rhcrit(:), tol )
+    @assertEqual( this%answer_rh_crit_wth(:), this%rh_crit_wth(:), tol )
 
   end subroutine test_of_initial_cloud
 

@@ -7,7 +7,7 @@
 
 !> @brief Kernel computes the initial cloud field
 
-!> @detail Computes initial cloud fields and rhcrit
+!> @detail Computes initial cloud fields and rh_crit
 !>         in the same space as that of theta
 
 module initial_cloud_kernel_mod
@@ -19,7 +19,9 @@ module initial_cloud_kernel_mod
     use kernel_mod,                    only: kernel_type
 
     !physics routines
-    use physics_config_mod,            only :rhcritical
+    use physics_config_mod,          only :cloud_scheme, &
+                                           physics_cloud_scheme_smith
+    use cloud_um_config_mod,         only :rh_crit
 
     implicit none
 
@@ -57,7 +59,7 @@ contains
     !! @param[in,out] cf_ice        Ice cloud fraction
     !! @param[in,out] cf_liq        Liquid cloud fraction
     !! @param[in,out] cf_bulk       Combined cloud fraction
-    !! @param[in,out] rhcrit_in_wth Critical relative humidity
+    !! @param[in,out] rh_crit_wth   Critical relative humidity
     !! @param[in] ndf_wth Number of degrees of freedom per cell for wtheta
     !! @param[in] undf_wth Number of total degrees of freedom for wtheta
     !! @param[in] map_wth Dofmap for the cell at the base of the column
@@ -66,7 +68,7 @@ contains
                                   cf_ice,        &
                                   cf_liq,        &
                                   cf_bulk,       &
-                                  rhcrit_in_wth, &
+                                  rh_crit_wth,   &
                                   ndf_wth,       &
                                   undf_wth,      &
                                   map_wth)
@@ -80,22 +82,27 @@ contains
         integer(kind=i_def), intent(in),    dimension(ndf_wth)  :: map_wth
         real(kind=r_def),    intent(inout), dimension(undf_wth) :: cf_area, cf_ice, &
                                                                    cf_liq, cf_bulk, &
-                                                                   rhcrit_in_wth
+                                                                   rh_crit_wth
 
         !Internal variables
         integer(kind=i_def)                 :: k, df
 
-        ! compute the pointwise cloud and rhcrit profile
-        do k = 0, nlayers-1
-          do df = 1, ndf_wth
-            cf_area(map_wth(df) + k)       = 0.0_r_def
-            cf_ice(map_wth(df) + k)        = 0.0_r_def
-            cf_liq(map_wth(df) + k)        = 0.0_r_def
-            cf_bulk(map_wth(df) + k)       = 0.0_r_def
-            rhcrit_in_wth(map_wth(df) + k) = rhcritical(k+1)
-          end do
+        ! compute the pointwise cloud profile
+        ! should probably use builtins for this, but we leave the routine
+        ! for now in case we want to initialise a more elaborate profile
+        do k = 0, nlayers
+          cf_area(map_wth(1) + k) = 0.0_r_def
+          cf_ice(map_wth(1) + k)  = 0.0_r_def
+          cf_liq(map_wth(1) + k)  = 0.0_r_def
+          cf_bulk(map_wth(1) + k) = 0.0_r_def
         end do
-
+        if (cloud_scheme == physics_cloud_scheme_smith) then
+          ! can only initialise rh_crit if the cloud namelist has been read
+          rh_crit_wth(map_wth(1)) = rh_crit(1)
+          do k = 1, nlayers
+            rh_crit_wth(map_wth(1) + k) = rh_crit(k)
+          end do
+        end if
 
     end subroutine initial_cloud_code
 

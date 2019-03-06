@@ -44,9 +44,9 @@ contains
   !>          fraction), critical relative humidity and twod fields for all solvers.
   !>          The cloud and twod fields need to be initialised so that they have a value
   !>          when passed on to the physics at the first time step, in case no 
-  !>          restart file is used. Also, rhcrit is set to the namelist value here.
+  !>          restart file is used. Also, rh_crit is set to the namelist value here.
   !>          In case a restart/checkpoint file is used, clouds, twod fields 
-  !>          and rhcrit will be initialised to the values in this restart/checkpoint file
+  !>          and rh_crit will be initialised to the values in this restart/checkpoint file
   !> @param[in,out] cloud_fields Cloud related fields 
   !> @param[in,out] twod_fields  Two dimensional fields
   subroutine init_cloud_twod_fields_alg(cloud_fields, twod_fields)
@@ -63,14 +63,11 @@ contains
     type( field_type ), pointer :: cf_ice  => null()
     type( field_type ), pointer :: cf_liq  => null()
     type( field_type ), pointer :: cf_bulk  => null()
-    type( field_type ), pointer :: rhcrit_in_wth  => null()
+    type( field_type ), pointer :: rh_crit_wth  => null()
 
     type( field_type ), pointer :: tstar_twod  => null()
     type( field_type ), pointer :: zh_twod  => null()
     type( field_type ), pointer :: z0msea_twod  => null()
-    type( field_type ), pointer :: ntml_twod  => null()
-    type( field_type ), pointer :: cumulus_twod  => null()
-
 
     !=== Initialise cloud fields ==================================!
 
@@ -78,15 +75,13 @@ contains
     cf_ice => cloud_fields%get_field('ice_fraction')
     cf_liq => cloud_fields%get_field('liquid_fraction')
     cf_bulk => cloud_fields%get_field('bulk_fraction')
-    rhcrit_in_wth => cloud_fields%get_field('rhcrit')
+    rh_crit_wth => cloud_fields%get_field('rh_crit_wth')
 
     !=== Initialise twod fields ==================================!
 
     tstar_twod => twod_fields%get_field('tstar')
     zh_twod => twod_fields%get_field('zh')
     z0msea_twod => twod_fields%get_field('z0msea')
-    ntml_twod => twod_fields%get_field('ntml')
-    cumulus_twod => twod_fields%get_field('cumulus')
 
     if (.not. checkpoint_read .or. cloud_scheme == physics_cloud_scheme_none) then  
       ! No check point to start from
@@ -94,7 +89,7 @@ contains
       call log_event( "Gungho: Initialising cloud fields", LOG_LEVEL_INFO )
 
       call invoke(initial_cloud_kernel_type( cf_area, cf_ice, cf_liq, &
-                                             cf_bulk, rhcrit_in_wth))
+                                             cf_bulk, rh_crit_wth))
 
       call log_event( "Gungho: Initialised cloud fields", LOG_LEVEL_INFO )
 
@@ -113,8 +108,6 @@ contains
       call invoke( setval_c(tstar_twod, 300.0_r_def))
       call invoke( setval_c(zh_twod, 1000.0_r_def))
       call invoke( setval_c(z0msea_twod, 1.5e-4_r_def))
-      call invoke( setval_c(ntml_twod, 1.0_r_def))
-      call invoke( setval_c(cumulus_twod, 0.0_r_def))
 
       call log_event( "Gungho: Initialised twod fields", LOG_LEVEL_INFO )
 

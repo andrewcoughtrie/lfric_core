@@ -91,9 +91,10 @@
   heldsuarez_wind_placement   = 0
   hs_random = .false.
   cloud_scheme = 'none'
-  boundary_layer_placement = 0
-  convection_placement = 0
+  blayer_placement = 'none'
+  convection_placement = 'none'
   radiation_placement = 'none'
+  microphysics_placement = 'none'
 /
 
 &planet

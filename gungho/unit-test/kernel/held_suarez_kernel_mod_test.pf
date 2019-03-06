@@ -21,9 +21,11 @@ module held_suarez_kernel_mod_test
                                             feign_planet_config, &
                                             feign_timestepping_config, &
                                             feign_physics_config
-  use physics_config_mod,            only : cloud_scheme, &
-                                            physics_cloud_scheme_none, &
-                                            physics_radiation_placement_none
+  use physics_config_mod,            only : physics_cloud_scheme_none,        &
+                                            physics_radiation_placement_none, &
+					    physics_blayer_placement_none,    &
+					    physics_convection_placement_none,&
+					    physics_microphysics_placement_none
   use pFUnit_Mod
   use quadrature_xyoz_mod,           only: quadrature_xyoz_type, &
                                            quadrature_xyoz_proxy_type
@@ -237,19 +239,18 @@ contains
     nlayers = theta_proxy%vspace%get_nlayers()
 
 
-    call feign_physics_config( boundary_layer_placement=0,     &
-                               radiation_placement             &
-                                 = physics_radiation_placement_none, &
-                               convection_placement=0,         &
-                               heldsuarez_thermo_placement=-1, &
-                               heldsuarez_wind_placement=-1,   &
-                               hs_random=.false.,              &
-                               l_flux_bc=.false.,              &
-                               fixed_flux_e=0.0_r_def,         &
-                               fixed_flux_h=0.0_r_def,         &
+    call feign_physics_config( blayer_placement                          &
+                                = physics_blayer_placement_none,         &
+                               radiation_placement                       &
+                                = physics_radiation_placement_none,      &
+                               convection_placement                      &
+                                = physics_convection_placement_none,     &
+                               heldsuarez_thermo_placement=-1,           &
+                               heldsuarez_wind_placement=-1,             &
+                               hs_random=.false.,                        &
                                cloud_scheme = physics_cloud_scheme_none, &
-                               rhcritical = [1.0_r_def],       &
-                               microphysics_placement=0 )
+                               microphysics_placement                    &
+                                = physics_microphysics_placement_none )
 
 
     ndf_w2      = u_proxy%vspace%get_ndf( )

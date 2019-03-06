@@ -11,12 +11,11 @@ module slow_physics_alg_mod
   use log_mod,                   only: log_event,         &
                                        LOG_LEVEL_WARNING, LOG_LEVEL_INFO, &
                                        LOG_LEVEL_ERROR
-  use physics_config_mod,        only: heldsuarez_thermo_placement, &
-                                       heldsuarez_wind_placement,   &
-                                       boundary_layer_placement,    &
-                                       convection_placement,        &
-                                       microphysics_placement,      &
-                                       radiation_placement,         &
+  use physics_config_mod,        only: heldsuarez_thermo_placement,         &
+                                       heldsuarez_wind_placement,           &
+                                       microphysics_placement,              &
+                                       physics_microphysics_placement_slow, &
+                                       radiation_placement,                 &
                                        physics_radiation_placement_slow
   ! PsyKAl PSYClone kernels
   use held_suarez_fv_kernel_mod,      only: held_suarez_fv_kernel_type
@@ -111,6 +110,7 @@ contains
     held_suarez_thermo_done=.false.
     held_suarez_wind_done=.false.
     microphysics_done=.false.
+    radiation_done=.false.
 
     ! Some unpacking
     u_physics => derived_fields%get_field('u_physics')
@@ -138,7 +138,7 @@ contains
     end if
 
 #ifdef UM_PHYSICS
-    if (microphysics_placement < 0) then
+    if (microphysics_placement == physics_microphysics_placement_slow) then
       if (use_moisture) then
         ! Algorithm which calls the UM microphysics scheme
         call log_event( 'slow_physics: Running Microphysics', LOG_LEVEL_INFO )
@@ -169,38 +169,18 @@ contains
          LOG_LEVEL_ERROR )
       end if ! use moisture
 
-      if (microphysics_done) then
-        call invoke(inc_X_plus_Y(dtheta, dtheta_mphys))
-        call add_bundle(dmr_mphys, mr, mr, nummr)
-      end if
+    end if   ! microphysics placement slow
 
-    end if   ! microphysics placement > 0
-#endif
-
-    radiation_done=.false.
-#ifdef UM_PHYSICS
     if (radiation_placement == physics_radiation_placement_slow) then
       call log_event( 'slow_physics: Running Radiation', LOG_LEVEL_INFO )
       dtheta_rad = field_type( vector_space = theta%get_function_space() )
       call radiation_alg_step(dtheta_rad, theta, exner, mr_n,            &
                               derived_fields, cloud_fields, twod_fields, &
-                              height_w3, height_wth, chi)
+                              physics_incs, height_w3, height_wth, chi)
       radiation_done=.true.
       call dtheta_rad%log_minmax(LOG_LEVEL_INFO, 'slow physics: dtheta_rad')
     end if
 #endif
-
-    if (boundary_layer_placement < 0) then       
-      call log_event( &
-         'slow_physics: Boundary layer is not currently available in slow physics.', &
-         LOG_LEVEL_ERROR )
-    end if
-
-    if (convection_placement < 0) then
-      call log_event( &
-         'slow_physics: Convection is not currently available in slow physics.', &
-         LOG_LEVEL_ERROR )
-    end if
 
     !=====================================
     ! collect individual terms in parallel
@@ -211,6 +191,11 @@ contains
 
     if (held_suarez_wind_done)then
       call invoke(inc_X_plus_Y(du, du_hs))
+    end if
+
+    if (microphysics_done) then
+      call invoke(inc_X_plus_Y(dtheta, dtheta_mphys))
+      call add_bundle(dmr_mphys, mr, mr, nummr)
     end if
 
     if (radiation_done) then

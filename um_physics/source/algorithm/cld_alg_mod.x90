@@ -58,20 +58,20 @@ contains
     type( field_type ), pointer :: ntml_2d => null()
     type( field_type ), pointer :: cumulus_2d => null()
 
-    type( field_type ), pointer :: rhcrit_in_wth => null()
+    type( field_type ), pointer :: rh_crit_wth => null()
 
     cf_area => cloud_fields%get_field('area_fraction')
     cf_ice => cloud_fields%get_field('ice_fraction')
     cf_liq => cloud_fields%get_field('liquid_fraction')
     cf_bulk => cloud_fields%get_field('bulk_fraction')
 
-    rhcrit_in_wth => cloud_fields%get_field('rhcrit')
+    rh_crit_wth => cloud_fields%get_field('rh_crit_wth')
 
     ntml_2d => twod_fields%get_field('ntml')
     cumulus_2d => twod_fields%get_field('cumulus')
 
     call invoke(cld_kernel_type( theta_in_wth, exner_in_w3 , exner_in_wth, &
-                            rhcrit_in_wth, ntml_2d, cumulus_2d,            &
+                            rh_crit_wth, ntml_2d, cumulus_2d,              &
                             mr(imr_v), mr(imr_cl), mr(imr_ci),             &
                             cf_area, cf_ice, cf_liq, cf_bulk, theta_inc))
 

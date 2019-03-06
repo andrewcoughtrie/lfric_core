@@ -11,20 +11,16 @@ module fast_physics_alg_mod
   use log_mod,                      only: log_event,         &
                                           LOG_LEVEL_ERROR,   &
                                           LOG_LEVEL_INFO
-  use physics_config_mod,           only: heldsuarez_wind_placement, &
-                                          heldsuarez_thermo_placement, &
-                                          boundary_layer_placement, &
-                                          convection_placement
-  use derived_config_mod,           only: bundle_size
-  use finite_element_config_mod,    only: element_order
-  ! PsyKAl PSYClone kernels
-  
+  use physics_config_mod,           only: heldsuarez_wind_placement,        &
+                                          heldsuarez_thermo_placement,      &
+                                          blayer_placement,                 &
+                                          physics_blayer_placement_fast,    &
+                                          convection_placement,             &
+                                          physics_convection_placement_fast
+
   ! Derived Types
   use field_mod,                    only: field_type
   use field_collection_mod,         only: field_collection_type
-
-  ! Field indices
-  use field_indices_mod,         only: igh_u, igh_t, igh_d, igh_p
 
   ! Moisture species
   use mr_indices_mod,            only: nummr
@@ -56,19 +52,16 @@ contains
   !> @param[in,out] derived_fields Group of derived fields
   !> @param[in,out] cloud_fields   Group of cloud fields
   !> @param[in,out] twod_fields    Group of 2D fields
-  !> @param[in,out] physics_incs   Group of physics increments
   !> @param[in,out] visc_m_blend   Blended BL-Smag diffusion coefficient for momentum
   !> @param[in,out] visc_h_blend   Blended BL-Smag diffusion coefficient for scalars
+  !> @param[in,out] physics_incs   Group of physics increments
   !> @param[in]     height_w3      Height in w3
   !> @param[in]     height_wth     Height in wth
-  !> @param[in]     chi            Coordinate array
-  !> @param[in]     timestep       Model timestep number
   subroutine fast_physics(du, dtheta, mr, outer, theta, rho, exner, mr_n, &
                           shear, delta, max_diff_smag,                    &
                           derived_fields, cloud_fields, twod_fields,      &
                           visc_m_blend, visc_h_blend,                     &
-                          physics_incs, height_w3, height_wth, chi,       &
-                          timestep)
+                          physics_incs, height_w3, height_wth)
 
     implicit none
 
@@ -90,10 +83,9 @@ contains
 
     ! Coordinate fields
     type( field_type ), intent( in )    :: height_w3, height_wth
-    type( field_type ), intent( in )    :: chi(3)
 
     ! scalars
-    integer(kind=i_def), intent(in)     :: outer, timestep
+    integer(kind=i_def), intent(in)     :: outer
 
     ! Local fields (should be created at initialization, but done here for the time being)
     type( field_type ) :: dtheta_bl
@@ -117,16 +109,16 @@ contains
     end if
 
 #ifdef UM_PHYSICS
-    if (convection_placement > 0) then
+    if (convection_placement == physics_convection_placement_fast) then
       ! Algorithm that calls the UM convection scheme
       call log_event( 'fast_physics: Running the convection scheme', LOG_LEVEL_INFO )
-      call conv_alg_step(physics_incs, derived_fields, exner, mr, timestep)
+      call conv_alg_step(physics_incs, derived_fields, exner, mr)
       ! Flag that convection has been done in this timestep and increments
       ! need adding later in BL scheme
       convection_done=.true.
     end if
 
-    if (boundary_layer_placement > 0) then  
+    if (blayer_placement == physics_blayer_placement_fast) then  
       ! Algorithm that calls the UM Boundary Layer scheme
       call log_event( 'fast_physics: Running Boundary layer', LOG_LEVEL_INFO )
       call dtheta%copy_field_properties(dtheta_bl)
@@ -134,9 +126,7 @@ contains
       call bl_alg_step(dtheta_bl, mr, outer, theta, rho, mr_n, exner,       &
                        shear, delta, max_diff_smag,                         &
                        height_w3, height_wth, derived_fields, cloud_fields, &
-                       twod_fields, physics_incs,                           &
-                       visc_m_blend, visc_h_blend,                          &
-                       convection_done, timestep)
+                       twod_fields, physics_incs, visc_m_blend, visc_h_blend)
       boundary_layer_done=.true. ! We've done it, so need to collect this term later on
     end if
 #endif
@@ -153,6 +143,5 @@ contains
     call dtheta%log_minmax(LOG_LEVEL_INFO, 'fast physics: dtheta' )
 
   end subroutine fast_physics
-
 
 end module fast_physics_alg_mod

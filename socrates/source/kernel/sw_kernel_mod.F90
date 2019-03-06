@@ -69,14 +69,14 @@ function sw_kernel_constructor() result(self)
   return
 end function sw_kernel_constructor
 
-! @param[in]  nlayers       Number of layers
-! @param[out] dtheta_sw     Potential temperature increment
-! @param[in]  theta         Potential temperature field
-! @param[in]  exner         exner pressure in density space
-! @param[in]  exner_in_wth  exner pressure in potential temperature space
-! @param[in]  rho_in_wth    density in potential temperature space
-! @param[in]  height_w3     Height of density space levels above surface
-! @param[in]  height_wth    Height of temperature space levels above surface
+! @param[in]  nlayers         Number of layers
+! @param[out] sw_heating_rate Short wave heating rate
+! @param[in]  theta           Potential temperature field
+! @param[in]  exner           exner pressure in density space
+! @param[in]  exner_in_wth    exner pressure in potential temperature space
+! @param[in]  rho_in_wth      density in potential temperature space
+! @param[in]  height_w3       Height of density space levels above surface
+! @param[in]  height_wth      Height of temperature space levels above surface
 ! @param[in]  cos_zenith_angle    Cosine of the stellar zenith angle
 ! @param[in]  lit_fraction        Lit fraction of the timestep
 ! @param[in]  stellar_irradiance  Stellar irradaince at the planet
@@ -96,7 +96,7 @@ end function sw_kernel_constructor
 ! @param[in]  undf_2d       No. unique of degrees of freedom for 2d space
 ! @param[in]  map_2d        Dofmap for cell at base of column for 2d space
 subroutine sw_code(nlayers,            & 
-                   dtheta_sw,          &
+                   sw_heating_rate,    &
                    theta,              &
                    exner,              &
                    exner_in_wth,       &
@@ -140,7 +140,6 @@ subroutine sw_code(nlayers,            &
     radiation_cloud_inhomogeneity_cairns
   use set_thermodynamic_mod, only: set_thermodynamic
   use set_cloud_top_mod, only: set_cloud_top
-  use timestepping_config_mod, only: dt
   use socrates_runes, only: runes, ip_source_illuminate,                    &
     ip_cloud_representation_off, ip_cloud_representation_ice_water,         &
     ip_cloud_representation_csiw, ip_overlap_max_random, ip_overlap_random, &
@@ -158,7 +157,7 @@ subroutine sw_code(nlayers,            &
   integer(i_def), dimension(ndf_w3),  intent(in) :: map_w3
   integer(i_def), dimension(ndf_2d),  intent(in) :: map_2d
 
-  real(r_def), dimension(undf_wth), intent(out) :: dtheta_sw
+  real(r_def), dimension(undf_wth), intent(out) :: sw_heating_rate
   real(r_def), dimension(undf_w3),  intent(in)  :: exner, height_w3
   real(r_def), dimension(undf_wth), intent(in)  :: theta, exner_in_wth, &
     rho_in_wth, height_wth, mv, mcl, mci,                               &
@@ -178,7 +177,6 @@ subroutine sw_code(nlayers,            &
     d_mass,                          &
     ! Effective radius of droplets
     liq_dim
-  real(r_def), dimension(1, nlayers) :: sw_heating_rate
   real(r_def), dimension(1, 0:nlayers) :: sw_direct, sw_down, sw_up
 
 
@@ -273,15 +271,10 @@ subroutine sw_code(nlayers,            &
     flux_direct            = sw_direct,                                        &
     flux_down              = sw_down,                                          &
     flux_up                = sw_up,                                            &
-    heating_rate           = sw_heating_rate)
+    heating_rate_1d        = sw_heating_rate(map_wth(1)+1:map_wth(1)+nlayers))
 
-  ! Increment potential temperature
-  do k=1, nlayers
-    dtheta_sw(map_wth(1) + k) = &
-      sw_heating_rate(1, k)*dt / exner_in_wth(map_wth(1) + k)
-  end do
   ! Copy lowest level to surface
-  dtheta_sw(map_wth(1)) = dtheta_sw(map_wth(1) + 1)
+  sw_heating_rate(map_wth(1)) = sw_heating_rate(map_wth(1) + 1)
 
 end subroutine sw_code
 

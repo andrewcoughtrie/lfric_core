@@ -69,7 +69,7 @@ function lw_kernel_constructor() result(self)
 end function lw_kernel_constructor
 
 ! @param[in]  nlayers         Number of layers
-! @param[out] dtheta_lw       Potential temperature increment
+! @param[out] lw_heating_rate Long wave heating rate
 ! @param[in]  theta           Potential temperature
 ! @param[in]  theta_in_w3     Potential temperature in density space
 ! @param[in]  exner           exner pressure in density space
@@ -94,7 +94,7 @@ end function lw_kernel_constructor
 ! @param[in]  undf_2d         No. unique of degrees of freedom  for 2d space
 ! @param[in]  map_2d          Dofmap for cell at base of column for 2d space
 subroutine lw_code(nlayers,         & 
-                   dtheta_lw,       &
+                   lw_heating_rate, &
                    theta,           &
                    theta_in_w3,     &
                    exner,           &
@@ -139,7 +139,6 @@ subroutine lw_code(nlayers,         &
     radiation_cloud_inhomogeneity_cairns
   use set_thermodynamic_mod, only: set_thermodynamic
   use set_cloud_top_mod, only: set_cloud_top
-  use timestepping_config_mod, only: dt
   use socrates_runes, only: runes, ip_source_thermal,                       &
     ip_cloud_representation_off, ip_cloud_representation_ice_water,         &
     ip_cloud_representation_csiw, ip_overlap_max_random, ip_overlap_random, &
@@ -157,7 +156,7 @@ subroutine lw_code(nlayers,         &
   integer(i_def), dimension(ndf_w3),  intent(in) :: map_w3
   integer(i_def), dimension(ndf_2d),  intent(in) :: map_2d
 
-  real(r_def), dimension(undf_wth), intent(out) :: dtheta_lw
+  real(r_def), dimension(undf_wth), intent(out) :: lw_heating_rate
   real(r_def), dimension(undf_w3),  intent(in)  :: theta_in_w3, exner, height_w3
   real(r_def), dimension(undf_wth), intent(in)  :: theta, exner_in_wth, &
     rho_in_wth, height_wth, mv, mcl, mci,                               &
@@ -179,7 +178,6 @@ subroutine lw_code(nlayers,         &
     ! Effective radius of droplets
     liq_dim
   real(r_def), dimension(0:nlayers) :: t_layer_boundaries
-  real(r_def), dimension(1, nlayers) :: lw_heating_rate
   real(r_def), dimension(1, 0:nlayers) :: lw_down, lw_up
 
   n_profile = 1
@@ -282,15 +280,10 @@ subroutine lw_code(nlayers,         &
     l_invert               = .true.,                                           &
     flux_down              = lw_down,                                          &
     flux_up                = lw_up,                                            &
-    heating_rate           = lw_heating_rate)
+    heating_rate_1d        = lw_heating_rate(map_wth(1)+1:map_wth(1)+nlayers))
 
-  ! Increment potential temperature
-  do k=1, nlayers
-    dtheta_lw(map_wth(1) + k) = &
-      lw_heating_rate(1, k)*dt / exner_in_wth(map_wth(1) + k)
-  end do
   ! Copy lowest level to surface
-  dtheta_lw(map_wth(1)) = dtheta_lw(map_wth(1) + 1)
+  lw_heating_rate(map_wth(1)) = lw_heating_rate(map_wth(1) + 1)
 
 end subroutine lw_code
 

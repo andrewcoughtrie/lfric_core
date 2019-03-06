@@ -10,12 +10,14 @@ module um_init_mod
   use constants_mod,         only : i_def, i_um, r_def, r_um
   use extrusion_config_mod,  only : domain_top
   use field_collection_mod,  only : field_collection_type
+  use physics_config_mod,    only : cloud_scheme,                       &
+                                    physics_cloud_scheme_none,          &
+                                    physics_cloud_scheme_smith,         &
+                                    convection_placement,               &
+                                    physics_convection_placement_fast
+  use blayer_um_config_mod,  only : flux_bc_opt_in => flux_bc_opt
+  use cloud_um_config_mod,   only : rh_crit
   use mixing_config_mod,     only : smagorinsky
-  use physics_config_mod,    only : cloud_scheme,               &
-                                    physics_cloud_scheme_none,  &
-                                    physics_cloud_scheme_smith, &
-                                    rhcritical,                 &
-                                    convection_placement
   use log_mod,               only : log_event,         &
                                     log_scratch_space, &
                                     LOG_LEVEL_ERROR
@@ -39,7 +41,7 @@ contains
          zhloc_depth_fac, flux_grad, entr_smooth_dec,                      &
          relax_sc_over_cu, bl_res_inv, blending_option,                    &
          a_ent_shr_nml, alpha_cd, puns, pstb, nl_bl_levels, kprof_cu,      &
-         non_local_bl
+         non_local_bl, flux_bc_opt
     use cloud_inputs_mod, only: i_cld_vn, forced_cu, i_rhcpt, i_cld_area,  &
          l_fixbug_pc2_mixph, rhcrit, cloud_fraction_method,                &
          ice_fraction_method,falliceshear_method, cff_spread_rate,         &
@@ -100,9 +102,9 @@ contains
     bl_levels    = nlayers-1
     row_length   = 1
     rows         = 1
-    land_field   = 0
-    ntiles       = 1
-    sm_levels    = 1
+    land_field   = 1
+    ntiles       = 9
+    sm_levels    = 4
     nice         = 1
     nice_use     = 1
     tr_vars      = 0
@@ -167,10 +169,11 @@ contains
     puns             = 0.5_r_um
     pstb             = 2.0_r_um
     nl_bl_levels     = bl_levels
-    if (convection_placement /= 0) non_local_bl = 0
+    if (convection_placement == physics_convection_placement_fast) non_local_bl = 0
+    flux_bc_opt      = flux_bc_opt_in
 
     ! Convection namelist options - should be moved to namelist in future
-    if (convection_placement /= 0) l_param_conv = .true.
+    if (convection_placement == physics_convection_placement_fast) l_param_conv = .true.
     icvdiag         = 1
     cvdiag_inv      = 0
     cvdiag_sh_wtest = 0.02_r_um
@@ -182,7 +185,6 @@ contains
     cldbase_opt_dp  = 3
     cldbase_opt_sh  = 0
     w_cape_limit    = 0.3_r_um
-    l_param_conv    = .false.
 
     ! Cloud namelist options - should be moved to namelist in future
     select case (cloud_scheme)
@@ -208,7 +210,7 @@ contains
     ! Set rhcrit to the profile provided in the physics namelist.
     ! rhcrit is used throughout the UM and its value needs setting 
     ! here.
-    rhcrit = rhcritical
+    rhcrit = real(rh_crit, r_um)
 
     ! Microphysics namelist options - should be moved to namelist in future
     ai             = 2.5700e-2_r_um
@@ -308,7 +310,7 @@ contains
     !-----------------------------------------------------------------------
     ! Code to prepare for Smagorinsky turbulence scheme
     !-----------------------------------------------------------------------
-	
+
     if ( smagorinsky ) then
 
       allocate ( visc_h(row_length, rows, nlayers) )

@@ -1,0 +1,64 @@
+!-------------------------------------------------------------------------------
+!(c) Crown copyright 2018 Met Office. All rights reserved.
+!The file LICENCE, distributed with this code, contains details of the terms
+!under which the code may be used.
+!-------------------------------------------------------------------------------
+
+!>@brief Initialises physics increments to zero in case scheme is not used
+
+module init_physics_incs_alg_mod
+
+  use constants_mod,                   only: r_def
+
+  ! Derived Types
+  use field_mod,                       only: field_type
+  use field_collection_mod,            only: field_collection_type
+
+  implicit none
+
+  private
+  public :: init_physics_incs_alg
+
+contains
+
+  !> @brief Initialises physics increments to zero in case scheme is not used
+  !> @details So that other schemes can always rely on a sensible increment
+  !>          being passed in, we initialise the increments to zero.
+  !> @param[in,out] physics_incs Collection of physics increments
+  subroutine init_physics_incs_alg(physics_incs)
+
+    implicit none
+
+    type( field_collection_type ), intent( inout ) :: physics_incs
+
+    ! local fields to unpack
+    type( field_type ), pointer :: dt_conv => null()
+    type( field_type ), pointer :: dmv_conv => null()
+    type( field_type ), pointer :: dtl_mphys => null()
+    type( field_type ), pointer :: dmt_mphys => null()
+    type( field_type ), pointer :: sw_heating_rate => null()
+    type( field_type ), pointer :: lw_heating_rate => null()
+
+    ! unpack the local fields
+    dt_conv => physics_incs%get_field('dt_conv')
+    dmv_conv => physics_incs%get_field('dmv_conv')
+    dtl_mphys => physics_incs%get_field('dtl_mphys')
+    dmt_mphys => physics_incs%get_field('dmt_mphys')
+    sw_heating_rate => physics_incs%get_field('sw_heating_rate')
+    lw_heating_rate => physics_incs%get_field('lw_heating_rate')
+
+    ! initialise convection increments to 0
+    call invoke( setval_c(dt_conv, 0.0_r_def), &
+                 setval_c(dmv_conv, 0.0_r_def) )
+
+    ! initialise microphysics increments to 0
+    call invoke( setval_c(dtl_mphys, 0.0_r_def), &
+                 setval_c(dmt_mphys, 0.0_r_def) )
+
+    ! initialise radiative heating rates to 0
+    call invoke( setval_c(sw_heating_rate, 0.0_r_def), &
+                 setval_c(lw_heating_rate, 0.0_r_def) )
+
+  end subroutine init_physics_incs_alg
+
+end module init_physics_incs_alg_mod

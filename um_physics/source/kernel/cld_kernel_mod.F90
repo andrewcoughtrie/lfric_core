@@ -59,7 +59,7 @@ end function cld_kernel_constructor
 !! @param[in]    theta_in_wth  predicted theta in its native space
 !! @param[in]    exner_in_w3   Pressure in the w3 space
 !! @param[in]    exner_in_wth  Exner Pressure in the theta space
-!! @param[in]    rhcrit_in_wth Critical Relative Humidity
+!! @param[in]    rh_crit_wth   Critical Relative Humidity
 !! @param[in]    ntml_2d       Boundary layer top level
 !! @param[in]    cumulus_2d    Cumulus flag
 !! @param[in,out] m_v           Vapour mixing ratio in wth
@@ -84,7 +84,7 @@ subroutine cld_code(nlayers,      &
                     theta_in_wth, &
                     exner_in_w3,  &
                     exner_in_wth, & 
-                    rhcrit_in_wth,&
+                    rh_crit_wth,  &
                     ntml_2d,      &
                     cumulus_2d,   &
                     m_v,          &
@@ -131,7 +131,7 @@ subroutine cld_code(nlayers,      &
       real(kind=r_def),    intent(in),    dimension(undf_w3)  :: exner_in_w3
       real(kind=r_def),    intent(in),    dimension(undf_wth) :: exner_in_wth
       real(kind=r_def),    intent(in),    dimension(undf_wth) :: theta_in_wth
-      real(kind=r_def),    intent(in),    dimension(undf_wth) :: rhcrit_in_wth
+      real(kind=r_def),    intent(in),    dimension(undf_wth) :: rh_crit_wth
       real(kind=r_def),    intent(in),    dimension(undf_2d)  :: ntml_2d, cumulus_2d
       real(kind=r_def),    intent(inout), dimension(undf_wth) :: m_v
       real(kind=r_def),    intent(inout), dimension(undf_wth) :: m_cl
@@ -154,7 +154,7 @@ subroutine cld_code(nlayers,      &
 
     ! profile fields from level 0 upwards
     real(r_um), dimension(row_length,rows,0:nlayers) ::      &
-         p_layer_boundaries, p_layer_centres
+         p_rho_minus_one, p_theta_levels
 
     ! single level fields
     real(r_um), dimension(row_length,rows) :: fv_cos_theta_latitude
@@ -194,30 +194,30 @@ subroutine cld_code(nlayers,      &
       cff_inout(1,1,k) = cf_ice(map_wth(1) + k)
       cfl_inout(1,1,k) = cf_liq(map_wth(1) + k)
       area_cloud_fraction(1,1,k) = cf_area(map_wth(1) + k)
-      ! rhcrit
-      rhcpt(1,1,k) = rhcrit_in_wth(map_wth(1) + k)
+      ! 3D RH_crit field
+      rhcpt(1,1,k) = rh_crit_wth(map_wth(1) + k)
 
     end do
 
 
     do k = 1, nlayers-1
       ! pressure on theta levels
-      p_layer_centres(1,1,k) = p_zero*(exner_in_wth(map_wth(1) + k))**(1.0_r_def/kappa)
-      ! pressure on rho levels
-      p_layer_boundaries(1,1,k) = p_zero*(exner_in_w3(map_w3(1) + k))**(1.0_r_def/kappa)
+      p_theta_levels(1,1,k) = p_zero*(exner_in_wth(map_wth(1) + k))**(1.0_r_def/kappa)
+      ! pressure on rho levels without level 1
+      p_rho_minus_one(1,1,k) = p_zero*(exner_in_w3(map_w3(1) + k))**(1.0_r_def/kappa)
     end do
     ! pressure on theta levels
-    p_layer_centres(1,1,0) = p_zero*(exner_in_wth(map_wth(1) + 0))**(1.0_r_def/kappa)
+    p_theta_levels(1,1,0) = p_zero*(exner_in_wth(map_wth(1) + 0))**(1.0_r_def/kappa)
     ! pressure on rho levels
-    p_layer_boundaries(1,1,0) = p_zero*(exner_in_wth(map_wth(1) + 0))**(1.0_r_def/kappa)
+    p_rho_minus_one(1,1,0) = p_zero*(exner_in_wth(map_wth(1) + 0))**(1.0_r_def/kappa)
     ! pressure on theta levels
-    p_layer_centres(1,1,nlayers) = p_zero*(exner_in_wth(map_wth(1) + nlayers))** &
+    p_theta_levels(1,1,nlayers) = p_zero*(exner_in_wth(map_wth(1) + nlayers))** &
                     (1.0_r_def/kappa)
     ! pressure on rho levels
-    p_layer_boundaries(1,1,nlayers) = 0.0_r_def 
+    p_rho_minus_one(1,1,nlayers) = 0.0_r_def 
  
 
-    CALL ls_arcld( p_layer_centres, rhcpt, p_layer_boundaries,        &
+    CALL ls_arcld( p_theta_levels, rhcpt, p_rho_minus_one,            &
                  rhc_row_length, rhc_rows, bl_levels,                 &
                  levels_per_level, large_levels,                      &
                  fv_cos_theta_latitude,                               &

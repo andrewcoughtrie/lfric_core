@@ -43,7 +43,8 @@ contains
     use mphys_kernel_mod, only: mphys_kernel_type
     use mr_indices_mod,   only: imr_v, imr_cl, imr_r, imr_ci, imr_g, nummr
     use planet_constants_mod, only: lcrcp, lsrcp
-    use physics_config_mod, only: boundary_layer_placement
+    use physics_config_mod, only: blayer_placement, &
+                                  physics_blayer_placement_fast
 
     implicit none
 
@@ -90,7 +91,7 @@ contains
                                      dmr_mphys(imr_g),  theta_inc ) )
 
     ! Calculate increments required by the BL scheme
-    if (boundary_layer_placement /= 0) then
+    if (blayer_placement == physics_blayer_placement_fast) then
       dtl_mphys => physics_incs%get_field('dtl_mphys')
       dmt_mphys => physics_incs%get_field('dmt_mphys')
       ! Calculate TL = T - (lc/cp)*mcl - ((lc+lf)/cp)*mci

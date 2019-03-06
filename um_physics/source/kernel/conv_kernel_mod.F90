@@ -114,8 +114,8 @@ contains
     integer(kind=i_def) :: k
 
     real(r_um), dimension(row_length,rows,nlayers) :: theta_conv, q_conv, &
-         theta_inc, q_inc, qcl_inc, cf_liquid_inc, p_layer_centres
-    real(r_um), dimension(row_length,rows,nlayers+1) :: p_layer_boundaries
+         theta_inc, q_inc, qcl_inc, cf_liquid_inc, p_theta_levels
+    real(r_um), dimension(row_length,rows,nlayers+1) :: p_rho_levels
     real(r_um), dimension(row_length,rows) ::  conv_rain, p_star
 
     !-----------------------------------------------------------------------
@@ -124,14 +124,14 @@ contains
     do k = 1, nlayers
       theta_conv(1,1,k) = theta_star(map_wth(1) + k)
       q_conv(1,1,k) = m_v(map_wth(1) + k)
-      p_layer_boundaries(1,1,k) = p_zero*(exner_in_w3(map_w3(1) + k-1))**(1.0_r_def/kappa)
-      p_layer_centres(1,1,k) = p_zero*(exner_in_wth(map_wth(1) + k))**(1.0_r_def/kappa)
+      p_rho_levels(1,1,k) = p_zero*(exner_in_w3(map_w3(1) + k-1))**(1.0_r_def/kappa)
+      p_theta_levels(1,1,k) = p_zero*(exner_in_wth(map_wth(1) + k))**(1.0_r_def/kappa)
     end do
-    ! Over-write p_layer_boundaries at lowest level with surface pressure
-    p_layer_boundaries(1,1,1) = p_zero*(exner_in_wth(map_wth(1)))**(1.0_r_def/kappa)
-    p_star(1,1) = p_layer_boundaries(1,1,1)
-    ! Initialised p_layer_boundaries at top of atmosphere
-    p_layer_boundaries(1,1,nlayers+1) = 0.0_r_um
+    ! Over-write p_rho_levels at lowest level with surface pressure
+    p_rho_levels(1,1,1) = p_zero*(exner_in_wth(map_wth(1)))**(1.0_r_def/kappa)
+    p_star(1,1) = p_rho_levels(1,1,1)
+    ! Initialised p_rho_levels at top of atmosphere
+    p_rho_levels(1,1,nlayers+1) = 0.0_r_um
     ! Initialise increments and output fields to zero
     theta_inc(:,:,:) = 0.0_r_um
     q_inc(:,:,:) = 0.0_r_um
@@ -142,8 +142,8 @@ contains
     !-----------------------------------------------------------------------
     ! Call the convection scheme
     !-----------------------------------------------------------------------
-    call llcs_control(theta_conv, q_conv, p_star, p_layer_boundaries, &
-         p_layer_centres, theta_inc, q_inc, qcl_inc, cf_liquid_inc, conv_rain)
+    call llcs_control(theta_conv, q_conv, p_star, p_rho_levels, &
+         p_theta_levels, theta_inc, q_inc, qcl_inc, cf_liquid_inc, conv_rain)
 
     !-----------------------------------------------------------------------
     ! Update fields to pass out

@@ -230,18 +230,24 @@
 /
 
 &physics
-    boundary_layer_placement=1,
-    convection_placement=0,
+    blayer_placement='fast',
+    convection_placement='none',
     radiation_placement='none',
-    fixed_flux_e=0.0,
-    fixed_flux_h=300.0,
-    microphysics_placement=-1,
+    microphysics_placement='slow',
     heldsuarez_thermo_placement=0,
     heldsuarez_wind_placement=0,
     hs_random=.false.,
-    l_flux_bc=.true.,
     cloud_scheme = 'smith',
-    rhcritical=98*0.99, 
+/
+
+&blayer_um
+    flux_bc_opt=1,
+    fixed_flux_e=0.0,
+    fixed_flux_h=300.0,
+/
+
+&cloud_um
+    rh_crit=98*0.99,
 /
 
 &orography

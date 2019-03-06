@@ -11,13 +11,12 @@ module bl_kernel_mod
                                      GH_FIELD, GH_READ, GH_WRITE,  &
                                      GH_READWRITE, CELLS, GH_INC,  &
                                      GH_INTEGER, ANY_SPACE_1
-  use constants_mod,          only : i_def, i_um, r_def, r_double, r_um
-  use formulation_config_mod, only : use_moisture
+  use constants_mod,          only : i_def, i_um, r_def, r_um
   use fs_continuity_mod,      only : W3, Wtheta
   use kernel_mod,             only : kernel_type
+  use physics_config_mod,     only : cloud_scheme, physics_cloud_scheme_none
+  use blayer_um_config_mod,   only : fixed_flux_e, fixed_flux_h
   use mixing_config_mod,      only : smagorinsky
-  use physics_config_mod,     only : l_flux_bc, fixed_flux_e, fixed_flux_h, &
-                                     cloud_scheme, physics_cloud_scheme_none
   use timestepping_config_mod, only: outer_iterations
 
   implicit none
@@ -31,51 +30,53 @@ module bl_kernel_mod
   !>
   type, public, extends(kernel_type) :: bl_kernel_type
     private
-    type(arg_type) :: meta_args(44) = (/         &
-        arg_type(GH_INTEGER,  GH_READ),          &
-        arg_type(GH_FIELD,   GH_READ,   WTHETA), &
-        arg_type(GH_FIELD,   GH_READ,   W3),     &
-        arg_type(GH_FIELD,   GH_READ,   W3),     &
-        arg_type(GH_FIELD,   GH_READ,   WTHETA), &
-        arg_type(GH_FIELD,   GH_READ,   W3),     &
-        arg_type(GH_FIELD,   GH_READ,   WTHETA), &
-        arg_type(GH_FIELD,   GH_READ,   W3),     &
-        arg_type(GH_FIELD,   GH_READ,   W3),     &
-        arg_type(GH_FIELD,   GH_READ,   WTHETA), &
-        arg_type(GH_FIELD,   GH_READ,   WTHETA), &
-        arg_type(GH_FIELD,   GH_READ,   WTHETA), &
-        arg_type(GH_FIELD,   GH_READ,   WTHETA), &
-        arg_type(GH_FIELD,   GH_READ,   WTHETA), &
-        arg_type(GH_FIELD,   GH_READ,   W3),     &
-        arg_type(GH_FIELD,   GH_READ,   W3),     &
-        arg_type(GH_FIELD,   GH_READ,   WTHETA), &
-        arg_type(GH_FIELD,   GH_READ,   W3),     &
-        arg_type(GH_FIELD,   GH_READ,   WTHETA), &
-        arg_type(GH_FIELD,   GH_READ,   WTHETA), &     ! shear
-        arg_type(GH_FIELD,   GH_READ,   WTHETA), &     ! delta
-        arg_type(GH_FIELD,   GH_READ,   WTHETA), &     ! max_diff_smag
-        arg_type(GH_FIELD,   GH_INC,  ANY_SPACE_1), &
-        arg_type(GH_FIELD,   GH_INC,  ANY_SPACE_1), &
-        arg_type(GH_FIELD,   GH_INC,  ANY_SPACE_1), &
-        arg_type(GH_FIELD,   GH_INC,  ANY_SPACE_1), &
-        arg_type(GH_FIELD,   GH_INC,  ANY_SPACE_1), &
-        arg_type(GH_FIELD,   GH_WRITE,  WTHETA), &
-        arg_type(GH_FIELD,   GH_WRITE,  WTHETA), &
-        arg_type(GH_FIELD,   GH_WRITE,  WTHETA), &
-        arg_type(GH_FIELD,   GH_READ,  WTHETA), &
-        arg_type(GH_FIELD,   GH_READ,  WTHETA), &
-        arg_type(GH_FIELD,   GH_READ,  WTHETA), &
-        arg_type(GH_FIELD,   GH_READ,  WTHETA), &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), & ! visc_m_blend
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA)  & ! visc_h_blend
+    type(arg_type) :: meta_args(46) = (/             &
+        arg_type(GH_INTEGER, GH_READ),               &! outer
+        arg_type(GH_FIELD,   GH_READ,   WTHETA),     &! theta_in_wth
+        arg_type(GH_FIELD,   GH_READ,   W3),         &! rho_in_w3
+        arg_type(GH_FIELD,   GH_READ,   W3),         &! wetrho_in_w3
+        arg_type(GH_FIELD,   GH_READ,   WTHETA),     &! wetrho_in_wth
+        arg_type(GH_FIELD,   GH_READ,   W3),         &! exner_in_w3
+        arg_type(GH_FIELD,   GH_READ,   WTHETA),     &! exner_in_wth
+        arg_type(GH_FIELD,   GH_READ,   W3),         &! u1_in_w3
+        arg_type(GH_FIELD,   GH_READ,   W3),         &! u2_in_w3
+        arg_type(GH_FIELD,   GH_READ,   WTHETA),     &! u3_in_wth
+        arg_type(GH_FIELD,   GH_READ,   WTHETA),     &! m_v_n
+        arg_type(GH_FIELD,   GH_READ,   WTHETA),     &! m_cl_n
+        arg_type(GH_FIELD,   GH_READ,   WTHETA),     &! m_ci_n
+        arg_type(GH_FIELD,   GH_READ,   WTHETA),     &! theta_star
+        arg_type(GH_FIELD,   GH_READ,   W3),         &! u1_star
+        arg_type(GH_FIELD,   GH_READ,   W3),         &! u2_star
+        arg_type(GH_FIELD,   GH_READ,   WTHETA),     &! u3_star
+        arg_type(GH_FIELD,   GH_READ,   W3),         &! height_w3
+        arg_type(GH_FIELD,   GH_READ,   WTHETA),     &! height_wth
+        arg_type(GH_FIELD,   GH_READ,   WTHETA),     &! shear
+        arg_type(GH_FIELD,   GH_READ,   WTHETA),     &! delta
+        arg_type(GH_FIELD,   GH_READ,   WTHETA),     &! max_diff_smag
+        arg_type(GH_FIELD,   GH_INC,  ANY_SPACE_1),  &! tstar_2d
+        arg_type(GH_FIELD,   GH_INC,  ANY_SPACE_1),  &! zh_2d
+        arg_type(GH_FIELD,   GH_INC,  ANY_SPACE_1),  &! z0msea_2d
+        arg_type(GH_FIELD,   GH_INC,  ANY_SPACE_1),  &! ntml_2d
+        arg_type(GH_FIELD,   GH_INC,  ANY_SPACE_1),  &! cumulus_2d
+        arg_type(GH_FIELD,   GH_WRITE,  WTHETA),     &! dtheta_bl
+        arg_type(GH_FIELD,   GH_WRITE,  WTHETA),     &! dt_bl
+        arg_type(GH_FIELD,   GH_WRITE,  WTHETA),     &! dmv_bl
+        arg_type(GH_FIELD,   GH_READ,   WTHETA),     &! dt_conv
+        arg_type(GH_FIELD,   GH_READ,   WTHETA),     &! dmv_conv
+        arg_type(GH_FIELD,   GH_READ,   WTHETA),     &! dtl_mphys
+        arg_type(GH_FIELD,   GH_READ,   WTHETA),     &! dmt_mphys
+        arg_type(GH_FIELD,   GH_READ,   WTHETA),     &! sw_heating_rate
+        arg_type(GH_FIELD,   GH_READ,   WTHETA),     &! lw_heating_rate
+        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &! m_v
+        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &! m_cl
+        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &! m_ci
+        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &! cf_area
+        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &! cf_ice
+        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &! cf_liquid
+        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &! cf_bulk
+        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &! rh_crit_wth
+        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &! visc_m_blend
+        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA)  &! visc_h_blend
         /)
     integer :: iterates_over = CELLS
   contains
@@ -134,20 +135,22 @@ contains
   !! @param[in,out] ntml_2d       Number of turbulently mixed levels
   !! @param[in,out] cumulus_2d    Cumulus flag (true/false)
   !! @param[out]    dtheta_bl     BL theta increment
-  !! @param[out]    dt_bl         BL temperature increment
-  !! @param[out]    dmv_bl        BL vapour increment
-  !! @param[in]     dt_conv       Convection temperature increment
-  !! @param[in]     dmv_conv      Convection vapour increment
-  !! @param[in]     dtl_mphys     Microphysics liquid temperature increment
-  !! @param[in]     dmt_mphys     Microphysics total water increment
-  !! @param[in,out] m_v           Vapour mixing ration after advection
-  !! @param[in,out] m_cl          Cloud liquid mixing ratio after advection
-  !! @param[in,out] m_ci          Cloud ice mixing ratio after advection
-  !! @param[in,out] cf_area       Area cloud fraction
-  !! @param[in,out] cf_ice        Ice cloud fraction
-  !! @param[in,out] cf_liq        Liquid cloud fraction
-  !! @param[in,out] cf_bulk       Bulk cloud fraction
-  !! @param[in,out] rhcrit_in_wth Critical rel humidity in pot temperature space
+  !! @param[out]    dt_bl           BL temperature increment
+  !! @param[out]    dmv_bl          BL vapour increment
+  !! @param[in]     dt_conv         Convection temperature increment
+  !! @param[in]     dmv_conv        Convection vapour increment
+  !! @param[in]     dtl_mphys       Microphysics liquid temperature increment
+  !! @param[in]     dmt_mphys       Microphysics total water increment
+  !! @param[in]     sw_heating_rate Shortwave radiation heating rate
+  !! @param[in]     lw_heating_rate Longwave radiation heating rate
+  !! @param[in,out] m_v             Vapour mixing ration after advection
+  !! @param[in,out] m_cl            Cloud liquid mixing ratio after advection
+  !! @param[in,out] m_ci            Cloud ice mixing ratio after advection
+  !! @param[in,out] cf_area         Area cloud fraction
+  !! @param[in,out] cf_ice          Ice cloud fraction
+  !! @param[in,out] cf_liq          Liquid cloud fraction
+  !! @param[in,out] cf_bulk         Bulk cloud fraction
+  !! @param[in,out] rh_crit_wth   Critical rel humidity in pot temperature space
   !! @param[in,out] visc_m_blend  Blended BL-Smag diffusion coefficient for momentum
   !! @param[in,out] visc_h_blend  Blended BL-Smag diffusion coefficient for scalars
   !! @param[in]     ndf_wth       Number of degrees of freedom per cell for potential temperature space
@@ -159,59 +162,61 @@ contains
   !! @param[in]     ndf_2d        Number of degrees of freedom per cell for 2D fields
   !! @param[in]     undf_2d       Number unique of degrees of freedom  for 2D fields
   !! @param[in]     map_2d        Dofmap for the cell at the base of the column for 2D fields
-  subroutine bl_code(nlayers,      &
-                     outer,        &
-                     theta_in_wth, &
-                     rho_in_w3,    &
-                     wetrho_in_w3, &
-                     wetrho_in_wth,&
-                     exner_in_w3,  &
-                     exner_in_wth, &
-                     u1_in_w3,     &
-                     u2_in_w3,     &
-                     u3_in_wth,    &
-                     m_v_n,        &
-                     m_cl_n,       &
-                     m_ci_n,       &
-                     theta_star,   &
-                     u1_star,      &
-                     u2_star,      &
-                     u3_star,      &
-                     height_w3,    &
-                     height_wth,   &
-                     shear,        &
-                     delta,        &
-                     max_diff_smag,&
-                     tstar_2d,     &
-                     zh_2d,        &
-                     z0msea_2d,    &
-                     ntml_2d,      &
-                     cumulus_2d,   &
-                     dtheta_bl,    &
-                     dt_bl,        &
-                     dmv_bl,       &
-                     dt_conv,      &
-                     dmv_conv,     &
-                     dtl_mphys,    &
-                     dmt_mphys,    &
-                     m_v,          &
-                     m_cl,         &
-                     m_ci,         &
-                     cf_area,      &
-                     cf_ice,       &
-                     cf_liq,       &
-                     cf_bulk,      &
-                     rhcrit_in_wth,&
-                     visc_m_blend, &
-                     visc_h_blend, &
-                     ndf_wth,      &
-                     undf_wth,     &
-                     map_wth,      &
-                     ndf_w3,       &
-                     undf_w3,      &
-                     map_w3,       &
-                     ndf_2d,       &
-                     undf_2d,      &
+  subroutine bl_code(nlayers,         &
+                     outer,           &
+                     theta_in_wth,    &
+                     rho_in_w3,       &
+                     wetrho_in_w3,    &
+                     wetrho_in_wth,   &
+                     exner_in_w3,     &
+                     exner_in_wth,    &
+                     u1_in_w3,        &
+                     u2_in_w3,        &
+                     u3_in_wth,       &
+                     m_v_n,           &
+                     m_cl_n,          &
+                     m_ci_n,          &
+                     theta_star,      &
+                     u1_star,         &
+                     u2_star,         &
+                     u3_star,         &
+                     height_w3,       &
+                     height_wth,      &
+                     shear,           &
+                     delta,           &
+                     max_diff_smag,   &
+                     tstar_2d,        &
+                     zh_2d,           &
+                     z0msea_2d,       &
+                     ntml_2d,         &
+                     cumulus_2d,      &
+                     dtheta_bl,       &
+                     dt_bl,           &
+                     dmv_bl,          &
+                     dt_conv,         &
+                     dmv_conv,        &
+                     dtl_mphys,       &
+                     dmt_mphys,       &
+                     sw_heating_rate, &
+                     lw_heating_rate, &
+                     m_v,             &
+                     m_cl,            &
+                     m_ci,            &
+                     cf_area,         &
+                     cf_ice,          &
+                     cf_liq,          &
+                     cf_bulk,         &
+                     rh_crit_wth,     &
+                     visc_m_blend,    &
+                     visc_h_blend,    &
+                     ndf_wth,         &
+                     undf_wth,        &
+                     map_wth,         &
+                     ndf_w3,          &
+                     undf_w3,         &
+                     map_w3,          &
+                     ndf_2d,          &
+                     undf_2d,         &
                      map_2d)
 
     !---------------------------------------
@@ -225,7 +230,7 @@ contains
          pdims
     use atmos_physics2_alloc_mod !everything
     use bdy_expl3_mod, only: bdy_expl3
-    use bl_option_mod, only: flux_bc_opt
+    use bl_option_mod, only: flux_bc_opt, specified_fluxes_only
     use conv_diag_6a_mod, only: conv_diag_6a
     use gen_phys_inputs_mod, only: l_mr_physics
     use jules_sea_seaice_mod, only: nice_use
@@ -257,7 +262,7 @@ contains
     real(kind=r_def), dimension(undf_wth), intent(inout):: m_v, m_cl, m_ci,    &
                                                            cf_area, cf_ice,    &
                                                            cf_liq, cf_bulk,    &
-                                                           rhcrit_in_wth,      &
+                                                           rh_crit_wth,        &
                                                            visc_h_blend,       &
                                                            visc_m_blend
     real(kind=r_def), dimension(undf_w3),  intent(in)   :: rho_in_w3,          &
@@ -279,7 +284,9 @@ contains
                                                            delta,              &
                                                            max_diff_smag,      &
                                                            dt_conv, dmv_conv,  &
-                                                           dtl_mphys, dmt_mphys
+                                                           dtl_mphys,dmt_mphys,&
+                                                           sw_heating_rate,    &
+                                                           lw_heating_rate
     real(kind=r_def), dimension(undf_2d), intent(inout) :: tstar_2d, zh_2d,    &
                                                            z0msea_2d, ntml_2d, &
                                                            cumulus_2d
@@ -299,8 +306,8 @@ contains
                l_extra_call, l_calc_at_p, l_jules_call
 
     ! profile fields from level 1 upwards
-    real(r_um), dimension(row_length,rows,nlayers) ::               &
-         p, rho_wet_rsq, rho_wet, rho_dry, z_rho, z_theta,               &
+    real(r_um), dimension(row_length,rows,nlayers) ::                    &
+         p_rho_levels, rho_wet_rsq, rho_wet, rho_dry, z_rho, z_theta,    &
          bulk_cloud_fraction, bl_w_var, rhcpt, t_latest, q_latest,       &
          qcl_latest, qcf_latest, cf_latest, cfl_latest, cff_latest, cca, &
          cca0, ccw0, area_cloud_fraction, cloud_fraction_liquid,         &
@@ -319,9 +326,9 @@ contains
          f_ngstress_v, taux, tauy
     ! profile fields from level 0 upwards
     real(r_um), dimension(row_length,rows,0:nlayers) :: &
-         p_layer_centres, w_copy, etadot_copy, R_w, p_layer_boundaries, w
+         p_theta_levels, w_copy, etadot_copy, R_w, p_rho_minus_one, w
     ! profile fields with 0 level which isn't used
-    real(r_um), dimension(row_length,rows,0:nlayers) ::                 &
+    real(r_um), dimension(row_length,rows,0:nlayers) ::                      &
          q, qcl, qcf, theta, exner_theta_levels, aerosol, dust_div1,         &
          dust_div2, dust_div3, dust_div4, dust_div5, dust_div6, so2, dms,    &
          so4_aitken, so4_accu, so4_diss, nh3, soot_new, soot_aged, soot_cld, &
@@ -406,6 +413,8 @@ contains
     n_cca_levels=nlayers
     ! surface ancils
     land_sea_mask=.false.
+    frac=0.0
+    land_index=1
     ice_fract=0.0
     ice_fract_cat_use=0.0
     ice_fract_ncat=0.0
@@ -418,8 +427,7 @@ contains
     l_extra_call=.false.
     l_jules_call=.false.
     ! surface forcing
-    if ( l_flux_bc ) then
-      flux_bc_opt=1
+    if ( flux_bc_opt == specified_fluxes_only ) then
       flux_e(:,:)=fixed_flux_e
       flux_h(:,:)=fixed_flux_h
     end if
@@ -464,11 +472,9 @@ contains
       ! dry density on rho levels
       rho_dry(1,1,k) = rho_in_w3(map_w3(1) + k-1)
       ! pressure on rho levels
-      p(1,1,k) = p_zero*(exner_in_w3(map_w3(1) + k-1))**(1.0_r_def/kappa)
-      ! pressure on rho levels, offset by 1 vertical level
-      p_layer_boundaries(1,1,k) = p_zero*(exner_in_w3(map_w3(1) + k))**(1.0_r_def/kappa)
+      p_rho_levels(1,1,k) = p_zero*(exner_in_w3(map_w3(1) + k-1))**(1.0_r_def/kappa)
       ! pressure on theta levels
-      p_layer_centres(1,1,k) = p_zero*(exner_in_wth(map_wth(1) + k))**(1.0_r_def/kappa)
+      p_theta_levels(1,1,k) = p_zero*(exner_in_wth(map_wth(1) + k))**(1.0_r_def/kappa)
       ! exner pressure on rho and theta levels
       exner_rho_levels(1,1,k) = exner_in_w3(map_w3(1) + k-1)
       exner_theta_levels(1,1,k) = exner_in_wth(map_wth(1) + k)
@@ -495,8 +501,8 @@ contains
       area_cloud_fraction(1,1,k) = cf_area(map_wth(1) + k)
       cloud_fraction_liquid(1,1,k) = cf_liq(map_wth(1) + k)
       cloud_fraction_frozen(1,1,k) = cf_ice(map_wth(1) + k)
-      ! rhcrit
-      rhcpt(1,1,k) = rhcrit_in_wth(map_wth(1) + k) 
+      ! 3D RH_crit field
+      rhcpt(1,1,k) = rh_crit_wth(map_wth(1) + k) 
     end do
 
     if ( smagorinsky ) then
@@ -509,10 +515,13 @@ contains
     end if
 
     ! surface pressure
-    p_layer_centres(1,1,0) = p_zero*(exner_in_wth(map_wth(1) + 0))**(1.0_r_def/kappa)
-    p_layer_boundaries(1,1,0) = p_layer_centres(1,1,0)
-    p_star(1,1) = p_layer_centres(1,1,0)
+    p_theta_levels(1,1,0) = p_zero*(exner_in_wth(map_wth(1) + 0))**(1.0_r_def/kappa)
+    p_star(1,1) = p_theta_levels(1,1,0)
     exner_theta_levels(1,1,0) = exner_in_wth(map_wth(1) + 0)
+    ! setup odd array which is on rho levels but without level 1
+    p_rho_minus_one(1,1,0) = p_theta_levels(1,1,0)
+    p_rho_minus_one(1,1,1:nlayers-1) = p_rho_levels(1,1,2:nlayers)
+    p_rho_minus_one(1,1,nlayers) = 0.0_r_um
     ! near surface potential temperature
     theta(1,1,0) = theta_in_wth(map_wth(1) + 0)
     ! wet density multiplied by planet radius squared on rho levs
@@ -570,11 +579,13 @@ contains
     !-----------------------------------------------------------------------
     ! Things saved from other parametrization schemes on this timestep
     !-----------------------------------------------------------------------
-    rad_hr = 0.0        ! From radiation
     do k = 1, bl_levels
       ! microphysics tendancy terms
       micro_tends(1,1,1,k) = dtl_mphys(map_wth(1)+k)/timestep
       micro_tends(1,1,2,k) = dmt_mphys(map_wth(1)+k)/timestep
+      ! radiation tendancy terms
+      rad_hr(1,1,1,k) = lw_heating_rate(map_wth(1)+k)
+      rad_hr(1,1,2,k) = sw_heating_rate(map_wth(1)+k)
     end do
 
     !-----------------------------------------------------------------------
@@ -588,7 +599,7 @@ contains
 
     !     IN model dimensions.
           , bl_levels                                                   &
-          , p, p_layer_centres(1,1,1),exner_rho_levels                  &
+          , p_rho_levels, p_theta_levels(1,1,1),exner_rho_levels        &
           , rho_wet, rho_wet_tq, z_theta, z_rho                         &
 
     !     IN Model switches
@@ -639,7 +650,7 @@ contains
     !     IN switches
          L_scrn, L_aero_classic,                                        &
     !     IN data fields.
-         p, p_layer_centres, rho_wet_rsq,rho_wet,rho_dry, u_p, v_p,     &
+         p_rho_levels, p_theta_levels, rho_wet_rsq,rho_wet,rho_dry, u_p, v_p,&
          u_px, v_px, u_0_px, v_0_px,                                    &
          land_sea_mask, q, qcl, qcf, p_star, theta, exner_theta_levels, rad_hr,&
          micro_tends, soil_layer_moisture, rho_wet_tq, z_rho, z_theta,  &
@@ -771,7 +782,7 @@ contains
     ! IN trig arrays
           , xx_cos_theta_latitude                                       &
     ! IN data fields.
-          , p_layer_centres, p_layer_boundaries, rho_wet_rsq, rho_wet_tq&
+          , p_theta_levels, p_rho_minus_one, rho_wet_rsq, rho_wet_tq    &
           , u, v, w                                                     &
           , land_sea_mask, q, qcl, qcf, p_star, theta, exner_theta_levels&
     ! IN ancillary fields and fields needed to be kept from tstep to tstep

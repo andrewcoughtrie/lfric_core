@@ -18,6 +18,7 @@ module init_physics_mod
   use fs_continuity_mod,              only : W0, W1, W2, W3, Wtheta
   use function_space_mod,             only : function_space_type
   use init_cloud_twod_fields_alg_mod, only : init_cloud_twod_fields_alg
+  use init_physics_incs_alg_mod,      only : init_physics_incs_alg
   use log_mod,                        only : log_event,         &
                                              LOG_LEVEL_INFO,         &
                                              LOG_LEVEL_ERROR
@@ -128,10 +129,10 @@ contains
     call add_physics_field(twod_fields, 'tstar',   vector_space, checkpoint_restart_flag)
     call add_physics_field(twod_fields, 'zh',      vector_space, checkpoint_restart_flag)
     call add_physics_field(twod_fields, 'z0msea',  vector_space, checkpoint_restart_flag)
-    call add_physics_field(twod_fields, 'ntml',    vector_space, checkpoint_restart_flag)
-    call add_physics_field(twod_fields, 'cumulus', vector_space, checkpoint_restart_flag)
 
     checkpoint_restart_flag = .false.
+    call add_physics_field(twod_fields, 'ntml',    vector_space, checkpoint_restart_flag)
+    call add_physics_field(twod_fields, 'cumulus', vector_space, checkpoint_restart_flag)
     call add_physics_field(twod_fields, 'cos_zenith_angle',   vector_space, checkpoint_restart_flag)
     call add_physics_field(twod_fields, 'lit_fraction',       vector_space, checkpoint_restart_flag)
     call add_physics_field(twod_fields, 'stellar_irradiance', vector_space, checkpoint_restart_flag)
@@ -144,11 +145,11 @@ contains
     vector_space=>function_space_collection%get_fs(mesh_id, 0, Wtheta)
     checkpoint_restart_flag = .true.
 
-    call add_physics_field(cloud_fields, 'area_fraction',    vector_space, checkpoint_restart_flag)
-    call add_physics_field(cloud_fields, 'ice_fraction',     vector_space, checkpoint_restart_flag)
-    call add_physics_field(cloud_fields, 'liquid_fraction',  vector_space, checkpoint_restart_flag)
-    call add_physics_field(cloud_fields, 'bulk_fraction',    vector_space, checkpoint_restart_flag)
-    call add_physics_field(cloud_fields, 'rhcrit',           vector_space, checkpoint_restart_flag)
+    call add_physics_field(cloud_fields, 'area_fraction',   vector_space, checkpoint_restart_flag)
+    call add_physics_field(cloud_fields, 'ice_fraction',    vector_space, checkpoint_restart_flag)
+    call add_physics_field(cloud_fields, 'liquid_fraction', vector_space, checkpoint_restart_flag)
+    call add_physics_field(cloud_fields, 'bulk_fraction',   vector_space, checkpoint_restart_flag)
+    call add_physics_field(cloud_fields, 'rh_crit_wth',     vector_space, checkpoint_restart_flag)
 
     ! Initialise cloud fields
     call init_cloud_twod_fields_alg( cloud_fields, twod_fields )
@@ -167,6 +168,11 @@ contains
     call add_physics_field(physics_incs, 'dmv_conv', vector_space, checkpoint_restart_flag)
     call add_physics_field(physics_incs, 'dtl_mphys', vector_space, checkpoint_restart_flag)
     call add_physics_field(physics_incs, 'dmt_mphys', vector_space, checkpoint_restart_flag)
+    call add_physics_field(physics_incs, 'sw_heating_rate', vector_space, checkpoint_restart_flag)
+    call add_physics_field(physics_incs, 'lw_heating_rate', vector_space, checkpoint_restart_flag)
+
+    ! Set the increments to 0 initially
+    call init_physics_incs_alg(physics_incs)
 
     call log_event( 'Physics initialised', LOG_LEVEL_INFO ) 
 

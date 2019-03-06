@@ -191,7 +191,7 @@ subroutine mphys_code( nlayers,                     &
     real(r_um), dimension(row_length,rows,model_levels) ::                     &
          u_on_p, v_on_p, w, q_work, qcl_work, qcf_work, deltaz, cfl_work,      &
          cff_work, cf_work, rhodz_dry, rhodz_moist, t_n, t_work,               &
-         p_layer_centres, ls_rain3d, ls_snow3d, ls_graup3d, rainfrac3d,        &
+         p_theta_levels, ls_rain3d, ls_snow3d, ls_graup3d, rainfrac3d,         &
          n_drop_pot, n_drop_3d, so4_aitken_work, so4_accu_work, so4_diss_work, &
          aged_bmass_work, cloud_bmass_work, aged_ocff_work, cloud_ocff_work,   &
          nitr_acc_work, nitr_diss_work, aerosol_work, biogenic
@@ -199,7 +199,7 @@ subroutine mphys_code( nlayers,                     &
     real(r_um), dimension(row_length,rows,model_levels, 1) :: arcl
 
     real(r_um), dimension(row_length,rows,0:model_levels) :: flash_pot,        &
-                p_layer_boundaries, rho_r2
+                p_rho_minus_one, rho_r2
 
     real(r_um), dimension(row_length,rows) :: ls_rain, ls_snow, ls_graup,      &
                                               snow_depth, land_frac, hmteff, zb
@@ -329,16 +329,12 @@ subroutine mphys_code( nlayers,                     &
           t_work(i,j,k) = t_n(i,j,k)
 
           ! pressure on theta levels
-          p_layer_centres(i,j,k)    = p_zero*(exner_in_wth(map_wth(1) + k))     &
+          p_theta_levels(i,j,k)    = p_zero*(exner_in_wth(map_wth(1) + k))     &
                                           **(1.0_r_um/kappa)
           ! Compulsory moist prognostics
           q_work(i,j,k)    = mv_wth(map_wth(1) + k)
           qcl_work(i,j,k)  = ml_wth(map_wth(1) + k)
           qcf_work(i,j,k)  = mi_wth(map_wth(1) + k)
-
-          ! Pressure on layer boundaries (note, bottom and top layers done below)
-          p_layer_boundaries(i,j,k) = p_zero*(exner_in_w3(map_w3(1) + k))       &
-                                          **(1.0_r_um/kappa)
 
         end do ! i
       end do   ! j
@@ -346,11 +342,15 @@ subroutine mphys_code( nlayers,                     &
 
     do j = 1, rows
       do i = 1, row_length
-        ! Surface pressure (and p_layer_boundaries for first level)
-        p_layer_boundaries(i,j,0) = p_zero *                                    &
+        ! Surface pressure
+        p_rho_minus_one(i,j,0) = p_zero *                                    &
                              (exner_in_wth(map_wth(1) + 0))**(1.0_r_um/kappa)
-
-        p_layer_boundaries(i,j,model_levels) = 0.0_r_um 
+        do k = 1, model_levels-1
+          ! Pressure on rho levels, without level 1
+          p_rho_minus_one(i,j,k) = p_zero*(exner_in_w3(map_w3(1) + k))       &
+                                          **(1.0_r_um/kappa)
+        end do
+        p_rho_minus_one(i,j,model_levels) = 0.0_r_um 
         ! As per atmos_physics 1 code
       end do ! i
     end do   ! j
@@ -446,36 +446,36 @@ subroutine mphys_code( nlayers,                     &
 
 
     ! CALL to ls_ppn
-    CALL ls_ppn(                                                                &
-                p_layer_boundaries, p_layer_centres(1,1,1),                     &
-                land_sea_mask, deltaz,                                          &
-                cf_work, cfl_work, cff_work,                                    &
-                rhcpt,                                                          &
-                lspice_dim1,lspice_dim2,lspice_dim3,                            &
-                rho_r2, q_work, qcf_work, qcl_work, t_work,                     &
-                qcf2_work, qrain_work, qgraup_work,                             &
-                u_on_p, v_on_p,                                                 &
-                sea_salt_film, sea_salt_jet,                                    &
-                salt_dim1, salt_dim2, salt_dim3,                                &
-                ukca_cdnc,                                                      &
-                cdnc_dim1, cdnc_dim2, cdnc_dim3,                                &
-                easyaerosol_cdnc,                                               &
-                biogenic,                                                       &
-                snow_depth, land_frac,                                          &
-                so4_aitken_work, so4_accu_work,                                 &
-                so4_diss_work, aged_bmass_work, cloud_bmass_work,               &
-                aged_ocff_work, cloud_ocff_work, nitr_acc_work,                 &
-                nitr_diss_work, aerosol_work,                                   &
-                n_arcl_species, n_arcl_compnts, i_arcl_compnts, arcl,           &
-                ls_rain, ls_snow, ls_graup,                                     &
-                ls_rain3d, ls_snow3d, ls_graup3d, rainfrac3d,                   &
-                n_drop_pot, n_drop_3d,                                          &
-                rhc_row_length, rhc_rows,                                       &
-                rhodz_dry, rhodz_moist,                                         &
-                ls_rainfrac, land_points, land_index,                           &
-                l_cosp_lsp,                                                     &
-                hmteff, zb,                                                     &
-                m_ci,                                                           &
+    CALL ls_ppn(                                                               &
+                p_rho_minus_one, p_theta_levels,                               &
+                land_sea_mask, deltaz,                                         &
+                cf_work, cfl_work, cff_work,                                   &
+                rhcpt,                                                         &
+                lspice_dim1,lspice_dim2,lspice_dim3,                           &
+                rho_r2, q_work, qcf_work, qcl_work, t_work,                    &
+                qcf2_work, qrain_work, qgraup_work,                            &
+                u_on_p, v_on_p,                                                &
+                sea_salt_film, sea_salt_jet,                                   &
+                salt_dim1, salt_dim2, salt_dim3,                               &
+                ukca_cdnc,                                                     &
+                cdnc_dim1, cdnc_dim2, cdnc_dim3,                               &
+                easyaerosol_cdnc,                                              &
+                biogenic,                                                      &
+                snow_depth, land_frac,                                         &
+                so4_aitken_work, so4_accu_work,                                &
+                so4_diss_work, aged_bmass_work, cloud_bmass_work,              &
+                aged_ocff_work, cloud_ocff_work, nitr_acc_work,                &
+                nitr_diss_work, aerosol_work,                                  &
+                n_arcl_species, n_arcl_compnts, i_arcl_compnts, arcl,          &
+                ls_rain, ls_snow, ls_graup,                                    &
+                ls_rain3d, ls_snow3d, ls_graup3d, rainfrac3d,                  &
+                n_drop_pot, n_drop_3d,                                         &
+                rhc_row_length, rhc_rows,                                      &
+                rhodz_dry, rhodz_moist,                                        &
+                ls_rainfrac, land_points, land_index,                          &
+                l_cosp_lsp,                                                    &
+                hmteff, zb,                                                    &
+                m_ci,                                                          &
                 error_code )
 
     ! CALL to mphys_turb_gen_mixed_phase would be here if l_subgrid_qcl_mp

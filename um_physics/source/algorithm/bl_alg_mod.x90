@@ -14,9 +14,7 @@ module bl_alg_mod
   use mr_indices_mod,       only: nummr, imr_v, imr_cl, imr_ci
 
   ! xios output
-  use io_config_mod,      only: write_diag, &
-                                use_xios_io
-  use diagnostics_io_mod, only: write_scalar_diagnostic
+  use io_config_mod,      only: write_diag, use_xios_io
 
   implicit none
 
@@ -50,17 +48,13 @@ contains
   !>@param[in,out] physics_incs    Group of physics increments
   !>@param[in,out] visc_m_blend    Blended BL-Smag diffusion coefficient for momentum
   !>@param[in,out] visc_h_blend    Blended BL-Smag diffusion coefficient for scalars
-  !>@param[in]     convection_done Flag on whether convection has been done
-  !>@param[in]     timestep        Model timestep number
-  subroutine bl_alg_step(dtheta_bl, mr, outer, theta, rho, mr_n, exner,           &
-                         shear, delta, max_diff_smag,                             &
-                         height_w3, height_wth,                                   & 
-                         derived_fields, cloud_fields, twod_fields, physics_incs, &
-                         visc_m_blend, visc_h_blend,                              &
-                         convection_done, timestep)
+  subroutine bl_alg_step(dtheta_bl, mr, outer, theta, rho, mr_n, exner,   &
+                         shear, delta, max_diff_smag,                     &
+                         height_w3, height_wth,                           & 
+                         derived_fields, cloud_fields, twod_fields,       &
+                         physics_incs, visc_m_blend, visc_h_blend)
 
     use bl_kernel_mod, only: bl_kernel_type
-    use physics_config_mod, only: microphysics_placement
 
     implicit none
 
@@ -73,8 +67,7 @@ contains
     type( field_collection_type ), intent(inout) :: twod_fields
     type( field_collection_type ), intent(inout) :: physics_incs
     type( field_type ), intent( inout )     :: visc_m_blend, visc_h_blend
-    integer(kind=i_def), intent(in)         :: outer, timestep
-    logical, intent(in)                     :: convection_done
+    integer(kind=i_def), intent(in)         :: outer
 
     ! Temporary fields unpacked fields from collections
     type( field_type ), pointer :: exner_in_wth  => null()
@@ -96,13 +89,15 @@ contains
     type( field_type ), pointer :: cf_ice  => null()
     type( field_type ), pointer :: cf_liq  => null()
     type( field_type ), pointer :: cf_bulk  => null()
-    type( field_type ), pointer :: rhcrit_in_wth => null()
+    type( field_type ), pointer :: rh_crit_wth => null()
     type( field_type ), pointer :: dt_bl => null()
     type( field_type ), pointer :: dmv_bl => null()
     type( field_type ), pointer :: dt_conv => null()
     type( field_type ), pointer :: dmv_conv => null()
     type( field_type ), pointer :: dtl_mphys => null()
     type( field_type ), pointer :: dmt_mphys => null()
+    type( field_type ), pointer :: sw_heating_rate => null()
+    type( field_type ), pointer :: lw_heating_rate => null()
 
     ! Unpack derived fields
     exner_in_wth => derived_fields%get_field('exner_in_wth')
@@ -128,7 +123,7 @@ contains
     cf_ice => cloud_fields%get_field('ice_fraction')
     cf_liq => cloud_fields%get_field('liquid_fraction')
     cf_bulk => cloud_fields%get_field('bulk_fraction')
-    rhcrit_in_wth => cloud_fields%get_field('rhcrit')
+    rh_crit_wth => cloud_fields%get_field('rh_crit_wth')
     
     ! Unpack the physics increments
     dt_bl => physics_incs%get_field('dt_bl')
@@ -137,39 +132,29 @@ contains
     dmv_conv => physics_incs%get_field('dmv_conv')
     dtl_mphys => physics_incs%get_field('dtl_mphys')
     dmt_mphys => physics_incs%get_field('dmt_mphys')
+    sw_heating_rate => physics_incs%get_field('sw_heating_rate')
+    lw_heating_rate => physics_incs%get_field('lw_heating_rate')
 
-    if (.not. convection_done) then
-      ! If we've not just done convection, ensure increments are 0
-      call invoke( setval_c(dt_conv, 0.0_r_def), &
-                   setval_c(dmv_conv, 0.0_r_def) )
-    end if
-
-    if (microphysics_placement == 0) then
-      ! If microphysics is not being used, ensure increments are 0
-      call invoke( setval_c(dtl_mphys, 0.0_r_def), &
-                   setval_c(dmt_mphys, 0.0_r_def) )
-    end if
-
-    call invoke(bl_kernel_type( outer, theta, rho, wetrho_in_w3,               &
-                           wetrho_in_wth, exner, exner_in_wth,                 &
-                           u1_in_w3, u2_in_w3, w_physics,                      &
-                           mr_n(imr_v), mr_n(imr_cl), mr_n(imr_ci), theta_star,&
-                           u1_in_w3_star, u2_in_w3_star, w_physics_star,       &
-                           height_w3, height_wth,                              & 
-                           shear, delta, max_diff_smag,                        &
-                           tstar_2d, zh_2d,                                    &
-                           z0msea_2d, ntml_2d, cumulus_2d, dtheta_bl,          &
-                           dt_bl, dmv_bl, dt_conv, dmv_conv,                   &
-                           dtl_mphys, dmt_mphys,                               &
-                           mr(imr_v), mr(imr_cl),mr(imr_ci), cf_area,          &
-                           cf_ice, cf_liq, cf_bulk, rhcrit_in_wth,             &
-                           visc_m_blend, visc_h_blend ))
+    call invoke(bl_kernel_type( outer, theta, rho, wetrho_in_w3,              &
+                                wetrho_in_wth, exner, exner_in_wth,           &
+                                u1_in_w3, u2_in_w3, w_physics,                &
+                                mr_n(imr_v), mr_n(imr_cl), mr_n(imr_ci),      &
+                                theta_star,                                   &
+                                u1_in_w3_star, u2_in_w3_star, w_physics_star, &
+                                height_w3, height_wth,                        & 
+                                shear, delta, max_diff_smag,                  &
+                                tstar_2d, zh_2d,                              &
+                                z0msea_2d, ntml_2d, cumulus_2d, dtheta_bl,    &
+                                dt_bl, dmv_bl, dt_conv, dmv_conv,             &
+                                dtl_mphys, dmt_mphys,                         &
+                                sw_heating_rate, lw_heating_rate,             &
+                                mr(imr_v), mr(imr_cl),mr(imr_ci), cf_area,    &
+                                cf_ice, cf_liq, cf_bulk, rh_crit_wth,         &
+                                visc_m_blend, visc_h_blend ) )
 
     if (write_diag .and. use_xios_io) then
-      call write_scalar_diagnostic("dt_bl", dt_bl, timestep, &
-                                    dt_bl%get_mesh_id(), .false. )
-      call write_scalar_diagnostic("dmv_bl", dmv_bl, timestep, &
-                                    dmv_bl%get_mesh_id(), .false. )
+      call dt_bl%write_diag('dt_bl')
+      call dmv_bl%write_diag('dmv_bl')
     end if
 
   end subroutine bl_alg_step
