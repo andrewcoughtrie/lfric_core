@@ -8,8 +8,6 @@ module sample_poly_flux_kernel_mod_test
 
   use constants_mod,                 only : i_def, r_def
   use pFUnit_Mod
-  use yaxt,                          only : xt_initialize, xt_finalize
-  use mpi_mod,                       only : store_comm, clear_comm
 
   implicit none
 
@@ -17,7 +15,7 @@ module sample_poly_flux_kernel_mod_test
   public :: test_all
 
   @TestCase
-  type, extends(MPITestCase), public :: sample_poly_flux_test_type
+  type, extends(TestCase), public :: sample_poly_flux_test_type
     private
   contains
     procedure setUp
@@ -25,24 +23,14 @@ module sample_poly_flux_kernel_mod_test
     procedure test_all
   end type sample_poly_flux_test_type
 
-  integer(i_def), parameter :: element_order = 0
-
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
 
-    use finite_element_config_mod, only : cellshape_quadrilateral
-    use mesh_mod,                  only : PLANE_BI_PERIODIC
-
     implicit none
 
     class(sample_poly_flux_test_type), intent(inout) :: this
-
-    ! Initialise YAXT
-    call xt_initialize(this%getMpiCommunicator())
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
 
   end subroutine setUp
 
@@ -53,15 +41,10 @@ contains
 
     class(sample_poly_flux_test_type), intent(inout) :: this
 
-    ! Finalise YAXT
-    call xt_finalize()
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use sample_poly_flux_kernel_mod, only : sample_poly_flux_code, &
@@ -99,7 +82,7 @@ contains
     integer(i_def), allocatable :: map_w2(:,:)
     integer(i_def), allocatable :: map_w3(:,:)
 
-    integer(i_def), allocatable :: stencil_map_w2(:,:,:)
+    integer(i_def), allocatable :: stencil_map_w3(:,:,:)
     integer(i_def)              :: stencil_size
 
     integer(i_def) :: ndf_w2, undf_w2
@@ -132,7 +115,7 @@ contains
     call get_w3_m3x3_dofmap(map_w3)
 
     ! Get cross stencil maps
-    call get_m3x3_stencil_dofmap_cross(stencil_map_w2, map_w2)
+    call get_m3x3_stencil_dofmap_cross(stencil_map_w3, map_w3)
     stencil_size=5
 
     ! Create the data
@@ -144,9 +127,9 @@ contains
     u_data(:) = 0.0_r_def
     rho_data(:) = 2.0_r_def
 
-    rho_data(stencil_map_w2(1,1,cell)) = 3.0_r_def
-    rho_data(stencil_map_w2(1,2,cell)) = 1.0_r_def
-    rho_data(stencil_map_w2(1,4,cell)) = 5.0_r_def
+    rho_data(stencil_map_w3(1,1,cell)) = 3.0_r_def
+    rho_data(stencil_map_w3(1,2,cell)) = 1.0_r_def
+    rho_data(stencil_map_w3(1,4,cell)) = 5.0_r_def
 
     ! Initialise kernel
     call sample_poly_flux_init(2, nlayers)
@@ -159,7 +142,7 @@ contains
                                 u_data,                   &
                                 rho_data,                 &
                                 stencil_size,             &
-                                stencil_map_w2(:,:,cell), &
+                                stencil_map_w3(:,:,cell), &
                                 ndf_w2,                   &
                                 undf_w2,                  &
                                 map_w2(:,cell),           &
@@ -179,7 +162,7 @@ contains
      deallocate(flux_data)
      deallocate(u_data)
      deallocate(rho_data)
-     deallocate(stencil_map_w2)
+     deallocate(stencil_map_w3)
      deallocate(map_w2)
      deallocate(map_w3)
      deallocate(basis_w2)
