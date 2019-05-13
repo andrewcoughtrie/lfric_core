@@ -9,7 +9,6 @@
 module function_space_chain_mod_test
 
 use constants_mod,           only: r_def, i_def, str_def, str_max_filename
-use extrusion_config_mod,    only: method_uniform
 use global_mesh_mod,         only: global_mesh_type
 use function_space_mod,      only: function_space_type, W0
 use mesh_mod,                only: mesh_type
@@ -84,13 +83,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine setUp( this )
 
-use base_mesh_config_mod,      only: geometry_spherical,      &
-                                     partitioner_cubedsphere
 use extrusion_mod,             only: uniform_extrusion_type
-use finite_element_config_mod, only: cellshape_quadrilateral
-use feign_config_mod,          only: feign_base_mesh_config,  &
-                                     feign_planet_config,     &
-                                     feign_extrusion_config
 
 implicit none
 
@@ -119,21 +112,6 @@ procedure (partitioner_interface), pointer :: partitioner_ptr => null()
 call xt_initialize(this%getMpiCommunicator())
 !Store the MPI communicator for later use
 call store_comm(this%getMpiCommunicator())
-
-call feign_base_mesh_config( filename='foo',                      &
-                             prime_mesh_name=mesh_name,           &
-                             geometry=geometry_spherical,         &
-                             partitioner=partitioner_cubedsphere, &
-                             fplane=.false., f_lat_deg=0.0_r_def )
-
-call feign_extrusion_config( method=method_uniform, &
-                             domain_top=domain_top, &
-                             number_of_layers=nlayers )
-
-call feign_planet_config( gravity=gravity, radius=radius, omega=omega, &
-                          rd=rd, cp=cp, p_zero=p_zero,                 &
-                          scaling_factor=scaling )
-
 
 partitioner_ptr => partitioner_cubedsphere_serial
 

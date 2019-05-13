@@ -146,7 +146,6 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
 
-    use finite_element_config_mod, only : cellshape_quadrilateral
     use mesh_mod,                  only : PLANE_BI_PERIODIC
 
     implicit none
