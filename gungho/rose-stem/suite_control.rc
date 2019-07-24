@@ -285,7 +285,7 @@
                              checkkgo=False,
                              env={"crun":4, "nrun":90,
                                   "directives":{"default":{"mpi_parts":100,
-                                                           "threads":4,
+                                                           "threads":3,
                                                            "wallclock":"02:30:00"} } },
                              plotstr="warm3dbubble.py ' + appDiagStemName + ' $NODAL_DATA_DIR 100 100 theta T000000:T000160:T000320 $PLOT_DIR 0")',
             'run_application("gungho", "schar3d_cart_8s",

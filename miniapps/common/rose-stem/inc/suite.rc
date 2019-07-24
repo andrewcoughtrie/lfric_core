@@ -581,6 +581,7 @@
             APP_NAME         = {{appName}}
             BIN_DIR          = $DESTINATION_DIRECTORY/bin
             OMP_NUM_THREADS  = 1
+            HYPERTHREADS     = 1
 
         [[[directives]]]
 {%-         for DIRECTIVE in TARGET_RUN_BATCHER_DIRECTIVES %}
@@ -775,7 +776,11 @@
             DT              = {{dt_values[i]}}
             CRUN_LENGTH     = $(echo ${crun:-1})
             OMP_NUM_THREADS = $(echo ${threads:-1})
+            HYPERTHREADS    = 1 # Hardcoded for now
             MPI_PARTS       = $(echo ${mpi_parts:-})  # We leave this empty if we want the default value from the .conf file
+{%-                 for ENV_VAR in TARGET_RUN_ENV_EXTRA %}
+            {{ENV_VAR}}
+{%-                 endfor %}
             RESTART_NTS     = $(echo ${nrun:-1})
             RESTART_NO      = $(echo $[$CYLC_TASK_CYCLE_POINT -1])
             RESTART         = $(if [ $CYLC_TASK_CYCLE_POINT == $CYLC_SUITE_INITIAL_CYCLE_POINT ] && [ $CYLC_TASK_TRY_NUMBER -eq 1 ]; then echo ""; else echo "true"; fi)
