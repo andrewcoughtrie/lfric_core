@@ -68,9 +68,6 @@ end function limit_wind_kernel_constructor
 subroutine limit_wind_code(nlayers, wind, dJ_on_w2, &
                            ndf_w2, undf_w2, map_w2)
 
-  use coordinate_jacobian_mod,       only : coordinate_jacobian
-  use analytic_density_profiles_mod, only : analytic_density
-
   implicit none
 
   !Arguments

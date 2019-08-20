@@ -9,17 +9,16 @@
 module calc_detj_at_w2_kernel_mod_test
 
     use constants_mod,                 only : i_def, r_def
-    use function_space_collection_mod, only : function_space_collection_type, &
-                                              function_space_collection
-    use mesh_collection_mod,           only : mesh_collection_type, &
-                                              mesh_collection
-    use field_mod,                     only : field_type,field_proxy_type
-    use fs_continuity_mod,             only : W0, W2
-    use function_space_mod,            only : function_space_type
     use pFUnit_Mod
-    use quadrature_xyoz_mod,               only: quadrature_xyoz_type, &
-                                                 quadrature_xyoz_proxy_type
-    use quadrature_rule_gaussian_mod,      only: quadrature_rule_gaussian_type
+
+    use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w0_m3x3_q3x3x3_size, &
+                                                    get_w2_m3x3_q3x3x3_size
+
+    use get_unit_test_m3x3_dofmap_mod,       only : get_w0_m3x3_dofmap, &
+                                                    get_w2_m3x3_dofmap
+
+    use get_unit_test_q3x3x3_basis_mod, only: get_w0_q3x3x3_diff_basis
+
     use yaxt,                          only : xt_initialize, xt_finalize
     use mpi_mod,                       only : store_comm, clear_comm
 
@@ -31,83 +30,41 @@ module calc_detj_at_w2_kernel_mod_test
   @TestCase
   type, extends(MPITestCase), public :: calc_detj_at_w2_test_type
     private
-    type( quadrature_xyoz_type )       :: qr
-    type(quadrature_xyoz_proxy_type)   :: qr_proxy
-    type(function_space_type), pointer :: w0_fs => null()
-    type(function_space_type), pointer :: w2_fs => null()
-    type(field_type)                   :: chi(3)
-    type(field_type)                   :: detj_w2
-    integer(i_def)                     :: mesh_id
-    real(r_def), allocatable           :: diff_basis_chi(:,:,:,:)
   contains
     procedure setUp
     procedure tearDown
     procedure test_all
   end type calc_detj_at_w2_test_type
 
-  integer(i_def), parameter :: element_order = 0
-
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
 
-    use finite_element_config_mod, only : cellshape_quadrilateral
-    use mesh_mod,                  only : PLANE_BI_PERIODIC
+    use feign_config_mod,          only : feign_formulation_config
 
     implicit none
 
     class(calc_detj_at_w2_test_type), intent(inout) :: this
-
-    type(field_proxy_type)    :: chi_p(3)
-    type(field_proxy_type)    :: detj_w2_p
-    type( quadrature_rule_gaussian_type ) :: quadrature_rule
-
-    integer(kind=i_def) :: nlayers, diff_dim
-    integer(kind=i_def) :: ndf_chi, ndf_w0
-    integer(kind=i_def) :: nqp_h, nqp_v
-
-    integer(kind=i_def) :: i
 
     ! Initialise YAXT
     call xt_initialize(this%getMpiCommunicator())
     ! Store the MPI communicator for later use
     call store_comm(this%getMpiCommunicator())
 
-    ! Create top level mesh collection
-    mesh_collection = mesh_collection_type()
-    ! Create top level function space collection
-    function_space_collection = function_space_collection_type()
-
-
-
-    this%qr  = quadrature_xyoz_type(3, quadrature_rule)
-
-    this%qr_proxy = this%qr%get_quadrature_proxy()
-    nqp_h=this%qr_proxy%np_xy
-    nqp_v=this%qr_proxy%np_z
-
-    ! Dummy mesh mod has 9 cells, 3 layers and is uniform in vertical
-    this%mesh_id = mesh_collection%add_unit_test_mesh( PLANE_BI_PERIODIC )
-
-    this%w0_fs => function_space_collection%get_fs( this%mesh_id, &
-                                                    element_order, &
-                                                    W0 )
-    this%w2_fs => function_space_collection%get_fs( this%mesh_id, &
-                                                    element_order, &
-                                                    W2 )
-
-    do i = 1,3
-      this%chi(i) = field_type( vector_space = this%w0_fs )
-      chi_p(i) = this%chi(i)%get_proxy()
-    end do
-
-    diff_dim = chi_p(1)%vspace%get_dim_space_diff( )
-    ndf_chi  = chi_p(1)%vspace%get_ndf()
-    allocate(this%diff_basis_chi(diff_dim,ndf_chi,nqp_h,nqp_v) )
- 
-    this%detj_w2 = field_type( vector_space = this%w2_fs )
-    detj_w2_p = this%detj_w2%get_proxy()
+    call feign_formulation_config( dlayer_on=.false.,            &
+                                   dry_static_adjust=.false.,    &
+                                   exner_from_eos=.false.,       &
+                                   hard_wired_detj=.false.,      &
+                                   hard_wired_j=.false.,         &
+                                   init_exner_bt=.false.,        &
+                                   rotating=.true.,              &
+                                   set_hydrostatic_init=.false., &
+                                   shallow=.false.,              &
+                                   transport_only=.false.,       &
+                                   use_moisture=.false.,         &
+                                   use_physics=.false.,          &
+                                   use_wavedynamics=.false. )
 
   end subroutine setUp
 
@@ -117,11 +74,6 @@ contains
     implicit none
 
     class(calc_detj_at_w2_test_type), intent(inout) :: this
-
-    deallocate( this%diff_basis_chi)
-
-    call mesh_collection%clear()
-    call function_space_collection%clear()
 
     ! Finalise YAXT
     call xt_finalize()
@@ -135,101 +87,103 @@ contains
   subroutine test_all( this )
 
     use calc_detj_at_w2_kernel_mod, only : calc_detj_at_w2_code
-    use mesh_mod,                     only : mesh_type
 
     implicit none
 
     class(calc_detj_at_w2_test_type), intent(inout) :: this
 
-    type(field_proxy_type)    :: detj_w2_p
-    type(field_proxy_type )   :: chi_p(3)
-
     real(kind=r_def), parameter :: tol = 1.0e-6_r_def
-    real(kind=r_def), parameter :: dx = 11.0_r_def, &
-                                   dy = 17.0_r_def, &
-                                   dz = 23.0_r_def
+    real(kind=r_def), parameter :: dx = 11.0_r_def
+    real(kind=r_def), parameter :: dy = 17.0_r_def
+    real(kind=r_def), parameter :: dz = 23.0_r_def
 
-    type(mesh_type), pointer    :: mesh => null()
+    ! Fields
+    real(r_def), allocatable :: detj_w2_p(:)
+    real(r_def), allocatable :: chi1(:), chi2(:), chi3(:)
 
     integer(kind=i_def) :: i, j, k, cell
 
-    integer(kind=i_def) :: nlayers
-    integer(kind=i_def) :: ndf_chi, undf_chi, ndf_w0, ndf_w2, undf_w2
+    ! Dofmaps
+    integer(i_def), allocatable :: map_w0(:,:)
+    integer(i_def), allocatable :: map_w2(:,:)
+
+    ! Basis functions
+    real(r_def),    allocatable :: diff_basis_w0(:,:,:,:)
+
+    ! Sizes
+    integer(kind=i_def) :: nlayers, ncells
+    integer(kind=i_def) :: ndf_w0, undf_w0, ndf_w2, undf_w2
     integer(kind=i_def) :: nqp_h, nqp_v
+    integer(kind=i_def) :: dim_space, dim_space_diff
 
-    integer(kind=i_def), pointer :: map_chi(:)  => null()
-    integer(kind=i_def), pointer :: map_w2(:)  => null()
+    nlayers = 3
+    call get_w0_m3x3_q3x3x3_size( ndf_w0, undf_w0, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
 
-    real(kind=r_def), pointer :: wh(:) => null(), &
-                                 wv(:) => null()
-    real(kind=r_def), pointer :: xp(:,:) => null()
-    real(kind=r_def), pointer :: zp(:)   => null()
+    call get_w0_m3x3_dofmap(map_w0)
+    call get_w2_m3x3_dofmap(map_w2)
 
-    mesh => mesh_collection%get_mesh( this%mesh_id )
+    call get_w0_q3x3x3_diff_basis(diff_basis_w0)
 
-    ! Make a coordinate field with a function space
-    do i = 1,3
-      chi_p(i) = this%chi(i)%get_proxy()
-    end do
+    allocate(detj_w2_p(undf_w2))
+
     ! Compute coordinates
+    allocate(chi1(undf_w0))
+    allocate(chi2(undf_w0))
+    allocate(chi3(undf_w0))
+
     cell = 1
     do j = 1,3
       do i = 1,3
-        map_chi => chi_p(1)%vspace%get_cell_dofmap( cell )
         do k = 0,3
-          chi_p(1)%data(map_chi(1) + k) = real(i-1,r_def)*dx
-          chi_p(2)%data(map_chi(1) + k) = real(j-1,r_def)*dy
-          chi_p(3)%data(map_chi(1) + k) = real(k,r_def)  *dz
+          chi1(map_w0(1, cell) + k) = real(i-1,r_def)*dx
+          chi2(map_w0(1, cell) + k) = real(j-1,r_def)*dy
+          chi3(map_w0(1, cell) + k) = real(k,r_def)  *dz
         end do
         cell = cell + 1
       end do
     end do
 
-    nqp_h=this%qr_proxy%np_xy
-    nqp_v=this%qr_proxy%np_z
-    xp=>this%qr_proxy%points_xy
-    zp=>this%qr_proxy%points_z
-    wh=>this%qr_proxy%weights_xy
-    wv=>this%qr_proxy%weights_z
-
-    detj_w2_p   = this%detj_w2%get_proxy()
-    ndf_w2      = detj_w2_p%vspace%get_ndf()
-    undf_w2     = detj_w2_p%vspace%get_undf()
-
-    nlayers     = chi_p(1)%vspace%get_nlayers()
-    ndf_chi     = chi_p(1)%vspace%get_ndf()
-    undf_chi    = chi_p(1)%vspace%get_undf()
-
     ! Initialise the data
-    detj_w2_p%data(:) = 0.0_r_def
-
-    call chi_p(1)%vspace%compute_diff_basis_function(              &
-         this%diff_basis_chi,ndf_chi, nqp_h, nqp_v, xp, zp )
+    detj_w2_p(:) = 0.0_r_def
 
     cell = 1
-    map_chi => chi_p(1)%vspace%get_cell_dofmap(cell)
-    map_w2 => detj_w2_p%vspace%get_cell_dofmap(cell)
 
-    call calc_detj_at_w2_code( nlayers,                          &
-                               detj_w2_p%data,                   &
-                               chi_p(1)%data,                    &
-                               chi_p(2)%data,                    &
-                               chi_p(3)%data,                    &
-                               ndf_w2,                           &
-                               undf_w2,                          &
-                               map_w2,                           &
-                               ndf_chi,                          &
-                               undf_chi,                         &
-                               map_chi,                          &
-                               this%diff_basis_chi               )
+    call calc_detj_at_w2_code( nlayers,          &
+                               detj_w2_p,        &
+                               chi1,             &
+                               chi2,             &
+                               chi3,             &
+                               ndf_w2,           &
+                               undf_w2,          &
+                               map_w2(:,cell),   &
+                               ndf_w0,           &
+                               undf_w0,          &
+                               map_w0(:,cell),   &
+                               diff_basis_w0     &
+                               )
 
     ! dx = 11, dy = 17, dz = 23, hence volume is 11*17*23 = 4301
-    @assertEqual(4301.0_r_def, detj_w2_p%data(1), tol)
-    @assertEqual(4301.0_r_def, detj_w2_p%data(2), tol)
-    @assertEqual(4301.0_r_def, detj_w2_p%data(3), tol)
-    @assertEqual(4301.0_r_def, detj_w2_p%data(4), tol)
-    @assertEqual(4301.0_r_def, detj_w2_p%data(5), tol)
-    @assertEqual(4301.0_r_def, detj_w2_p%data(6), tol)
+    @assertEqual(4301.0_r_def, detj_w2_p(1), tol)
+    @assertEqual(4301.0_r_def, detj_w2_p(2), tol)
+    @assertEqual(4301.0_r_def, detj_w2_p(3), tol)
+    @assertEqual(4301.0_r_def, detj_w2_p(4), tol)
+    @assertEqual(4301.0_r_def, detj_w2_p(5), tol)
+    @assertEqual(4301.0_r_def, detj_w2_p(6), tol)
+
+    deallocate(detj_w2_p)
+    deallocate(chi1)
+    deallocate(chi2)
+    deallocate(chi3)
+    deallocate(map_w0)
+    deallocate(map_w2)
+    deallocate(diff_basis_w0)
 
   end subroutine test_all
 

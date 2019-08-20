@@ -7,15 +7,15 @@
 module nodal_coordinates_kernel_mod_test
 
   use constants_mod,                 only : i_def, r_def
-  use function_space_collection_mod, only : function_space_collection_type, &
-                                            function_space_collection
-  use mesh_collection_mod,           only : mesh_collection_type, &
-                                            mesh_collection
-  use field_mod,                     only : field_type,      &
-                                            field_proxy_type
-  use fs_continuity_mod,             only : W0, W2
-  use yaxt,                          only : xt_initialize, xt_finalize
-  use mpi_mod,                       only : store_comm, clear_comm
+
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w0_m3x3_q3x3x3_size, &
+                                                  get_w2_m3x3_q3x3x3_size
+
+  use get_unit_test_m3x3_dofmap_mod,       only : get_w0_m3x3_dofmap, &
+                                                  get_w2_m3x3_dofmap
+
+  use get_unit_test_w2nodal_basis_mod,     only : get_w0_w2nodal_basis
+
   use pFUnit_Mod
 
   implicit none 
@@ -24,14 +24,8 @@ module nodal_coordinates_kernel_mod_test
   public :: test_all
 
   @TestCase
-  type, extends(MPITestCase), public :: nodal_coordinates_test_type
+  type, extends(TestCase), public :: nodal_coordinates_test_type
     private
-    ! Dummy field must appear before field array to prevent GNU SIGSEGV 
-    ! described in ticket 1004
-    type(field_type)         :: dummy_for_gnu
-    type(field_type)         :: x(3)
-    type(field_type)         :: chi(3)
-    real(r_def), allocatable :: basis_chi(:,:,:)
   contains
     procedure setUp
     procedure tearDown
@@ -45,47 +39,9 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
 
-    use finite_element_config_mod, only : cellshape_quadrilateral
-    use mesh_mod,                  only : PLANE_BI_PERIODIC
-
     implicit none
 
     class(nodal_coordinates_test_type), intent(inout) :: this
-
-    type(field_proxy_type)    :: x_p(3), chi_p(3)
-
-    integer(i_def) :: ndf_chi, ndf_x
-    integer(i_def) :: dim_chi
-    integer(i_def) :: mesh_id
-
-    integer(i_def) :: i
-
-    ! Initialise YAXT
-    call xt_initialize(this%getMpiCommunicator())
-    !Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
-    ! Create top level mesh collection
-    mesh_collection = mesh_collection_type()
-    ! Create top level function space collection
-    function_space_collection = function_space_collection_type()
-
-    mesh_id = mesh_collection%add_unit_test_mesh( PLANE_BI_PERIODIC )
-
-    do i = 1,3
-      this%x(i)   = field_type( vector_space = &
-             function_space_collection%get_fs( mesh_id, element_order, W2 ) )
-      this%chi(i) = field_type( vector_space = &
-             function_space_collection%get_fs( mesh_id, element_order, W0 ) )
-      x_p(i)      = this%x(i)%get_proxy()
-      chi_p(i)    = this%chi(i)%get_proxy()
-    end do
-
-    ndf_x    = x_p(1)%vspace%get_ndf( )
-    ndf_chi  = chi_p(1)%vspace%get_ndf( )
-    dim_chi  = chi_p(1)%vspace%get_dim_space( )
-
-    allocate( this%basis_chi(dim_chi, ndf_chi, ndf_x) )
 
   end subroutine setUp
 
@@ -96,114 +52,123 @@ contains
 
     class(nodal_coordinates_test_type), intent(inout) :: this
 
-    deallocate( this%basis_chi )
-
-    call function_space_collection%clear()
-    call mesh_collection%clear()
-
-    ! Finalise YAXT
-    call xt_finalize()
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use nodal_coordinates_kernel_mod, only: nodal_coordinates_code
-    use function_space_mod,           only: BASIS
 
     implicit none
 
     class(nodal_coordinates_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: dx = 6000.0_r_def, &
-                              dy = 1000.0_r_def, &
-                              dz = 2000.0_r_def
+    real(r_def), parameter :: dx = 6000.0_r_def
+    real(r_def), parameter :: dy = 1000.0_r_def
+    real(r_def), parameter :: dz = 2000.0_r_def
     real(r_def), parameter :: tol = 1.0e-6_r_def
+
+    ! Fields
+    real(r_def), allocatable :: nodal1(:), nodal2(:), nodal3(:)
+    real(r_def), allocatable :: chi1(:), chi2(:), chi3(:)
+
+    ! Dofmaps
+    integer(i_def), allocatable :: map_w0(:,:)
+    integer(i_def), allocatable :: map_w2(:,:)
+
+    ! Basis functions
+    real(r_def),    allocatable :: basis_w0(:,:,:)
 
     real(r_def) :: answer
 
-    integer :: i, j, k, cell
+    integer(kind=i_def) :: i, j, k, cell
 
-    type(field_proxy_type) :: x_p(3), chi_p(3)
+    ! Sizes
+    integer(kind=i_def) :: nlayers, ncells
+    integer(kind=i_def) :: ndf_w0, ndf_w2
+    integer(kind=i_def) :: df_w0, df_w2
+    integer(kind=i_def) :: undf_w0, undf_w2
+    integer(kind=i_def) :: dim_space, dim_space_diff
+    integer(kind=i_def) :: nqp_h, nqp_v
 
-    integer                   :: nlayers
-    integer                   :: ndf_chi, ndf_x
-    integer                   :: df_x, df_chi
-    integer                   :: undf_chi, undf_x
-    integer                   :: dim_chi
-    integer                   :: element_order
-    integer, pointer          :: map_chi(:), map_x(:) => null()
-    real(kind=r_def), pointer :: nodes_x(:,:) => null()
+    nlayers = 3
+    call get_w0_m3x3_q3x3x3_size( ndf_w0, undf_w0, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
+    call get_w0_m3x3_dofmap(map_w0)
+    call get_w2_m3x3_dofmap(map_w2)
 
-    ! Insert Psykal_lite unpacking code here
-    do i = 1,3
-      x_p(i)   = this%x(i)%get_proxy()
-      chi_p(i) = this%chi(i)%get_proxy()
-    end do
+    call get_w0_w2nodal_basis(basis_w0)
+
+    allocate(nodal1(undf_w2))
+    allocate(nodal2(undf_w2))
+    allocate(nodal3(undf_w2))
 
     ! Compute coordinates
+    allocate(chi1(undf_w0))
+    allocate(chi2(undf_w0))
+    allocate(chi3(undf_w0))
     cell = 1
     do j = 1,3
       do i = 1,3
-        map_chi => chi_p(1)%vspace%get_cell_dofmap( cell )
         do k = 0,3
-          chi_p(1)%data(map_chi(1) + k) = real(i-1)*dx
-          chi_p(2)%data(map_chi(1) + k) = real(j-1)*dy
-          chi_p(3)%data(map_chi(1) + k) = real(k)  *dz
+          chi1(map_w0(1, cell) + k) = real(i-1)*dx
+          chi2(map_w0(1, cell) + k) = real(j-1)*dy
+          chi3(map_w0(1, cell) + k) = real(k)  *dz
         end do
         cell = cell + 1
       end do
     end do
 
-    nlayers = x_p(1)%vspace%get_nlayers()
-
-    ndf_x   = x_p(1)%vspace%get_ndf( )
-    undf_x  = x_p(1)%vspace%get_undf()
-    nodes_x => x_p(1)%vspace%get_nodes()
-
-    ndf_chi  = chi_p(1)%vspace%get_ndf( )
-    undf_chi = chi_p(1)%vspace%get_undf()
-    dim_chi  = chi_p(1)%vspace%get_dim_space( )
-
-    ! Evaluate the basis function
-    do df_x = 1, ndf_x
-      do df_chi = 1, ndf_chi
-        this%basis_chi(:,df_chi,df_x) = chi_p(1)%vspace%call_function(BASIS,df_chi,nodes_x(:,df_x))
-      end do
-    end do
-
     ! Create the data
-    x_p(1)%data(:) = 0.0_r_def
-    x_p(2)%data(:) = 0.0_r_def
-    x_p(3)%data(:) = 0.0_r_def
+    nodal1(:) = 0.0_r_def
+    nodal2(:) = 0.0_r_def
+    nodal3(:) = 0.0_r_def
 
     ! Call the kernel
     cell = 3
-    map_x   => x_p(1)%vspace%get_cell_dofmap( cell )
-    map_chi => chi_p(1)%vspace%get_cell_dofmap( cell )
-    call nodal_coordinates_code(nlayers, &
-                                x_p(1)%data, &
-                                x_p(2)%data, &
-                                x_p(3)%data, &
-                                chi_p(1)%data, &
-                                chi_p(2)%data, &
-                                chi_p(3)%data, &
-                                ndf_x, undf_x, map_x, &
-                                ndf_chi, undf_chi, map_chi, &
-                                this%basis_chi &
+
+    call nodal_coordinates_code(nlayers,         &
+                                nodal1,          &
+                                nodal2,          &
+                                nodal3,          &
+                                chi1,            &
+                                chi2,            &
+                                chi3,            &
+                                ndf_w2, undf_w2, &
+                                map_w2(:,cell),  &
+                                ndf_w0, undf_w0, &
+                                map_w0(:,cell),  &
+                                basis_w0         &
                                )
 
-    !Test the answer
-    answer = chi_p(1)%data(map_chi(1))
-    @assertEqual(answer, x_p(1)%data(map_x(1)), tol)
-    answer = 0.5_r_def*(chi_p(2)%data(map_chi(1))+chi_p(2)%data(map_chi(4)))
-    @assertEqual(answer, x_p(2)%data(map_x(1)), tol)
-    answer = chi_p(3)%data(map_chi(5))
-    @assertEqual(answer, x_p(3)%data(map_x(6)), tol)
+    ! Test the answer
+    answer = chi1(map_w0(1, cell))
+    @assertEqual(answer, nodal1(map_w2(1, cell)), tol)
+
+    answer = 0.5_r_def*(chi2(map_w0(1, cell))+chi2(map_w0(4, cell)))
+    @assertEqual(answer, nodal2(map_w2(1, cell)), tol)
+
+    answer = chi3(map_w0(5, cell))
+    @assertEqual(answer, nodal3(map_w2(6, cell)), tol)
+
+    deallocate(nodal1)
+    deallocate(nodal2)
+    deallocate(nodal3)
+    deallocate(chi1)
+    deallocate(chi2)
+    deallocate(chi3)
+    deallocate(map_w0)
+    deallocate(map_w2)
+    deallocate(basis_w0)
+
+    
 
   end subroutine test_all
 

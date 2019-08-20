@@ -53,12 +53,12 @@ type(multiplicity_kernel_type) function multiplicity_kernel_constructor() result
   return
 end function multiplicity_kernel_constructor
 
-!> @brief ompute the mulitplicity of a field (number of cells each dof is shared by)
+!> @brief Compute the multiplicity of a field (number of cells each dof is shared by)
 !! @param[in] nlayers Number of layers
 !! @param[in] ndf Number of degrees of freedom per cell for the function space
 !! @param[in] undf Number unique of degrees of freedom  for the function space
 !! @param[in] map Dofmap for the cell at the base of the column for the function space
-!! @param[inout] field Input/ouput field
+!! @param[inout] field Input/output field
 
 subroutine multiplicity_code(nlayers,                        &
                              field,                          &

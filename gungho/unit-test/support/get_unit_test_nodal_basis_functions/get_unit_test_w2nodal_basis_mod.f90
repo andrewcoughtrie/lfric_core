@@ -23,6 +23,7 @@ module get_unit_test_w2nodal_basis_mod
   private
 
   public :: get_w2_w2nodal_basis,      &
+            get_w0_w2nodal_basis, &
             get_w0_w2nodal_diff_basis, &
             get_w3_w2nodal_basis
 
@@ -61,6 +62,31 @@ module get_unit_test_w2nodal_basis_mod
        -0.50_r_def,  0.00_r_def,  0.00_r_def,  0.00_r_def,  0.00_r_def, &
         0.00_r_def,  0.00_r_def,  1.00_r_def], [3,6,6] )
   end subroutine get_w2_w2nodal_basis
+
+!---------------------------------------------------------------------
+
+  subroutine get_w0_w2nodal_basis(basis_w0)
+    ! Return the basis function for a field on a w0 function space 
+    ! evaluated on w2 nodal points 
+    implicit none
+    real(r_def), allocatable, intent(out) :: basis_w0(:,:,:)
+
+    allocate(basis_w0(1,8,6))
+    basis_w0 = reshape( [ &
+       0.25_r_def,  0.00_r_def,  0.00_r_def,  0.25_r_def, &
+       0.25_r_def,  0.00_r_def,  0.00_r_def,  0.25_r_def, &
+       0.25_r_def,  0.25_r_def,  0.00_r_def,  0.00_r_def, &
+       0.25_r_def,  0.25_r_def,  0.00_r_def,  0.00_r_def, &
+       0.00_r_def,  0.25_r_def,  0.25_r_def,  0.00_r_def, &
+       0.00_r_def,  0.25_r_def,  0.25_r_def,  0.00_r_def, &
+       0.00_r_def,  0.00_r_def,  0.25_r_def,  0.25_r_def, &
+       0.00_r_def,  0.00_r_def,  0.25_r_def,  0.25_r_def, &
+       0.25_r_def,  0.25_r_def,  0.25_r_def,  0.25_r_def, &
+       0.00_r_def,  0.00_r_def,  0.00_r_def,  0.00_r_def, &
+       0.00_r_def,  0.00_r_def,  0.00_r_def,  0.00_r_def, &
+       0.25_r_def,  0.25_r_def,  0.25_r_def,  0.25_r_def], [1,8,6] )
+
+  end subroutine get_w0_w2nodal_basis
 
 !---------------------------------------------------------------------
 
