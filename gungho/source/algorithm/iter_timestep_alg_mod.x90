@@ -186,11 +186,10 @@ contains
     allocate(rhs_adv(bundle_size))
     allocate(rhs_phys(bundle_size))
     allocate(inc(bundle_size))
-    allocate(mr_n(nummr)) ! always needed otherwise subroutine calls fail
-    if (use_moisture)then
-      allocate(mr_after_slow(nummr))
-      allocate(mr_inc(nummr))
-    end if
+    ! The following allocations are needed even if use_moisture=.false.
+    allocate(mr_n(nummr)) 
+    allocate(mr_after_slow(nummr)) 
+    allocate(mr_inc(nummr))
 
     !--------------------------------------------------------------------
     ! Initialise internal state field objects
