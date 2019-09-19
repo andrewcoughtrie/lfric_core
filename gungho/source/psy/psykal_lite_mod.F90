@@ -243,11 +243,11 @@ contains
   !> will be introduced in #793  by modifying quadrature tools developed in ticket #761.
   !> Kernel requires mesh information (adjacent_face) that will be implemented
   !> in lfric:#986 + psylcone:#18
-  !> Invoke_ru_bd_kernel: Invoke the boundary part of the RHS of the momentum equation
-  subroutine invoke_ru_bd_kernel( r_u_bd, exner, theta, moist_dyn, qr )
+  !> Invoke_pressure_gradient_bd_kernel: Invoke the boundary part of the RHS of the momentum equation
+  subroutine invoke_pressure_gradient_bd_kernel( r_u_bd, exner, theta, moist_dyn, qr )
 
     use reference_element_mod,  only : reference_element_type
-    use ru_bd_kernel_mod,       only : ru_bd_code
+    use pressure_gradient_bd_kernel_mod,       only : pressure_gradient_bd_code
     use mesh_mod,               only : mesh_type ! Work around for intel_v15 failues on the Cray
     use stencil_dofmap_mod,     only : stencil_dofmap_type, STENCIL_CROSS
     use moist_dyn_mod,          only : num_moist_factors, gas_law, total_mass, water
@@ -347,32 +347,32 @@ contains
     do cell = 1, mesh%get_last_halo_cell(1)
 
 
-      call ru_bd_code( nlayers,                           &
-                       ndf_w2, undf_w2,                   &
-                       map_w2(:,cell),                    &
-                       ndf_w3, undf_w3,                   &
-                       cross_stencil_w3_map(:,:,cell),    &
-                       cross_stencil_w3_size,             &
-                       ndf_wtheta, undf_wtheta,           &
-                       map_wtheta(:,cell),                &
-                       r_u_bd_proxy%data,                 &
-                       exner_proxy%data,                  &
-                       theta_proxy%data,                  &
-                       moist_dyn_proxy(gas_law)%data,     &
-                       moist_dyn_proxy(total_mass)%data,  &
-                       moist_dyn_proxy(water)%data,       &
-                       nqp, wqp,                          &
-                       basis_w2_face,                     &
-                       basis_w3_face, basis_wtheta_face,  &
-                       adjacent_face(:,cell),             &
-                       out_face_normal )
+      call pressure_gradient_bd_code( nlayers,                           &
+                                      ndf_w2, undf_w2,                   &
+                                      map_w2(:,cell),                    &
+                                      ndf_w3, undf_w3,                   &
+                                      cross_stencil_w3_map(:,:,cell),    &
+                                      cross_stencil_w3_size,             &
+                                      ndf_wtheta, undf_wtheta,           &
+                                      map_wtheta(:,cell),                &
+                                      r_u_bd_proxy%data,                 &
+                                      exner_proxy%data,                  &
+                                      theta_proxy%data,                  &
+                                      moist_dyn_proxy(gas_law)%data,     &
+                                      moist_dyn_proxy(total_mass)%data,  &
+                                      moist_dyn_proxy(water)%data,       &
+                                      nqp, wqp,                          &
+                                      basis_w2_face,                     &
+                                      basis_w3_face, basis_wtheta_face,  &
+                                      adjacent_face(:,cell),             &
+                                      out_face_normal )
 
     end do
     call r_u_bd_proxy%set_dirty()
 
     deallocate( basis_wtheta_face, basis_w3_face, basis_w2_face )
 
-  end subroutine invoke_ru_bd_kernel
+  end subroutine invoke_pressure_gradient_bd_kernel
 
   !-------------------------------------------------------------------------------
   !> Computation of 2d quadrature on faces not currently supported PSyClone,

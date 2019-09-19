@@ -38,7 +38,7 @@ module rk_alg_timestep_mod
   use mixing_config_mod,         only: viscosity
   
   ! PsyKAl-lite kernels
-  use psykal_lite_mod,                   only: invoke_ru_bd_kernel,     &
+  use psykal_lite_mod,                   only: invoke_pressure_gradient_bd_kernel,     &
                                                invoke_tracer_viscosity, &
                                                invoke_momentum_viscosity
 
@@ -242,8 +242,9 @@ contains
                                                         state(igh_u), vorticity,     &
                                                         chi, qr) )
       end if
-      call invoke_ru_bd_kernel ( rhs_prediction(igh_u, stage), state(igh_p), state(igh_t), &
-                                 moist_dyn, qrf ) 
+      call invoke_pressure_gradient_bd_kernel( rhs_prediction(igh_u, stage),   &
+                                               state(igh_p), state(igh_t),     &
+                                               moist_dyn, qrf ) 
       call invoke( name = "Compute new rhs",                                   &
                    hydrostatic_kernel_type( rhs_prediction(igh_u,stage),       &
                                             state(igh_p), state(igh_t),        &

@@ -9,12 +9,12 @@
 !> The kernel computes the boundary integral on rhs of the momentum equation
 !> for the nonlinear equations, written in the vector invariant form.
 !>
-!> This consists of ru_bd = -cp*theta*v*normal_vector*average(pi)
+!> This consists of pressure_gradient_bd = -cp*theta*v*normal_vector*average(pi)
 !>
 !> where average(pi) needs to be considered as both exner and theta are
 !> discontinuous in the horizontal direction.
 !>
-module ru_bd_kernel_mod
+module pressure_gradient_bd_kernel_mod
 
   use argument_mod,             only : arg_type, func_type,       &
                                        mesh_data_type,            &
@@ -24,7 +24,6 @@ module ru_bd_kernel_mod
                                        GH_QUADRATURE_face,        &
                                        adjacent_face,             &
                                        reference_element_out_face_normal
-  use calc_exner_pointwise_mod, only: calc_exner_pointwise
   use constants_mod,            only : r_def, i_def
   use cross_product_mod,        only : cross_product
   use fs_continuity_mod,        only : W2, W3, Wtheta
@@ -37,7 +36,7 @@ module ru_bd_kernel_mod
   ! Public types
   !-------------------------------------------------------------------------------
   !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
-  type, public, extends(kernel_type) :: ru_bd_kernel_type
+  type, public, extends(kernel_type) :: pressure_gradient_bd_kernel_type
     private
     type(arg_type) :: meta_args(4) = (/                               &
       arg_type(GH_FIELD,   GH_INC,  W2),                              &
@@ -57,7 +56,7 @@ module ru_bd_kernel_mod
         mesh_data_type( reference_element_out_face_normal ) &
       /)
   contains
-    procedure, nopass ::ru_bd_code
+    procedure, nopass ::pressure_gradient_bd_code
   end type
 
   !-------------------------------------------------------------------------------
@@ -65,20 +64,21 @@ module ru_bd_kernel_mod
   !-------------------------------------------------------------------------------
 
   ! Overload the default structure constructor for function space
-  interface ru_bd_kernel_type
-    module procedure ru_bd_kernel_constructor
+  interface pressure_gradient_bd_kernel_type
+    module procedure pressure_gradient_bd_kernel_constructor
   end interface
 
   !-------------------------------------------------------------------------------
   ! Contained functions/subroutines
   !-------------------------------------------------------------------------------
-  public ru_bd_code
+  public pressure_gradient_bd_code
 contains
 
-  type(ru_bd_kernel_type) function ru_bd_kernel_constructor() result(self)
+  type(pressure_gradient_bd_kernel_type) &
+  function pressure_gradient_bd_kernel_constructor() result(self)
     implicit none
     return
-  end function ru_bd_kernel_constructor
+  end function pressure_gradient_bd_kernel_constructor
 
   !> @brief Compute the boundary integral terms in the pressure gradient
   !! @param[in] nlayers Number of layers
@@ -103,25 +103,25 @@ contains
   !! @param[in] w2_basis_face Basis functions evaluated at gaussian quadrature points on horizontal faces
   !! @param[in] w3_basis_face Basis functions evaluated at gaussian quadrature points on horizontal faces
   !! @param[in] wtheta_basis_face Basis functions evaluated at gaussian quadrature points on horizontal faces
-  !! @param[in] adjacent_face Vector containing information on neighbouring face index for the current cell
+  !! @param[in] opposite_face Vector containing information on neighbouring face index for the current cell
   !! @param[in] out_face_normal Vector normal to the out faces of the
   !!                            reference element.
   !!
-  subroutine ru_bd_code( nlayers,                      &
-                         ndf_w2, undf_w2,              &
-                         map_w2,                       &
-                         ndf_w3, undf_w3,              &
-                         stencil_w3_map,               &
-                         stencil_w3_size,              &
-                         ndf_wtheta, undf_wtheta,      &
-                         wtheta_map,                   &
-                         r_u_bd,                       &
-                         exner, theta, moist_dyn_gas,  &
-                         moist_dyn_tot, moist_dyn_fac, &
-                         nqp, wqp,                     &
-                         w2_basis_face, w3_basis_face, &
-                         wtheta_basis_face,            &
-                         adjacent_face, out_face_normal )
+  subroutine pressure_gradient_bd_code( nlayers,                      &
+                                        ndf_w2, undf_w2,              &
+                                        map_w2,                       &
+                                        ndf_w3, undf_w3,              &
+                                        stencil_w3_map,               &
+                                        stencil_w3_size,              &
+                                        ndf_wtheta, undf_wtheta,      &
+                                        wtheta_map,                   &
+                                        r_u_bd,                       &
+                                        exner, theta, moist_dyn_gas,  &
+                                        moist_dyn_tot, moist_dyn_fac, &
+                                        nqp, wqp,                     &
+                                        w2_basis_face, w3_basis_face, &
+                                        wtheta_basis_face,            &
+                                        opposite_face, out_face_normal )
 
     implicit none
 
@@ -141,8 +141,8 @@ contains
     real(kind=r_def), dimension(1,ndf_w3,nqp,4),     intent(in) :: w3_basis_face
     real(kind=r_def), dimension(1,ndf_wtheta,nqp,4), intent(in) :: wtheta_basis_face
 
-    integer(i_def), intent(in) :: adjacent_face(:)
-    real(r_def),    intent(in) :: out_face_normal(:,:)
+    integer(kind=i_def), intent(in) :: opposite_face(:)
+    real(kind=r_def),    intent(in) :: out_face_normal(:,:)
 
     real(kind=r_def), dimension(undf_w2), intent(inout)     :: r_u_bd
     real(kind=r_def), dimension(undf_w3), intent(in)        :: exner
@@ -159,7 +159,7 @@ contains
 
     real(kind=r_def), dimension(ndf_w3)     :: exner_e, exner_next_e
     real(kind=r_def), dimension(ndf_wtheta) :: theta_v_e
-    real(kind=r_def), dimension(ndf_w2)     :: ru_bd_e
+    real(kind=r_def), dimension(ndf_w2)     :: pressure_gradient_bd_e
 
     real(kind=r_def) :: v(3)
     real(kind=r_def) :: exner_av
@@ -168,12 +168,12 @@ contains
     do k = 0, nlayers-1
 
       do df = 1, ndf_w2
-          ru_bd_e(df) = 0.0_r_def
+          pressure_gradient_bd_e(df) = 0.0_r_def
       end do
-      do face = 1, size( adjacent_face, 1 )
+      do face = 1, size( opposite_face, 1 )
 
         ! Storing opposite face number on neighbouring cell
-        face_next = adjacent_face(face)
+        face_next = opposite_face(face)
 
         ! Computing exner in local and adjacent cell
         do df = 1, ndf_w3
@@ -204,18 +204,18 @@ contains
             v  = w2_basis_face(:,df,qp,face)
 
             bdary_term = - cp * dot_product(v, out_face_normal(:, face)) *  theta_v_at_fquad * exner_av
-            ru_bd_e(df) = ru_bd_e(df) + wqp(qp,face) * bdary_term
+            pressure_gradient_bd_e(df) = pressure_gradient_bd_e(df) + wqp(qp,face) * bdary_term
           end do
 
         end do ! qp
       end do ! faces
 
       do df = 1, ndf_w2
-        r_u_bd( map_w2(df) + k ) =  r_u_bd( map_w2(df) + k ) + ru_bd_e(df)
+        r_u_bd( map_w2(df) + k ) =  r_u_bd( map_w2(df) + k ) + pressure_gradient_bd_e(df)
       end do
 
     end do ! layers
 
-  end subroutine ru_bd_code
+  end subroutine pressure_gradient_bd_code
 
-end module ru_bd_kernel_mod
+end module pressure_gradient_bd_kernel_mod

@@ -33,6 +33,7 @@ use planet_config_mod,              only : scaled_radius, gravity, Cp, Rd, &
 use log_mod,                        only : log_event,         &
                                            log_scratch_space, &
                                            LOG_LEVEL_ERROR
+use formulation_config_mod,         only : shallow
 implicit none
 
 private
@@ -59,14 +60,31 @@ real(kind=r_def),    intent(out)          :: exner_s, rho_s, theta_s
 
 real(kind=r_def), parameter :: exner_surf     = 1.0_r_def
 real(kind=r_def), parameter :: lapse_rate     = 0.0065_r_def
-real(kind=r_def)            :: nsq_over_g, z, u_s(3), lat, lon, r, lon_surf, lat_surf, r_surf
+real(kind=r_def)            :: nsq_over_g, z, u_s(3), lat, lon, r, t, p, &
+                               lon_surf, lat_surf, r_surf
 
 if ( geometry == geometry_spherical ) then  ! SPHERICAL DOMAIN
-
-  ! Gravity wave test only for now
   call xyz2llr(x(1),x(2),x(3),lon,lat,r)
   z = r - scaled_radius
-  call generate_global_gw_fields (lat, z, exner_s, u_s, theta_s, rho_s)
+
+  select case( itest_option )
+
+    case( test_const_lapse_rate )  
+      t = (theta_surf - lapse_rate * z)
+      p = p_zero*(1.0_r_def - lapse_rate/theta_surf*z)**(gravity/(Rd*lapse_rate))
+
+      ! Convert p (pressure) to exner_s (exner pressure)
+      exner_s = (p/p_zero)**(kappa)
+   
+      ! Convert t (temperature) to theta (potential temperature)
+      theta_s = t/exner_s
+
+      rho_s = p/(Rd*t)
+
+    case default
+      ! Gravity wave test only for now
+      call generate_global_gw_fields (lat, z, exner_s, u_s, theta_s, rho_s)
+  end select
 
 else                     ! BIPERIODIC PLANE DOMAIN
 

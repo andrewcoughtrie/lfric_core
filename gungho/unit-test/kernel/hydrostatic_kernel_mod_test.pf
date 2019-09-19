@@ -114,7 +114,7 @@ contains
 
     ! Fields
     real(r_def), allocatable :: r_u(:)
-    real(r_def), allocatable :: rho(:)
+    real(r_def), allocatable :: exner(:)
     real(r_def), allocatable :: theta(:)
     real(r_def), allocatable :: phi(:)
     real(r_def), allocatable :: chi1(:), chi2(:), chi3(:)
@@ -191,7 +191,7 @@ contains
 
     ! Create the data
     allocate( r_u( undf_w2 ) )
-    allocate( rho( undf_w3 ) )
+    allocate( exner( undf_w3 ) )
     allocate( theta( undf_w0 ) )
     allocate( phi( undf_w0 ) )
     allocate( moist_dyn1( undf_w0 ) )
@@ -201,7 +201,7 @@ contains
     cell = 1
 
     r_u(:) = 0.0_r_def
-    rho(:) = 1.5_r_def
+    exner(:) = 1.5_r_def
     theta(:) = 300.0_r_def
 
     moist_dyn1(:) = 1.0_r_def
@@ -212,7 +212,7 @@ contains
 
     call hydrostatic_code( nlayers,                         &
                            r_u,                             &
-                           rho,                             &
+                           exner,                           &
                            theta,                           &
                            moist_dyn1,                      &
                            moist_dyn2,                      &
@@ -226,8 +226,6 @@ contains
                            ndf_w0, undf_w0,                 &
                            map_w0(:, cell),                 &
                            basis_w0, diff_basis_w0,         &
-                           ndf_w0, undf_w0,                 &
-                           map_w0(:, cell), diff_basis_w0,  &
                            nqp_h, nqp_v, wh, wv             &
                            )
 
@@ -237,7 +235,7 @@ contains
     @assertEqual(answer, r_u(map_w2(6, cell)+k), tol)
 
     deallocate( r_u )
-    deallocate( rho )
+    deallocate( exner )
     deallocate( theta )
     deallocate( phi )
     deallocate( chi1 )

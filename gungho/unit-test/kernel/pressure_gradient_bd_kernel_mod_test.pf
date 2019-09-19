@@ -4,9 +4,9 @@
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
 
-!> Test the ru_bd computation
+!> Test the pressure_gradient_bd computation
 !>
-module ru_bd_kernel_mod_test
+module pressure_gradient_bd_kernel_mod_test
 
   use constants_mod,                 only : i_def, r_def
 
@@ -20,16 +20,14 @@ module ru_bd_kernel_mod_test
   public :: test_all
 
   @TestCase
-  type, extends(MPITestCase), public   :: ru_bd_test_type
+  type, extends(MPITestCase), public   :: pressure_gradient_bd_test_type
     private
 
   contains
     procedure setup
     procedure tearDown
     procedure test_all
-  end type ru_bd_test_type
-
-  integer(i_def) :: element_order = 0
+  end type pressure_gradient_bd_test_type
 
   real(r_def), parameter :: gravity  = 10.0_r_def
   real(r_def), parameter :: radius   = 6000000_r_def
@@ -53,7 +51,7 @@ contains
 
     implicit none
 
-    class(ru_bd_test_type), intent(inout) :: this
+    class(pressure_gradient_bd_test_type), intent(inout) :: this
 
     ! Initialise YAXT
     call xt_initialize(this%getMpiCommunicator())
@@ -73,7 +71,7 @@ contains
 
     implicit none
 
-    class(ru_bd_test_type), intent(inout) :: this
+    class(pressure_gradient_bd_test_type), intent(inout) :: this
 
     call final_configuration()
 
@@ -88,7 +86,7 @@ contains
   @Test( npes=[1] )
   subroutine test_all( this )
 
-    use ru_bd_kernel_mod,      only : ru_bd_code
+    use pressure_gradient_bd_kernel_mod,      only : pressure_gradient_bd_code
 
     use get_unit_test_qfaces_mod, only: get_number_quadrature_points_per_face, &
                                         get_w2_qfaces_cube_h_basis,            &
@@ -109,7 +107,7 @@ contains
 
     implicit none
 
-    class(ru_bd_test_type), intent(inout) :: this
+    class(pressure_gradient_bd_test_type), intent(inout) :: this
 
     real(r_def), parameter :: tol_v    = 1.0e-6_r_def
     real(r_def), parameter :: tol_h    = 1.0e+1_r_def
@@ -211,25 +209,25 @@ contains
     cell = 1
 
     ! Call the kernel
-    call ru_bd_code( nlayers,                                 &
-                     ndf_w2, undf_w2,                         &
-                     map_w2(:,cell),                          &
-                     ndf_w3, undf_w3,                         &
-                     cross_stencil_w3_map(:,:,cell),          &
-                     cross_stencil_w3_size,                   &
-                     ndf_wtheta, undf_wtheta,                 &
-                     map_wt(:,cell),                          &
-                     r_u_bd_data,                             &
-                     exner_data,                              &
-                     theta_data,                              &
-                     moist_dyn_data(:,1),                     &
-                     moist_dyn_data(:,2),                     &
-                     moist_dyn_data(:,3),                     &
-                     nqp, wqp,                                &
-                     basis_w2_face, basis_w3_face,            &
-                     basis_wtheta_face,                       &
-                     adjacent_face(:,cell),                   &
-                     out_face_normal )
+    call pressure_gradient_bd_code( nlayers,                        &
+                                    ndf_w2, undf_w2,                &
+                                    map_w2(:,cell),                 &
+                                    ndf_w3, undf_w3,                &
+                                    cross_stencil_w3_map(:,:,cell), &
+                                    cross_stencil_w3_size,          &
+                                    ndf_wtheta, undf_wtheta,        &
+                                    map_wt(:,cell),                 &
+                                    r_u_bd_data,                    &
+                                    exner_data,                     &
+                                    theta_data,                     &
+                                    moist_dyn_data(:,1),            &
+                                    moist_dyn_data(:,2),            &
+                                    moist_dyn_data(:,3),            &
+                                    nqp, wqp,                       &
+                                    basis_w2_face, basis_w3_face,   &
+                                    basis_wtheta_face,              &
+                                    adjacent_face(:,cell),          &
+                                    out_face_normal )
 
     ! Test only on level 1
     k=1
@@ -257,4 +255,4 @@ contains
 
   end subroutine test_all
 
-end module ru_bd_kernel_mod_test
+end module pressure_gradient_bd_kernel_mod_test

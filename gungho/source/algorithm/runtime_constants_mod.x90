@@ -21,7 +21,9 @@ module runtime_constants_mod
                                                geometry_spherical, &
                                                f_lat
   use finite_element_config_mod,         only: element_order, &
-                                               nqp_exact
+                                               nqp_exact, &
+                                               coordinate_order, &
+                                               rehabilitate
   use formulation_config_mod,            only: dlayer_on, &
                                                rotating
   use transport_config_mod,              only: scheme,               &
@@ -32,7 +34,6 @@ module runtime_constants_mod
   use timestepping_config_mod,           only: dt
 
   use multigrid_config_mod,              only: multigrid_chain_nitems, l_multigrid
-  use finite_element_config_mod,         only: coordinate_order  
   
   use function_space_chain_mod,          only: multigrid_function_space_chain, &
                                                w2_multigrid_function_space_chain, &
@@ -67,7 +68,6 @@ module runtime_constants_mod
   use invert_local_operator_kernel_mod,      only: invert_local_operator_kernel_type
   use matrix_vector_kernel_mod,              only: matrix_vector_kernel_type
   use get_height_kernel_mod,                 only: get_height_kernel_type
-  use compute_geopotential_kernel_mod,       only: compute_geopotential_kernel_type
   use calc_detj_at_w2_kernel_mod,            only: calc_detj_at_w2_kernel_type
   use calc_dA_at_w2_kernel_mod,              only: calc_dA_at_w2_kernel_type
   use calc_delta_at_wtheta_kernel_mod,       only: calc_delta_at_wtheta_kernel_type
@@ -306,8 +306,13 @@ contains
     qr = quadrature_xyoz_type(nqp_exact, quadrature_rule)
     !=================== Create geopotential field ============================!
 
-    geopotential = field_type( vector_space = w0_fs )
-    call invoke( compute_geopotential_kernel_type( geopotential, chi ) )
+    geopotential = field_type( vector_space = w3_fs )
+    if ( rehabilitate ) then
+      call invoke( compute_geopotential_kernel_type( geopotential, chi ) )
+    else
+      call log_event( "Geopotential computation needs modifying for standard &
+                       W3 mapping", LOG_LEVEL_ERROR )
+    end if
     !=================== Create cell orientation field ========================!
 
     if (scheme == scheme_yz_bip_cosmic .or. &

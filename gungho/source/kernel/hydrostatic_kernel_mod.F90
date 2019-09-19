@@ -33,7 +33,7 @@ module hydrostatic_kernel_mod
                                 GH_BASIS, GH_DIFF_BASIS,   &
                                 CELLS, GH_QUADRATURE_XYoZ
   use constants_mod,     only : r_def
-  use fs_continuity_mod, only : W0, W2, W3, Wtheta
+  use fs_continuity_mod, only : W2, W3, Wtheta
   use kernel_mod,        only : kernel_type
   use planet_config_mod, only : cp
 
@@ -51,14 +51,13 @@ module hydrostatic_kernel_mod
         arg_type(GH_FIELD,   GH_INC,  W2),          &
         arg_type(GH_FIELD,   GH_READ, W3),          &
         arg_type(GH_FIELD,   GH_READ, Wtheta),      &
-        arg_type(GH_FIELD*3, GH_READ, Wtheta),     &
-        arg_type(GH_FIELD,   GH_READ, W0)           &
+        arg_type(GH_FIELD*3, GH_READ, Wtheta),      &
+        arg_type(GH_FIELD,   GH_READ, W3)           &
         /)
-    type(func_type) :: meta_funcs(4) = (/                &
+    type(func_type) :: meta_funcs(3) = (/                &
         func_type(W2,          GH_BASIS, GH_DIFF_BASIS), &
         func_type(W3,          GH_BASIS),                &
-        func_type(Wtheta,      GH_BASIS, GH_DIFF_BASIS), &
-        func_type(W0,                    GH_DIFF_BASIS)  &
+        func_type(Wtheta,      GH_BASIS, GH_DIFF_BASIS)  &
         /)
     integer :: iterates_over = CELLS
     integer :: gh_shape = GH_QUADRATURE_XYoZ
@@ -111,10 +110,6 @@ end function hydrostatic_kernel_constructor
 !! @param[in] map_wt Dofmap for the cell at the base of the column for wt
 !! @param[in] wt_basis Basis functions evaluated at gaussian quadrature points 
 !! @param[in] wt_diff_basis Differential of the basis functions evaluated at quadrature points
-!! @param[in] ndf_w0 Number of degrees of freedom per cell for w0
-!! @param[in] undf_w0 Number unique of degrees of freedom  for w0
-!! @param[in] map_w0 Dofmap for the cell at the base of the column for w0
-!! @param[in] w0_diff_basis Differential of the basis functions evaluated at quadrature points
 !! @param[in] nqp_h Number of quadrature points in the horizontal
 !! @param[in] nqp_v Number of quadrature points in the vertical
 !! @param[in] wqp_h Horizontal quadrature weights
@@ -125,26 +120,23 @@ subroutine hydrostatic_code(nlayers,                                          &
                             ndf_w2, undf_w2, map_w2, w2_basis, w2_diff_basis, &
                             ndf_w3, undf_w3, map_w3, w3_basis,                &
                             ndf_wt, undf_wt, map_wt, wt_basis, wt_diff_basis, &
-                            ndf_w0, undf_w0, map_w0, w0_diff_basis,           &
                             nqp_h, nqp_v, wqp_h, wqp_v                        &
                             )
   implicit none
                          
   ! Arguments
   integer, intent(in) :: nlayers,nqp_h, nqp_v
-  integer, intent(in) :: ndf_wt, ndf_w2, ndf_w3, ndf_w0
-  integer, intent(in) :: undf_wt, undf_w2, undf_w3, undf_w0
+  integer, intent(in) :: ndf_wt, ndf_w2, ndf_w3
+  integer, intent(in) :: undf_wt, undf_w2, undf_w3
   integer, dimension(ndf_wt), intent(in) :: map_wt
   integer, dimension(ndf_w2), intent(in) :: map_w2
   integer, dimension(ndf_w3), intent(in) :: map_w3
-  integer, dimension(ndf_w0), intent(in) :: map_w0
 
   real(kind=r_def), dimension(1,ndf_w3,nqp_h,nqp_v), intent(in) :: w3_basis  
   real(kind=r_def), dimension(3,ndf_w2,nqp_h,nqp_v), intent(in) :: w2_basis 
   real(kind=r_def), dimension(1,ndf_wt,nqp_h,nqp_v), intent(in) :: wt_basis 
   real(kind=r_def), dimension(1,ndf_w2,nqp_h,nqp_v), intent(in) :: w2_diff_basis
   real(kind=r_def), dimension(3,ndf_wt,nqp_h,nqp_v), intent(in) :: wt_diff_basis   
-  real(kind=r_def), dimension(3,ndf_w0,nqp_h,nqp_v), intent(in) :: w0_diff_basis   
 
   real(kind=r_def), dimension(undf_w2), intent(inout) :: r_u
   real(kind=r_def), dimension(undf_w3), intent(in)    :: exner
@@ -152,7 +144,7 @@ subroutine hydrostatic_code(nlayers,                                          &
   real(kind=r_def), dimension(undf_wt), intent(in)    :: moist_dyn_gas, &
                                                          moist_dyn_tot, &
                                                          moist_dyn_fac
-  real(kind=r_def), dimension(undf_w0), intent(in)    :: phi
+  real(kind=r_def), dimension(undf_w3), intent(in)    :: phi
 
   real(kind=r_def), dimension(nqp_h), intent(in)      ::  wqp_h
   real(kind=r_def), dimension(nqp_v), intent(in)      ::  wqp_v
@@ -162,54 +154,43 @@ subroutine hydrostatic_code(nlayers,                                          &
   integer               :: qp1, qp2
   
   real(kind=r_def), dimension(ndf_w3)          :: exner_e
-  real(kind=r_def), dimension(ndf_w2)          :: ru_e
   real(kind=r_def), dimension(ndf_wt)          :: theta_v_e
-  real(kind=r_def), dimension(ndf_w0)          :: phi_e
+  real(kind=r_def), dimension(ndf_w3)          :: phi_e
 
   real(kind=r_def) :: grad_theta_v_at_quad(3), v(3)
   real(kind=r_def) :: exner_at_quad, theta_v_at_quad, &
                       grad_term, dv
-  real(kind=r_def) :: grad_phi_at_quad(3)
+  real(kind=r_def) :: phi_at_quad
   real(kind=r_def) :: geo_term
   
   do k = 0, nlayers-1
     do df = 1, ndf_w3
       exner_e(df) = exner( map_w3(df) + k )
+      phi_e(df)   = phi(map_w3(df) + k)
     end do    
     do df = 1, ndf_wt
       theta_v_e(df) = theta( map_wt(df) + k ) * moist_dyn_gas( map_wt(df) + k ) / &
                                                 moist_dyn_tot( map_wt(df) + k )
     end do   
-    do df = 1, ndf_w2
-      ru_e(df) = 0.0_r_def
-    end do 
-    do df = 1, ndf_w0
-      phi_e(df)   = phi(map_w0(df) + k)
-    end do   
     ! Compute the RHS integrated over one cell    
     do qp2 = 1, nqp_v
       do qp1 = 1, nqp_h
 
-        ! Gradient of the geopotential
-        grad_phi_at_quad(:) = 0.0_r_def
-        do df = 1, ndf_w0
-          grad_phi_at_quad(:)   = grad_phi_at_quad(:) &
-                                + phi_e(df)*w0_diff_basis(:,df,qp1,qp2) 
-        end do
-
-        ! Pressure gradient
+        ! Pressure & geopotential on quadrature points
         exner_at_quad = 0.0_r_def 
+        phi_at_quad = 0.0_r_def
         do df = 1, ndf_w3
           exner_at_quad  = exner_at_quad + exner_e(df)*w3_basis(1,df,qp1,qp2) 
+          phi_at_quad    = phi_at_quad   + phi_e(df)  *w3_basis(1,df,qp1,qp2) 
         end do
+        ! Potential temperature terms on quadrature point
         theta_v_at_quad = 0.0_r_def
         grad_theta_v_at_quad(:) = 0.0_r_def
         do df = 1, ndf_wt
-          theta_v_at_quad   = theta_v_at_quad                                      &
+          theta_v_at_quad   = theta_v_at_quad                                 &
                             + theta_v_e(df)*wt_basis(1,df,qp1,qp2)
-          grad_theta_v_at_quad(:) = grad_theta_v_at_quad(:) &
+          grad_theta_v_at_quad(:) = grad_theta_v_at_quad(:)                   &
                                   + theta_v_e(df)*wt_diff_basis(:,df,qp1,qp2) 
-
         end do
 
         do df = 1, ndf_w2
@@ -217,21 +198,19 @@ subroutine hydrostatic_code(nlayers,                                          &
           dv = w2_diff_basis(1,df,qp1,qp2)
 
           ! Pressure gradient term
-          grad_term = cp*exner_at_quad * (                           & 
+          grad_term = cp*exner_at_quad * (                             & 
                       theta_v_at_quad * dv                             &
                     + dot_product( grad_theta_v_at_quad(:),v)          &
                                          )
           ! Geopotential term                                         
-          geo_term = dot_product( grad_phi_at_quad(:), v)
+          geo_term = - phi_at_quad*dv
 
-          ru_e(df) = ru_e(df) +  wqp_h(qp1)*wqp_v(qp2)*(grad_term-geo_term)
+          r_u( map_w2(df) + k ) = r_u( map_w2(df) + k ) &
+                                + wqp_h(qp1)*wqp_v(qp2)*(grad_term-geo_term)
 
         end do
       end do
     end do
-    do df = 1, ndf_w2
-      r_u( map_w2(df) + k ) =  r_u( map_w2(df) + k ) + ru_e(df)
-    end do 
   end do
   
 end subroutine hydrostatic_code
