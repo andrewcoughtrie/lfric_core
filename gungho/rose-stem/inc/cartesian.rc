@@ -46,7 +46,7 @@
                                                  plotstr="cartesian_mountain_plot.py ' + appDiagStemName + ' $NODAL_DATA_DIR u 3 T000450 2 2 schar zoom_1 lines $PLOT_DIR")',
                                  'run_application( "gungho", "warm3dbubble",resolutions=[("BiP100x100-10x10",1.25)], checkkgo=False,
                                                  env={"crun":4, "nrun":90,
-                                                      "directives":{"default":{"mpi_parts":100,"threads":4,"wallclock":"02:30:00"} } },
+                                                      "directives":{"default":{"mpi_parts":100,"threads":3,"wallclock":"02:30:00"} } },
                                                  plotstr="warm3dbubble.py ' + appDiagStemName + ' $NODAL_DATA_DIR 100 100 theta T000000:T000160:T000320 $PLOT_DIR 0")',
                                  'run_application( "gungho", "warm3dbubble_small",resolutions=[("BiP50x50-20x20",2.5)], checkkgo=False,
                                                  env={"crun":1, "nrun":160,

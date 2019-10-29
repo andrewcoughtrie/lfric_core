@@ -1,0 +1,103 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2019 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test the advective wind update computation
+module advective_wind_update_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use pFUnit_Mod
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: advective_wind_update_test_type
+    private
+  contains
+    procedure test_all
+  end type advective_wind_update_test_type
+
+contains
+
+  @test
+  subroutine test_all( this )
+
+    use advective_wind_update_kernel_mod, only : advective_wind_update_code
+
+    implicit none
+
+    class(advective_wind_update_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: tol = 1.0e-9_r_def
+    real(kind=r_def)            :: answer
+
+    ! Mesh
+    integer(kind=i_def), parameter :: nlayers = 2
+
+    ! Scalar Space
+    integer(kind=i_def), parameter          :: ndf_ws = 1_i_def
+    integer(kind=i_def), parameter          :: undf_ws = ndf_ws*nlayers
+    integer(kind=i_def), dimension(ndf_ws)  :: map_ws
+    real(kind=r_def),    dimension(undf_ws) :: advective_update
+    ! Vector Space
+    integer(kind=i_def), parameter          :: ndf_wv  = 6_i_def
+    integer(kind=i_def), parameter          :: undf_wv = ndf_wv*nlayers + nlayers + 1
+    integer(kind=i_def), dimension(ndf_wv)  :: map_wv
+    real(kind=r_def),    dimension(undf_wv) :: wind, wind_recon
+    ! Basis function arrays 
+    real(kind=r_def),    dimension(3,ndf_wv,ndf_ws) :: basis_wv
+
+    integer(kind=r_def) :: k, df, d
+
+    map_ws = (/ 1 /)
+    map_wv(1) = 1
+    do df = 2,5
+      map_wv(df) = map_wv(df-1) + nlayers
+    end do
+    map_wv(6) = map_wv(5) + 1
+    
+    basis_wv(:,:,:) =  0.0_r_def    
+    basis_wv(1,1,:) =  0.5_r_def
+    basis_wv(2,2,:) = -0.5_r_def
+    basis_wv(1,3,:) =  0.5_r_def
+    basis_wv(2,4,:) = -0.5_r_def
+    basis_wv(3,5,:) =  0.5_r_def
+    basis_wv(3,6,:) =  0.5_r_def
+   
+    ! Set some values for the initial field
+    do k = 0,nlayers - 1
+      wind(map_wv(1)+k) = 0.25_r_def + real(k,r_def) 
+      wind(map_wv(3)+k) = 0.75_r_def + real(k,r_def) 
+      wind(map_wv(2)+k) = -1.25_r_def - real(k,r_def) 
+      wind(map_wv(4)+k) =  1.25_r_def + real(k,r_def) 
+      wind(map_wv(5)+k) = 0.0_r_def
+      wind(map_wv(6)+k) = 0.0_r_def
+      wind_recon(map_wv(1)+k) =-19.0_r_def - 3.52_r_def*real(df,r_def)  
+      wind_recon(map_wv(2)+k) =-23.0_r_def + 1.46_r_def*real(df,r_def)  
+      wind_recon(map_wv(3)+k) = 19.0_r_def + 3.52_r_def*real(df,r_def)  
+      wind_recon(map_wv(4)+k) = 35.0_r_def - 7.65_r_def*real(df,r_def)  
+      wind_recon(map_wv(5)+k) = 21.0_r_def + 3.52_r_def*real(df,r_def)  
+      wind_recon(map_wv(6)+k) =-64.1_r_def - 0.46_r_def*real(df,r_def)  
+    end do
+    advective_update = 0.0_r_def
+    
+    call advective_wind_update_code(nlayers,                 &
+                                    advective_update,        &
+                                    wind_recon,              &
+                                    wind,                    &
+                                    ndf_ws, undf_ws, map_ws, &
+                                    ndf_wv, undf_wv, map_wv, &
+                                    basis_wv                 &
+                                    )
+    do k = 0,nlayers-1 
+      answer = 2.0_r_def*(0.5_r_def + real(k,r_def))*wind_recon(map_wv(3)+k)
+      @assertEqual(answer, advective_update(map_ws(1)+k), tol)
+    end do
+
+  end subroutine test_all
+
+end module advective_wind_update_kernel_mod_test

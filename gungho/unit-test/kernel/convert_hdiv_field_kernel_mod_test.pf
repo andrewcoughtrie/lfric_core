@@ -57,7 +57,9 @@ contains
                                    exner_from_eos       = .false.,         &
                                    set_hydrostatic_init = .false.,         &
                                    init_exner_bt        = .true.,          &
-                                   dlayer_on            = .false. )
+                                   dlayer_on            = .false.,         &
+                                   si_momentum_equation = .true.,          &
+                                   vector_invariant     = .true.  )
 
   end subroutine setUp
 

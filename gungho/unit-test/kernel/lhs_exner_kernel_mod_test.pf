@@ -85,7 +85,9 @@ contains
                                    transport_only=.false.,       &
                                    use_moisture=.false.,         &
                                    use_physics=.false.,          &
-                                   use_wavedynamics=.false. )
+                                   use_wavedynamics=.false.,     &
+                                   si_momentum_equation = .true.,&
+                                   vector_invariant     = .false. )
 
     call feign_planet_config( gravity=gravity, radius=radius, omega=omega, &
                               rd=rd, cp=cp, p_zero=p_zero,                 &

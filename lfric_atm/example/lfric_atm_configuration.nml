@@ -18,7 +18,6 @@
     coordinate_order = 1,
     element_order    = 0,
     rehabilitate     = .true.,
-    supg             = .false.,
     vorticity_in_w1  = .true.,
 /
 
@@ -33,6 +32,8 @@
     use_moisture         = .true.,
     use_physics          = .true.,
     use_wavedynamics     = .false.,
+    si_momentum_equation = .true.
+    vector_invariant     = .true.
 /
 
 &idealised

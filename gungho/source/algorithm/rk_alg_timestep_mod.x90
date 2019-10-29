@@ -224,8 +224,8 @@ contains
       write( log_scratch_space, '(A,I0)' ) '  Start of stage ', stage
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
       ! Compute advection terms
-      call advection_alg( rhs_prediction(:,stage),                             &
-                          state_n, state(igh_u), state(igh_u), state(igh_u))
+      call advection_alg( rhs_prediction(:,stage),                           &
+                          state_n, state(igh_u), state(igh_u), state(igh_u) )
       ! Compute new rhs
       if ( rotating ) then
         coriolis => get_coriolis()

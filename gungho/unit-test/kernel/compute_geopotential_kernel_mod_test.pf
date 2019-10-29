@@ -81,7 +81,9 @@ contains
                                   exner_from_eos=.false.,                  &
                                   dlayer_on = .true.,                      &
                                   set_hydrostatic_init = .false.,          &
-                                  init_exner_bt        = .true.  )
+                                  init_exner_bt        = .true.,           &
+                                  si_momentum_equation = .true.,           &
+                                  vector_invariant=.true.  )
     allocate( this%map(ndf), &
               this%x(undf),  &
               this%y(undf),  &

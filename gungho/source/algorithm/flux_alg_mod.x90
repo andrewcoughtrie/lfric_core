@@ -1,0 +1,275 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2019 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Compute the flux F of a vartiable rho by a wind U: F = rho*U
+module flux_alg_mod
+
+  use constants_mod,                  only: r_def, i_def
+  use enforce_bc_kernel_mod,          only: enforce_bc_kernel_type
+  use runtime_constants_mod,          only: get_coordinates,          &
+                                            get_mass_matrix,          &
+                                            get_mass_matrix_diagonal, &
+                                            w2_id, w3inv_id, w3_id
+  use field_mod,                      only: field_type
+  use finite_element_config_mod,      only: element_order, &
+                                            nqp_exact
+  use function_space_mod,             only: function_space_type
+  use operator_mod,                   only: operator_type
+  use psykal_lite_mol_mod,            only: psykal_lite_mol_flux_init,      &
+                                            psykal_lite_mol_flux_final,     &
+                                            invoke_poly1d_flux,             &
+                                            invoke_poly1d_flux_coeffs,      &
+                                            invoke_poly1d_vert_flux,        &
+                                            invoke_poly1d_vert_flux_coeffs, &
+                                            invoke_poly2d_flux,             &
+                                            invoke_poly2d_flux_coeffs
+  use quadrature_rule_gaussian_mod,   only: quadrature_rule_gaussian_type
+  use quadrature_xyoz_mod,            only: quadrature_xyoz_type
+  use quadrature_face_mod,            only: quadrature_face_type
+  use flux_rhs_kernel_mod,            only: flux_rhs_kernel_type
+  use mass_matrix_solver_alg_mod,     only: mass_matrix_solver_alg
+  use transport_config_mod,           only: operators,            &
+                                            fv_flux_order,        &
+                                            operators_fv,         &
+                                            operators_fem,        &
+                                            oned_reconstruction
+  use log_mod,                        only: log_event,         &
+                                            LOG_LEVEL_ERROR,   &
+                                            LOG_LEVEL_INFO
+  use io_config_mod,                  only: subroutine_timers
+  use timer_mod,                      only: timer
+
+  implicit none
+
+  private
+
+  integer(i_def)                  :: flux_stencil_extent, &
+                                     flux2d_stencil_size
+  ! Interpolation coefficients needed for nonuniform fv operators
+  type( field_type ), allocatable :: flux_coeffs(:,:), &
+                                     vert_flux_coeffs(:,:)
+  integer(i_def)                  :: nfaces_h, nfaces_v
+
+  public  :: flux_alg
+  public  :: flux_alg_init
+  public  :: flux_alg_final
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Initialises the system for running computing the flux
+  !>
+  !> @details Initializes system required for FV flux computation. 
+  !>          FV aspects currently only support lowest order elements.
+  !>
+  !> @param[in] mesh_id Identity of the mesh to create all fields on
+  !>
+  subroutine flux_alg_init( mesh_id )
+
+    use fs_continuity_mod,                 only: W3
+    use function_space_collection_mod,     only: function_space_collection
+    use reference_element_mod,             only: reference_element_type
+    use mesh_mod,                          only: mesh_type
+    implicit none
+
+    integer(i_def),  intent(in) :: mesh_id
+
+    integer(i_def)              :: flux_stencil_size,  &
+                                   direction, polynomial
+    type( field_type ), pointer :: chi(:) => null()
+    type( field_type ), pointer :: md_w3 => null()
+
+    type( quadrature_rule_gaussian_type )      :: gaussian_quadrature
+
+    type( quadrature_xyoz_type )           :: qr
+    type( quadrature_face_type )           :: qrf
+    type( function_space_type ), pointer   :: w3_fs => null()
+    type( field_type )                     :: w3_field
+    class(reference_element_type), pointer :: reference_element => null()
+    type(mesh_type),               pointer :: mesh => null()
+    integer(i_def)                         :: face_quad_order
+    integer(i_def)                         :: nqp_xy, nqp_z, nqp_xyz
+
+    if ( operators == operators_fv ) then
+      ! This setup is only needed for FV methods
+      if ( element_order == 0 ) then
+        ! Compute stencil extents
+        flux_stencil_extent = int(real(fv_flux_order+1)/2.0,i_def)
+        !======================================================================!
+        ! Compute stencil for nonuniform polynomial fit   
+        ! Initialise PSy layer arrays (this will not be needed when
+        ! multi-dimensional field arrays are supported)
+        ! This needs some temporary fields for computing undf in the PSy layer
+        w3_fs => function_space_collection%get_fs( mesh_id, element_order, W3 )
+        call w3_field%initialise( vector_space = w3_fs )
+
+        ! Get topology information from the reference element
+        mesh              => w3_field%get_mesh()
+        reference_element => mesh%get_reference_element()
+        ! Number of horizontal neighbours
+        nfaces_h = reference_element%get_number_horizontal_faces()
+        ! Number of vertical neighbours is (and always will be) 2 
+        nfaces_v = reference_element%get_number_vertical_faces()
+
+        if ( oned_reconstruction ) then
+          flux_stencil_size = fv_flux_order + 1
+        else
+          ! Compute the maximum number of cells in the flux stencil 
+          ! This occurs on a uniform mesh
+          ! (this computation is only correct for quadrilateral meshes)
+          flux2d_stencil_size = 1    
+          do polynomial = 1, fv_flux_order
+            if ( mod(polynomial, 2) == 0 ) then
+              flux2d_stencil_size = flux2d_stencil_size + nfaces_h
+            else
+              flux2d_stencil_size = flux2d_stencil_size + nfaces_h*polynomial
+            end if
+          end do
+          flux_stencil_size = flux2d_stencil_size  
+        end if
+        call psykal_lite_mol_flux_init(w3_field, &
+                                       fv_flux_order, flux_stencil_size, &
+                                       nfaces_h, nfaces_v)
+
+        chi => get_coordinates()
+        nqp_xyz = fv_flux_order+1
+        qr = quadrature_xyoz_type(nqp_xyz, gaussian_quadrature)
+        if ( oned_reconstruction ) then
+          face_quad_order = 1
+        else
+          face_quad_order = fv_flux_order+1
+        end if
+        ! Quadrature rule on lateral faces with 1 point in the vertical
+        nqp_xy = face_quad_order
+        nqp_z  = 1
+        qrf = quadrature_face_type(nqp_xy, nqp_z, .true., .false., &
+                                   reference_element, gaussian_quadrature)
+
+        call log_event( "Gungho: computing horizontal flux coeffs", LOG_LEVEL_INFO )
+        md_w3 => get_mass_matrix_diagonal(w3_id)
+        allocate( flux_coeffs(flux_stencil_size, nfaces_h) )
+        do direction = 1, nfaces_h
+          do polynomial = 1,flux_stencil_size
+              call flux_coeffs(polynomial, direction)%initialise( vector_space = w3_fs )
+          end do
+        end do
+        if ( oned_reconstruction ) then
+          call invoke_poly1d_flux_coeffs( flux_coeffs, md_w3, chi, qr, qrf, &
+                                          fv_flux_order,                    &
+                                          flux_stencil_extent, nfaces_h )
+        else
+          call invoke_poly2d_flux_coeffs( flux_coeffs, md_w3, chi, qr, qrf, &
+                                          fv_flux_order,                    &
+                                          flux2d_stencil_size, nfaces_h )
+        end if
+        call log_event( "Gungho: computing vertical flux coeffs", LOG_LEVEL_INFO )
+        ! Vertical flux coeffs
+        allocate( vert_flux_coeffs(fv_flux_order+1, nfaces_v) )
+        do direction = 1, nfaces_v
+          do polynomial = 1,fv_flux_order+1
+            call vert_flux_coeffs(polynomial, direction)%initialise( vector_space = w3_fs )
+          end do
+        end do
+        ! Quadrature rule on vertical faces with 1 point in both horizontal and
+        ! vertical directions
+        nqp_xyz = 1
+        qrf = quadrature_face_type(nqp_xyz, .false., .true.,                   &
+                                   reference_element, gaussian_quadrature)
+        call invoke_poly1d_vert_flux_coeffs( vert_flux_coeffs, md_w3, chi,     &
+                                             qr, qrf, fv_flux_order, nfaces_v )
+
+        !======================================================================!
+      else
+        call log_event( "Gungho: subgrid mappings needed for FV MoL with high &
+                         order elements", LOG_LEVEL_ERROR )
+      end if
+    end if
+
+    nullify( chi, md_w3, w3_fs, reference_element, mesh )
+
+  end subroutine flux_alg_init
+
+  !=============================================================================
+  !> @details Finalises allocatable arrays and calls finalising routines for 
+  !>          kernels that this algorithm initialised.
+  subroutine flux_alg_final()
+
+    implicit none
+
+    if ( operators == operators_fv .and. &
+         element_order == 0 ) then
+      deallocate( flux_coeffs, vert_flux_coeffs )
+      ! Deallocate PSy layer arrays (this will not be needed when
+      ! multi-dimensional field arrays are supported)
+      call psykal_lite_mol_flux_final()
+    end if
+
+  end subroutine flux_alg_final
+
+  !=============================================================================!
+  !> @brief Compute the mass flux, f = rho*u using desired spatial reconstruction.
+  !>        Options for this are either FE or FV reconstructions.
+  !> @param[in,out] mass_flux Mass flux field: f = density*wind
+  !> @param[in]     density Field to advect
+  !> @param[in]     wind Advecting wind field
+  subroutine flux_alg(mass_flux, density, wind)
+
+  implicit none
+  
+  type(field_type), intent(in)    :: density, wind
+  type(field_type), intent(inout) :: mass_flux
+
+  type(field_type),    pointer :: chi(:) => null()
+  type(operator_type), pointer :: mm_w2 => null()
+  type(field_type),    pointer :: mmd_w2 => null()
+
+  type(quadrature_xyoz_type)          :: qr
+  type(quadrature_rule_gaussian_type) :: quadrature_rule
+  type(field_type)                    :: rhs_f 
+
+  type(function_space_type), pointer  :: u_fs  => null()
+
+  select case(operators)
+
+    case default
+      call log_event( "Gungho: Unrecognized option for operator.", LOG_LEVEL_ERROR )
+
+    case(operators_fv)
+     if ( oned_reconstruction ) then
+       ! Use 1d flux reconstruction
+       call invoke_poly1d_flux( mass_flux, wind, density, flux_coeffs, &
+                                fv_flux_order, flux_stencil_extent, nfaces_h )
+     else
+       ! Use 2d flux reconstruction
+       call invoke_poly2d_flux( mass_flux, wind, density, flux_coeffs, &
+                                fv_flux_order, flux2d_stencil_size, nfaces_h )
+     end if
+     ! Compute vertical components of mass flux
+     call invoke_poly1d_vert_flux( mass_flux, wind, density, &
+                                   vert_flux_coeffs, &
+                                   fv_flux_order, nfaces_v)
+
+    case(operators_fem)  
+      ! Project density*wind into the mass flux space 
+      qr = quadrature_xyoz_type(nqp_exact, quadrature_rule)
+
+      mm_w2  => get_mass_matrix(w2_id)
+      mmd_w2 => get_mass_matrix_diagonal(w2_id)
+      chi    => get_coordinates()
+      u_fs   => wind%get_function_space()
+      call rhs_f%initialise( vector_space = u_fs )
+      call invoke( name = "Transport operators fem",                    &
+                   setval_c(rhs_f, 0.0_r_def),                          &
+                   flux_rhs_kernel_type(rhs_f, wind, density, chi, qr), &
+                   enforce_bc_kernel_type(rhs_f),                       &
+                   setval_c(mass_flux, 0.0_r_def) )
+      call mass_matrix_solver_alg( mass_flux, rhs_f)
+      nullify( mm_w2, chi, mmd_w2, u_fs )
+  end select
+
+  end subroutine flux_alg
+
+end module flux_alg_mod

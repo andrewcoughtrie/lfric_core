@@ -80,7 +80,9 @@ contains
                                    transport_only=.false.,       &
                                    use_moisture=.false.,         &
                                    use_physics=.false.,          &
-                                   use_wavedynamics=.false. )
+                                   use_wavedynamics=.false.,     &
+                                   si_momentum_equation=.true.,  &
+                                   vector_invariant=.true. )
 
   end subroutine setUp
 

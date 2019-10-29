@@ -16,7 +16,7 @@ module rk_transport_mod
                                                LOG_LEVEL_TRACE
   use fs_continuity_mod,                 only: W1
   ! Configuration options
-  use finite_element_config_mod,         only: element_order, supg
+  use finite_element_config_mod,         only: element_order
   use timestepping_config_mod,           only: dt
   use runge_kutta_init_mod,              only: num_rk_stage, ak
   use runtime_constants_mod,             only: get_mass_matrix,                &
@@ -36,8 +36,10 @@ module rk_transport_mod
                                                consistent_metric
 
   ! PsyKAl-lite kernels
-  use psykal_lite_mol_mod,               only: psykal_lite_mol_init,           &
-                                               psykal_lite_mol_final,          &
+  use psykal_lite_mol_mod,               only: psykal_lite_mol_flux_init,      &
+                                               psykal_lite_mol_flux_final,     &
+                                               psykal_lite_mol_adv_init,       &
+                                               psykal_lite_mol_adv_final,      &
                                                invoke_poly1d_flux,             &
                                                invoke_poly1d_flux_coeffs,      &
                                                invoke_poly1d_vert_flux,        &
@@ -56,7 +58,6 @@ module rk_transport_mod
   use flux_rhs_kernel_mod,               only: flux_rhs_kernel_type
   use enforce_bc_kernel_mod,             only: enforce_bc_kernel_type
   use rtheta_kernel_mod,                 only: rtheta_kernel_type
-  use rtheta_supg_kernel_mod,            only: rtheta_supg_kernel_type
   use poly_advective_kernel_mod,         only: poly_advective_kernel_type
   use consistent_wind_kernel_mod,        only: consistent_wind_kernel_type
 
@@ -209,11 +210,14 @@ contains
       ! Initialise PSy layer arrays (this will not be needed when
       ! multi-dimensional field arrays are supported)
       if ( oned_reconstruction ) then
-        call psykal_lite_mol_init(theta, rho,                         &
-                                  fv_flux_order, fv_flux_order+1,     &
-                                  fv_advective_order,                 &
-                                  fv_advective_order+1,               &
-                                  nfaces_h, nfaces_v)
+        call psykal_lite_mol_flux_init(rho,                 &
+                                       fv_flux_order,       &
+                                       fv_flux_order+1,     &
+                                       nfaces_h, nfaces_v)
+        call psykal_lite_mol_adv_init(theta,                &
+                                      fv_advective_order,   &
+                                      fv_advective_order+1, &
+                                      nfaces_h, nfaces_v)
       else 
         flux2d_stencil_size = 1    
         do polynomial = 1, fv_flux_order
@@ -231,10 +235,14 @@ contains
             advective2d_stencil_size = advective2d_stencil_size + nfaces_h*polynomial
           end if
         end do
-        call psykal_lite_mol_init(theta, rho, &
-                                  fv_flux_order, flux2d_stencil_size, &
-                                  fv_advective_order, advective2d_stencil_size, &
-                                  nfaces_h, nfaces_v)
+        call psykal_lite_mol_flux_init(rho,                     &
+                                       fv_flux_order,           &
+                                       flux2d_stencil_size,     &
+                                       nfaces_h, nfaces_v)
+        call psykal_lite_mol_adv_init(theta,                    &
+                                      fv_advective_order,       &
+                                      advective2d_stencil_size, &
+                                      nfaces_h, nfaces_v)
       end if
    
       chi => get_coordinates()
@@ -470,9 +478,6 @@ contains
 
           ! Theta advection
           call invoke( rtheta_kernel_type( rt_prediction(stage), theta, u, qr) )
-          if ( supg ) &
-            call invoke( rtheta_supg_kernel_type(rt_prediction(stage),     &
-                                theta, theta_n, u, ones, chi, qr) )
         case default
           call log_event( "Gungho: Invalid advection method", LOG_LEVEL_ERROR )
       end select
@@ -581,7 +586,8 @@ contains
 
     ! Deallocate PSy layer arrays (this will not be needed when
     ! multi-dimensional field arrays are supported)
-    call psykal_lite_mol_final()
+    call psykal_lite_mol_flux_final()
+    call psykal_lite_mol_adv_final()
 
     if ( subroutine_timers ) call timer('rk_transport_alg')
 

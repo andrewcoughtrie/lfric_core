@@ -61,7 +61,6 @@ contains
              coordinate_order=0,                &
              element_order=1,                   &
              rehabilitate=.true.,               &
-             supg=.false.,                      &
              vorticity_in_w1=.false.)
 
   end subroutine setUp

@@ -1,178 +1,222 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##############################################################################
-# (C) Crown copyright 2017 Met Office. All rights reserved.
-# For further details please refer to the file LICENCE which you should have
-# received as part of this distribution.
+# (c) Crown copyright 2019 Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
 ##############################################################################
+# Need to set a non-interactive backend for suites
 '''
-Python script to plot xz slices along the y=0 and xy slices on a specified
-level
-
-This version takes nodal format output files and
-interpolates onto a regular grid.
-
-Filename hardcoded.
-
-Levels are determined from the data
-
-This version stitches together a directory of files
-and extracts all levels so it can work in the serial
-case where there is one file or the parallel case where
-there is a file for each processor.
-
+Plots horizontal slices and vertical cross sections specified at particular
+longitude and latitude values.
 '''
-
 from __future__ import absolute_import
 from __future__ import print_function
-import numpy as np
-# Need to set a non-interactive backend for suites
 import matplotlib
-matplotlib.use('Agg')
+# Need to set a non-interactive backend for suites
+matplotlib.use('Agg')  # noqa: E402
+from six.moves import range
+import sys
+import iris
 
+import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm
 
 from scipy.interpolate import griddata
-
-import sys
+from read_data import read_ugrid_data
 # Use magma colormap
 from magma import magma_data
 from matplotlib.colors import ListedColormap
+
+
 magma = ListedColormap(magma_data, name='magma')
 plt.register_cmap(name='magma', cmap=magma)
 
-from read_data import read_nodal_data
+# Size of regular grid
+ny, nx = 360, 720
 
-levels = None
-data = None
+plot_lon = 360
+plot_lat = 280
 
 
-def make_figure(plotpath, field, component, timestep, levels, plotlevel):
+def make_figures(filein, plotpath, fields, vertical_spacing):
 
-    val_col = 'c' + str(component)
+    # Compute the vertical grid
+    lid = 30.
+    n_full = 31
 
-    # get min and max of x,y data for plot axes
+    if vertical_spacing == 'um':
+        # UM L38 set
+        zi_f = np.array([
+            .0, .0005095,  .0020380,  .0045854,  .0081519,  .0127373,
+            .0183417,  .0249651,  .0326074,  .0412688,  .0509491,
+            .0616485,  .0733668,  .0861040,  .0998603,  .1146356,
+            .1304298,  .1472430,  .1650752,  .1839264,  .2037966,
+            .2246857,  .2465938,  .2695209,  .2934670,  .3184321,
+            .3444162,  .3714396,  .3998142,  .4298913,  .4620737,
+            .4968308,  .5347160,  .5763897,  .6230643,  .6772068,
+            .7443435,  .8383348, 1.000000])*lid
 
-    min_lev = min(levels)
-
-    deltaz = data.loc[data['level'] == (min_lev+1)][val_col].min() \
-        - data.loc[data['level'] == (min_lev)][val_col].min()
-    xmin = data.loc[data['level'] == min_lev]['x'].min()
-    xmax = data.loc[data['level'] == min_lev]['x'].max()
-    ymin = data.loc[data['level'] == min_lev]['y'].min()
-    ymax = data.loc[data['level'] == min_lev]['y'].max()
-
-    zmin = min(levels)*1000.0
-    zmax = max(levels)*1000.0
-
-    r2d = 180.0/np.pi
-    nx, ny, nz = 720, 360, len(levels)
-
-    # Create 2D plot
-    x2d = np.linspace(xmin, xmax, nx)
-    z2d = np.linspace(zmin, zmax, nz)
-    y2d = np.linspace(ymin, ymax, ny)
-    zi = np.zeros([ny, nx, len(levels)])
-    xi, yi = np.meshgrid(x2d, y2d)
-    for p in range(len(levels)):
-        p_data = data.loc[data['level'] == levels[p]]
-        zi[:, :, p] = griddata((p_data['x'].values, p_data['y'].values),
-                               p_data[val_col].values, (xi, yi),
-                               method='linear')
-
-    # Specific settings for plotting theta and p
-    if field == 'theta':
-        cc = np.linspace(220, 330, 12)
-        plotlevel = 1
-    elif field == 'exner':
-        rd = 287.05
-        p0 = 100000.0
-        kappa = rd/1005.0
-        zi = 0.01*zi**(1.0/kappa) * p0
-        cc = np.linspace(916, 1020, 14)
-        plotlevel = 0
-    elif field == 'w3projection_u2':
-        cc = np.linspace(-25, 40, 14)
-    elif field == 'w3projection_u3':
-        cc = np.linspace(-0.3, 0.3, 11)
+    elif vertical_spacing == 'dcmip':
+        # DCMIP Stretched grid
+        mu = 15.
+        zi_f = np.zeros([n_full])
+        for k in range(n_full):
+            zi_f[k] = lid * \
+                      (np.sqrt(mu * (float(k)/float(n_full))**2 + 1.) - 1.) \
+                      / (np.sqrt(mu+1.) - 1)
     else:
-        p_data = data.loc[data['level'] == levels[plotlevel]]
-        cc = np.linspace(np.amin(p_data[val_col].values),
-                         np.amax(p_data[val_col].values), 13)
+        # Assume uniform grid
+        zmin = 0.0
+        zmax = lid
+        zi_f = np.linspace(zmin, zmax, n_full)
 
-    fig = plt.figure(figsize=(10, 5))
-    # Extrapolate exner field to surface
-    if field == 'exner':
-        dz = 1.5*zi[:, :, 0] - 0.5*zi[:, :, 1]
-    else:
-        dz = zi[:, :, plotlevel]
+    zi_h = 0.5*(zi_f[1:] + zi_f[0:n_full-1])
 
-    plt.clf()
-    cf = plt.contourf(xi * r2d, yi * r2d, dz, cc, cmap=magma)
-    plt.colorbar(cf, cmap=magma)
-    cl = plt.contour(xi * r2d, yi * r2d, dz, cc, linewidths=0.5, colors='k')
-    plt.xlabel('Longitude')
-    plt.ylabel('Latitude')
-    if (field != 'u' and field != 'xi'):
-        out_file_name = plotpath + "/" "baroclinic_xy_" + field + "_" \
-            + timestep + ".png"
-    else:
-        out_file_name = plotpath + "/" "baroclinic_xy_" + field \
-            + str(component) + "_" + timestep + ".png"
+    direction = 'xy'  # , 'yz', 'xz'
 
-    plt.savefig(out_file_name, bbox_inches='tight')
+    for t in [-1, -3]:
+        if fields is None:
+            fields = ['surface_pressure_temperature']
+
+        for field in fields:
+            if field == 'surface_pressure_temperature':
+                combined_fields = ['exner', 'theta']
+            else:
+                combined_fields = [field]
+
+            interp_fig = plt.figure(figsize=(20, 10))
+            for cfield in combined_fields:
+
+                cube = read_ugrid_data(filein, cfield)
+                levels_name = cube.dim_coords[0].name()
+                # Set some levels for contours:
+                levels = None
+                if cfield == 'air_potential_temperature' or cfield == 'theta':
+                    levels = np.linspace(220, 330, 12)
+                elif cfield == 'eastward_wind' or cfield == 'u1':
+                    levels = np.arange(-20, 36, 4.)
+                elif cfield == 'northward_wind' or cfield == 'u2':
+                    levels = np.linspace(-25, 40, 14)
+                elif cfield == 'upward_air_velocity' or cfield == 'u3':
+                    levels = np.linspace(-0.3, 0.3, 11)
+                elif cfield == 'exner_pressure' or cfield == 'exner':
+                    # Exner will be converted to hPa
+                    levels = np.linspace(916, 1020, 14)
+                elif cfield == 'air_density':
+                    levels = np.arange(0, 1.4, 0.05)
+
+                n_levs = len(cube.coord(levels_name).points)
+
+                plot_data = np.zeros((ny, nx, n_levs))
+
+                time = np.around(cube.coord('time').points, decimals=1)
+
+                # Compute the horizontal grid
+                x = np.around(cube.coord('longitude').points, decimals=5)
+                y = np.around(cube.coord('latitude').points, decimals=5)
+
+                xmin = np.amin(x)
+                xmax = np.amax(x)
+                ymin = np.amin(y)
+                ymax = np.amax(y)
+
+                # Generate a regular grid to interpolate the data.
+                xi = np.linspace(xmin, xmax, nx)
+                yi = np.linspace(ymin, ymax, ny)
+
+                xf, yf = np.meshgrid(xi, yi)
+
+                # Choose the correct vertical level set
+                if n_full == n_levs:
+                    zi = zi_f
+                else:
+                    zi = zi_h
+
+                # Interpolate using delaunay triangularization
+                for p, level in enumerate(range(n_levs)):
+                    data = cube.data[t, level]
+                    fi = griddata((x, y), data, (xf, yf), method='linear')
+                    fi_n = griddata((x, y), data, (xf, yf), method='nearest')
+                    fi[np.isnan(fi)] = fi_n[np.isnan(fi)]
+
+                    plot_data[:, :, level] = fi
+
+                    if cfield == 'exner':
+                        # Convert to hPa
+                        rd = 287.05
+                        p0 = 100000.0
+                        kappa = rd/1005.0
+                        plot_data[:, :, level] = 0.01*fi**(1.0/kappa) * p0
+
+                nplots = 1
+                nxplots = 1
+                nyplots = 1
+
+                for iplot in range(nplots):
+                    ax = interp_fig.add_subplot(nxplots, nyplots, iplot+1)
+                    level = iplot
+                    ys = np.tile(yi, (n_levs, 1))
+
+                    if direction == 'xz':
+                        lon, height = np.meshgrid(xi, zi)
+                        CS = plt.contourf(lon, height,
+                                          plot_data[:, plot_lat, :].T,
+                                          levels=levels, cmap=magma)
+                        plt.colorbar(cmap=magma)
+                        CL = plt.contour(lat, height,
+                                         plot_data[:, plot_lat, :].T,
+                                         levels=levels, linewidths=0.5,
+                                         colors='k')
+                        plt.title(['lat = ', yi[plot_lat]*360./np.real(nx)])
+                    if direction == 'yz':
+                        lat, height = np.meshgrid(yi, zi)
+                        CS = plt.contourf(lat, height,
+                                          plot_data[:, plot_long, :].T,
+                                          levels=levels, cmap=magma)
+                        plt.colorbar(cmap=magma)
+                        CL = plt.contour(lat, height,
+                                         plot_data[:, plot_long, :].T,
+                                         levels=levels, linewidths=0.5,
+                                         colors='k')
+                        plt.title(['long = ', xi[plot_long]*360./np.real(nx)])
+                    if direction == 'xy':
+                        lat, lon = np.meshgrid(yi, xi)
+                        if cfield == 'exner' and iplot == 0:
+                            # Extrapolate data to the surface
+                            dz = plot_data[:, :, 0] + (zi_f[0] - zi_h[0]) * \
+                               (plot_data[:, :, 0] - plot_data[:, :, level]) \
+                               / (zi_h[0] - zi_h[1])
+                        else:
+                            dz = plot_data[:, :, level]
+                        if cfield != 'exner':
+                            CS = plt.contourf(lon, lat,
+                                              plot_data[:, :, level].T,
+                                              levels=levels, cmap=magma)
+                            plt.colorbar(cmap=magma)
+                        if cfield != 'theta':
+                            CL = plt.contour(lon, lat, dz.T, levels=levels,
+                                             linewidths=1.0, colors='k')
+                            plt.clabel(CL, CL.levels[1::2], fontsize=15,
+                                       inline=1, fmt='%3.1f')
+
+            pngfile = '%s/baroclinic_plot-%s-time%s-%s.png' % \
+                (plotpath, cfield, time[t], direction)
+            plt.savefig(pngfile)
+            plt.close()
 
 
 if __name__ == "__main__":
 
     try:
-        config, datapath, fields, timesteps, plotpath, plotlevel \
-            = sys.argv[1:7]
+        args = sys.argv[:]
+        filein, plotpath, vertical_grid = args[1:4]
+        field_list = None
+        if len(args[:]) > 4:
+            field_list = args[4].split(':')
     except ValueError:
-        print("Usage: {0} <file_stem_name> <datapath> <fields_list> <timestep_list>"
-              "<plotpath> <plotlevel>".format(sys.argv[0]))
+        print("Usage: {0} <filein> <plotpath> <vertical_grid> [<fields_list>]"
+              .format(sys.argv[0]))
         exit(1)
 
-    # Split out the list of fields
-    field_list = fields.split(':')
-
-    # Split out the list of timesteps
-    ts_list = timesteps.split(':')
-
-    for field in field_list:
-
-        if field in ['rho', 'theta', 'exner']:
-            # Scalar fields
-            ncomp = 1
-            comp = 1
-        else:
-            # Vector fields
-            ncomp = 3
-            # W3 projected U, V, W and XI components
-            if field in ['w3projection_u1', 'w3projection_u2',
-                         'w3projection_u3', 'w3projection_xi1',
-                         'w3projection_xi2', 'w3projection_xi3']:
-                comp = 1
-            elif (field == 'u' or field == 'xi'):
-                comp = [1, 2, 3]
-
-        for ts in ts_list:
-
-            filestem = datapath + "/" + config + "_nodal_" + field + "_" \
-                + ts + "*"
-
-            if (field != 'u' and field != 'xi'):
-                data = read_nodal_data(filestem, ncomp, comp)
-                if (not data.empty):
-                    levels = data.level.unique()
-                    make_figure(plotpath, field, comp, ts, levels,
-                                int(plotlevel))
-
-            else:
-                for comp_u in comp:
-                    data = read_nodal_data(filestem, ncomp, comp_u)
-                    if (not data.empty):
-                        levels = data.level.unique()
-                        make_figure(plotpath, field, comp_u, ts, levels,
-                                    int(plotlevel))
+    make_figures(filein, plotpath, field_list, vertical_grid)

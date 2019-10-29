@@ -43,46 +43,80 @@ contains
 ! When PSyclone and LFRic support fields with multi-dimensional arrays
 ! these can be removed
 !-------------------------------------------------------------------------------
-subroutine psykal_lite_mol_init(theta, rho, order, h_stencil_size, &
-                                adv_order, adv_h_stencil_size,     &
-                                nfaces_h, nfaces_v)
+subroutine psykal_lite_mol_flux_init(rho, order, h_stencil_size, &
+                                     nfaces_h, nfaces_v)
 
   implicit none
 
-  type(field_type), intent(in) :: theta, rho
+  type(field_type), intent(in) :: rho
   integer(i_def),   intent(in) :: order, h_stencil_size
-  integer(i_def),   intent(in) :: adv_order, adv_h_stencil_size
-  integer(i_def),   intent(in) ::  nfaces_h, nfaces_v
-  integer(i_def)               :: undf_w3, undf_wt
-  type(field_proxy_type)       :: theta_proxy, rho_proxy
+  integer(i_def),   intent(in) :: nfaces_h, nfaces_v
+  integer(i_def)               :: undf_w3
+  type(field_proxy_type)       :: rho_proxy
 
   rho_proxy   = rho%get_proxy()
-  theta_proxy = theta%get_proxy()
 
   undf_w3 = rho_proxy%vspace%get_undf()
+
+  ! Allocate vertical coefficients
+  allocate( flux_coeff_v(order+1, nfaces_v, undf_w3) )
+
+  ! Allocate horizontal coefficients
+  allocate( flux_coeff_h(h_stencil_size, nfaces_h, undf_w3) )
+
+end subroutine psykal_lite_mol_flux_init
+!-------------------------------------------------------------------------------
+! This gives a PSy layer representation of the coefficient arrays to avoid
+! copying the algorithm level representation of the data as a 2d array of field
+! types into the PSy and kernel level representation of a single
+! multidimensional array.
+! When PSyclone and LFRic support fields with multi-dimensional arrays
+! these can be removed
+!-------------------------------------------------------------------------------
+subroutine psykal_lite_mol_adv_init(theta, adv_order, adv_h_stencil_size,     &
+                                    nfaces_h, nfaces_v)
+
+  implicit none
+
+  type(field_type), intent(in) :: theta
+  integer(i_def),   intent(in) :: adv_order, adv_h_stencil_size
+  integer(i_def),   intent(in) :: nfaces_h, nfaces_v
+  integer(i_def)               :: undf_wt
+  type(field_proxy_type)       :: theta_proxy
+
+  theta_proxy = theta%get_proxy()
+
   undf_wt = theta_proxy%vspace%get_undf()
 
   ! Allocate vertical coefficients
-  allocate( flux_coeff_v(order+1,     nfaces_v, undf_w3), &
-             adv_coeff_v(adv_order+2, nfaces_v, undf_wt) )
+  allocate( adv_coeff_v(adv_order+2, nfaces_v, undf_wt) )
 
   ! Allocate horizontal coefficients
-  allocate( flux_coeff_h(h_stencil_size,     nfaces_h, undf_w3), &
-             adv_coeff_h(adv_h_stencil_size, nfaces_h, undf_wt) )
+  allocate( adv_coeff_h(adv_h_stencil_size, nfaces_h, undf_wt) )
 
-end subroutine psykal_lite_mol_init
+end subroutine psykal_lite_mol_adv_init
 
 !-------------------------------------------------------------------------------
-! This deallocates the advection coefficients when they are no longer needed
+! This deallocates the flux advection coefficients when they are no longer needed
 !-------------------------------------------------------------------------------
-subroutine psykal_lite_mol_final()
+subroutine psykal_lite_mol_flux_final()
 
   implicit none
 
-  deallocate( flux_coeff_h, flux_coeff_v, &
-              adv_coeff_h, adv_coeff_v )
+  deallocate( flux_coeff_h, flux_coeff_v )
 
-end subroutine psykal_lite_mol_final
+end subroutine psykal_lite_mol_flux_final
+
+!-------------------------------------------------------------------------------
+! This deallocates the advective advection coefficients when they are no longer needed
+!-------------------------------------------------------------------------------
+subroutine psykal_lite_mol_adv_final()
+
+  implicit none
+
+  deallocate( adv_coeff_h, adv_coeff_v )
+
+end subroutine psykal_lite_mol_adv_final
 
 !-------------------------------------------------------------------------------
 ! Psy layer call to apply the horizontal advection coefficients for flux form

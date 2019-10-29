@@ -76,7 +76,7 @@ contains
          cellshape = cellshape_quadrilateral,               &
          element_order = 0, coordinate_order = 0,           & 
          rehabilitate = .true.,                             &
-         supg = .false., vorticity_in_w1 =.false. )
+         vorticity_in_w1 =.false. )
 
   end subroutine setUp
 

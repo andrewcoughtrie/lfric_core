@@ -4,11 +4,13 @@
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
 
-!>@brief Wrapper algorithm to compute the rhs of the prognostic
-!>       equations
+!> @brief Wrapper algorithm to compute the rhs of the prognostic
+!>        equations
 module rhs_alg_mod
 
   use constants_mod,                       only: r_def, i_def
+  use log_mod,                             only: log_event, &
+                                                 LOG_LEVEL_ERROR
   use enforce_bc_kernel_mod,               only: enforce_bc_kernel_type
   use runtime_constants_mod,               only: get_geopotential, &
                                                  get_coordinates,  &
@@ -20,7 +22,9 @@ module rhs_alg_mod
   use field_mod,                           only: field_type
   use finite_element_config_mod,           only: element_order, &
                                                  vorticity_in_w1
-  use formulation_config_mod,              only: rotating
+  use formulation_config_mod,              only: rotating,             &
+                                                 si_momentum_equation, &
+                                                 vector_invariant
   use kinetic_energy_gradient_kernel_mod,  only: kinetic_energy_gradient_kernel_type
   use matrix_vector_kernel_mod,            only: matrix_vector_kernel_type
   use operator_mod,                        only: operator_type
@@ -154,28 +158,37 @@ contains
     call invoke( name = "Compute rhs_u setup",                               &
                  hydrostatic_kernel_type( rhs_tmp, exner, theta, moist_dyn,  &
                                           geopotential, qr ),                &
-                 kinetic_energy_gradient_kernel_type( rhs_tmp, u, chi, qr ), &
                  matrix_vector_kernel_type( rhs(igh_u), u_base, mm_vel ) )
 
-     ! Compute the vorticity
-    mesh_id = u%get_mesh_id()
-    if ( vorticity_in_w1 ) then
-      vorticity_fs = W1
-    else
-      vorticity_fs = W2
+    if ( si_momentum_equation ) then
+      ! Treat the momentum advection terms with the semi-implicit scheme
+      if ( vector_invariant ) then
+        ! Compute grad(K) + curl(u) x u
+        call invoke( kinetic_energy_gradient_kernel_type( rhs_tmp, u, chi, qr ) )
+        ! Compute the vorticity
+        mesh_id = u%get_mesh_id()
+        if ( vorticity_in_w1 ) then
+          vorticity_fs = W1
+        else
+          vorticity_fs = W2
+        end if
+        call vorticity%initialise( vector_space =                               &
+                    function_space_collection%get_fs(mesh_id, element_order, &
+                                                      vorticity_fs) )
+        call compute_vorticity_alg(vorticity, u, .false.)
+        if ( vorticity_in_w1 ) then
+          call invoke( vorticity_advection_kernel_type(rhs_tmp, u, vorticity,    &
+                                                       chi, qr_exact) )
+        else
+          call invoke( w2_vorticity_advection_kernel_type(rhs_tmp, u, vorticity, &
+                                                          chi, qr_exact) )
+        end if
+      else
+        call log_event("Advective form not implemented for SI timetepping", &
+                       LOG_LEVEL_ERROR)
+      end if  
     end if
-    call vorticity%initialise( vector_space = &
-                 function_space_collection%get_fs(mesh_id, element_order, &
-                                                  vorticity_fs) )
-    call compute_vorticity_alg(vorticity, u, .false.)
-    if ( vorticity_in_w1 ) then
-      call invoke( vorticity_advection_kernel_type(rhs_tmp, u, vorticity,    &
-                                                   chi, qr_exact) )
-    else
-      call invoke( w2_vorticity_advection_kernel_type(rhs_tmp, u, vorticity, &
-                                                      chi, qr_exact) )
-    end if
-  
+
     if ( rotating ) then
       coriolis => get_coriolis()
       call invoke( matrix_vector_kernel_type( rhs_tmp, u, coriolis ) )

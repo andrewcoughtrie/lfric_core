@@ -217,7 +217,9 @@ contains
                                   dlayer_on=.false.,                        &
                                   exner_from_eos=.true.,                    &
                                   set_hydrostatic_init = .true.,            &
-                                  init_exner_bt = .true.  )
+                                  init_exner_bt        = .true.,            &
+                                  si_momentum_equation=.true.,              &
+                                  vector_invariant=.true.   )
     nlayers=3
     cell=1
     call hydrostatic_exner_code( nlayers,                             &
@@ -269,7 +271,9 @@ contains
                                   dlayer_on=.false.,                         &
                                   exner_from_eos=.true.,                     &
                                   set_hydrostatic_init = .true.,             &
-                                  init_exner_bt        = .false.  )
+                                  init_exner_bt        = .false.,            &
+                                  si_momentum_equation=.true.,               &
+                                  vector_invariant=.true.   )
     nlayers=3
     cell=1
     call hydrostatic_exner_code( nlayers,                             &

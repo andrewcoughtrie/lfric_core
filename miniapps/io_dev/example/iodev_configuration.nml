@@ -24,7 +24,6 @@
   element_order    = 0
   coordinate_order = 2
   rehabilitate     = .true.
-  supg             = .false.
   vorticity_in_w1  = .true. 
 /
 
@@ -39,6 +38,8 @@
   dry_static_adjust    = .false.
   set_hydrostatic_init = .false.
   init_exner_bt        = .true.
+  si_momentum_equation = .true.
+  vector_invariant     = .true.
 /
 
 &idealised

@@ -8,7 +8,7 @@
 /
 
 &extrusion
-  method           = 'uniform'
+  method           = 'dcmip'
   domain_top       = 30000.0
   number_of_layers = 30
 /
@@ -18,7 +18,6 @@
   element_order    = 0
   coordinate_order = 2
   rehabilitate     = .true.
-  supg             = .false.
   vorticity_in_w1  = .true.
 /
 
@@ -34,6 +33,8 @@
   exner_from_eos       = .true.
   set_hydrostatic_init = .false.
   init_exner_bt        = .true.
+  si_momentum_equation = .false.
+  vector_invariant     = .false.
 /
 
 &idealised
@@ -141,8 +142,8 @@
 
 &helmholtz_solver
   gcrk                           = 18
-  method                         = 'bicgstab'
-  preconditioner                 = 'tridiagonal'
+  method                         = 'prec_only'
+  preconditioner                 = 'multigrid'
   si_pressure_tolerance          = 1.0e-6
   si_pressure_maximum_iterations = 400
   normalise                      = .T
@@ -156,14 +157,14 @@
 
 &timestepping
   method             = 'semi_implicit'
-  dt                 = 1800.0
+  dt                 = 3600.0
   alpha              = 0.5
   tau_u              = 0.5
   tau_t              = 0.5
   tau_r              = 0.5
   outer_iterations   = 4
   inner_iterations   = 1
-  runge_kutta_method = 'ssp3'
+  runge_kutta_method = 'ssp5'
   spinup_period      = 1
   spinup_alpha       = .false.
   spinup_winds       = .false.
@@ -189,7 +190,7 @@
 /
 
 &multigrid
-  l_multigrid = .false.
+  l_multigrid = .true.
   multigrid_chain_nitems = 4
   ugrid      = 'prime', 'mesh_C12.nc', 'mesh_C6.nc', 'mesh_C3.nc'
   smooth_relaxation = 0.8

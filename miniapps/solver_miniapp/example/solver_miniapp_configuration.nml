@@ -24,7 +24,6 @@ cellshape='quadrilateral',
 coordinate_order=2,
 element_order=0,
 rehabilitate=.true.,
-supg=.false.,
 /
 
 &formulation
@@ -39,6 +38,8 @@ supg=.false.,
   exner_from_eos       = .false.
   set_hydrostatic_init = .false.
   init_exner_bt        = .false.
+  si_momentum_equation = .true.
+  vector_invariant     = .true.
 /
 
 &multigrid

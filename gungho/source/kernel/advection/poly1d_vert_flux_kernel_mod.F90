@@ -159,9 +159,11 @@ subroutine poly1d_vert_flux_code( nlayers,              &
     end do
   end do
 
-  ! Enforce zero flux boundary conditions
-  flux(map_w2(5))           = 0.0_r_def
-  flux(map_w2(6)+nlayers-1) = 0.0_r_def
+  ! Boundary conditions
+  ! When computing a flux the wind = 0 so flux is zero
+  ! For averaging the wind = +/-1 so the resulting average is non-zero
+  flux(map_w2(5))           = wind(map_w2(5))          *density(map_w3(1))
+  flux(map_w2(6)+nlayers-1) = wind(map_w2(6)+nlayers-1)*density(map_w3(1)+nlayers-1)
 
   deallocate( smap )
   

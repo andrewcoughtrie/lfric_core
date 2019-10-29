@@ -72,7 +72,6 @@ contains
              coordinate_order=0,                &
              element_order=0,                   &
              rehabilitate=.true.,               &
-             supg=.false.,                      &
              vorticity_in_w1=.false. )
 
     ! Create top level mesh collection

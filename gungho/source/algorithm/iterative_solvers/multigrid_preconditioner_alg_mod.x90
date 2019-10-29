@@ -196,10 +196,10 @@ contains
        call self%vcycle(level+1,.true.)
        ! Prolong and add solution from coarser level
        ! u^{(ell)} = u^{(ell)} + P u^{(ell+1)}
-       
+      
        call invoke( prolong_kernel_type(self%u_mg(level), &
                                         self%u_mg(level+1) ))
-              ! Postsmooth u^{(ell)}
+       ! Postsmooth u^{(ell)}
        call self%smooth(self%n_postsmooth,level,.false.)
        
     end if
@@ -214,8 +214,9 @@ contains
   subroutine apply_multigrid_preconditioner(self,x,y)
     implicit none
     class(multigrid_preconditioner_type), intent(inout) :: self
-    class(abstract_vector_type), intent(in) :: x
-    class(abstract_vector_type), intent(inout) :: y
+    class(abstract_vector_type),          intent(in)    :: x
+    class(abstract_vector_type),          intent(inout) :: y
+
     select type(x)
     type is(field_vector_type)
        select type(y)

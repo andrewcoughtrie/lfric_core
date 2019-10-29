@@ -63,7 +63,7 @@ contains
     implicit none
 
     type(field_type), intent(inout) :: increment
-    type(field_type), intent(inout) :: rho
+    type(field_type), intent(in)    :: rho
     type(field_type), intent(in)    :: dep_pts_x
     type(field_type), intent(in)    :: dep_pts_y
     type(field_type), intent(in)    :: dep_pts_z

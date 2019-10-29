@@ -53,7 +53,7 @@ contains
     call feign_finite_element_config(      &
       cellshape=cellshape_quadrilateral,   &
       coordinate_order=0, element_order=1, &
-      rehabilitate=.true., supg=.false., vorticity_in_w1=.false. )
+      rehabilitate=.true., vorticity_in_w1=.false. )
 
   end subroutine setUp
 

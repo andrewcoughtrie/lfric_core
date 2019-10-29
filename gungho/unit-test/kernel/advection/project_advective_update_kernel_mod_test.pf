@@ -1,0 +1,197 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2019 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the projection of scalar advective updates into the W2 vector field
+module project_advective_update_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use pFUnit_Mod
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: project_advective_update_test_type
+    private
+  contains
+    procedure test_all
+  end type project_advective_update_test_type
+
+contains
+
+  @test
+  subroutine test_all( this )
+
+    use project_advective_update_kernel_mod, only : project_advective_update_code
+
+    implicit none
+
+    class(project_advective_update_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: tol = 1.0e-9_r_def
+
+    ! Mesh
+    integer(kind=i_def), parameter :: nlayers = 2
+
+    ! Quadrature rule (1-point Gaussian)
+    integer(kind=i_def), parameter     :: nqp_h = 1_i_def
+    integer(kind=i_def), parameter     :: nqp_v = 1_i_def
+    real(kind=r_def), dimension(nqp_h) :: wqp_h
+    real(kind=r_def), dimension(nqp_v) :: wqp_v
+    ! Scalar Space
+    integer(kind=i_def), parameter          :: ndf_ws = 1_i_def
+    integer(kind=i_def), parameter          :: undf_ws = ndf_ws*nlayers
+    integer(kind=i_def), dimension(ndf_ws)  :: map_ws
+    real(kind=r_def),    dimension(undf_ws) :: Au, Av, Aw
+    ! Vector Space ( simplify to horizontal only components)
+    integer(kind=i_def), parameter          :: ndf_wv  = 4_i_def
+    integer(kind=i_def), parameter          :: undf_wv = ndf_wv*nlayers
+    integer(kind=i_def), dimension(ndf_wv)  :: map_wv
+    real(kind=r_def),    dimension(undf_wv) :: u_grad_u
+    ! Coordinate Space
+    integer(kind=i_def), parameter          :: ndf_wx  = 8_i_def
+    integer(kind=i_def), parameter          :: undf_wx = ndf_wx*nlayers
+    integer(kind=i_def), dimension(ndf_wx)  :: map_wx
+    real(kind=r_def),    dimension(undf_wx) :: x, y, z
+    ! Basis function arrays 
+    real(kind=r_def),    dimension(3,ndf_ws,nqp_h,nqp_v) :: basis_ws
+    real(kind=r_def),    dimension(3,ndf_wv,nqp_h,nqp_v) :: basis_wv
+    real(kind=r_def),    dimension(3,ndf_wx,nqp_h,nqp_v) :: diff_basis_wx
+
+    real(kind=r_def), parameter              :: dx = 10.0_r_def
+    real(kind=r_def), parameter              :: dy = 5.0_r_def
+    real(kind=r_def), dimension(0:nlayers)   :: r
+
+    integer(kind=r_def)            :: k, df, d
+    real(kind=r_def), dimension(3) :: nodes
+    real(kind=r_def), dimension(3) :: f1, f2
+
+    real(kind=r_def), dimension(0:nlayers-1) :: answer_x, answer_y
+
+    map_ws = (/ 1 /)
+    map_wv(1) = 1
+    do df = 2,ndf_wv
+      map_wv(df) = map_wv(df-1) + nlayers
+    end do 
+    map_wx(1) = 1
+    do df = 2,ndf_wx
+      map_wx(df) = map_wx(df-1) + nlayers
+    end do 
+    
+    ! Set variable vertical resolution
+    r(0) = 0.0_r_def
+    do k = 1,nlayers
+      r(k) = r(k-1) + real(k,r_def)
+    end do
+    
+    ! Compute the coordinate fields
+    x = 0.0_r_def
+    y = 0.0_r_def
+    z = 0.0_r_def
+    do k = 0,nlayers-1
+      x(map_wx(2)+k) = dx
+      x(map_wx(4)+k) = dx
+      x(map_wx(6)+k) = dx
+      x(map_wx(8)+k) = dx
+      y(map_wx(3)+k) = dy
+      y(map_wx(4)+k) = dy
+      y(map_wx(7)+k) = dy
+      y(map_wx(8)+k) = dy
+      do df = 1,4
+        z(map_wx(df)+k)   = r(k)
+        z(map_wx(df+4)+k) = r(k+1)
+      end do
+    end do
+
+    ! Quadrature rule
+    wqp_h(1) = 1.0_r_def
+    wqp_v(1) = 1.0_r_def
+
+    nodes(1) = 0.5_r_def
+    nodes(2) = 0.5_r_def
+    nodes(3) = 0.5_r_def
+    do d = 1,3
+      f1(d) = 1.0_r_def - nodes(d)
+      f2(d) = nodes(d)
+    end do
+
+    diff_basis_wx(1,1,1,1) = -f1(2)*f1(3)
+    diff_basis_wx(2,1,1,1) = -f1(1)*f1(3)
+    diff_basis_wx(3,1,1,1) = -f1(1)*f1(2)
+
+    diff_basis_wx(1,2,1,1) =  f1(2)*f1(3)
+    diff_basis_wx(2,2,1,1) = -f2(1)*f1(3)
+    diff_basis_wx(3,2,1,1) = -f2(1)*f1(2)
+
+    diff_basis_wx(1,3,1,1) = -f2(2)*f1(3)
+    diff_basis_wx(2,3,1,1) =  f1(1)*f1(3)
+    diff_basis_wx(3,3,1,1) = -f1(1)*f2(2)
+
+    diff_basis_wx(1,4,1,1) =  f2(2)*f1(3)
+    diff_basis_wx(2,4,1,1) =  f2(1)*f1(3)
+    diff_basis_wx(3,4,1,1) = -f2(1)*f2(2)
+
+    diff_basis_wx(1,5,1,1) = -f1(2)*f2(3)
+    diff_basis_wx(2,5,1,1) = -f1(1)*f2(3)
+    diff_basis_wx(3,5,1,1) =  f1(1)*f1(2)
+
+    diff_basis_wx(1,6,1,1) =  f1(2)*f2(3)
+    diff_basis_wx(2,6,1,1) = -f2(1)*f2(3)
+    diff_basis_wx(3,6,1,1) =  f2(1)*f1(2)
+
+    diff_basis_wx(1,7,1,1) = -f2(2)*f2(3)
+    diff_basis_wx(2,7,1,1) =  f1(1)*f2(3)
+    diff_basis_wx(3,7,1,1) =  f1(1)*f2(2)
+
+    diff_basis_wx(1,8,1,1) =  f2(2)*f2(3)
+    diff_basis_wx(2,8,1,1) =  f2(1)*f2(3)
+    diff_basis_wx(3,8,1,1) =  f2(1)*f2(2)
+
+    basis_ws(1,1,1,1) = 1.0_r_def
+
+    basis_wv(:,:,:,:) =  0.0_r_def    
+    basis_wv(1,1,:,:) =  f1(1)
+    basis_wv(2,2,:,:) = -f1(2)
+    basis_wv(1,3,:,:) =  f2(1)
+    basis_wv(2,4,:,:) = -f2(2)
+    
+    ! Set some values for the initial field
+    do df = 1, undf_ws
+      Au(df) = -1.52354_r_def*real(df,r_def)  
+      Av(df) = 19.0_r_def + 3.52_r_def*real(df,r_def)  
+      Aw(df) = -2534.0_r_def + 0.4623_r_def*real(df,r_def)  
+    end do
+    u_grad_u = 0.0_r_def
+
+    do k = 0,nlayers-1
+      answer_x(k) =  0.5_r_def*dx*Au(map_ws(1)+k)
+      answer_y(k) = -0.5_r_def*dy*Av(map_ws(1)+k)
+    end do
+    
+    call project_advective_update_code(nlayers,                    &
+                                       u_grad_u,                   &
+                                       Au, Av, Aw,                 &
+                                       x, y, z,                    &
+                                       ndf_wv, undf_wv, map_wv,    &
+                                       basis_wv,                   &
+                                       ndf_ws, undf_ws, map_ws,    &
+                                       basis_ws,                   &
+                                       ndf_wx, undf_wx, map_wx,    &
+                                       diff_basis_wx,              &
+                                       nqp_h, nqp_v, wqp_h, wqp_v  &
+                                       )
+    do k = 0,nlayers-1 
+      @assertEqual(answer_x(k), u_grad_u(map_wv(1)+k), tol)
+      @assertEqual(answer_y(k), u_grad_u(map_wv(2)+k), tol)
+      @assertEqual(answer_x(k), u_grad_u(map_wv(3)+k), tol)
+      @assertEqual(answer_y(k), u_grad_u(map_wv(4)+k), tol)
+    end do
+
+  end subroutine test_all
+
+end module project_advective_update_kernel_mod_test
