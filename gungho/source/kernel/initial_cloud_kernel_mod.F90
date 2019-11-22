@@ -23,6 +23,7 @@ module initial_cloud_kernel_mod
                                              cloud_um
     use cloud_config_mod, only: scheme,       &
                                 scheme_smith, &
+                                scheme_pc2,   &
                                 rh_crit
 
     implicit none
@@ -101,7 +102,7 @@ contains
           ccw(map_wth(1) + k) = 0.0_r_def
         end do
         if ( cloud == cloud_um .and. &
-             scheme == scheme_smith ) then
+            (scheme == scheme_smith .or. scheme == scheme_pc2) ) then
           ! can only initialise rh_crit if the cloud namelist has been read
           rh_crit_wth(map_wth(1)) = rh_crit(1)
           do k = 1, nlayers

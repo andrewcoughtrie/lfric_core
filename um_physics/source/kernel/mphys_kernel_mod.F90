@@ -24,33 +24,36 @@ implicit none
 
 type, public, extends(kernel_type) :: mphys_kernel_type
   private
-  type(arg_type) :: meta_args(26) = (/                   &
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),         & ! mv_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),         & ! ml_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),         & ! mi_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),         & ! mr_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),         & ! mg_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),         & ! cf_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),         & ! cfl_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),         & ! cff_wth
-       arg_type(GH_FIELD,   GH_READ,    W3),             & ! u1_in_w3
-       arg_type(GH_FIELD,   GH_READ,    W3),             & ! u2_in_w3
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),         & ! w_phys
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),         & ! theta_in_wth
-       arg_type(GH_FIELD,   GH_READ,    W3),             & ! exner_in_w3
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),         & ! exner_in_wth
-       arg_type(GH_FIELD,   GH_READ,    W3),             & ! wetrho_in_w3
-       arg_type(GH_FIELD,   GH_READ,    W3),             & ! height_w3
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),         & ! height_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),         & ! cloud_drop_no_conc
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),         & ! dmv_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),         & ! dml_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),         & ! dmi_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),         & ! dmr_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),         & ! dmg_wth
-       arg_type(GH_FIELD,   GH_WRITE,   ANY_SPACE_1),    & ! ls_rain
-       arg_type(GH_FIELD,   GH_WRITE,   ANY_SPACE_1),    & ! ls_snow
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA)          & ! theta_inc
+  type(arg_type) :: meta_args(29) = (/                                 &
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! mv_wth
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! ml_wth
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! mi_wth
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! mr_wth
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! mg_wth
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! cf_wth
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! cfl_wth
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! cff_wth
+       arg_type(GH_FIELD,   GH_READ,    W3),                           & ! u1_in_w3
+       arg_type(GH_FIELD,   GH_READ,    W3),                           & ! u2_in_w3,
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! w_phys
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! theta_in_wth
+       arg_type(GH_FIELD,   GH_READ,    W3),                           & ! exner_in_w3
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! exner_in_wth
+       arg_type(GH_FIELD,   GH_READ,    W3),                           & ! wetrho_in_w3
+       arg_type(GH_FIELD,   GH_READ,    W3),                           & ! height_w3
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! height_wth
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! cloud_drop_no_conc
+       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                       & ! dmv_wth
+       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                       & ! dml_wth
+       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                       & ! dmi_wth
+       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                       & ! dmr_wth
+       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                       & ! dmg_wth
+       arg_type(GH_FIELD,   GH_WRITE,   ANY_SPACE_1),                  & ! ls_rain
+       arg_type(GH_FIELD,   GH_WRITE,   ANY_SPACE_1),                  & ! ls_snow
+       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                       & ! theta_inc
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! dcfl_wth
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! dcff_wth
+       arg_type(GH_FIELD,   GH_READ,    WTHETA)                        & ! dbcf_wth
        /)
    integer :: iterates_over = CELLS
 contains
@@ -89,6 +92,9 @@ contains
 !> @param[out] ls_rain_2d          large scale rain from twod_fields
 !> @param[out] ls_snow_2d          large scale snow from twod_fields
 !> @param[out] theta_inc           increment to theta
+!> @param[inout] dcfl_wth          increment to liquid cloud fraction
+!> @param[inout] dcff_wth          increment to ice cloud fraction
+!> @param[inout] dbcf_wth          increment to bulk cloud fraction
 !> @param[in]  ndf_wth             Number of degrees of freedom per cell for
 !>                                  potential temperature space
 !> @param[in]  undf_wth            Number unique of degrees of freedom for
@@ -120,6 +126,7 @@ subroutine mphys_code( nlayers,                     &
                        dmr_wth,  dmg_wth,           &
                        ls_rain_2d, ls_snow_2d,      &
                        theta_inc,                   &
+                       dcfl_wth, dcff_wth, dbcf_wth,&
                        ndf_wth, undf_wth, map_wth,  &
                        ndf_w3,  undf_w3,  map_w3,   &
                        ndf_2d, undf_2d, map_2d)
@@ -187,18 +194,15 @@ subroutine mphys_code( nlayers,                     &
     real(kind=r_def), intent(out), dimension(undf_2d)  :: ls_rain_2d
     real(kind=r_def), intent(out), dimension(undf_2d)  :: ls_snow_2d
     real(kind=r_def), intent(out), dimension(undf_wth) :: theta_inc
+    real(kind=r_def), intent(out), dimension(undf_wth) :: dcfl_wth
+    real(kind=r_def), intent(out), dimension(undf_wth) :: dcff_wth
+    real(kind=r_def), intent(out), dimension(undf_wth) :: dbcf_wth
 
     integer(kind=i_def), intent(in), dimension(ndf_wth) :: map_wth
     integer(kind=i_def), intent(in), dimension(ndf_w3)  :: map_w3
     integer(kind=i_def), intent(in), dimension(ndf_2d)  :: map_2d
 
     ! Local variables for the kernel
-
-    ! Cloud fraction increments should be intent(inout) once PC2 is coupled up
-    ! Set to r_def for now in preparation
-    real(kind=r_def), dimension(undf_wth) :: dcf_wth
-    real(kind=r_def), dimension(undf_wth) :: dcff_wth
-    real(kind=r_def), dimension(undf_wth) :: dcfl_wth
 
     real(r_um), dimension(row_length,rows,model_levels) ::                     &
          u_on_p, v_on_p, w, q_work, qcl_work, qcf_work, deltaz, cfl_work,      &
@@ -551,26 +555,17 @@ end if
     dmg_wth(map_wth(1) + 0) = dmg_wth(map_wth(1) + 1)
   end if
 
-  ! Cloud fraction increments - required for PC2 cloud scheme only
-  if ( i_cld_vn == i_cld_pc2 ) then
-    do k = 1, model_levels
-      dcf_wth(  map_wth(1) + k) = cf_work(1,1,k)  - cf_wth(  map_wth(1) + k )
-      dcfl_wth( map_wth(1) + k) = cfl_work(1,1,k) - cfl_wth( map_wth(1) + k )
-      dcff_wth( map_wth(1) + k) = cff_work(1,1,k) - cff_wth( map_wth(1) + k )
-    end do
-  else
-    do k = 1, model_levels
-      dcf_wth(  map_wth(1) + k) = 0.0_r_um
-      dcfl_wth( map_wth(1) + k) = 0.0_r_um
-      dcff_wth( map_wth(1) + k) = 0.0_r_um
-    end do
-
-    ! Update level 0 as the same as level 1 (as per UM)
-    dcf_wth(map_wth(1) + 0)  = dcf_wth(map_wth(1) + 1)
-    dcfl_wth(map_wth(1) + 0) = dcfl_wth(map_wth(1) + 1)
-    dcff_wth(map_wth(1) + 0) = dcff_wth(map_wth(1) + 1)
-
-  end if ! i_cld_vn
+  ! Cloud fraction increments
+  ! Always calculate them, but only add them on in slow_physics if using PC2.
+  do k = 1, model_levels
+    dbcf_wth( map_wth(1) + k) = cf_work(1,1,k)  - cf_wth(  map_wth(1) + k )
+    dcfl_wth( map_wth(1) + k) = cfl_work(1,1,k) - cfl_wth( map_wth(1) + k )
+    dcff_wth( map_wth(1) + k) = cff_work(1,1,k) - cff_wth( map_wth(1) + k )
+  end do
+  ! Set level 0 as the same as level 1
+  dbcf_wth(map_wth(1) + 0) = dbcf_wth(map_wth(1) + 1)
+  dcfl_wth(map_wth(1) + 0) = dcfl_wth(map_wth(1) + 1)
+  dcff_wth(map_wth(1) + 0) = dcff_wth(map_wth(1) + 1)
 
   ! Copy ls_rain and ls_snow
   ls_rain_2d(map_2d(1))  = ls_rain(1,1)

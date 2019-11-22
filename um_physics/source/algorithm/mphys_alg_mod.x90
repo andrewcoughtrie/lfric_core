@@ -26,22 +26,26 @@ contains
   !>                due to cloud microphysical processes
   !>                (e.g. latent heating and cooling).
   !>         See UMDP26 for full scheme details
-  !>@param[in]     mr_n               Start of timestep mixing ratios
-  !>@param[in]     theta              Potential temperature (theta) in wth space
-  !>@param[in]     exner_in_w3        Exner Pressure in the w3 space
-  !>@param[in]     height_w3          Height from surface on density levels
-  !>@param[in]     height_wth         Height from surface on theta levels
-  !>@param[in,out] derived_fields     Group of derived fields
-  !>@param[in,out] cloud_fields       Group of cloud fields
-  !>@param[in,out] twod_fields        Group of twod fields
-  !>@param[in,out] aerosol_fields     Group of aerosol fields
-  !>@param[in,out] dmr_mphys          Mixing ratio increment due to microphysics
-  !>@param[in,out] theta_inc          Potential temperature increment wth space
-  !>@param[in,out] physics_incs       Group of physics increments
+  !>@param[in]     mr_n           Start of timestep mixing ratios
+  !>@param[in]     theta          Potential temperature (theta) in wth space
+  !>@param[in]     exner_in_w3    Exner Pressure in the w3 space
+  !>@param[in]     height_w3      Height from surface on density levels
+  !>@param[in]     height_wth     Height from surface on theta levels
+  !>@param[in]     derived_fields Group of derived fields
+  !>@param[in]     cloud_fields   Group of cloud fields
+  !>@param[in,out] twod_fields    Group of twod fields
+  !>@param[in,out] aerosol_fields Group of aerosol fields
+  !>@param[in,out] dmr_mphys      Mixing ratio increment due to microphysics
+  !>@param[in,out] theta_inc      Potential temperature increment in wth space
+  !>@param[in,out] physics_incs   Group of physics increments
+  !>@param[in,out] dcfl           Increment to liquid cloud fraction
+  !>@param[in,out] dcff           Increment to ice cloud fraction
+  !>@param[in,out] dbcf           Increment to bulk cloud fraction
   subroutine mphys_alg_step( mr_n, theta, exner_in_w3, height_w3, height_wth,  &
                              derived_fields, cloud_fields, twod_fields,        &
-                             aerosol_fields, dmr_mphys, theta_inc,             &
-                             physics_incs )
+                             aerosol_fields,                                   &
+                             dmr_mphys, theta_inc, physics_incs,               &
+                             dcfl, dcff, dbcf )
 
     use mphys_kernel_mod, only: mphys_kernel_type
     use mr_indices_mod,   only: imr_v, imr_cl, imr_r, imr_ci, imr_g, nummr
@@ -57,15 +61,15 @@ contains
     type( field_type ), intent( in )    :: mr_n ( nummr ), theta, exner_in_w3
     type( field_type ), intent( in )    :: height_w3, height_wth
 
-    type( field_collection_type ), intent(inout) :: derived_fields
-    type( field_collection_type ), intent(inout) :: cloud_fields
+    type( field_collection_type ), intent(in)    :: derived_fields
+    type( field_collection_type ), intent(in)    :: cloud_fields
     type( field_collection_type ), intent(inout) :: twod_fields
     type( field_collection_type ), intent(inout) :: aerosol_fields
-
     type( field_collection_type ), intent(inout) :: physics_incs
 
     type( field_type ), intent( inout ) :: dmr_mphys ( nummr )
     type( field_type ), intent( inout ) :: theta_inc
+    type( field_type ), intent( inout ) :: dcfl, dcff, dbcf
 
     ! Temporary unpacked fields from collections
     type( field_type ), pointer :: exner_in_wth        => null()
@@ -85,22 +89,24 @@ contains
     if ( subroutine_timers ) call timer("mphys_alg_step")
 
     ! Unpack fields
-    exner_in_wth        => derived_fields%get_field('exner_in_wth')
-    u1_in_w3            => derived_fields%get_field('u1_in_w3')
-    u2_in_w3            => derived_fields%get_field('u2_in_w3')
-    w_phys              => derived_fields%get_field('w_physics')
-    wetrho_in_w3        => derived_fields%get_field('wetrho_in_w3')
+    exner_in_wth       => derived_fields%get_field('exner_in_wth')
+    u1_in_w3           => derived_fields%get_field('u1_in_w3')
+    u2_in_w3           => derived_fields%get_field('u2_in_w3')
+    w_phys             => derived_fields%get_field('w_physics')
+    wetrho_in_w3       => derived_fields%get_field('wetrho_in_w3')
+    cf_in              => cloud_fields%get_field('bulk_fraction')
+    cfl_in             => cloud_fields%get_field('liquid_fraction')
+    cff_in             => cloud_fields%get_field('ice_fraction')
+    ls_rain            => twod_fields%get_field('ls_rain')
+    ls_snow            => twod_fields%get_field('ls_snow')
+    cloud_drop_no_conc => aerosol_fields%get_field('cloud_drop_no_conc')
 
-    cf_in               => cloud_fields%get_field('bulk_fraction')
-    cfl_in              => cloud_fields%get_field('liquid_fraction')
-    cff_in              => cloud_fields%get_field('ice_fraction')
-
-    ls_rain             => twod_fields%get_field('ls_rain')
-    ls_snow             => twod_fields%get_field('ls_snow')
-
-    cloud_drop_no_conc  => aerosol_fields%get_field('cloud_drop_no_conc')
-
-    call invoke ( mphys_kernel_type (mr_n(imr_v), mr_n(imr_cl), mr_n(imr_ci),  &
+    call invoke( setval_c(theta_inc,   0.0_r_def),                             &
+                 setval_c(dcfl, 0.0_r_def),                                    &
+                 setval_c(dcff, 0.0_r_def),                                    &
+                 setval_c(dbcf, 0.0_r_def),                                    &
+                                                                               !
+                 mphys_kernel_type ( mr_n(imr_v), mr_n(imr_cl), mr_n(imr_ci),  &
                                      mr_n(imr_r), mr_n(imr_g),                 &
                                      cf_in, cfl_in, cff_in,                    &
                                      u1_in_w3, u2_in_w3, w_phys,               &
@@ -110,7 +116,7 @@ contains
                                      dmr_mphys(imr_v),  dmr_mphys(imr_cl),     &
                                      dmr_mphys(imr_ci), dmr_mphys(imr_r),      &
                                      dmr_mphys(imr_g), ls_rain, ls_snow,       &
-                                     theta_inc ) )
+                                     theta_inc, dcfl, dcff, dbcf ) )
 
     ! Calculate increments required by the BL scheme
     if ( boundary_layer == boundary_layer_um ) then

@@ -15,6 +15,7 @@ module bl_imp_kernel_mod
                                      ANY_SPACE_4, ANY_SPACE_5,     &
                                      ANY_SPACE_6, ANY_SPACE_7
   use section_choice_config_mod, only : cloud, cloud_um
+  use cloud_config_mod,       only : scheme, scheme_smith, scheme_pc2
   use constants_mod,          only : i_def, i_um, r_def, r_um
   use fs_continuity_mod,      only : W3, Wtheta, W2
   use kernel_mod,             only : kernel_type
@@ -31,7 +32,7 @@ module bl_imp_kernel_mod
   !>
   type, public, extends(kernel_type) :: bl_imp_kernel_type
     private
-    type(arg_type) :: meta_args(76) = (/                &
+    type(arg_type) :: meta_args(77) = (/                &
         arg_type(GH_INTEGER, GH_READ),                  &! outer
         arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! theta_in_wth
         arg_type(GH_FIELD,   GH_READ,      W3),         &! wetrho_in_w3
@@ -101,6 +102,7 @@ module bl_imp_kernel_mod
         arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_2),&! resfs_tile
         arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_2),&! canhc_tile
         arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_6),&! tile_water_extract
+        arg_type(GH_FIELD,   GH_WRITE,     ANY_SPACE_1),&! zlcl_mixed
         arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! blend_height_tq
         arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! blend_height_uv
         arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! ustar
@@ -193,6 +195,7 @@ contains
   !> @param[in]     resfs_tile           Combined aerodynamic resistance
   !> @param[in]     canhc_tile           Canopy heat capacity on tiles
   !> @param[in]     tile_water_extract   Extraction of water from each tile
+  !> @param[out]    zlcl_mixed           Height of the LCL
   !> @param[in]     blend_height_tq      Blending height for wth levels
   !> @param[in]     blend_height_uv      Blending height for w3 levels
   !> @param[in]     ustar                Friction velocity
@@ -297,6 +300,7 @@ contains
                          resfs_tile,                         &
                          canhc_tile,                         &
                          tile_water_extract,                 &
+                         zlcl_mixed,                         &
                          blend_height_tq,                    &
                          blend_height_uv,                    &
                          ustar,                              &
@@ -445,6 +449,7 @@ contains
     real(kind=r_def), intent(in) :: soil_carbon_content(undf_2d)
     real(kind=r_def), intent(in) :: sw_down_surf(undf_2d)
     real(kind=r_def), intent(in) :: lw_down_surf(undf_2d)
+    real(kind=r_def), intent(out):: zlcl_mixed(undf_2d)
 
     real(kind=r_def), intent(in) :: soil_temperature(undf_soil)
 
@@ -477,7 +482,8 @@ contains
          p_rho_levels, rho_wet_rsq, rho_wet, z_rho, z_theta,                 &
          bulk_cloud_fraction, rhcpt, t_latest, q_latest, qcl_latest,         &
          qcf_latest, cca_3d, area_cloud_fraction,                            &
-         cloud_fraction_liquid, cloud_fraction_frozen, rho_wet_tq
+         cloud_fraction_liquid, cloud_fraction_frozen, rho_wet_tq,           &
+         cf_latest, cfl_latest, cff_latest
 
     ! profile field on boundary layer levels
     real(r_um), dimension(row_length,rows,bl_levels) :: fqw, ftl, rhokh,     &
@@ -561,8 +567,7 @@ contains
     integer(i_um), parameter :: nscmdpkgs=15
     logical,       parameter :: l_scmdiags(nscmdpkgs)=.false.
 
-    real(r_um), dimension(row_length,rows,nlayers) ::                        &
-         cf_latest, cfl_latest, cff_latest, cca0
+    real(r_um), dimension(row_length,rows,nlayers) :: cca0
 
     real(r_um), dimension(row_length,rows,bl_levels) :: taux_fd_u, tauy_fd_v,&
          rhogamu_u, rhogamv_v
@@ -579,7 +584,7 @@ contains
          xx_cos_theta_latitude, ls_rain, ls_snow, conv_rain, conv_snow,      &
          qcl_inv_top, co2_emits, co2flux, tscrndcl_ssi, tstbtrans,           &
          sum_eng_fluxes, sum_moist_flux, drydep2, olr, surf_ht_flux_land,    &
-         zlcl_mixed, theta_star_surf, qv_star_surf, snowmelt, uwind_wav,     &
+         theta_star_surf, qv_star_surf, snowmelt, uwind_wav,                 &
          vwind_wav, sstfrz, aresist, resist_b, rho_aresist, rib_gb,          &
          z0m_eff_gb, zhsc, cdr10m_u, cdr10m_v
 
@@ -843,11 +848,6 @@ contains
       qcl(1,1,k) = m_cl_n(map_wth(1) + k)
       ! cloud ice mixing ratio
       qcf(1,1,k) = m_ci_n(map_wth(1) + k)
-      ! cloud fraction variables
-      bulk_cloud_fraction(1,1,k) = cf_bulk(map_wth(1) + k)
-      area_cloud_fraction(1,1,k) = cf_area(map_wth(1) + k)
-      cloud_fraction_liquid(1,1,k) = cf_liq(map_wth(1) + k)
-      cloud_fraction_frozen(1,1,k) = cf_ice(map_wth(1) + k)
       ! 3D RH_crit field
       rhcpt(1,1,k) = rh_crit_wth(map_wth(1) + k)
     end do
@@ -1019,6 +1019,15 @@ contains
     end do
     r_w(1,1,0) = u_physics_star(map_w2(5) + 0) - u_physics(map_w2(5) + 0)
 
+    if (scheme == scheme_pc2) then
+      do k = 1, nlayers
+        ! Assign _latest with current updated values
+        cfl_latest(1,1,k) = cf_liq(map_wth(1) + k)
+        cff_latest(1,1,k) = cf_ice(map_wth(1) + k)
+        cf_latest(1,1,k)  = cf_bulk(map_wth(1) + k)
+      end do
+    end if
+
     call NI_imp_ctl (                                                   &
     ! IN Model switches
             outer                                                       &
@@ -1087,7 +1096,7 @@ contains
           , radnet_sice,olr,tstar_sice_sicat,tstar_ssi                  &
           , tstar_sea,taux_land,taux_ssi,tauy_land,tauy_ssi,Error_code  &
     ! OUT fields
-          , surf_ht_flux_land, zlcl_mixed                               &
+          , surf_ht_flux_land, zlcl_mixed(map_2d(1))                    &
           , theta_star_surf, qv_star_surf                               &
     ! OUT additional variables for JULES
           , tstar, ti_sicat, ext, snowmelt,tstar_land,tstar_sice, ei_surft &
@@ -1239,6 +1248,15 @@ contains
     end do
     r_w(1,1,0) = u_physics_star(map_w2(5) + 0) - u_physics(map_w2(5) + 0)
 
+    if (scheme == scheme_pc2) then
+      do k = 1, nlayers
+        ! Assign _latest with current updated values
+        cfl_latest(1,1,k) = cf_liq(map_wth(1) + k)
+        cff_latest(1,1,k) = cf_ice(map_wth(1) + k)
+        cf_latest(1,1,k)  = cf_bulk(map_wth(1) + k)
+      end do
+    end if
+
     call NI_imp_ctl (                                                   &
     ! IN Model switches
             outer                                                       &
@@ -1348,12 +1366,21 @@ contains
     ! dynamics iteration
     if ( cloud == cloud_um .and. &
          outer == outer_iterations ) then
-      do k = 1, nlayers
-        cf_bulk(map_wth(1) + k) = bulk_cloud_fraction(1,1,k)
-        cf_ice(map_wth(1) + k)  = cloud_fraction_frozen(1,1,k)
-        cf_liq(map_wth(1) + k)  = cloud_fraction_liquid(1,1,k)
-        cf_area(map_wth(1) + k) = area_cloud_fraction(1,1,k)
-      end do
+      if ( scheme == scheme_smith ) then
+        do k = 1, nlayers
+          cf_bulk(map_wth(1) + k) = bulk_cloud_fraction(1,1,k)
+          cf_ice(map_wth(1) + k)  = cloud_fraction_frozen(1,1,k)
+          cf_liq(map_wth(1) + k)  = cloud_fraction_liquid(1,1,k)
+          cf_area(map_wth(1) + k) = area_cloud_fraction(1,1,k)
+        end do
+      else if ( scheme == scheme_pc2 ) then
+        do k = 1, nlayers
+          cf_ice (map_wth(1) + k) = cff_latest(1,1,k)
+          cf_liq (map_wth(1) + k) = cfl_latest(1,1,k)
+          cf_bulk(map_wth(1) + k) = cf_latest(1,1,k)
+          cf_area(map_wth(1) + k) = area_cloud_fraction(1,1,k)
+        end do
+      end if
       cf_ice(map_wth(1) + 0)  = cf_ice(map_wth(1) + 1)
       cf_liq(map_wth(1) + 0)  = cf_liq(map_wth(1) + 1)
       cf_bulk(map_wth(1) + 0) = cf_bulk(map_wth(1) + 1)

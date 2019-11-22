@@ -11,6 +11,7 @@ class field_mod::field_type {
   -halo_dirty : integer[]<<allocatable>>
   -vspace : function_space_type <<pointer>>
   -data_extant : logical
+  -advected : logical
   -name : string
   -write_method : procedure <<pointer>>
   -read_method : procedure <<pointer>>
@@ -20,7 +21,7 @@ class field_mod::field_type {
   <<destroy>>+field_destructor_array1d()
   <<destroy>>+field_destructor_array2d()
 
-  +intialise( <<in>>vector_space : function_space_type, <<in optional>> output_space : integer, <<in optional>> name : string )
+  +initialise( <<in>>vector_space : function_space_type, <<in optional>> output_space : integer, <<in optional>> name : string, <<in optional>> advection_flag : logical )
   +get_proxy() : field_proxy_type
   +copy_field(<<out>> dest: field_type, <<in optional>> name: string)
   +copy_field_properties(<<out>> dest: field_type, <<in optional>> name: )
@@ -30,6 +31,7 @@ class field_mod::field_type {
   +which_function_space() : integer
   +which_output_function_space() : integer
   +get_name() : string
+  +is_advected() : logical
   +get_mesh() : mesh_type <<pointer>>
   +get_mesh_id() : integer
   +write_field( <<in>> character: field_name)

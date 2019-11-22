@@ -92,6 +92,7 @@ contains
     type( field_type ), pointer :: blend_height_uv  => null()
     type( field_type ), pointer :: zh_nonloc  => null()
     type( field_type ), pointer :: bl_types  => null()
+    type( field_type ), pointer :: zlcl_mixed => null()
 
     type( field_type ), pointer :: cf_area  => null()
     type( field_type ), pointer :: cf_ice  => null()
@@ -183,6 +184,7 @@ contains
     blend_height_uv => twod_fields%get_field('blend_height_uv')
     zh_nonloc => twod_fields%get_field('zh_nonloc')
     bl_types => twod_fields%get_field('bl_types')
+    zlcl_mixed => twod_fields%get_field('zlcl_mixed')
 
     ! Unpack cloud fields
     cf_area => cloud_fields%get_field('area_fraction')
@@ -289,7 +291,7 @@ contains
                            alpha1_tile, ashtf_prime_tile, dtstar_tile,         &
                            fraca_tile, z0h_tile, z0m_tile, rhokh_tile,         &
                            chr1p5m_tile, resfs_tile, canhc_tile,               &
-                           tile_water_extract,                                 &
+                           tile_water_extract, zlcl_mixed,                     &
                            blend_height_tq, blend_height_uv, ustar,            &
                            soil_moist_avail, zh_nonloc, zh_2d, bl_types),      &
 

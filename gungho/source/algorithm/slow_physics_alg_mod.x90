@@ -35,6 +35,8 @@ module slow_physics_alg_mod
                                 radiation_placement_slow,                      &
                                 spectral_gwd_placement,                        &
                                 spectral_gwd_placement_slow
+  use cloud_config_mod,   only: scheme,                      &
+                                scheme_pc2
 
   ! PsyKAl PSYClone kernels
   use held_suarez_fv_kernel_mod,      only: held_suarez_fv_kernel_type
@@ -47,9 +49,9 @@ module slow_physics_alg_mod
   use function_space_mod,            only: function_space_type
 
   ! Moisture species
-  use mr_indices_mod,            only: nummr
+  use mr_indices_mod,            only: nummr, imr_v, imr_cl, imr_ci
 
-  use fs_continuity_mod,         only: W2, W3
+  use fs_continuity_mod,         only: W2, W3, Wtheta
 
   use runtime_constants_mod,     only: get_rmultiplicity, &
                                        get_da_at_w2
@@ -71,6 +73,8 @@ module slow_physics_alg_mod
   use radiation_config_mod,      only: l_planet_grey_surface
   use spectral_gwd_alg_mod,      only: spectral_gwd_alg_step
   use orographic_drag_alg_mod,   only: orographic_drag_alg_step
+  use pc2_rad_response_alg_mod,  only: pc2_rad_response_alg_step
+  use pc2_checks_alg_mod,        only: pc2_checks_alg_step
   use bl_exp_alg_mod,            only: bl_exp_alg_step
   use glomap_aerosol_alg_mod,    only: glomap_aerosol_alg_step
   use aerosol_config_mod,        only: c_aerosol,                              &
@@ -185,6 +189,34 @@ contains
     logical :: spectral_gwd_done ! Flag to indicate that spectral gravity wave drag has been calculated
     logical :: orographic_drag_done ! Flag to indicate that orographic drag has been calculated
 
+    ! Fields required by PC2
+    type( field_type ), pointer :: liquid_fraction => null()
+    type( field_type ), pointer :: ice_fraction    => null()
+    type( field_type ), pointer :: bulk_fraction   => null()
+
+    ! Increments to fields as a response to PC2 processes
+    ! N.B. For microphys:
+    type( field_type ) :: dcfl_pc2_mphys
+    type( field_type ) :: dcff_pc2_mphys
+    type( field_type ) :: dbcf_pc2_mphys
+    ! N.B. For radiation:
+    type( field_type ) :: dtheta_pc2_rad
+    type( field_type ) :: dqv_pc2_rad
+    type( field_type ) :: dqcl_pc2_rad
+    type( field_type ) :: dcfl_pc2_rad
+    type( field_type ) :: dbcf_pc2_rad
+    ! N.B. For PC2 checks:
+    type( field_type ) :: dtheta_pc2_checks
+    type( field_type ) :: dqv_pc2_checks
+    type( field_type ) :: dqcl_pc2_checks
+    type( field_type ) :: dqcf_pc2_checks
+    type( field_type ) :: dcfl_pc2_checks
+    type( field_type ) :: dcff_pc2_checks
+    type( field_type ) :: dbcf_pc2_checks
+
+    ! Temporary, partially updated theta after some, but not all, PC2 processes
+    type( field_type ) :: tmp_theta
+
     if ( subroutine_timers ) call timer("slow_physics")
 
     w2_rmultiplicity => get_rmultiplicity( W2 ) ! 1/multiplicity of w2
@@ -239,6 +271,7 @@ contains
     if ( microphysics == microphysics_um .and. &
          microphysics_placement == microphysics_placement_slow) then
       if (use_moisture) then
+
         ! Algorithm which calls the UM microphysics scheme
         call log_event( 'slow_physics: Running Microphysics', LOG_LEVEL_INFO )
 
@@ -246,12 +279,15 @@ contains
         call set_bundle_scalar(0.0_r_def, dmr_mphys, nummr)
 
         call dtheta_mphys%initialise( vector_space = theta%get_function_space() )
-        call invoke( setval_c(dtheta_mphys, 0.0_r_def) )
+        call dcfl_pc2_mphys%initialise( vector_space = theta%get_function_space() )
+        call dcff_pc2_mphys%initialise( vector_space = theta%get_function_space() )
+        call dbcf_pc2_mphys%initialise( vector_space = theta%get_function_space() )
 
-        call mphys_alg_step( mr_n, theta,  exner, height_w3, height_wth,   &
-                             derived_fields, cloud_fields, twod_fields,    &
-                             aerosol_fields, dmr_mphys, dtheta_mphys,      &
-                             physics_incs )
+        call mphys_alg_step( mr_n, theta,  exner, height_w3, height_wth,    &
+                             derived_fields, cloud_fields, twod_fields,     &
+                             aerosol_fields,                                &
+                             dmr_mphys, dtheta_mphys, physics_incs,         &
+                             dcfl_pc2_mphys, dcff_pc2_mphys, dbcf_pc2_mphys )
 
         ! N.B. Call to microphysics passes in mr_n, which is intent(in) and
         !      represents the start of the timestep value of the mixing
@@ -299,6 +335,27 @@ contains
                               tile_lw_albedo)
       radiation_done=.true.
       call dtheta_rad%log_minmax(LOG_LEVEL_INFO, 'slow physics: dtheta_rad')
+
+      if (scheme == scheme_pc2) then
+
+        ! PC2 code will be called with dtheta_rad as the only forcing.
+
+        call pc2_rad_response_alg_step(                 & ! Current state
+                                        mr_n,           & ! IN
+                                        theta,          & ! IN
+                                        derived_fields, & ! IN
+                                        cloud_fields,   & ! IN
+                                                          ! Forcings
+                                        dtheta_rad,     & ! IN
+                                                          ! Responses
+                                        dtheta_pc2_rad, & ! OUT
+                                        dqv_pc2_rad,    & ! OUT
+                                        dqcl_pc2_rad,   & ! OUT
+                                        dcfl_pc2_rad,   & ! OUT
+                                        dbcf_pc2_rad )    ! OUT
+
+      end if ! (scheme == scheme_pc2)
+
     end if
 
     ! Algorithm which calls the UM spectral gravity wave drag scheme
@@ -352,17 +409,38 @@ contains
       call invoke(inc_X_plus_Y(dtheta, dtheta_hs))
     end if
 
-    if (held_suarez_wind_done)then
+    if (held_suarez_wind_done) then
       call invoke(inc_X_times_Y(du_hs, dA), &
-                  inc_X_plus_Y(du, du_hs))
+                  inc_X_plus_Y(du, du_hs)   )
+    end if
+
+    if (scheme == scheme_pc2) then
+        liquid_fraction => cloud_fields%get_field('liquid_fraction')
+        ice_fraction    => cloud_fields%get_field('ice_fraction')
+        bulk_fraction   => cloud_fields%get_field('bulk_fraction')
     end if
 
     if (microphysics_done) then
+      if (scheme == scheme_pc2) then
+        ! Do microphysics updates to cloud fraction fields.
+        call invoke(name="update_with_pc2_mphys_inc",              &
+                    inc_X_plus_Y(liquid_fraction, dcfl_pc2_mphys), &
+                    inc_X_plus_Y(ice_fraction,    dcff_pc2_mphys), &
+                    inc_X_plus_Y(bulk_fraction,   dbcf_pc2_mphys)  )
+      end if
       call invoke(inc_X_plus_Y(dtheta, dtheta_mphys))
       call add_bundle(dmr_mphys, mr, mr, nummr)
     end if
 
     if (radiation_done) then
+      if (scheme == scheme_pc2) then
+        call invoke(name="update_with_pc2_rad_inc",                &
+                    inc_X_plus_Y(dtheta_rad,      dtheta_pc2_rad), &
+                    inc_X_plus_Y(mr(imr_v),       dqv_pc2_rad),    &
+                    inc_X_plus_Y(mr(imr_cl),      dqcl_pc2_rad),   &
+                    inc_X_plus_Y(liquid_fraction, dcfl_pc2_rad),   &
+                    inc_X_plus_Y(bulk_fraction,   dbcf_pc2_rad)    )
+      end if
       call invoke(inc_X_plus_Y(dtheta, dtheta_rad))
     end if
 
@@ -375,6 +453,49 @@ contains
       call invoke(inc_X_plus_Y(dtheta, dtheta_orographic_drag), &
                   inc_X_plus_Y(du, du_tot_orographic_drag))
     end if
+
+#ifdef UM_PHYSICS
+    if (scheme == scheme_pc2 .and. (microphysics_done .or. radiation_done)) then
+      ! Having added mr and cloud_fields increments for microphys and/or radiation
+      ! (calculated in parallel from start of timestep values),
+      ! now need to check whether there are any inconsistencies.
+      !
+      ! Estimate what theta would be by now
+      ! based on value at start of timestep...
+      call theta%copy_field(tmp_theta)
+
+      ! ... plus all dtheta increments so far
+      ! (microphys, radiation and pc2 response to radiation)
+      call invoke(name="estimate_theta_at_end_of_slow_before_check", &
+                  inc_X_plus_Y(tmp_theta,dtheta) )
+
+      ! Call pc2_checks with current updated mr (not mr_n) and tmp_theta
+      ! cloud_fields (liquid, ice, bulk cloud fractions) has also
+      ! been updated since start of timestep.
+      call pc2_checks_alg_step( mr,                & ! Current state IN
+                                tmp_theta,         & ! Current state IN
+                                derived_fields,    & ! Current state IN
+                                cloud_fields,      & ! Current state IN
+                                dtheta_pc2_checks, & ! Increments OUT
+                                dqv_pc2_checks,    & ! Increments OUT
+                                dqcl_pc2_checks,   & ! Increments OUT
+                                dqcf_pc2_checks,   & ! Increments OUT
+                                dcfl_pc2_checks,   & ! Increments OUT
+                                dcff_pc2_checks,   & ! Increments OUT
+                                dbcf_pc2_checks)     ! Increments OUT
+
+      ! Update all fields and the theta increment again
+      call invoke(name="update_after_pc2_checks",                   &
+                  inc_X_plus_Y(dtheta,          dtheta_pc2_checks), &
+                  inc_X_plus_Y(mr(imr_v),       dqv_pc2_checks),    &
+                  inc_X_plus_Y(mr(imr_cl),      dqcl_pc2_checks),   &
+                  inc_X_plus_Y(mr(imr_ci),      dqcf_pc2_checks),   &
+                  inc_X_plus_Y(liquid_fraction, dcfl_pc2_checks),   &
+                  inc_X_plus_Y(ice_fraction,    dcff_pc2_checks),   &
+                  inc_X_plus_Y(bulk_fraction,   dbcf_pc2_checks)    )
+
+     end if ! (cloud_um_scheme == cloud_um_scheme_pc2)
+#endif
 
     call dtheta%log_minmax(LOG_LEVEL_INFO, 'slow physics: dtheta' )
     call du%log_minmax(LOG_LEVEL_INFO, 'slow physics: du' )

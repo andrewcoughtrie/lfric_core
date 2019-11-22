@@ -78,7 +78,8 @@ module iter_timestep_alg_mod
   use advection_alg_mod,           only: advection_alg,       &
                                          advection_alg_init,  &
                                          advection_alg_final, &
-                                         advection_mr_alg
+                                         advection_mr_alg,    &
+                                         advection_generic_field_alg
   use si_operators_alg_mod,        only: create_si_operators,  &
                                          compute_si_operators, &
                                          final_si_operators
@@ -112,8 +113,6 @@ module iter_timestep_alg_mod
   use um_init_mod,                only: um_init
   use socrates_init_mod,          only: socrates_init
   use cld_alg_mod,                only: cld_alg_step
-  use cloud_config_mod,           only: scheme, &
-                                        scheme_smith
 #endif
 
   use timer_mod,                  only: timer
@@ -373,7 +372,6 @@ contains
     type( field_type ), pointer :: u1_in_w3_star  => null()
     type( field_type ), pointer :: u2_in_w3_star  => null()
     type( field_type ), pointer :: u3_in_w3_star  => null()
-    type( field_type ), pointer :: exner_theta  => null()
 
     integer(kind=i_def):: outer, inner, iter, i_mr
     real(kind=r_def)   :: varalpha, varbeta ! alpha, beta weight to use
@@ -519,6 +517,16 @@ contains
             call invoke( enforce_lower_bound_kernel_type (mr(i_mr), 0.0_r_def) )
           end do
           call invoke(moist_dyn_factors_kernel_type(moist_dyn, mr))
+
+          call log_event('iter_timestep_alg_mod: Advect cloud fractions', LOG_LEVEL_INFO )
+          ! Call routine to advect some of the contents of cloud_fields.
+          ! If not using PC2, nothing will be advected.
+          ! If using PC2, some of these will be advected.
+          !   * Cloud-fractions-after-slow values (held on cloud_fields)
+          !     will get advected with advecting velocity.
+          !   * The advected cloud fields variables get updated during this call.
+          call advection_generic_field_alg( cloud_fields, state_n(igh_u), state(igh_u) )
+
         end if
         call bundle_ax(dt, rhs_adv, rhs_adv, bundle_size)
         call log_event("Finished advecting prognostic fields...", LOG_LEVEL_INFO)
@@ -802,39 +810,31 @@ contains
 
     ! ----------------------------------------------------------------------
     ! Call cloud scheme to generate cloud and latent heating after pressure
-    ! changes are applied from the solver. First obtain current exner mapped
-    ! on theta levels
+    ! changes are applied from the solver.
+    ! First obtain current exner mapped on theta levels
     ! ----------------------------------------------------------------------
-
 
 #ifdef UM_PHYSICS
     if (use_physics) then
-     if ( cloud == cloud_um .and. &
-          scheme == scheme_smith ) then
       if (use_moisture) then
+        if ( cloud == cloud_um ) then
 
-        call log_event( 'iter timestep: Running Cloud Scheme', LOG_LEVEL_INFO )
+          call log_event( 'iter timestep: End-of-timestep cloud update', LOG_LEVEL_INFO )
 
-        call dtheta_cld%initialise( vector_space = theta%get_function_space() )
-        call invoke( setval_c(dtheta_cld, 0.0_r_def) )
-        exner_theta => derived_fields%get_field('exner_in_wth')
-        call map_physics_scalars(exner_theta, state(igh_p))
+          call dtheta_cld%initialise( vector_space = theta%get_function_space() )
+          call invoke( setval_c(dtheta_cld, 0.0_r_def) )
 
-        call cld_alg_step(  state(igh_p), exner_theta, state(igh_t),   &
-                   mr, cloud_fields, twod_fields, dtheta_cld)
+          call cld_alg_step( state(igh_t), state(igh_p), mr,                 &
+                             cloud_fields, twod_fields, dtheta_cld,          &
+                             derived_fields,                                 &
+                             state_n(igh_t),         state_n(igh_p), mr_n,   &
+                             state_after_slow(igh_t),state_after_slow(igh_p) )
 
-        call invoke(inc_X_plus_Y(state(igh_t), dtheta_cld))
+          call invoke(inc_X_plus_Y(state(igh_t), dtheta_cld))
 
-      else ! not use moisture
-
-        ! throw an error: user has made a mistake --> no clouds without moisture.
-        call log_event( &
-        'iter_timestep_: Cloud scheme cannot be run without moisture. Please correct', &
-         LOG_LEVEL_ERROR )
-
-      end if ! use moisture
-     end if
-    endif
+        end if ! ( cloud == cloud_um )
+      end if ! (use moisture)
+    end if !(use_physics)
 #endif
 
     !--------------------------------------------------------------------

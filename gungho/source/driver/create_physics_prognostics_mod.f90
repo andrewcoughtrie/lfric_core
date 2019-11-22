@@ -26,6 +26,8 @@ module create_physics_prognostics_mod
   use section_choice_config_mod,      only : cloud, cloud_none,                &
                                              aerosol, aerosol_um,              &
                                              radiation, radiation_none
+  use cloud_config_mod,               only : scheme, &
+                                             scheme_pc2
   use time_config_mod,                only : timestep_start, timestep_end
   implicit none
 
@@ -94,6 +96,7 @@ contains
 
     integer(i_def) :: theta_space
     logical(l_def) :: checkpoint_restart_flag
+    logical(l_def) :: advection_flag
 
     call log_event( 'Create physics prognostics', LOG_LEVEL_INFO )
 
@@ -195,7 +198,8 @@ contains
       'ls_rain',  vector_space, checkpoint_restart_flag, twod=.true. )
     call add_physics_field( twod_fields, depository, prognostic_fields,        &
       'ls_snow',  vector_space, checkpoint_restart_flag, twod=.true. )
-
+    call add_physics_field( twod_fields, depository, prognostic_fields,        &
+      'zlcl_mixed',  vector_space, checkpoint_restart_flag, twod=.true. )
     call add_physics_field( twod_fields, depository, prognostic_fields,        &
       'blend_height_tq',  vector_space, checkpoint_restart_flag, twod=.true. )
     call add_physics_field( twod_fields, depository, prognostic_fields,        &
@@ -346,21 +350,32 @@ contains
       checkpoint_restart_flag = .true.
     end if
 
-    call add_physics_field( cloud_fields, depository, prognostic_fields,       &
-      'area_fraction',   vector_space, checkpoint_restart_flag )
-    call add_physics_field( cloud_fields, depository, prognostic_fields,       &
-      'ice_fraction',    vector_space, checkpoint_restart_flag )
-    call add_physics_field( cloud_fields, depository, prognostic_fields,       &
-      'liquid_fraction', vector_space, checkpoint_restart_flag )
-    call add_physics_field( cloud_fields, depository, prognostic_fields,       &
-      'bulk_fraction',   vector_space, checkpoint_restart_flag )
-    call add_physics_field( cloud_fields, depository, prognostic_fields,       &
-      'rh_crit_wth',     vector_space, checkpoint_restart_flag )
     ! convective cloud field prognostics
-    call add_physics_field( cloud_fields, depository, prognostic_fields,       &
-      'cca', vector_space, checkpoint_restart_flag )
-    call add_physics_field( cloud_fields, depository, prognostic_fields,       &
-      'ccw', vector_space, checkpoint_restart_flag )
+    call add_physics_field(cloud_fields, depository, prognostic_fields, &
+      'cca', vector_space, checkpoint_restart_flag)
+    call add_physics_field(cloud_fields, depository, prognostic_fields, &
+      'ccw', vector_space, checkpoint_restart_flag)
+
+    call add_physics_field(cloud_fields, depository, prognostic_fields, &
+      'area_fraction',   vector_space, checkpoint_restart_flag)
+    call add_physics_field(cloud_fields, depository, prognostic_fields, &
+      'rh_crit_wth',     vector_space, checkpoint_restart_flag)
+
+    if ( scheme == scheme_pc2 ) then
+      advection_flag=.true.
+    else
+      advection_flag=.false.
+    endif
+
+    call add_physics_field(cloud_fields, depository, prognostic_fields, &
+      'liquid_fraction', vector_space, checkpoint_restart_flag,         &
+      advection_flag=advection_flag)
+    call add_physics_field(cloud_fields, depository, prognostic_fields, &
+      'ice_fraction',    vector_space, checkpoint_restart_flag,         &
+      advection_flag=advection_flag)
+    call add_physics_field(cloud_fields, depository, prognostic_fields, &
+      'bulk_fraction',   vector_space, checkpoint_restart_flag,         &
+      advection_flag=advection_flag)
 
     !========================================================================
     ! Radiation timestep fields
@@ -662,10 +677,12 @@ contains
   !>                                        restart behaviour of field to be set
   !> @param[in]     twod             Optional flag to determine if this is a
   !>                                        2D field for diagnostic output
+  !> @param[in]     advection_flag   Optional flag whether this field is to be advected
+
   subroutine add_physics_field(field_collection, &
                                depository, prognostic_fields, &
                                name, vector_space, &
-                               checkpoint_restart_flag, twod)
+                               checkpoint_restart_flag, twod, advection_flag)
 
     use io_config_mod,      only : use_xios_io, &
                                    write_diag
@@ -685,6 +702,7 @@ contains
     type(function_space_type), intent(in)      :: vector_space
     logical(l_def), intent(in)                 :: checkpoint_restart_flag
     logical, optional, intent(in)              :: twod
+    logical(l_def), optional, intent(in)       :: advection_flag
     !Local variables
     type(field_type)                           :: new_field
 
@@ -701,7 +719,11 @@ contains
       checkpoint_read_behaviour => checkpoint_read_netcdf
     endif
 
-    call new_field%initialise( vector_space, name=trim(name) )
+    if (present(advection_flag)) then
+      call new_field%initialise( vector_space, name=trim(name), advection_flag=advection_flag )
+    else
+      call new_field%initialise( vector_space, name=trim(name) )
+    end if
 
     if (use_xios_io .and. write_diag) then
       ! All physics fields currently require output on faces...

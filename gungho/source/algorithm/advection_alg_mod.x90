@@ -8,7 +8,7 @@
 !>        equations
 module advection_alg_mod
 
-  use constants_mod,                  only: r_def, i_def, l_def
+  use constants_mod,                  only: r_def, i_def, l_def, str_def
   use log_mod,                        only: log_event,         &
                                             LOG_LEVEL_ERROR,   &
                                             LOG_LEVEL_INFO
@@ -62,6 +62,7 @@ module advection_alg_mod
   public  :: advection_alg_init
   public  :: advection_alg_final
   public  :: advection_mr_alg
+  public  :: advection_generic_field_alg
   public  :: advect_momentum_alg
   private :: advect_field
 contains
@@ -260,6 +261,73 @@ contains
     if ( subroutine_timers ) call timer('advection_mr_alg')
 
   end subroutine advection_mr_alg
+
+  !===========================================================================!
+  !> @details A wrapper algorithm for advection a generic prognostic.
+  !> @param[in,out] generic_fields field collection which gets updated
+  !> @param[in]     wind_n Time level n winds
+  !> @param[in]     wind_np1 Time level n+1 winds
+  subroutine advection_generic_field_alg( generic_fields, wind_n, wind_np1 )
+
+    use field_collection_mod,     only: field_collection_type,       &
+                                        field_collection_iterator_type
+
+    implicit none
+
+    type(field_collection_type), intent(inout) :: generic_fields
+    type(field_type),            intent(in)    :: wind_n, wind_np1
+
+    type(field_type) :: advecting_wind
+    type(field_type) :: gf_inc
+
+    ! Iterator for field collection
+    type(field_collection_iterator_type) :: iterator
+
+    ! One of the single fields out of the generic_fields collection
+    type(field_type), pointer :: single_generic_field => null()
+
+    logical :: l_advect
+
+    if ( subroutine_timers ) call timer('advection_generic_field_alg')
+
+    call log_event( "Computing generic field advection...", LOG_LEVEL_INFO)
+
+    ! Set advecting velocity = 0.5(u_np1 + u_n)
+    call advecting_wind%initialise( wind_n%get_function_space() )
+    call invoke( aX_plus_bY(advecting_wind, 0.5_r_def, wind_n, 0.5_r_def, wind_np1) )
+
+    if ( generic_fields%get_length() > 0 ) then
+
+      iterator = generic_fields%get_iterator()
+
+      do
+        if ( .not.iterator%has_next() ) exit
+
+        single_generic_field => iterator%next()
+
+        l_advect = single_generic_field%is_advected()
+
+        if ( l_advect ) then
+
+          call single_generic_field%copy_field_properties(gf_inc)
+
+          call advect_field( gf_inc, single_generic_field, advecting_wind,        &
+                             scheme_method_of_lines, wind_n, wind_np1, .false., dt)
+          ! Make inc into an increment by multiplying by dt
+          call invoke( inc_a_times_X(dt, gf_inc ) ,         &
+                       ! and add it on to the field
+                       inc_X_plus_y(single_generic_field, gf_inc ) )
+
+        end if ! ( l_advect )
+
+      end do
+
+    end if
+
+    if ( subroutine_timers ) call timer('advection_generic_field_alg')
+
+  end subroutine advection_generic_field_alg
+
   !============================================================================!
   !> @brief Use MoL reconstruction to compute advective form update of momentum
   !!        equations by advecting each vector component as a scalar. Splits

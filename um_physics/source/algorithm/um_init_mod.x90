@@ -21,6 +21,7 @@ module um_init_mod
 
   use cloud_config_mod,      only : scheme,       &
                                     scheme_smith, &
+                                    scheme_pc2,   &
                                     rh_crit
 
   use extrusion_config_mod,  only : domain_top
@@ -73,7 +74,9 @@ contains
     use c_z0h_z0m, only: z0h_z0m, z0h_z0m_classic
     use cloud_inputs_mod, only: i_cld_vn, forced_cu, i_rhcpt, i_cld_area,  &
          rhcrit, ice_fraction_method,falliceshear_method, cff_spread_rate, &
-         l_subgrid_qv, ice_width, smith_orig, i_eacf
+         l_subgrid_qv, ice_width, smith_orig, i_eacf,                      &
+         i_pc2_checks_cld_frac_method, l_ensure_min_in_cloud_qcf,          &
+         l_simplify_pc2_init_logic, dbsdtbs_turb_0
     use cv_run_mod, only: icvdiag, cvdiag_inv, cvdiag_sh_wtest,            &
          limit_pert_opt, tv1_sd_opt, iconv_congestus, iconv_deep,          &
          ent_fac_dp, cldbase_opt_dp, cldbase_opt_sh, w_cape_limit,         &
@@ -149,8 +152,8 @@ contains
     use nlsizes_namelist_mod, only: model_levels, bl_levels, row_length,   &
          rows, land_field, ntiles, sm_levels, tr_vars, cloud_levels,       &
          n_cca_lev
-    use pc2_constants_mod, only: i_cld_smith, i_cld_off, rhcpt_off, acf_off, &
-         real_shear
+    use pc2_constants_mod, only: i_cld_off, i_cld_smith, i_cld_pc2,        &
+         rhcpt_off, acf_off, real_shear
     use rad_input_mod, only: two_d_fsd_factor, co2_mmr
     use timestep_mod, only: timestep
     use trignometric_mod, only: cos_theta_latitude
@@ -506,6 +509,8 @@ contains
       select case (scheme)
         case(scheme_smith)
           i_cld_vn = i_cld_smith
+        case(scheme_pc2)
+          i_cld_vn = i_cld_pc2
         case default
           write( log_scratch_space, '(A,I3)' )  &
             'Invalid cloud scheme option, stopping', scheme
@@ -542,11 +547,18 @@ contains
     l_subgrid_qv          = .true.
     ice_width             = 0.02_r_um
 
+    if ( scheme == scheme_pc2 ) then
+      i_pc2_checks_cld_frac_method = 2
+      l_ensure_min_in_cloud_qcf    = .true.
+      l_simplify_pc2_init_logic    = .true.
+      dbsdtbs_turb_0               = 1.50e-4_r_um
+    end if
+
     ! Set rhcrit to the profile provided in the physics namelist.
     ! rhcrit is used throughout the UM and its value needs setting
     ! here.
     if ( cloud == cloud_um .and. &
-         scheme == scheme_smith ) then
+        (scheme == scheme_smith .or. scheme == scheme_pc2 ) ) then
       rhcrit = real(rh_crit, r_um)
     end if
     rhc_row_length = 1

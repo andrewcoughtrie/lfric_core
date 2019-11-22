@@ -63,6 +63,10 @@ module field_mod
     type(halo_routing_type), pointer :: halo_routing => null()
     !> Flag that holds whether each depth of halo is clean or dirty (dirty=1)
     integer(kind=i_def), allocatable :: halo_dirty(:)
+    !> Flag that determines whether the field should be advected.
+    !! false by default.
+    logical(kind=l_def) :: advected = .false.
+
     !> Name of the field. Note the name is immutable once defined via
     !! the initialiser.
     character(str_def) :: name = 'unset'
@@ -143,6 +147,9 @@ module field_mod
 
     !> Returns the name of the field
     procedure         :: get_name
+
+    !> Returns whether the field is advected
+    procedure         :: is_advected
 
     !> Routine to return the mesh used by this field
     procedure         :: get_mesh
@@ -357,8 +364,9 @@ contains
   !> @param [inout] self the field object that will be initialised
   !> @param [in] vector_space the function space that the field lives on
   !> @param [in] name The name of the field. 'none' is a reserved name
+  !> @param [in] advection_flag Whether the field is to be advected
   !>
-  subroutine field_initialiser(self, vector_space, name)
+  subroutine field_initialiser(self, vector_space, name, advection_flag)
 
     use log_mod,         only : log_event, &
                                 LOG_LEVEL_ERROR
@@ -367,6 +375,7 @@ contains
     class(field_type), intent(inout) :: self
     type(function_space_type), target, intent(in) :: vector_space
     character(*), optional, intent(in)            :: name
+    logical,      optional, intent(in)            :: advection_flag
 
     type (mesh_type), pointer :: mesh => null()
 
@@ -386,6 +395,13 @@ contains
       self%name = name
     else
       self%name = 'none'
+    end if
+
+    ! Set the advected flag if given, otherwise default to 'false'
+    if (present(advection_flag)) then
+      self%advected = advection_flag
+    else
+      self%advected = .false.
     end if
 
     ! Create space for holding field data
@@ -444,6 +460,7 @@ contains
     dest%read_method => self%read_method
     dest%checkpoint_write_method => self%checkpoint_write_method
     dest%checkpoint_read_method => self%checkpoint_read_method
+    dest%advected = self%advected
 
   end subroutine copy_field_properties
 
@@ -678,6 +695,20 @@ contains
     name = self%name
 
   end function get_name
+
+  !> Returns whether the field is advected
+  !>
+  !> @return field advected
+  function is_advected(self) result(flag)
+
+    implicit none
+
+    class(field_type), intent(in) :: self
+    logical :: flag
+
+    flag = self%advected
+
+  end function is_advected
 
   !> Function to get mesh information from the field.
   !>

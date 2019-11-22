@@ -116,11 +116,14 @@ contains
     real(r_def) :: sum, min, max
 
     ! Make a field with a function space
-    call f1%initialise( vector_space = this%w2_fs, name='f1' )
+    call f1%initialise( vector_space = this%w2_fs, name='f1', advection_flag=.true. )
 
     ! Get  and check the the name of the field
     name = f1%get_name()
     @assertEqual( 'f1', trim(name) )
+
+    ! Get and check the advected logical status
+    @assertTrue(f1%is_advected())
 
     ! get the proxy
     f1_p = f1%get_proxy()
