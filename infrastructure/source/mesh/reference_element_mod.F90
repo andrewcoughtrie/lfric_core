@@ -23,6 +23,9 @@ module reference_element_mod
   !>
   type, abstract, public :: reference_element_type
     private
+
+    integer(i_def) :: number_verts_per_edge = 2
+
     ! Geometric information about the reference element
     integer(i_def) :: number_vertices, &
                       number_faces,    &
@@ -50,6 +53,7 @@ module reference_element_mod
     integer(i_def), allocatable :: edge_on_face(:,:)
     integer(i_def), allocatable :: edge_on_vert(:,:)
     integer(i_def), allocatable :: face_on_edge(:,:)
+
     ! Vector directions
     real(r_def), allocatable :: normal_to_face(:,:)
     real(r_def), allocatable :: tangent_to_edge(:,:)
@@ -72,6 +76,7 @@ module reference_element_mod
     procedure, public :: get_number_vertices
     procedure, public :: get_number_edges
     procedure, public :: get_number_faces
+    procedure, public :: get_number_verts_per_edge
     procedure, public :: get_edge_on_face
     procedure, public :: get_vertex
     procedure, public :: get_vertex_coordinates
@@ -97,6 +102,7 @@ module reference_element_mod
     procedure(normal_to_face_iface),    deferred :: populate_normal_to_face
     procedure(tangent_to_edge_iface),   deferred :: populate_tangent_to_edge
     procedure(out_face_normal_iface),   deferred :: populate_out_face_normal
+
   end type reference_element_type
 
   interface
@@ -272,15 +278,15 @@ module reference_element_mod
   !>
   !> <pre>
   !>         NWT-\--NT-\--NET
-  !>         /|         /|
-  !>        WT|        ET|
-  !>       /  |       /  |             T  N
+  !>         /|           /|
+  !>        WT|          ET|
+  !>       /  |         /  |             T  N
   !>     SWT-\--ST-\--SET  |             | /
-  !>      |   |      |   |             |/
-  !>      |  NWB-\--NB|--NEB      W -\--\--\--\-- E
-  !>      |  /       |  /             /|
-  !>      | WB       | EB            / |
-  !>      |/         |/             S  B
+  !>      |   |        |   |             |/
+  !>      |  NWB-\--NB-|--NEB      W -\--\--\--\-- E
+  !>      |  /         |  /             /|
+  !>      | WB         | EB            / |
+  !>      |/           |/             S  B
   !>     SWB-\--SB-\--SEB
   !> </pre>
   !>
@@ -375,15 +381,29 @@ module reference_element_mod
   !>            QU  |  RU
   !>            /   QR  \\
   !>           /    |    \\
-  !>         PQU-\-\--PU-\--PRU              Q  U  R
-  !>          |     |     |                \\ | /
-  !>          |    QRL    |                 \\|/
-  !>          |    / \\    |                  -
-  !>         PQ   /   \\   PR                /|
-  !>          | QL     RL |                / |
-  !>          | /       \\ |               P  L
+  !>         PQU-\--PU-\--PRU              Q  U  R
+  !>          |     |      |                \\ | /
+  !>          |    QRL     |                 \\|/
+  !>          |    / \\    |                   -
+  !>         PQ   /   \\   PR                  /|
+  !>          | QL     RL  |                 / |
+  !>          | /       \\ |                P  L
   !>          |/         \\|
-  !>         PQL-\-\--PL-\--PRL
+  !>         PQL--\-PL-\--PRL
+  !>
+  !>
+  !>      PQU,      Face P      PRU,
+  !>      PQ, +---------------+ PR,
+  !>      PQL  \             /  PRL
+  !>            \    Top    /
+  !>             \   Face  /
+  !>       Face Q \       / Face R
+  !>               \     /
+  !>                \   /
+  !>                 \ /
+  !>                  +
+  !>              QRU,QR,QRL
+  !>
   !> </pre>
   !>
   type, extends(reference_element_type), public :: reference_prism_type
@@ -477,11 +497,11 @@ contains
 
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  ! @brief Initialises the common paramters of a reference element.
+  ! @brief Initialises the common parameters of a reference element.
   !
-  ! [in] horiz_vertices Vertices in the horizontal.
-  ! [in] horiz_faces Faces bisected by a horizontal plane.
-  ! [in] horiz_edges Edges in the horizontal.
+  ! [in] horiz_vertices  Vertices in the horizontal.
+  ! [in] horiz_faces     Faces bisected by a horizontal plane.
+  ! [in] horiz_edges     Edges in the horizontal.
   !
   subroutine reference_element_init( this,           &
                                      horiz_vertices, &
@@ -728,6 +748,22 @@ contains
     get_number_faces = this%number_faces
 
   end function get_number_faces
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Gets the number of vertices per edge on the reference shape.
+  !>
+  !> @return Positive integer.
+  !>
+  pure function get_number_verts_per_edge( this )
+
+    implicit none
+
+    class(reference_element_type), intent(in) :: this
+    integer(i_def) :: get_number_verts_per_edge
+
+    get_number_verts_per_edge = this%number_verts_per_edge
+
+  end function get_number_verts_per_edge
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Gets the entity label corresponding to a vertex index.
@@ -1100,9 +1136,10 @@ contains
     implicit none
 
     class(reference_cube_type), intent(in) :: this
-    real(r_def),                   intent(out) :: edges(:,:)
-    real(r_def),                   intent(out) :: faces(:,:)
-    real(r_def),                   intent(out) :: volumes(:,:)
+
+    real(r_def), intent(out) :: edges(:,:)
+    real(r_def), intent(out) :: faces(:,:)
+    real(r_def), intent(out) :: volumes(:,:)
 
     edges(WB,:) = (/ 0.0_r_def, 0.5_r_def, 0.0_r_def /)
     edges(SB,:) = (/ 0.5_r_def, 0.0_r_def, 0.0_r_def /)
@@ -1363,6 +1400,7 @@ contains
     call this%reference_element_final()
 
   end subroutine reference_prism_destructor
+
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Fills entitiy arrays with the corresponding geometric labels on

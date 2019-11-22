@@ -126,7 +126,7 @@ program cubedsphere_mesh_generator
   !     once the chain
   !===================================================================
   unique_mesh_names = remove_duplicates(mesh_names)
-  n_unique_meshes = size(unique_mesh_names)
+  n_unique_meshes   = size(unique_mesh_names)
 
   allocate(unique_edge_cells(n_unique_meshes))
 
@@ -248,7 +248,6 @@ program cubedsphere_mesh_generator
         end if
       end do
 
-
       unique_target_edge_cells = remove_duplicates(target_edge_cells)
       targets =size(unique_target_edge_cells)
       allocate(target_mesh_names(targets))
@@ -308,8 +307,8 @@ program cubedsphere_mesh_generator
     if (allocated(target_mesh_names)) deallocate(target_mesh_names)
   end do
 
-  if ( allocated(target_edge_cells) ) deallocate(target_edge_cells)
-  if ( allocated(ncells)            ) deallocate(ncells)
+  if ( allocated( target_edge_cells)  ) deallocate(target_edge_cells)
+  if ( allocated( ncells)             ) deallocate(ncells)
 
   call log_event( "...generation complete.", LOG_LEVEL_INFO )
 
@@ -342,12 +341,14 @@ program cubedsphere_mesh_generator
 
   call finalise_comm()
 
-  if ( allocated( ncells ) ) deallocate (ncells)
-  if ( allocated( cpp )    ) deallocate (cpp)
-  if ( allocated( csgen )  ) deallocate (csgen)
+  if ( allocated( ncells ) )   deallocate (ncells)
+  if ( allocated( cpp ) )      deallocate (cpp)
+  if ( allocated( csgen ) )    deallocate (csgen)
 
-  if ( allocated( unique_mesh_names) )        deallocate(unique_mesh_names)
-  if ( allocated( unique_target_edge_cells) ) deallocate(unique_target_edge_cells)
+  if ( allocated( unique_mesh_names) ) &
+                               deallocate(unique_mesh_names)
+  if ( allocated( unique_target_edge_cells) ) &
+                               deallocate(unique_target_edge_cells)
 
   ! Finalise the logging system
   call finalise_logging()

@@ -3,37 +3,42 @@
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
-!> @mainpage Biperiodic mesh generator
+!> @mainpage Planar mesh generator
 !>
-!> @brief   Utility to generate a biperiodic surface mesh and write to a file
+!> @brief   Utility to generate a planar surface mesh and write to a file
 !>          which conforms to the UGRID format convention.
 !> @details Usage:
 !>
-!>          biperiodic_mesh_generator <filename>
+!>          planar_mesh_generator <filename>
 !>          filename - Controlling namelist file
 !>
 !-----------------------------------------------------------------------------
-program biperiodic_mesh_generator
+program planar_mesh_generator
 
-  use biperiodic_mesh_generator_config_mod,                                    &
-                         only: read_biperiodic_mesh_generator_namelist,        &
-                               postprocess_biperiodic_mesh_generator_namelist, &
-                               edge_cells_x, edge_cells_y, domain_x, domain_y, &
+  use planar_mesh_generator_config_mod,                                    &
+                         only: read_planar_mesh_generator_namelist,        &
+                               postprocess_planar_mesh_generator_namelist, &
+                               edge_cells_x, edge_cells_y,                 &
+                               periodic_x, periodic_y,                     &
+                               domain_x, domain_y,                         &
                                nmeshes, mesh_names, mesh_filename
 
   use cli_mod,           only: get_initial_filename
   use constants_mod,     only: i_def, str_def, str_long, l_def, imdi
   use mpi_mod,           only: initialise_comm, store_comm, finalise_comm, &
                                get_comm_size, get_comm_rank
-  use genbiperiodic_mod, only: genbiperiodic_type
+  use gen_planar_mod,    only: gen_planar_type
   use io_utility_mod,    only: open_file, close_file
   use log_mod,           only: initialise_logging, finalise_logging, &
-                               log_event, log_set_level, &
-                               log_scratch_space, &
+                               log_event, log_set_level,             &
+                               log_scratch_space,                    &
                                LOG_LEVEL_INFO, LOG_LEVEL_ERROR
   use ncdf_quad_mod,     only: ncdf_quad_type
-  use remove_duplicates_mod, &
-                         only: remove_duplicates
+
+  use reference_element_mod, only: reference_element_type, &
+                                   reference_cube_type
+
+  use remove_duplicates_mod, only: remove_duplicates
   use ugrid_2d_mod,      only: ugrid_2d_type
   use ugrid_file_mod,    only: ugrid_file_type
 
@@ -44,9 +49,12 @@ program biperiodic_mesh_generator
   character(:), allocatable :: filename
   integer(i_def)            :: namelist_unit
 
-  type(genbiperiodic_type), allocatable :: bpgen(:)
-  type(ugrid_2d_type),      allocatable :: ugrid_2d(:)
-  class(ugrid_file_type),   allocatable :: ugrid_file
+  type(reference_cube_type) :: cube_element
+
+  type(gen_planar_type),  allocatable :: mesh_gen(:)
+  type(ugrid_2d_type),    allocatable :: ugrid_2d(:)
+  class(ugrid_file_type), allocatable :: ugrid_file
+
 
   integer(i_def) :: fsize
   integer(i_def) :: target
@@ -58,8 +66,8 @@ program biperiodic_mesh_generator
   integer(i_def), allocatable :: unique_target_edge_cells_y(:)
 
   character(str_def), allocatable :: target_mesh_names(:)
-  character(str_def), pointer :: unique_target_mesh_names(:) => null()
-  character(str_def), pointer :: unique_mesh_names(:)        => null()
+  character(str_def), allocatable :: unique_target_mesh_names(:)
+  character(str_def), allocatable :: unique_mesh_names(:)
   character(str_def) :: test_str, ref_str
 
   ! Switches
@@ -82,24 +90,29 @@ program biperiodic_mesh_generator
   !===================================================================
   call log_set_level(LOG_LEVEL_INFO)
 
+
   !===================================================================
   ! 2.0 Start up
   !===================================================================
+  cube_element = reference_cube_type()
+
   call initialise_comm(comm)
   call store_comm(comm)
   total_ranks = get_comm_size()
   local_rank  = get_comm_rank()
-  call initialise_logging(local_rank, total_ranks, "biperiodic")
+  call initialise_logging(local_rank, total_ranks, "planar")
+
 
   !===================================================================
   ! 3.0 Read in the control namelists from file
   !===================================================================
   call get_initial_filename( filename )
   namelist_unit = open_file( filename )
-  call read_biperiodic_mesh_generator_namelist( namelist_unit, 0 )
-  call postprocess_biperiodic_mesh_generator_namelist( )
+  call read_planar_mesh_generator_namelist( namelist_unit, 0 )
+  call postprocess_planar_mesh_generator_namelist( )
   call close_file( namelist_unit )
   deallocate( filename )
+
 
   !===================================================================
   ! 4.0 Perform some error checks on the namelist inputs
@@ -120,12 +133,11 @@ program biperiodic_mesh_generator
   end if
 
 
-
   !===================================================================
   ! 5.0 Get the unique edge_cells list as meshes could appear more than
   !     once the chain
   !===================================================================
-  unique_mesh_names => remove_duplicates(mesh_names)
+  unique_mesh_names = remove_duplicates(mesh_names)
   n_unique_meshes = size(unique_mesh_names)
 
   allocate(unique_edge_cells_x(n_unique_meshes))
@@ -165,8 +177,13 @@ program biperiodic_mesh_generator
   !===================================================================
   ! 6.0 Report/Check what the code thinks is requested by user
   !===================================================================
-  call log_event( "Generating ordered bi-periodic mesh(es):", &
+  call log_event( "Generating ordered planar mesh(es):", &
                   LOG_LEVEL_INFO )
+  write(log_scratch_space, '(A,L1)') '  Periodic in x-axis: ', periodic_x
+  call log_event( log_scratch_space, LOG_LEVEL_INFO )
+  write(log_scratch_space, '(A,L1)') '  Periodic in y-axis: ', periodic_y
+  call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
   tmp_str1=''
   tmp_str2=''
   do i=1, nmeshes
@@ -185,7 +202,7 @@ program biperiodic_mesh_generator
 
 
   ! Create objects to manipulate UGRID conforming NetCDF file
-  allocate( bpgen    (n_unique_meshes) )
+  allocate( mesh_gen (n_unique_meshes) )
   allocate( ugrid_2d (n_unique_meshes) )
 
 
@@ -220,7 +237,7 @@ program biperiodic_mesh_generator
       end do
 
 
-      unique_target_mesh_names => remove_duplicates(target_mesh_names)
+      unique_target_mesh_names = remove_duplicates(target_mesh_names)
       targets =size(unique_target_mesh_names)
 
       allocate(unique_target_edge_cells_x(targets))
@@ -257,15 +274,18 @@ program biperiodic_mesh_generator
                                 unique_edge_cells_y(i), ')'
       call log_event( trim(log_scratch_space), LOG_LEVEL_INFO)
 
-      bpgen(i) = genbiperiodic_type( mesh_name=unique_mesh_names(i),                 &
-                                     edge_cells_x=unique_edge_cells_x(i),            &
-                                     edge_cells_y=unique_edge_cells_y(i),            &
-                                     target_mesh_names=unique_target_mesh_names,     &
-                                     target_edge_cells_x=unique_target_edge_cells_x, &
-                                     target_edge_cells_y=unique_target_edge_cells_y, &
-                                     domain_x=domain_x,                              &
-                                     domain_y=domain_y )
-
+      mesh_gen(i) = gen_planar_type                                      &
+                     ( reference_element   = cube_element,               &
+                       mesh_name           = unique_mesh_names(i),       &
+                       edge_cells_x        = unique_edge_cells_x(i),     &
+                       edge_cells_y        = unique_edge_cells_y(i),     &
+                       periodic_x          = periodic_x,                 &
+                       periodic_y          = periodic_y,                 &
+                       domain_x            = domain_x,                   &
+                       domain_y            = domain_y,                   &
+                       target_mesh_names   = unique_target_mesh_names,   &
+                       target_edge_cells_x = unique_target_edge_cells_x, &
+                       target_edge_cells_y = unique_target_edge_cells_y  )
 
 
 
@@ -273,13 +293,15 @@ program biperiodic_mesh_generator
 
       ! Only 1 mesh requested, so it must be the prime mesh
       ! and so no optional target_ndivs required
-      bpgen(i) = genbiperiodic_type( mesh_name=unique_mesh_names(i),      &
-                                     edge_cells_x=unique_edge_cells_x(i), &
-                                     edge_cells_y=unique_edge_cells_y(i), &
-                                     domain_x=domain_x,                   &
-                                     domain_y=domain_y )
-
-
+      mesh_gen(i) = gen_planar_type                                &
+                     ( reference_element = cube_element,           &
+                       mesh_name         = unique_mesh_names(i),   &
+                       edge_cells_x      = unique_edge_cells_x(i), &
+                       edge_cells_y      = unique_edge_cells_y(i), &
+                       periodic_x        = periodic_x,             &
+                       periodic_y        = periodic_y,             &
+                       domain_x          = domain_x,               &
+                       domain_y          = domain_y )
 
     else
       write(log_scratch_space, "(A,I0,A)") &
@@ -288,7 +310,7 @@ program biperiodic_mesh_generator
     end if
 
     ! Pass the cubesphere generation object to the ugrid file writer
-    call ugrid_2d(i)%set_by_generator(bpgen(i))
+    call ugrid_2d(i)%set_by_generator(mesh_gen(i))
 
     if (allocated(unique_target_edge_cells_x)) deallocate(unique_target_edge_cells_x)
     if (allocated(unique_target_edge_cells_y)) deallocate(unique_target_edge_cells_y)
@@ -327,9 +349,12 @@ program biperiodic_mesh_generator
 
   call finalise_comm()
 
-  if ( allocated( bpgen ) ) deallocate (bpgen)
+  if ( allocated( mesh_gen ) )                  deallocate(mesh_gen)
+  if ( allocated( unique_mesh_names) )          deallocate(unique_mesh_names)
+  if ( allocated( unique_target_edge_cells_x) ) deallocate(unique_target_edge_cells_x)
+  if ( allocated( unique_target_edge_cells_y) ) deallocate(unique_target_edge_cells_y)
 
   ! Finalise the logging system
   call finalise_logging()
 
-end program biperiodic_mesh_generator
+end program planar_mesh_generator

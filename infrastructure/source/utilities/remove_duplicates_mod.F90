@@ -32,9 +32,8 @@ function get_unique_int_array(array_in) result(array_out)
 
   implicit none
 
-  integer(i_def), intent(in) :: array_in(:)
-  integer(i_def), pointer    :: array_out(:)
-
+  integer(i_def), intent(in)  :: array_in(:)
+  integer(i_def), allocatable :: array_out(:)
   integer(i_def) :: n_entries, i, j, n_uniques
 
   integer(i_def), allocatable :: unique_list(:)
@@ -46,7 +45,6 @@ function get_unique_int_array(array_in) result(array_out)
   unique_list(1) = array_in(1)
   n_uniques = 1
 
-  nullify(array_out)
   do i=1, n_entries
     if (array_in(i) == imdi) exit
     do j=1, n_uniques
@@ -61,9 +59,11 @@ function get_unique_int_array(array_in) result(array_out)
     end do
   end do
 
+  if (allocated(array_out)) deallocate(array_out)
   allocate(array_out(n_uniques))
   array_out(:) = unique_list(1:n_uniques)
 
+  if (allocated(unique_list)) deallocate (unique_list)
   return
 end function get_unique_int_array
 
@@ -74,8 +74,8 @@ function get_unique_char_array(array_in) result(array_out)
 
   implicit none
 
-  character(str_def), intent(in) :: array_in(:)
-  character(str_def), pointer    :: array_out(:)
+  character(str_def), intent(in)  :: array_in(:)
+  character(str_def), allocatable :: array_out(:)
 
   integer(i_def) :: n_entries, i, j, n_uniques
 
@@ -88,7 +88,6 @@ function get_unique_char_array(array_in) result(array_out)
   unique_list(1) = array_in(1)
   n_uniques = 1
 
-  nullify(array_out)
   do i=1, n_entries
     if (array_in(i) == '') exit
     do j=1, n_uniques
@@ -103,9 +102,11 @@ function get_unique_char_array(array_in) result(array_out)
     end do
   end do
 
+  if (allocated(array_out)) deallocate(array_out)
   allocate(array_out(n_uniques))
   array_out(:) = unique_list(1:n_uniques)
 
+  if (allocated(unique_list)) deallocate (unique_list)
   return
 end function get_unique_char_array
 

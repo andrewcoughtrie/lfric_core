@@ -68,8 +68,8 @@ contains
 
     class( remove_duplicates_test_type ), intent( inout ) :: this
 
-    character(str_def), pointer   :: test_unique_str_arr(:) => null()
-    character(str_def), parameter :: unique_str_arr(7) =                     &
+    character(str_def), allocatable :: test_unique_str_arr(:)
+    character(str_def), parameter   :: unique_str_arr(7) =                   &
                                         [character(len=str_def) :: 'The',    &
                                                                    'tinker', &
                                                                    'the',    &
@@ -79,8 +79,10 @@ contains
                                                                    'another' ]
 
 
-    test_unique_str_arr => remove_duplicates(str_array)
+    test_unique_str_arr = remove_duplicates(str_array)
     @assertTrue( unique_str_arr == test_unique_str_arr )
+
+    if (allocated(test_unique_str_arr)) deallocate(test_unique_str_arr)
 
     return
   end subroutine test_get_unique_str_array
@@ -94,13 +96,14 @@ contains
 
     class( remove_duplicates_test_type ), intent( inout ) :: this
 
-    integer(i_def), pointer   :: test_unique_int_arr(:) => null()
+    integer(i_def), allocatable :: test_unique_int_arr(:)
     integer(i_def), parameter :: unique_int_arr(7) =     &
         [ 1, 2, 3, 5, 8, 7, 12 ]
 
-    test_unique_int_arr => remove_duplicates(int_array)
+    test_unique_int_arr = remove_duplicates(int_array)
     @assertTrue( unique_int_arr==test_unique_int_arr )
 
+    if (allocated(test_unique_int_arr)) deallocate(test_unique_int_arr)
     return
   end subroutine test_get_unique_int_array
 

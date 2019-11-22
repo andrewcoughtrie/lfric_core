@@ -86,7 +86,7 @@ if ( geometry == geometry_spherical ) then  ! SPHERICAL DOMAIN
       call generate_global_gw_fields (lat, z, exner_s, u_s, theta_s, rho_s)
   end select
 
-else                     ! BIPERIODIC PLANE DOMAIN
+else                     ! PLANAR DOMAIN
 
   z = x(3)
 

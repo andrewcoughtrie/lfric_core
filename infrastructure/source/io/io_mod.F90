@@ -378,7 +378,7 @@ subroutine xios_diagnostic_domain_init(mesh_id, chi)
   integer(i_def)                :: local_annexed_dof
 
   ! Factor to convert coords from radians to degrees if needed
-  ! set as 1.0 for biperiodic
+  ! set as 1.0 for planar mesh
   real(r_def)                :: r2d
 
 
@@ -853,7 +853,7 @@ subroutine xios_checkpoint_domain_init(fs_id, domain_name, mesh_id, chi, use_ind
   integer(i_def), allocatable   :: all_undfs_checkpoint_domain(:)
 
   ! Factor to convert coords from radians to degrees if needed
-  ! set as 1.0 for biperiodic
+  ! set as 1.0 for planar mesh
   real(r_def) :: r2d
 
 
@@ -1033,7 +1033,7 @@ subroutine calc_xios_domain_coords(local_mesh, nodal_coords, chi, &
   integer(i_def)                 :: edge1, edge2
 
   ! Factor to convert coords from radians to degrees if needed
-  ! set as 1.0 for biperiodic
+  ! set as 1.0 for planar mesh
   real(r_def) :: r2d
 
   edge_count = 0
