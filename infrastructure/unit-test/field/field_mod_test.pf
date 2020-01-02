@@ -9,9 +9,10 @@
 !-------------------------------------------------------------------------------
 module field_mod_test
 
-  use constants_mod,                  only : i_def, r_def, str_def
+  use constants_mod,                  only : i_def, r_def, l_def, str_def
   use halo_routing_collection_mod,    only : halo_routing_collection_type, &
                                              halo_routing_collection
+  use halo_routing_mod,               only : halo_routing_type
   use function_space_collection_mod,  only : function_space_collection_type, &
                                              function_space_collection
   use mesh_collection_mod,            only : mesh_collection_type, &
@@ -26,7 +27,7 @@ module field_mod_test
   implicit none
 
   private
-  public :: test_field, test_field_pointer
+  public :: test_field, test_field_proxy
 
   @TestCase
   type, extends(MPITestCase), public :: field_test_type
@@ -36,7 +37,7 @@ module field_mod_test
     procedure setUp
     procedure tearDown
     procedure test_field
-    procedure test_field_pointer
+    procedure test_field_proxy
   end type field_test_type
 
   integer(i_def), parameter :: element_order = 0
@@ -111,9 +112,8 @@ contains
     type(function_space_type), pointer :: fs => null()
     type(mesh_type),           pointer :: mesh_out => null()
 
-    integer(i_def) :: err
-    integer :: i, iface, iedge, lid, test_integer
-    real(r_def) :: sum, min, max
+    integer(i_def) :: iface, iedge, lid, test_integer
+    integer(i_def) :: order
 
     ! Make a field with a function space
     call f1%initialise( vector_space = this%w2_fs, name='f1', advection_flag=.true. )
@@ -138,36 +138,9 @@ contains
     fs => f1%get_function_space()
     @assertEqual( fs%get_undf(), this%w2_fs%get_undf() )
 
-    !Initialise field data
-    do i=1,f1_p%vspace%get_undf()
-      f1_p%data(i)=real(i)
-    end do
-
-    ! Make a second field, identical to the first
-    call f2%initialise( vector_space = this%w2_fs )
-    f2_p = f2%get_proxy()
-    do i=1,f2_p%vspace%get_undf()
-      f2_p%data(i)=real(i)
-    end do
-
-    ! Perform a halo swap on the second field
-    call f2_p%halo_exchange_start(1)
-    ! If I had any calculations to overlap with comms - I'd put them here!
-    call f2_p%halo_exchange_finish(1)
-
-    ! For serial case, the halo swapped field should be the same as the original
-    @assertEqual( f1_p%data  , f2_p%data, 1.0e-2_r_def )
-
-    ! Test the global reductions
-    sum=f1_p%get_sum()
-    @assertEqual( 4095.0  , sum, 1.0e-2_r_def )
-
-    min=f1_p%get_min()
-    @assertEqual( 1.0  , min, 1.0e-2_r_def )
-
-    max=f1_p%get_max()
-    @assertEqual( 90.0  , max, 1.0e-2_r_def)
-
+    ! Check the order the field thinks it is
+    order=f1%get_element_order()
+    @assertEqual( element_order, order )
 
     ! Copy field operator tests follow...
     call f1%copy_field(f2)
@@ -176,11 +149,7 @@ contains
     ! Check that contained vector_space pointers point to same address
     @assertTrue(associated(f1_p%vspace, f2_p%vspace), "Assigned field_type vspace pointers differ.")
 
-    ! Operations on field data are part of the PSy and Kernel layers so
-    ! that is all.
-
-
-    ! Test if the function space returns the correct mesh
+    ! Test if the field returns the correct mesh
     ! Use a subset of the tests from mesh_mod_test.pf
     mesh_out => f1%get_mesh()
 
@@ -222,30 +191,76 @@ contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @Test( npes=[1] )
-  subroutine test_field_pointer( this )
+  subroutine test_field_proxy( this )
 
-    use field_mod,             only: field_type, field_pointer_type
+    use field_mod,             only: field_type, field_proxy_type
 
     implicit none
 
     class(field_test_type), intent(inout) :: this
 
-    type(field_type), target  :: f1
-    type(field_type), pointer :: f1_ptr
-    type(field_pointer_type)  :: field_pointer
+    type(field_type)       :: f1
+    type(field_type)       :: f2
+    type(field_proxy_type) :: f1_p
+    type(field_proxy_type) :: f2_p
+    integer(i_def)         :: i
+    integer(i_def)         :: max_halo_depth
+    type(halo_routing_type), pointer :: halo_routing
+    integer(i_def)         :: order
+    real(r_def)            :: test_sum, test_min, test_max
+    logical(l_def)         :: dirty
 
-    ! Create a field and a pointer to it
+    ! Make a field with a function space
     call f1%initialise( vector_space = this%w2_fs, name='f1' )
-    f1_ptr => f1
 
-    ! Make a field pointer object based on the above field
-    field_pointer = field_pointer_type( f1_ptr )
+    ! get the proxy
+    f1_p = f1%get_proxy()
 
-    ! Check that the pointer held in the object is the same as the original
-    @assertEqual ( .true., associated( field_pointer%field_ptr, f1_ptr ) )
+    !Initialise field data
+    do i=1,f1_p%vspace%get_undf()
+      f1_p%data(i)=real(i)
+    end do
 
-  end subroutine test_field_pointer
+    ! Make a second field, identical to the first
+    call f2%initialise( vector_space = this%w2_fs )
+    f2_p = f2%get_proxy()
+    do i=1,f2_p%vspace%get_undf()
+      f2_p%data(i)=real(i)
+    end do
+
+    ! Perform a halo swap on the second field
+    call f2_p%halo_exchange_start(1)
+    ! If I had any calculations to overlap with comms - I'd put them here!
+    call f2_p%halo_exchange_finish(1)
+
+    ! For serial case, the halo swapped field should be the same as the original
+    @assertEqual( f1_p%data  , f2_p%data, 1.0e-2_r_def )
+
+    ! Test the global reductions
+    test_sum=f1_p%get_sum()
+    @assertEqual( 4095.0  , test_sum, 1.0e-2_r_def )
+
+    test_min=f1_p%get_min()
+    @assertEqual( 1.0  , test_min, 1.0e-2_r_def )
+
+    test_max=f1_p%get_max()
+    @assertEqual( 90.0  , test_max, 1.0e-2_r_def)
+
+    max_halo_depth=f1_p%max_halo_depth()
+    @assertEqual ( 3, max_halo_depth )
+
+    halo_routing=>f1_p%get_halo_routing()
+    order = halo_routing%get_element_order()
+    @assertEqual( element_order, order )
+
+    call f1_p%set_dirty()
+    dirty=f1_p%is_dirty(1)
+    @assertEqual ( .true., dirty )
+
+    call f1_p%set_clean(1)
+    dirty=f1_p%is_dirty(1)
+    @assertEqual ( .false., dirty )
+
+  end subroutine test_field_proxy
 
 end module field_mod_test
-!-------------------------------------------------------------------------------
-! vim: set ft=fortran :

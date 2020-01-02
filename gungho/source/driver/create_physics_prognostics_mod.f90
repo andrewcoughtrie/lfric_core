@@ -701,16 +701,16 @@ contains
 
     implicit none
 
-    character(*), intent(in)                   :: name
-    type(field_collection_type), intent(inout) :: field_collection
-    type(field_collection_type), intent(inout) :: depository
-    type(field_collection_type), intent(inout) :: prognostic_fields
-    type(function_space_type), intent(in)      :: vector_space
-    logical(l_def), intent(in)                 :: checkpoint_restart_flag
-    logical, optional, intent(in)              :: twod
+    character(*), intent(in)                       :: name
+    type(field_collection_type), intent(inout)     :: field_collection
+    type(field_collection_type), intent(inout)     :: depository
+    type(field_collection_type), intent(inout)     :: prognostic_fields
+    type(function_space_type), pointer, intent(in) :: vector_space
+    logical(l_def), intent(in)                     :: checkpoint_restart_flag
+    logical(l_def), optional, intent(in)           :: twod
     logical(l_def), optional, intent(in)       :: advection_flag
     !Local variables
-    type(field_type)                           :: new_field
+    type(field_type)                               :: new_field
 
     ! pointers for xios write interface
     procedure(write_interface), pointer   :: write_diag_behaviour => null()

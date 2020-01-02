@@ -26,22 +26,14 @@ module field_mod
   use yaxt,               only: xt_redist,  xt_request, &
                                 xt_redist_s_exchange, &
                                 xt_redist_a_exchange, xt_request_wait
-  use linked_list_data_mod, only: linked_list_data_type
+  use field_parent_mod,   only: field_parent_type, &
+                                field_parent_proxy_type
 
   implicit none
 
   private
 
 ! Public types
-
-!______<abstract> field_parent_type___________________________________________
-
-
-   !> Abstract field type that is the parent of any field type in the field
-   !> object hierarchy
-   type, extends(linked_list_data_type), public, abstract :: field_parent_type
-   contains
-   end type field_parent_type
 
 !______field_type_____________________________________________________________
 
@@ -54,22 +46,8 @@ module field_mod
   type, extends(field_parent_type), public :: field_type
     private
 
-    !> Each field has a pointer to the function space on which it lives
-    type( function_space_type ), pointer         :: vspace => null( )
-    !> Each field also holds an integer enumerated value for the
-    !> allocatable array of type real which holds the values of the field
+    !> The floating point values of the field
     real(kind=r_def), allocatable :: data( : )
-    !> Holds information about how to halo exchange a field
-    type(halo_routing_type), pointer :: halo_routing => null()
-    !> Flag that holds whether each depth of halo is clean or dirty (dirty=1)
-    integer(kind=i_def), allocatable :: halo_dirty(:)
-    !> Flag that determines whether the field should be advected.
-    !! false by default.
-    logical(kind=l_def) :: advected = .false.
-
-    !> Name of the field. Note the name is immutable once defined via
-    !! the initialiser.
-    character(str_def) :: name = 'unset'
 
     ! IO interface procedure pointers
 
@@ -97,14 +75,6 @@ module field_mod
     procedure, public :: log_dofs
     procedure, public :: log_minmax
     procedure, public :: log_absmax
-
-    !> Function returns the enumerated integer for the functions_space on which
-    !! the field lives
-    procedure, public :: which_function_space
-
-    !> Function returns a pointer to the function space on which
-    !! the field lives
-    procedure, public :: get_function_space
 
     !> Setter for the field write method
     procedure, public :: set_write_behaviour
@@ -145,18 +115,6 @@ module field_mod
     !> Routine to write a checkpoint netCDF file
     procedure         :: write_checkpoint
 
-    !> Returns the name of the field
-    procedure         :: get_name
-
-    !> Returns whether the field is advected
-    procedure         :: is_advected
-
-    !> Routine to return the mesh used by this field
-    procedure         :: get_mesh
-    procedure         :: get_mesh_id
-    !> Routine to return the order of the FEM elements
-    procedure         :: get_element_order
-
     !> Overloaded assigment operator
     procedure         :: field_type_assign
 
@@ -173,25 +131,6 @@ module field_mod
 
   end type field_type
 
-!______field_pointer_type_____________________________________________________
-
-  !> A pointer to a field
-  !>
-  !> We want to be able hold pointers to fields but when these are passed
-  !> around, Fortran has a habit of automatically dereferencing them for you.
-  !> If we store them in an object that contains the pointer - they won't
-  !> get dereferenced.
-  !>
-  type, extends(field_parent_type), public :: field_pointer_type
-    type(field_type), pointer, public :: field_ptr
-  contains
-    final :: field_pointer_destructor
-  end type field_pointer_type
-
-  interface field_pointer_type
-    module procedure field_pointer_constructor
-  end interface
-
 !______field_proxy_type_______________________________________________________
 
   !> Psy layer representation of a field.
@@ -199,24 +138,12 @@ module field_mod
   !> This is an accessor class that allows access to the actual field
   !> information with each element accessed via a public pointer.
   !>
-  type, public :: field_proxy_type
+  type, extends(field_parent_proxy_type), public :: field_proxy_type
 
     private
 
-    !> An unused allocatable integer that prevents an intenal compiler error
-    !> with the Gnu Fortran compiler. Adding an allocatable forces the compiler
-    !> to accept that the object has a finaliser. It gets confused without it.
-    !> This is a workaround for GCC bug id 61767 - when this bug is fixed, the
-    !> integer can be removed.
-    integer(kind=i_def), allocatable :: dummy_for_gnu
-    !> Each field has a pointer to the function space on which it lives
-    type( function_space_type ), pointer, public :: vspace => null()
     !> Allocatable array of type real which holds the values of the field
     real(kind=r_def), public, pointer :: data( : ) => null()
-    !> Holds metadata information about a field - like dofmap or routing tables
-    type(halo_routing_type), pointer :: halo_routing => null()
-    !> pointer to array that holds halo dirtiness
-    integer(kind=i_def), pointer :: halo_dirty(:) => null()
     !> Unique identifier used to identify a halo exchange, so the start of an
     !> asynchronous halo exchange can be matched with the end
     type(xt_request) :: halo_request
@@ -258,19 +185,7 @@ module field_mod
     !>
     !> We presently have only blocking reductions, so this
     !> subroutine currently returns without waiting.
-    procedure reduction_finish
-
-    !> Returns whether the halos at the given depth are dirty or clean
-    !! @param[in] depth The depth at which to check the halos
-    !! @return True if the halos are dirty or false if they are clean
-    procedure is_dirty
-
-    !> Flags all halos as being dirty
-    procedure set_dirty
-
-    !> Flags all the halos up the given depth as clean
-    !! @param[in] depth The depth up to which to set the halo to clean
-    procedure set_clean
+    procedure, public :: reduction_finish
 
   end type field_proxy_type
 
@@ -315,33 +230,6 @@ module field_mod
 
 contains
 
-!______field_ptr_type_procedures______________________________________________
-
-  !> Constructor for a field pointer
-  !>
-  !> @param [in] field_ptr A pointer to the field that is to be
-  !>                       stored as a reference
-  !> @return The field_pointer type
-  function field_pointer_constructor(field_ptr) result(self)
-    implicit none
-
-    type(field_type), pointer :: field_ptr
-    type(field_pointer_type) :: self
-
-    self%field_ptr => field_ptr
-  end function field_pointer_constructor
-
-  !> Finaliser for a field pointer
-  !>
-  ! The following finaliser doesn't do anything. Without it, the Gnu compiler
-  ! tries to create its own, but only ends up producing an Internal Compiler
-  ! Error, so its included here to prevent that.
-  subroutine field_pointer_destructor(self)
-    implicit none
-    type(field_pointer_type), intent(inout) :: self
-  end subroutine field_pointer_destructor
-
-
 !______field_type_procedures____________________________________________________
 
   !> Function to create a proxy with access to the data in the field_type.
@@ -352,16 +240,15 @@ contains
     implicit none
     class(field_type), target, intent(in)  :: self
 
-    get_proxy % vspace                 => self % vspace
-    get_proxy % data                   => self % data
-    get_proxy % halo_routing           => self % halo_routing
-    get_proxy % halo_dirty             => self % halo_dirty
+    ! Call the routine that initialises the proxy for data held in the parent
+    call self%field_parent_proxy_initialiser(get_proxy)
+
+    get_proxy%data   => self%data
 
   end function get_proxy
 
   !> Initialise a <code>field_type</code> object.
   !>
-  !> @param [inout] self the field object that will be initialised
   !> @param [in] vector_space the function space that the field lives on
   !> @param [in] name The name of the field. 'none' is a reserved name
   !> @param [in] advection_flag Whether the field is to be advected
@@ -372,46 +259,35 @@ contains
                                 LOG_LEVEL_ERROR
     implicit none
 
-    class(field_type), intent(inout) :: self
-    type(function_space_type), target, intent(in) :: vector_space
-    character(*), optional, intent(in)            :: name
-    logical,      optional, intent(in)            :: advection_flag
-
-    type (mesh_type), pointer :: mesh => null()
+    class(field_type), intent(inout)               :: self
+    type(function_space_type), pointer, intent(in) :: vector_space
+    character(*), optional, intent(in)             :: name
+    logical,      optional, intent(in)             :: advection_flag
 
     ! If there's already data in the field, destruct it
     ! ready for re-initialisation
     if(allocated(self%data))call field_destructor_scalar(self)
 
-    self%vspace => vector_space
-    if ( self%vspace%which() /= WCHI ) then ! chi fields are never halo exchanged - so don't neeed a routing table
-      self%halo_routing => &
-        halo_routing_collection%get_halo_routing( self%vspace%get_mesh_id(),&
-                                              self%vspace%get_element_order(), &
-                                              self%vspace%which() )
-    end if
-    ! Set the name of the field if given, otherwise default to 'none'
     if (present(name)) then
-      self%name = name
+      if (present(advection_flag))then
+        call self%field_parent_initialiser(vector_space, &
+                                           name=name, &
+                                           advection_flag=advection_flag)
+      else
+        call self%field_parent_initialiser(vector_space, &
+                                           name=name)
+      endif
     else
-      self%name = 'none'
-    end if
-
-    ! Set the advected flag if given, otherwise default to 'false'
-    if (present(advection_flag)) then
-      self%advected = advection_flag
-    else
-      self%advected = .false.
+      if (present(advection_flag))then
+        call self%field_parent_initialiser(vector_space, &
+                                           advection_flag=advection_flag)
+      else
+        call self%field_parent_initialiser(vector_space)
+      end if
     end if
 
     ! Create space for holding field data
     allocate( self%data(self%vspace%get_last_dof_halo()) )
-
-    ! Create a flag for holding whether a halo depth is dirty or not
-    mesh=>self%vspace%get_mesh()
-    allocate(self%halo_dirty(mesh%get_halo_depth()))
-    self%halo_dirty(:) = 1
-    nullify(mesh)
 
   end subroutine field_initialiser
 
@@ -434,7 +310,7 @@ contains
     end if
 
     dest%data(:) = self%data(:)
-    dest%halo_dirty(:)=self%halo_dirty(:)
+    call self%copy_field_parent(dest)
 
   end subroutine copy_field
 
@@ -451,16 +327,15 @@ contains
     character(*), optional, intent(in)     :: name
 
     if (present(name)) then
-      call dest%initialise(self%vspace, name)
+      call dest%initialise(self%vspace, name, self%is_advected())
     else
-      call dest%initialise(self%vspace, self%name)
+      call dest%initialise( self%vspace, self%get_name(), self%is_advected() )
     end if
 
     dest%write_method => self%write_method
     dest%read_method => self%read_method
     dest%checkpoint_write_method => self%checkpoint_write_method
     dest%checkpoint_read_method => self%checkpoint_read_method
-    dest%advected = self%advected
 
   end subroutine copy_field_properties
 
@@ -499,11 +374,11 @@ contains
 
     class(field_type), intent(inout)    :: self
 
+    call self%field_parent_final()
+
     if(allocated(self%data)) then
       deallocate(self%data)
     end if
-
-    if ( allocated(self%halo_dirty) ) deallocate(self%halo_dirty)
 
     nullify( self%vspace,                   &
              self%write_method,             &
@@ -682,75 +557,7 @@ contains
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
 
-  !> Gets the name of the field.
-  !>
-  !> @return field name
-  function get_name(self) result(name)
 
-    implicit none
-
-    class(field_type), intent(in) :: self
-    character(str_def) :: name
-
-    name = self%name
-
-  end function get_name
-
-  !> Returns whether the field is advected
-  !>
-  !> @return field advected
-  function is_advected(self) result(flag)
-
-    implicit none
-
-    class(field_type), intent(in) :: self
-    logical :: flag
-
-    flag = self%advected
-
-  end function is_advected
-
-  !> Function to get mesh information from the field.
-  !>
-  !> @return Mesh object
-  function get_mesh(self) result(mesh)
-
-    implicit none
-
-    class(field_type), intent(in) :: self
-    type(mesh_type), pointer :: mesh
-
-    mesh => self%vspace%get_mesh()
-
-  end function get_mesh
-
-  !> Function to get mesh id from the field.
-  !>
-  !> @return mesh_id
-  function get_mesh_id(self) result(mesh_id)
-    implicit none
-
-    class (field_type) :: self
-    integer(i_def) :: mesh_id
-
-    mesh_id = self%vspace%get_mesh_id()
-
-    return
-  end function get_mesh_id
-
-  !> Function to get element order from the field.
-  !>
-  !> @return Element order of this field
-  function get_element_order(self) result(elem)
-    implicit none
-
-    class (field_type) :: self
-    integer(i_def) :: elem
-
-    elem = self%vspace%get_element_order()
-
-    return
-  end function get_element_order
   !> Sends field contents to the log.
   !!
   !! @param[in] dump_level The level to use when sending the dump to the log.
@@ -883,33 +690,6 @@ contains
 
   end subroutine log_absmax
 
-  !> Function to integer id of the function space from the field
-  !>
-  !> @return fs
-  function which_function_space(self) result(fs)
-    implicit none
-    class(field_type), intent(in) :: self
-    integer(i_def) :: fs
-
-    fs = self%vspace%which()
-    return
-  end function which_function_space
-
-
-  !> Function to get pointer to function space from the field.
-  !>
-  !> @return vspace
-  function get_function_space(self) result(vspace)
-    implicit none
-
-    class (field_type), target :: self
-    type(function_space_type), pointer :: vspace
-
-    vspace => self%vspace
-
-    return
-  end function get_function_space
-
   !> Calls the underlying IO implementation for writing a field
   !> throws an error if this has not been set
   !> @param [in] field_name - field name / id to write
@@ -960,7 +740,7 @@ contains
       ! Set halos dirty here as for parallel read we only read in data for owned
       ! dofs and the halos will not be set
 
-      self%halo_dirty(:) = 1
+      call tmp_proxy%set_dirty()
 
     else
 
@@ -996,7 +776,7 @@ contains
       ! Set halos dirty here as for parallel read we only read in data for owned
       ! dofs and the halos will not be set
 
-      self%halo_dirty(:) = 1
+      call tmp_proxy%set_dirty()
 
     else
 
@@ -1045,16 +825,16 @@ contains
     class( field_proxy_type ), target, intent(inout) :: self
     integer(i_def), intent(in) :: depth
     type(xt_redist) :: redist
-    type(mesh_type), pointer   :: mesh => null()
+    type(halo_routing_type), pointer :: halo_routing => null()
 
     if( self%vspace%is_comms_fs() ) then
-      mesh=>self%vspace%get_mesh()
-      if( depth > mesh%get_halo_depth() ) &
+      if( depth > self%max_halo_depth() ) &
         call log_event( 'Error in field: '// &
                         'attempt to exchange halos with depth out of range.', &
                         LOG_LEVEL_ERROR )
         ! Start a blocking (synchronous) halo exchange
-        redist = self%halo_routing%get_redist(depth)
+        halo_routing => self%get_halo_routing()
+        redist = halo_routing%get_redist(depth)
         call xt_redist_s_exchange(redist, self%data, self%data)
 
       ! Halo exchange is complete so set the halo dirty flag to say it
@@ -1063,8 +843,6 @@ contains
       ! If a halo counter has been set up, increment it
       if (allocated(halo_calls)) call halo_calls%counter_inc()
     end if
-
-    nullify( mesh )
 
   end subroutine halo_exchange
 
@@ -1079,20 +857,17 @@ contains
     class( field_proxy_type ), target, intent(inout) :: self
     integer(i_def), intent(in) :: depth
     type(xt_redist) :: redist
-    type(mesh_type), pointer   :: mesh => null()
+    type(halo_routing_type), pointer :: halo_routing => null()
 
     if( self%vspace%is_comms_fs() ) then
-
-      mesh=>self%vspace%get_mesh()
-      if( depth > mesh%get_halo_depth() ) &
+      if( depth > self%max_halo_depth() ) &
         call log_event( 'Error in field: '// &
                         'attempt to exchange halos with depth out of range.', &
                         LOG_LEVEL_ERROR )
       ! Start an asynchronous halo exchange
-      redist = self%halo_routing%get_redist(depth)
+      halo_routing => self%get_halo_routing()
+      redist = halo_routing%get_redist(depth)
       call xt_redist_a_exchange(redist, self%data, self%data, self%halo_request)
-
-      nullify( mesh )
     end if
 
   end subroutine halo_exchange_start
@@ -1108,12 +883,9 @@ contains
 
     class( field_proxy_type ), target, intent(inout) :: self
     integer(i_def), intent(in) :: depth
-    type(mesh_type), pointer   :: mesh => null()
 
     if( self%vspace%is_comms_fs() ) then
-
-      mesh=>self%vspace%get_mesh()
-      if( depth > mesh%get_halo_depth() ) &
+      if( depth > self%max_halo_depth() ) &
         call log_event( 'Error in field: '// &
                         'attempt to exchange halos with depth out of range.', &
                         LOG_LEVEL_ERROR )
@@ -1125,8 +897,6 @@ contains
       self%halo_dirty(1:depth) = 0
       ! If a halo counter has been set up, increment it
       if (allocated(halo_calls)) call halo_calls%counter_inc()
-
-      nullify( mesh )
     end if
 
   end subroutine halo_exchange_finish
@@ -1236,62 +1006,5 @@ contains
     end if
 
   end subroutine reduction_finish
-
-  ! Returns true if a halo depth is dirty
-  ! @param[in] depth The depth of halo to inquire about
-  function is_dirty(self, depth) result(dirtiness)
-
-    use log_mod,         only : log_event, &
-                                LOG_LEVEL_ERROR
-    implicit none
-
-    class(field_proxy_type), intent(in) :: self
-    integer(i_def), intent(in) :: depth
-    logical(l_def) :: dirtiness
-    type(mesh_type), pointer   :: mesh => null()
-
-    mesh=>self%vspace%get_mesh()
-    if( depth > mesh%get_halo_depth() ) &
-      call log_event( 'Error in field: '// &
-                      'call to is_dirty() with depth out of range.', &
-                      LOG_LEVEL_ERROR )
-
-    dirtiness = .false.
-    if(self%halo_dirty(depth) == 1)dirtiness = .true.
-    nullify( mesh )
-  end function is_dirty
-
-  ! Sets a halo depth to be flagged as dirty
-  subroutine set_dirty( self )
-
-    implicit none
-
-    class(field_proxy_type), intent(inout) :: self
-
-    self%halo_dirty(:) = 1
-
-  end subroutine set_dirty
-
-  ! Sets the halos up to depth to be flagged as clean
-  ! @param[in] depth The depth up to which to make the halo clean
-  subroutine set_clean(self, depth)
-
-    use log_mod,         only : log_event, &
-                                LOG_LEVEL_ERROR
-    implicit none
-
-    class(field_proxy_type), intent(inout) :: self
-    integer(i_def), intent(in) :: depth
-    type(mesh_type), pointer   :: mesh => null()
-
-    mesh=>self%vspace%get_mesh()
-    if( depth > mesh%get_halo_depth() ) &
-      call log_event( 'Error in field: '// &
-                      'call to set_clean() with depth out of range.', &
-                      LOG_LEVEL_ERROR )
-
-    self%halo_dirty(1:depth) = 0
-    nullify( mesh )
-  end subroutine set_clean
 
 end module field_mod

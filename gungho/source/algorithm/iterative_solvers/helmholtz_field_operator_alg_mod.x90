@@ -86,8 +86,8 @@ contains
     use function_space_collection_mod, only: function_space_collection
     use fs_continuity_mod,             only: W2
     implicit none
-    type(function_space_type), intent(in) :: fs_w3
-    integer(kind=i_def),       intent(in) :: mg_level
+    type(function_space_type), pointer, intent(in) :: fs_w3
+    integer(kind=i_def),                intent(in) :: mg_level
 
     type(helmholtz_operator_type)         :: self
     type(function_space_type), pointer    :: fs_w2

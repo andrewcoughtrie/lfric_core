@@ -14,9 +14,9 @@
 module field_collection_mod
 
   use constants_mod,      only: i_def, l_def, str_def
-  use field_mod,          only: field_parent_type, &
-                                field_type, &
-                                field_pointer_type
+  use field_mod,          only: field_type
+  use field_parent_mod,   only: field_parent_type
+  use field_pointer_mod,  only: field_pointer_type
   use log_mod,            only: log_event, log_scratch_space, &
                                 LOG_LEVEL_ERROR, LOG_LEVEL_INFO
   use linked_list_data_mod, only: linked_list_data_type

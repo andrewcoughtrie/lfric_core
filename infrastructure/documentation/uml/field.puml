@@ -6,6 +6,8 @@
 
 !include look.iuml
 !include field/field_mod.iuml
+!include field/field_parent_mod.iuml
+!include field/field_pointer_mod.iuml
 !include field/function_space_mod.iuml
 !include field/function_space_collection_mod.iuml
 !include field/field_collection_mod.iuml
@@ -13,9 +15,10 @@
 
 field_collection_mod::field_collection_type o-> "*" field_mod::field_type
 field_collection_mod::field_collection_type ---  field_collection_iterator_mod::field_collection_iterator_type
-field_mod::field_pointer_type -^ field_mod::field_parent_type
-field_mod::field_parent_type ^- field_mod::field_type
+field_pointer_mod::field_pointer_type -^ field_parent_mod::field_parent_type
+field_parent_mod::field_parent_type ^- field_mod::field_type
+field_parent_mod::field_parent_proxy_type ^- field_mod::field_proxy_type
 field_mod::field_type o---> function_space_mod::function_space_type
-linked_list_data_mod::linked_list_data_type ^-- field_mod::field_parent_type
+linked_list_data_mod::linked_list_data_type ^-- field_parent_mod::field_parent_type
 
 @enduml
