@@ -30,7 +30,7 @@ MINT relies on the VTK API for fast cell search in an unstructured grid.
 wget https://www.vtk.org/files/release/8.1/VTK-8.1.1.tar.gz
 tar xf VTK-8.1.1.tar.gz
 cd VTK-8.1.1
-CXX=mpicxx CC=mpicc FC=mpif90 cmake -D CMAKE_BUILD_TYPE=Release -D CMAKE_INSTALL_PREFIX=$INSTALL_DIR .
+CXX=mpicxx CC=mpicc FC=mpif90 VTK_DIR=$INSTALL_DIR/lib/cmake/vtk-8.1 cmake -D CMAKE_BUILD_TYPE=Release -D CMAKE_INSTALL_PREFIX=$INSTALL_DIR .
 make 
 make install
 ```

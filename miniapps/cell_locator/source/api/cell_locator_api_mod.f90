@@ -110,7 +110,8 @@ module cell_locator_api_mod
     procedure :: set_result => cell_locator_api_set_result
     procedure :: write_results => cell_locator_api_write_results
 
-    final :: cell_locator_api_destructor
+    ! Intel compiler has issues with the destructor
+    !final :: cell_locator_api_destructor
 
   end type cell_locator_api_type
 
@@ -365,7 +366,6 @@ module cell_locator_api_mod
       endif
 
     endif ! end of spherical geometry
-
 
     ! Build the mesh by setting the vertices of each cell
     ier = mnt_celllocator_setpointsptr( self%address_of_cpp_ptr, &

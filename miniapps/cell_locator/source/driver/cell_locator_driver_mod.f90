@@ -72,19 +72,22 @@ contains
     integer(i_def) :: ier
 
     ! Initialise mpi and create the default communicator: mpi_comm_world
-    call initialise_comm(comm)
+    call initialise_comm( comm )
 
-    !Store the MPI communicator for later use
-    call store_comm(comm)
+    ! Store the MPI communicator for later use
+    call store_comm( comm )
 
     ! Initialise YAXT
-    call xt_initialize(comm)
+    call xt_initialize( comm )
+
+    ! Store the MPI communicator for later use. DO WE NEED TO CALL THIS TWICE?
+    call store_comm( comm )
 
     ! and get the rank information from the virtual machine
     total_ranks = get_comm_size()
     local_rank  = get_comm_rank()
 
-    call initialise_logging(local_rank, total_ranks, "cell_locator")
+    call initialise_logging( local_rank, total_ranks, 'cell_locator' )
 
     call log_event( 'cell_locator: Running miniapp ...', LOG_LEVEL_INFO )
 
@@ -96,7 +99,7 @@ contains
     !-------------------------------------------------------------------------
 
     call init_timer()
-    call timer('cell_locator')
+    call timer( 'cell_locator' )
 
     allocate( global_mesh_collection, &
               source = global_mesh_collection_type() )
@@ -116,24 +119,24 @@ contains
     ! Sets up chi. Create runtime_constants object. This creates various things
     ! needed by the timestepping algorithms such as mass matrix operators, mass
     ! matrix diagonal fields and the geopotential field.
-    call create_runtime_constants( mesh_id, chi )
+    call create_runtime_constants( mesh_id, twod_mesh_id, chi )
 
     ! Construct cell locator
-    call timer('constructor')
+    call timer( 'constructor' )
     cell_locator_obj = cell_locator_api_type( ier )
     if ( ier /= 0 ) then
       call log_event( 'cell_locator: Error after constructing cell locator', &
                       LOG_LEVEL_ERROR )
     endif
-    call timer('constructor')
+    call timer( 'constructor' )
 
-    call timer('build')
+    call timer( 'build' )
     call cell_locator_obj%build( mesh_id, ier )
     if ( ier /= 0 ) then
       call log_event( 'cell_locator: Error after building cell locator', &
                       LOG_LEVEL_ERROR )
     endif
-    call timer('build')
+    call timer( 'build' )
 
   end subroutine initialise
 
@@ -159,13 +162,13 @@ contains
     counter = 1
     total_error = 0
     num_not_found = 0
-    call timer('run')
+    call timer( 'run' )
     do ipoint = 1, npts
       target_point = cell_locator_obj%get_target_point( ipoint )
       call cell_locator_obj%find( target_point, cell_id_0, pcoords, &
                                   dist_error_square, ier )
       if ( ier /= 0 ) then
-        write (msg, &
+        write ( msg, &
                '(A, I4, A, I8, A, 1PE11.4, A, 1PE11.4, A, 1PE11.4)' ) &
                'cell_locator: Error ier = ', ier, &
                ' after calling find in cell locator for ', &
@@ -202,7 +205,7 @@ contains
       endif
 
     enddo
-    call timer('run')
+    call timer( 'run' )
 
     write( msg, '(A, I8, A, I8, A, F7.2, A, 1PE9.2)') &
            'cell_locator: Ratio of points not found = ', num_not_found, &
@@ -241,16 +244,16 @@ contains
     !-------------------------------------------------------------------------
 
     ! Write results and free cell locator object
-    call timer('reclaiming memory')
+    call timer( 'reclaiming memory' )
     call cell_locator_obj%clear( ier )
     if ( ier /= 0 ) then
       call log_event( &
         'cell_locator: Error occurred when calling clear', LOG_LEVEL_ERROR )
     endif
-    call timer('reclaiming memory')
+    call timer( 'reclaiming memory' )
 
     ! End of timing so write out timer output file
-    call timer('cell_locator')
+    call timer( 'cell_locator' )
     call output_timer()
 
     ! Finalise YAXT
