@@ -24,10 +24,10 @@ module diagnostics_calc_mod
                                            nodal_output_on_w3
   use files_config_mod,              only: diag_stem_name
   use project_output_mod,            only: project_output
-  use io_mod,                        only: ts_fname,                    &
-                                           nodal_write_field,           &
-                                           xios_write_field_face,       &
-                                           xios_write_field_edge
+  use io_mod,                        only: ts_fname
+  use write_methods_mod,             only: nodal_write_field,           &
+                                           write_field_face,       &
+                                           write_field_edge
   use diagnostics_io_mod,            only: write_scalar_diagnostic,     &
                                            write_vector_diagnostic
   use mesh_mod,                      only: mesh_type
@@ -85,7 +85,7 @@ subroutine write_divergence_diagnostic(u_field, ts, mesh_id)
 
   if (use_xios_io) then
       !If using XIOS, we need to set a field I/O method appropriately
-      tmp_write_ptr => xios_write_field_face
+      tmp_write_ptr => write_field_face
       call div_field%set_write_behaviour(tmp_write_ptr)
   end if
 

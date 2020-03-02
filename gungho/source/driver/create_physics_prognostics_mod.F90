@@ -794,11 +794,11 @@ contains
 
     use io_config_mod,      only : use_xios_io, &
                                    write_diag
-    use io_mod,             only : xios_write_field_face,        &
-                                   xios_write_field_single_face, &
+    use write_methods_mod,  only : write_field_face,        &
+                                   write_field_single_face, &
                                    checkpoint_write_xios,        &
-                                   checkpoint_write_netcdf,      &
-                                   checkpoint_read_netcdf,       &
+                                   checkpoint_write_netcdf
+    use read_methods_mod,   only : checkpoint_read_netcdf,       &
                                    checkpoint_read_xios
 
     implicit none
@@ -836,9 +836,9 @@ contains
 
     if (use_xios_io .and. write_diag) then
       ! All physics fields currently require output on faces...
-      write_diag_behaviour => xios_write_field_face
+      write_diag_behaviour => write_field_face
       if (present(twod))then
-        if (twod) write_diag_behaviour => xios_write_field_single_face
+        if (twod) write_diag_behaviour => write_field_single_face
       end if
       call new_field%set_write_behaviour(write_diag_behaviour)
     end if

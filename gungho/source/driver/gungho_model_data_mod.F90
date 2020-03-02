@@ -35,11 +35,11 @@ module gungho_model_data_mod
   use io_config_mod,                    only : checkpoint_read,  &
                                                checkpoint_write, &
                                                write_dump
-  use io_mod,                           only : read_checkpoint,  &
-                                               write_checkpoint, &
-                                               read_state,       &
+  use read_methods_mod,                 only : read_checkpoint,  &
+                                               read_state
+  use write_methods_mod,                only : write_checkpoint, &
                                                write_state,      &
-                                               xios_write_field_single_face
+                                               write_field_single_face
   use create_gungho_prognostics_mod,    only : create_gungho_prognostics
   use create_physics_prognostics_mod,   only : create_physics_prognostics
   use create_fd_prognostics_mod,        only : create_fd_prognostics
@@ -349,7 +349,7 @@ contains
         put_field = .false.
         call update_tstar_alg(surface_fields, put_field )
 
-        tmp_write_ptr => xios_write_field_single_face
+        tmp_write_ptr => write_field_single_face
         tstar_2d => surface_fields%get_field('tstar')
         call tstar_2d%set_write_behaviour(tmp_write_ptr)
 

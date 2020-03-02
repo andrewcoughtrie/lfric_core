@@ -32,8 +32,8 @@ module gravity_wave_driver_mod
                                             LOG_LEVEL_ALWAYS,   &
                                             LOG_LEVEL_INFO,     &
                                             LOG_LEVEL_TRACE
-  use io_mod,                         only: read_checkpoint,    &
-                                            write_checkpoint
+  use read_methods_mod,               only: read_checkpoint
+  use write_methods_mod,              only: write_checkpoint
   use io_config_mod,                  only: write_diag,           &
                                             checkpoint_read,      &
                                             checkpoint_write,     &

@@ -21,7 +21,7 @@ module init_transport_mod
   use function_space_collection_mod,  only: function_space_collection
   use io_config_mod,                  only: write_diag, &
                                             use_xios_io
-  use io_mod,                         only: xios_write_field_face
+  use write_methods_mod,              only: write_field_face
   use log_mod,                        only: log_event,                &
                                             LOG_LEVEL_INFO
   use transport_init_fields_alg_mod,  only: transport_init_fields_alg
@@ -104,7 +104,7 @@ module init_transport_mod
 
     if ( write_diag .and. use_xios_io ) then
        ! Fields that are output on the XIOS face domain
-       tmp_write_ptr => xios_write_field_face
+       tmp_write_ptr => write_field_face
        call wind_n%set_write_behaviour( tmp_write_ptr )
        call density%set_write_behaviour( tmp_write_ptr )
        call increment%set_write_behaviour( tmp_write_ptr )

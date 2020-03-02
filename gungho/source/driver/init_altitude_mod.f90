@@ -20,8 +20,8 @@ module init_altitude_mod
                                              orog_init_option_ancil
   use orography_control_mod,          only : set_orography_option
   use io_config_mod,                  only : use_xios_io
-  use io_mod,                         only : xios_read_field_single_face, &
-                                             xios_write_field_single_face
+  use read_methods_mod,               only : read_field_single_face
+  use write_methods_mod,              only : write_field_single_face
   use log_mod,                        only : log_event, &
                                              log_scratch_space, &
                                              LOG_LEVEL_INFO,  &
@@ -82,7 +82,7 @@ module init_altitude_mod
         if (use_xios_io) then
 
           ! Altitude field should read in on W3_2D function space
-          read_ptr => xios_read_field_single_face
+          read_ptr => read_field_single_face
           call surface_altitude%set_read_behaviour(read_ptr)
 
           write(log_scratch_space,'(A,A)') "Initialise surface altitude: "// &
@@ -91,7 +91,7 @@ module init_altitude_mod
           call surface_altitude%read_field(trim(adjustl(surface_altitude%get_name())))
 
           ! Write behaviour also set up for diagnostic output of altitude if required
-          tmp_write_ptr => xios_write_field_single_face
+          tmp_write_ptr => write_field_single_face
           call surface_altitude%set_write_behaviour(tmp_write_ptr)
 
         ! Call error if XIOS is not being used - ancils cannot be read without it

@@ -16,10 +16,10 @@ module init_ancils_mod
                                              read_interface, &
                                              write_interface
   use io_config_mod,                  only : use_xios_io
-  use io_mod,                         only : xios_read_field_face, &
-                                             xios_read_field_single_face, &
-                                             xios_write_field_face, &
-                                             xios_write_field_single_face
+  use read_methods_mod,               only : read_field_face, &
+                                             read_field_single_face
+  use write_methods_mod,              only : write_field_face, &
+                                             write_field_single_face
   use field_collection_mod,           only : field_collection_type, &
                                              field_collection_real_iterator_type
   use function_space_mod,             only : function_space_type
@@ -84,7 +84,7 @@ contains
 
     ! Need to set the I/O handler for read. Any ancils here
     ! are currently read from a UM2LFRic dump
-    tmp_read_ptr => xios_read_field_single_face
+    tmp_read_ptr => read_field_single_face
     call tstar_ptr%set_read_behaviour(tmp_read_ptr)
     call tstar_ptr%read_field("read_tstar")
 
@@ -194,11 +194,11 @@ contains
 
     !Set up field read behaviour for 2D and 3D fields
     if (present(twod))then
-      tmp_read_ptr => xios_read_field_single_face
-      tmp_write_ptr => xios_write_field_single_face
+      tmp_read_ptr => read_field_single_face
+      tmp_write_ptr => write_field_single_face
     else
-      tmp_read_ptr => xios_read_field_face
-      tmp_write_ptr => xios_write_field_face
+      tmp_read_ptr => read_field_face
+      tmp_write_ptr => write_field_face
     end if
 
     ! Set field read behaviour for target field

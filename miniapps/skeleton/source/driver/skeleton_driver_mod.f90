@@ -22,7 +22,7 @@ module skeleton_driver_mod
   use global_mesh_collection_mod, only : global_mesh_collection, &
                                          global_mesh_collection_type
   use init_skeleton_mod,          only : init_skeleton
-  use io_mod,                     only : xios_domain_init
+  use io_mod,                     only : initialise_xios
   use io_config_mod,              only : write_diag, &
                                          use_xios_io
   use log_mod,                    only : log_event,          &
@@ -174,12 +174,12 @@ contains
 
       dtime = 1
 
-      call xios_domain_init( xios_ctx,     &
-                             comm,         &
-                             dtime,        &
-                             mesh_id,      &
-                             twod_mesh_id, &
-                             chi)
+      call initialise_xios( xios_ctx,     &
+                            comm,         &
+                            dtime,        &
+                            mesh_id,      &
+                            twod_mesh_id, &
+                            chi)
 
       ! Make sure XIOS calendar is set to timestep 1 as it starts there
       ! not timestep 0.

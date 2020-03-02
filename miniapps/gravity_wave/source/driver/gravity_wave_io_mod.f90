@@ -14,7 +14,7 @@ module gravity_wave_io_mod
   use timestepping_config_mod,        only : dt
   use time_config_mod,                only : timestep_start
   use io_config_mod,                  only : use_xios_io
-  use io_mod,                         only : xios_domain_init
+  use io_mod,                         only : initialise_xios
   use xios,                           only : xios_context_finalize, &
                                              xios_update_calendar
 
@@ -53,12 +53,12 @@ contains
 
     dtime = int(dt)
 
-    call xios_domain_init( xios_ctx,     &
-                           comm,         &
-                           dtime,        &
-                           mesh_id,      &
-                           twod_mesh_id, &
-                           chi)
+    call initialise_xios( xios_ctx,     &
+                          comm,         &
+                          dtime,        &
+                          mesh_id,      &
+                          twod_mesh_id, &
+                          chi)
 
     ts_init = max( (timestep_start - 1), 0 ) ! 0 or t previous.
 

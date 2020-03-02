@@ -25,11 +25,11 @@ module create_gravity_wave_prognostics_mod
                                              use_xios_io, &
                                              checkpoint_write, &
                                              checkpoint_read
-  use io_mod,                         only : xios_write_field_node, &
-                                             xios_write_field_face, &
+  use write_methods_mod,              only : write_field_node, &
+                                             write_field_face, &
                                              checkpoint_write_xios, &
-                                             checkpoint_write_netcdf, &
-                                             checkpoint_read_netcdf, &
+                                             checkpoint_write_netcdf
+  use read_methods_mod,               only : checkpoint_read_netcdf, &
                                              checkpoint_read_xios
   use gravity_wave_constants_config_mod,&
                                       only : b_space, &
@@ -102,14 +102,14 @@ module create_gravity_wave_prognostics_mod
     ! Set I/O behaviours for diagnostic output
     if (write_diag .and. use_xios_io) then
        ! Fields that are output on the XIOS face domain
-       tmp_write_ptr => xios_write_field_face
+       tmp_write_ptr => write_field_face
        call wind%set_write_behaviour(tmp_write_ptr)
        call pressure%set_write_behaviour(tmp_write_ptr)
        if (buoyancy_space == W0) then
-         tmp_write_ptr => xios_write_field_node
+         tmp_write_ptr => write_field_node
          call buoyancy%set_write_behaviour(tmp_write_ptr)
        else
-         tmp_write_ptr => xios_write_field_face
+         tmp_write_ptr => write_field_face
          call buoyancy%set_write_behaviour(tmp_write_ptr)
        end if
     end if

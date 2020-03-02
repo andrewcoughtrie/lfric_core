@@ -17,12 +17,9 @@ module io_mod
   use constants_mod,                 only: i_def, i_native, i_halo_index, &
                                            r_def, dp_xios,                &
                                            str_def, str_max_filename,     &
-                                           l_def, PI, radians_to_degrees
+                                           l_def, radians_to_degrees
   use coord_transform_mod,           only: xyz2llr
   use field_mod,                     only: field_type, field_proxy_type
-  use field_collection_mod,          only: field_collection_type, &
-                                           field_collection_iterator_type
-  use field_parent_mod,              only: field_parent_type
   use files_config_mod,              only: ancil_directory,       &
                                            checkpoint_stem_name,  &
                                            land_area_ancil_path,  &
@@ -50,15 +47,10 @@ module io_mod
   use log_mod,                       only: log_event,         &
                                            log_set_level,     &
                                            log_scratch_space, &
-                                           LOG_LEVEL_ERROR,   &
-                                           LOG_LEVEL_INFO,    &
-                                           LOG_LEVEL_DEBUG,   &
-                                           LOG_LEVEL_TRACE
+                                           LOG_LEVEL_INFO
   use mesh_mod,                      only: mesh_type
   use mesh_collection_mod,           only: mesh_collection
-  use mpi,                           only: mpi_success
   use mpi_mod,                       only: get_comm_size, get_comm_rank, all_gather
-  use project_output_mod,            only: project_output
   use psykal_lite_mod,               only: invoke_nodal_coordinates_kernel, &
                                            invoke_pointwise_convert_xyz2llr
   use runtime_constants_mod,         only: get_coordinates
@@ -69,24 +61,7 @@ module io_mod
   implicit none
   private
   public :: ts_fname,                     &
-            checkpoint_write_netcdf,      &
-            checkpoint_write_xios,        &
-            checkpoint_read_netcdf,       &
-            checkpoint_read_xios,         &
-            write_checkpoint,             &
-            read_checkpoint,              &
-            dump_write_xios,              &
-            dump_read_xios,               &
-            write_state,                  &
-            read_state,                   &
-            xios_domain_init,             &
-            nodal_write_field,            &
-            xios_write_field_node,        &
-            xios_write_field_face,        &
-            xios_write_field_edge,        &
-            xios_write_field_single_face, &
-            xios_read_field_face,         &
-            xios_read_field_single_face
+            initialise_xios
 
 ! Each column of a higher-order discontinuous field can be used to
 ! represent multi-dimensional quantities like tiles, plant functional
@@ -113,9 +88,8 @@ contains
 !!  @param[in]      twod_mesh_id  2D Mesh id
 !!  @param[in]      chi           Coordinate field
 !-------------------------------------------------------------------------------
-
-subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, &
-                            mesh_id, twod_mesh_id,  chi)
+subroutine initialise_xios(xios_ctx, mpi_comm, dtime, &
+                           mesh_id, twod_mesh_id,  chi)
 
   use fs_continuity_mod, only : name_from_functionspace
 
@@ -151,64 +125,15 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, &
 
   integer(i_native) :: fs_index
 
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Setup context !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Setup context !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   call xios_context_initialize(xios_ctx, mpi_comm)
   call xios_get_handle(xios_ctx, xios_ctx_hdl)
   call xios_set_current_context(xios_ctx_hdl)
 
-  !!!!!!!!!!!!!!!!!!!!!!!!!!! Setup diagnostic domains !!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!! Setup XIOS domains !!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  call xios_diagnostic_domain_init(mesh_id, chi)
-
-  !!!!!!!!!!!!!!!!!!!!!! Setup checkpoint domains !!!!!!!!!!!!!!!!!!!!!
-
-  ! Create all the regular checkpoint domains based on current function spaces
-  ! Loop over function spaces we need to create domains for
-
-  do fs_index = lbound(domain_function_spaces, 1), &
-                ubound(domain_function_spaces, 1)
-
-    domain_fs_name = name_from_functionspace(domain_function_spaces(fs_index))
-    domain_name = "checkpoint_" // trim(domain_fs_name)
-
-    ! Enable use of the XIOS i_index for W3 and Wtheta
-
-    if (domain_function_spaces(fs_index) == W3 .or. &
-        domain_function_spaces(fs_index) == Wtheta) then
-
-      call xios_checkpoint_domain_init(domain_function_spaces(fs_index), &
-                                           trim(domain_name), mesh_id, chi, .true.)
-    else
-
-      call xios_checkpoint_domain_init(domain_function_spaces(fs_index), &
-                                       trim(domain_name), mesh_id, chi, .false.)
-    end if
-
-  end do
-
-
-  ! Set up 2D checkpoint domain - only W3 at the moment
-
-  domain_name = "checkpoint_W3_2D"
-  call xios_checkpoint_domain_init(W3, domain_name,  twod_mesh_id, chi, .true.)
-
-  ! Set up physics prognostics checkpoint domains which make use of higher-order fields
-
-  domain_name = "checkpoint_pft"
-  call xios_checkpoint_domain_init(W3, domain_name,  twod_mesh_id, chi, .true., pft_order)
-
-  domain_name = "checkpoint_tile"
-  call xios_checkpoint_domain_init(W3, domain_name,  twod_mesh_id, chi, .true., tile_order)
-
-  domain_name = "checkpoint_sice"
-  call xios_checkpoint_domain_init(W3, domain_name,  twod_mesh_id, chi, .true., sice_order)
-
-  domain_name = "checkpoint_soil"
-  call xios_checkpoint_domain_init(W3, domain_name,  twod_mesh_id, chi, .true., soil_order)
-
-  domain_name = "checkpoint_snow"
-  call xios_checkpoint_domain_init(W3, domain_name,  twod_mesh_id, chi, .true., snow_order)
+  call setup_xios_domains(mesh_id, twod_mesh_id, chi)
 
   !!!!!!!!!!!!! Setup diagnostic output context information !!!!!!!!!!!!!!!!!!
 
@@ -231,14 +156,12 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, &
   if ( write_dump ) then
 
     ! Enable the fd field group
-
     call xios_get_handle("physics_fd_fields",fdfieldgroup_hdl)
     call xios_set_attr(fdfieldgroup_hdl, enabled=.true.)
 
     ! Create dump filename from base name and end timestep
     write(dump_fname,'(A,A,I6.6)') &
        trim(start_dump_directory)//'/'//trim(start_dump_filename),"_", timestep_end
-
 
     ! Set dump frequency (end timestep) in seconds
     dump_freq%second = timestep_end*dtime
@@ -247,14 +170,12 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, &
     call xios_set_attr(dumpfile_hdl,name=dump_fname, enabled=.true.)
     call xios_set_attr(dumpfile_hdl, output_freq=dump_freq)
 
-
   end if
 
   if( init_option == init_option_fd_start_dump .or. &
       ancil_option == ancil_option_aquaplanet ) then
 
     ! Enable the fd field group
-
     call xios_get_handle("physics_fd_fields",fdfieldgroup_hdl)
     call xios_set_attr(fdfieldgroup_hdl, enabled=.true.)
 
@@ -351,7 +272,72 @@ subroutine xios_domain_init(xios_ctx, mpi_comm, dtime, &
 
   return
 
-end subroutine xios_domain_init
+end subroutine initialise_xios
+
+subroutine setup_xios_domains(mesh_id, twod_mesh_id, chi)
+
+  implicit none
+
+  integer(i_def),     intent(in)       :: mesh_id
+  integer(i_def),     intent(in)       :: twod_mesh_id
+  type(field_type),   intent(in)       :: chi(:)
+
+  character(len=str_def)               :: domain_name, domain_fs_name
+  integer(i_native), parameter         :: domain_function_spaces(5) &
+                                                  = (/W0, W1, W2, W3, Wtheta/)
+  integer(i_native) :: fs_index
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!! Setup diagnostic domains !!!!!!!!!!!!!!!!!!!!!!!!!
+
+  call diagnostic_domain_init(mesh_id, chi)
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!! Setup checkpoint domains !!!!!!!!!!!!!!!!!!!!!!!!!
+
+  ! Create all the regular checkpoint domains based on current function spaces
+  ! Loop over function spaces we need to create domains for:
+  do fs_index = lbound(domain_function_spaces, 1), &
+                ubound(domain_function_spaces, 1)
+
+    domain_fs_name = name_from_functionspace(domain_function_spaces(fs_index))
+    domain_name = "checkpoint_" // trim(domain_fs_name)
+
+    ! Enable use of the XIOS i_index for W3 and Wtheta
+    if (domain_function_spaces(fs_index) == W3 .or. &
+        domain_function_spaces(fs_index) == Wtheta) then
+
+      call checkpoint_domain_init(domain_function_spaces(fs_index), &
+                                  trim(domain_name), mesh_id, chi, .true.)
+    else
+
+      call checkpoint_domain_init(domain_function_spaces(fs_index), &
+                                  trim(domain_name), mesh_id, chi, .false.)
+    end if
+
+  end do
+
+  ! Set up 2D checkpoint domain - only W3 at the moment
+
+  domain_name = "checkpoint_W3_2D"
+  call checkpoint_domain_init(W3, domain_name,  twod_mesh_id, chi, .true.)
+
+  ! Set up physics prognostics checkpoint domains which make use of higher-order fields
+
+  domain_name = "checkpoint_pft"
+  call checkpoint_domain_init(W3, domain_name,  twod_mesh_id, chi, .true., pft_order)
+
+  domain_name = "checkpoint_tile"
+  call checkpoint_domain_init(W3, domain_name,  twod_mesh_id, chi, .true., tile_order)
+
+  domain_name = "checkpoint_sice"
+  call checkpoint_domain_init(W3, domain_name,  twod_mesh_id, chi, .true., sice_order)
+
+  domain_name = "checkpoint_soil"
+  call checkpoint_domain_init(W3, domain_name,  twod_mesh_id, chi, .true., soil_order)
+
+  domain_name = "checkpoint_snow"
+  call checkpoint_domain_init(W3, domain_name,  twod_mesh_id, chi, .true., snow_order)
+
+end subroutine setup_xios_domains
 
 !-------------------------------------------------------------------------------
 !>  @brief    Performs XIOS diagnostic domain initialisation
@@ -359,20 +345,16 @@ end subroutine xios_domain_init
 !!  @param[in]      mesh_id       Mesh id
 !!  @param[in]      chi           Coordinate field
 !-------------------------------------------------------------------------------
-
-subroutine xios_diagnostic_domain_init(mesh_id, chi)
+subroutine diagnostic_domain_init(mesh_id, chi)
 
   implicit none
 
   ! Arguments
-
   integer(i_def),   intent(in) :: mesh_id
   type(field_type), intent(in) :: chi(:)
 
   ! Local variables
-
   integer(i_def) :: i
-
 
   ! Node domain (W0)
   integer(i_def)             :: ibegin_nodes
@@ -849,7 +831,7 @@ subroutine xios_diagnostic_domain_init(mesh_id, chi)
   w2h_fs => null()
 
   return
-end subroutine xios_diagnostic_domain_init
+end subroutine diagnostic_domain_init
 
 !-------------------------------------------------------------------------------
 !>  @brief    Performs XIOS checkpoint domain initialisation
@@ -866,14 +848,12 @@ end subroutine xios_diagnostic_domain_init
 !!  @param[in]      k_order       Function space order (optional,
 !!                                default = 0)
 !-------------------------------------------------------------------------------
-
-subroutine xios_checkpoint_domain_init(fs_id, domain_name, mesh_id, chi, &
+subroutine checkpoint_domain_init(fs_id, domain_name, mesh_id, chi, &
                                        use_index, k_order)
 
   implicit none
 
   ! Arguments
-
   integer(i_def),   intent(in)         :: fs_id
   character(len=*), intent(in)         :: domain_name
   integer(i_def),   intent(in)         :: mesh_id
@@ -883,7 +863,6 @@ subroutine xios_checkpoint_domain_init(fs_id, domain_name, mesh_id, chi, &
   integer(i_def),   optional, intent(in)  :: k_order
 
   ! Local variables
-
   integer(i_def)    :: i
   integer(i_def)    :: k_ord
 
@@ -897,18 +876,12 @@ subroutine xios_checkpoint_domain_init(fs_id, domain_name, mesh_id, chi, &
 
 
   ! Variables needed to compute output domain coordinates in lat-long
-
-  ! Transformed coords for nodal output
   type( field_type ) :: coord_output(3)
-  ! Field proxies (to calculate domain coordinate info)
   type(field_proxy_type), target  :: proxy_coord_output(3)
-
-
   type(function_space_type), pointer :: output_field_fs   => null()
 
   ! Variables for the gather to determine global domain sizes
   ! from the local partitioned ones
-
   integer(i_def)                :: global_undf_checkpoint
   integer(i_def), allocatable   :: local_undf(:)
   integer(i_def), allocatable   :: all_undfs_checkpoint_domain(:)
@@ -916,7 +889,6 @@ subroutine xios_checkpoint_domain_init(fs_id, domain_name, mesh_id, chi, &
   ! Factor to convert coords from radians to degrees if needed
   ! set as 1.0 for planar mesh
   real(r_def) :: r2d
-
 
   if ( geometry == geometry_spherical ) then
    r2d = radians_to_degrees
@@ -931,9 +903,7 @@ subroutine xios_checkpoint_domain_init(fs_id, domain_name, mesh_id, chi, &
     k_ord=0
   end if
 
-
   ! Set up arrays to hold number of dofs for local and global domains
-
   allocate(local_undf(1))
   allocate(all_undfs_checkpoint_domain(get_comm_size()))
 
@@ -941,7 +911,6 @@ subroutine xios_checkpoint_domain_init(fs_id, domain_name, mesh_id, chi, &
 
   ! Create appropriate function space in order to be able to get the
   ! physical coordinates
-
   output_field_fs => function_space_collection%get_fs( mesh_id, &
                                                        k_ord, &
                                                        fs_id)
@@ -961,14 +930,12 @@ subroutine xios_checkpoint_domain_init(fs_id, domain_name, mesh_id, chi, &
     call invoke_pointwise_convert_xyz2llr(coord_output)
   end if
 
-
   ! Get proxies for coordinates so we can access them
   do i = 1,3
     proxy_coord_output(i) = coord_output(i)%get_proxy()
   end do
 
   ! Get the local value for undf
-
   local_undf(1)  = proxy_coord_output(1)%vspace%get_last_dof_owned()
 
   !!!!!!!!!!!!  Global domain calculation !!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -977,12 +944,10 @@ subroutine xios_checkpoint_domain_init(fs_id, domain_name, mesh_id, chi, &
 
   ! Now get the global sum of undf across all ranks to set the global domain sizes
   ! for checkpoint domain
-
   global_undf_checkpoint = sum(all_undfs_checkpoint_domain)
 
   ! Calculate ibegin for each rank as we have the array of undfs in order
   ! we can just sum to get it.
-
   if (get_comm_rank() == 0) then
     ibegin_checkpoint = 0
   else
@@ -991,7 +956,6 @@ subroutine xios_checkpoint_domain_init(fs_id, domain_name, mesh_id, chi, &
 
   ! Allocate coordinate arrays to be the size required for checkpoint domain.
   ! Essentially up to last owned dof of the current partition.
-
   allocate( checkpoint_lon( size( proxy_coord_output(1)%data(1: local_undf(1)))) )
   allocate( checkpoint_lat( size( proxy_coord_output(2)%data(1: local_undf(1)))) )
 
@@ -1006,7 +970,7 @@ subroutine xios_checkpoint_domain_init(fs_id, domain_name, mesh_id, chi, &
   bnd_checkpoint_lon=(reshape(checkpoint_lon, (/1, size(checkpoint_lon)/) ) )
   bnd_checkpoint_lat=(reshape(checkpoint_lat, (/1, size(checkpoint_lat)/) ) )
 
-
+  ! Give coordinate information to the XIOS domain
   call xios_set_domain_attr(trim(domain_name), ni_glo=global_undf_checkpoint,    &
                             ibegin=ibegin_checkpoint, ni=local_undf(1),          &
                             type='unstructured')
@@ -1044,9 +1008,7 @@ subroutine xios_checkpoint_domain_init(fs_id, domain_name, mesh_id, chi, &
 
   nullify( output_field_fs )
   return
-end subroutine xios_checkpoint_domain_init
-
-
+end subroutine checkpoint_domain_init
 
 !> @brief   Compute the node domain coords for this partition
 !> @details Samples the chi field at nodal points, calculates cartesian coordinates.
@@ -1062,7 +1024,6 @@ end subroutine xios_checkpoint_domain_init
 !>@param[inout] face_bnds_lat_coords array of latitude coords making up the faces
 !>@param[inout] edge_bnds_lon_coords array of coords making up the edges
 !>@param[inout] edge_bnds_lat_coords array of coords making up the edges
-
 subroutine calc_xios_domain_coords(local_mesh, nodal_coords, chi, &
                                    nlayers, ncells,               &
                                    lon_coords, lat_coords,        &
@@ -1153,9 +1114,7 @@ subroutine calc_xios_domain_coords(local_mesh, nodal_coords, chi, &
 
       ! Convert to lat-lon in degrees if required
       if ( geometry == geometry_spherical ) then
-
         r2d = radians_to_degrees
-
         call xyz2llr(xyz(1), xyz(2), xyz(3), llr(1), llr(2), llr(3))
 
         lon_coords( ((map_x(df_x)-1)/nlayers)+1) = llr(1)*r2d
@@ -1171,13 +1130,10 @@ subroutine calc_xios_domain_coords(local_mesh, nodal_coords, chi, &
 
         face_bnds_lon_coords(df_x,cell) = xyz(1)*r2d
         face_bnds_lat_coords(df_x,cell) = xyz(2)*r2d
-
       endif
-
     end do ! Loop over bottom layer dofs
 
     ! For this cell compute the edge-bounds coordinates from the face-bounds coordinates
-
     do df_x = 1,(ndf_x/2)
 
       ! Retrieve the lat / lon coords of the points bounding the edge
@@ -1191,21 +1147,17 @@ subroutine calc_xios_domain_coords(local_mesh, nodal_coords, chi, &
 
       ! Is the edge owned by this cell?
       if (local_mesh%get_edge_cell_owner(df_x, cell) == cell) then
-
         edge_count = edge_count + 1
 
         edge_bnds_lon_coords(1,edge_count) = face_bnds_lon_coords(edge1,cell)
         edge_bnds_lon_coords(2,edge_count) = face_bnds_lon_coords(edge2,cell)
         edge_bnds_lat_coords(1,edge_count) = face_bnds_lat_coords(edge1,cell)
         edge_bnds_lat_coords(2,edge_count) = face_bnds_lat_coords(edge2,cell)
-
-
       end if ! Edge is owned by this cell
 
     end do ! loop over edges
 
-
-  end do
+  end do ! loop over cells
 
   call x_p(1)%set_dirty()
   call x_p(2)%set_dirty()
@@ -1223,7 +1175,6 @@ end subroutine calc_xios_domain_coords
 !>@param[in] field_name name of the field
 !>@param[in] ts time step
 !>@param[in] file extension
-
 function ts_fname(stem_name, file_type, field_name, ts, ext)
 
   implicit none
@@ -1249,636 +1200,5 @@ function ts_fname(stem_name, file_type, field_name, ts, ext)
          trim(file_type),trim(field_name),"_T",ts,trim(rank_name)//ext
 
 end function ts_fname
-
-!> @brief   Output a field in nodal format to text file
-!>@param[in] nodal_coordinates field holding coordinate information
-!>@param[in] level field holding level information
-!>@param[in] nodal_output field holding diagnostic data
-!>@param[in] fspace_dimension dimension of the field's function space
-!>@param[in] output_unit file unit to write to
-!>@param[in] fname file name to write to
-!-------------------------------------------------------------------------------
-subroutine nodal_write_field(nodal_coordinates, level, nodal_output, &
-                             fspace_dimension, output_unit, fname)
-
-  implicit none
-  type(field_type), intent(in) :: nodal_coordinates(3), level, nodal_output(3)
-  integer(i_def),   intent(in) :: fspace_dimension, output_unit
-  character(str_max_filename), intent(in) :: fname
-  type(field_proxy_type) :: x_p(3), l_p, n_p(3)
-
-  integer(i_def) :: df, undf, i
-
-
-  do i = 1,3
-    x_p(i) = nodal_coordinates(i)%get_proxy()
-    n_p(i) = nodal_output(i)%get_proxy()
-  end do
-  l_p = level%get_proxy()
-
-  undf = n_p(1)%vspace%get_last_dof_owned()
-
-  open(OUTPUT_UNIT, file = trim(fname), status = "replace")
-  write(OUTPUT_UNIT,'(A)') 'x = ['
-  if ( fspace_dimension  == 1 ) then
-    do df = 1,undf
-      write(OUTPUT_UNIT,'(5e25.15e3)') x_p(1)%data(df), x_p(2)%data(df), &
-                          x_p(3)%data(df), l_p%data(df), n_p(1)%data(df)
-    end do
-  else
-    do df = 1,undf
-      write(OUTPUT_UNIT,'(7e25.15e3)') x_p(1)%data(df), x_p(2)%data(df), &
-                                       x_p(3)%data(df), l_p%data(df),    &
-                                       n_p(1)%data(df), n_p(2)%data(df), &
-                                       n_p(3)%data(df)
-    end do
-  end if
-  write(OUTPUT_UNIT,'(A)') '];'
-  close(OUTPUT_UNIT)
-
-end subroutine nodal_write_field
-
-
-!> @brief   I/O handler for reading a netcdf checkpoint
-!> @details Legacy method for reading checkpoints
-!           Note this routine accepts a field name but
-!           doesn't use it - this is to keep the interface
-!           the same for all methods
-!>@param[in] field_name Name of the field to read
-!>@param[in] file_name Name of the file to read from
-!>@param[in,out] field_proxy the proxy of the field to read data into
-subroutine checkpoint_read_netcdf(field_name, file_name, field_proxy)
-  use field_io_ncdf_mod,    only : field_io_ncdf_type
-
-  implicit none
-
-  character(len=*), intent(in) :: field_name
-  character(len=*), intent(in) :: file_name
-  type(field_proxy_type), intent(inout) :: field_proxy
-
-  type(field_io_ncdf_type), allocatable :: ncdf_file
-
-  allocate(ncdf_file)
-
-  call ncdf_file%file_open( file_name )
-
-  call ncdf_file%read_field_data ( field_proxy%data(:) )
-
-  call ncdf_file%file_close()
-
-  deallocate(ncdf_file)
-
-
-end subroutine checkpoint_read_netcdf
-
-!> @brief   I/O handler for writing a netcdf checkpoint
-!> @details Legacy method for writing checkpoints
-!           Note this routine accepts a field name but
-!           doesn't use it - this is to keep the interface
-!           the same for all methods
-!>@param[in] field_name Name of the field to write
-!>@param[in] file_name Name of the file to write to
-!>@param[in,out] field_proxy the proxy of the field to write
-subroutine checkpoint_write_netcdf(field_name, file_name, field_proxy)
-  use field_io_ncdf_mod,    only : field_io_ncdf_type
-
-  implicit none
-
-  character(len=*), intent(in) :: field_name
-  character(len=*), intent(in) :: file_name
-  type(field_proxy_type), intent(in) :: field_proxy
-
-  type(field_io_ncdf_type), allocatable :: ncdf_file
-
-  allocate(ncdf_file)
-
-  call ncdf_file%file_new( file_name )
-
-  call ncdf_file%write_field_data ( field_proxy%data(:) )
-  call ncdf_file%file_close()
-
-  deallocate(ncdf_file)
-
-
-end subroutine checkpoint_write_netcdf
-
-
-!> @brief   I/O handler for reading an XIOS netcdf checkpoint
-!> @details Note this routine accepts a filename but doesn't
-!           use it - this is to keep the interface the same
-!           for all methods
-!>@param[in] xios_field_name XIOS unique id for the field
-!>@param[in] file_name Name of the file to read
-!>@param[in,out] field_proxy the proxy of the field to read into
-subroutine checkpoint_read_xios(xios_field_name, file_name, field_proxy)
-
-  implicit none
-
-  character(len=*), intent(in) :: xios_field_name
-  character(len=*), intent(in) :: file_name
-  type(field_proxy_type), intent(inout) :: field_proxy
-
-  integer(i_def) :: undf
-
-
-  ! We only read in up to undf for the partition
-  undf = field_proxy%vspace%get_last_dof_owned()
-
-  call xios_recv_field(xios_field_name, field_proxy%data(1:undf))
-
-
-end subroutine checkpoint_read_xios
-
-
-!> @brief   I/O handler for writing an XIOS netcdf checkpoint
-!> @details Note this routine accepts a filename but doesn't
-!           use it - this is to keep the interface the same
-!           for all methods
-!>@param[in] xios_field_name XIOS identifier for the field
-!>@param[in] file_name Name of the file to write
-!>@param[in,out] field_proxy the proxy of the field to write
-subroutine checkpoint_write_xios(xios_field_name, file_name, field_proxy)
-
-  implicit none
-
-  character(len=*), intent(in) :: xios_field_name
-  character(len=*), intent(in) :: file_name
-  type(field_proxy_type), intent(in) :: field_proxy
-
-  integer(i_def) :: undf
-
-  undf = field_proxy%vspace%get_last_dof_owned()
-
-  call xios_send_field(xios_field_name, field_proxy%data(1:undf))
-
-
-end subroutine checkpoint_write_xios
-
-
-!> @brief   Write a checkpoint from a collection of fields
-!> @details Iterate over a field collection and checkpoint each field
-!>          if it is enabled for checkpointing
-!>@param[in] state - a collection of fields to checkpoint
-!>@param[in] timestep the current timestep
-subroutine write_checkpoint(state, timestep)
-
-    implicit none
-
-    type( field_collection_type ), intent(inout) :: state
-    integer(i_def), intent(in) :: timestep
-
-    type( field_collection_iterator_type) :: iter
-    class( field_parent_type ), pointer :: fld => null()
-
-    iter=state%get_iterator()
-    do
-      if(.not.iter%has_next())exit
-      fld=>iter%next()
-      select type(fld)
-        type is (field_type)
-          if (fld%can_checkpoint()) then
-            write(log_scratch_space,'(3A,I6)') &
-            "Checkpointing ", trim(adjustl(fld%get_name())), " at timestep ", &
-            timestep
-            call log_event(log_scratch_space,LOG_LEVEL_INFO)
-            call fld%write_checkpoint("checkpoint_"//trim(adjustl(fld%get_name())), &
-                                  trim(ts_fname(checkpoint_stem_name,&
-                                  "", trim(adjustl(fld%get_name())),timestep,"")))
-          else
-
-            call log_event( 'Checkpointing for  '// trim(adjustl(fld%get_name())) // &
-                        ' not set up', LOG_LEVEL_INFO )
-          end if
-        type is (integer_field_type)
-          ! todo: integer field i/o
-      end select
-    end do
-
-    nullify(fld)
-
-end subroutine write_checkpoint
-
-!> @brief   Read from a checkpoint into a collection of fields
-!> @details Iterate over a field collection and read each field
-!>          into a collection, if it is enabled for checkpointing
-!>@param[in] state -  the collection of fields to populate
-!>@param[in] timestep the current timestep
-subroutine read_checkpoint(state, timestep)
-
-    implicit none
-
-    type( field_collection_type ), intent(inout) :: state
-    integer(i_def), intent(in) :: timestep
-
-    type( field_collection_iterator_type) :: iter
-    class( field_parent_type ), pointer :: fld => null()
-
-    iter=state%get_iterator()
-    do
-      if(.not.iter%has_next())exit
-      fld=>iter%next()
-      select type(fld)
-        type is (field_type)
-          if (fld%can_checkpoint()) then
-            call log_event( &
-          'Reading checkpoint file to restart '//trim(adjustl(fld%get_name())), &
-          LOG_LEVEL_INFO)
-            call fld%read_checkpoint("restart_"//trim(adjustl(fld%get_name())), &
-                              trim(ts_fname(checkpoint_stem_name, &
-                              "", trim(adjustl(fld%get_name())),timestep,"")))
-          else
-            call log_event( 'Checkpointing for  '// trim(adjustl(fld%get_name())) // &
-                        ' not set up', LOG_LEVEL_INFO )
-          end if
-        type is (integer_field_type)
-          ! todo: integer field i/o
-      end select
-    end do
-
-    nullify(fld)
-
-end subroutine read_checkpoint
-
-! The dump read and write subroutines are wrappers that call
-! XIOS read and write I/O subroutines
-
-!> @brief   Write a field to a dump via XIOS
-!>@param[in] xios_field_name XIOS identifier for the field
-!>@param[in] field_proxy a field proxy containing the data to output
-subroutine dump_write_xios(xios_field_name, field_proxy)
-
-  implicit none
-
-  character(len=*), intent(in) :: xios_field_name
-  type(field_proxy_type), intent(in) :: field_proxy
-
-  call xios_write_field_face(xios_field_name, field_proxy)
-
-end subroutine dump_write_xios
-
-!> @brief   Read a field from a dump via XIOS
-!>@param[in] xios_field_name XIOS identifier for the field
-!>@param[in,out] field_proxy a field proxy containing the data to output
-subroutine dump_read_xios(xios_field_name, field_proxy)
-
-  implicit none
-
-  character(len=*), intent(in) :: xios_field_name
-  type(field_proxy_type), intent(inout) :: field_proxy
-
-  call xios_read_field_face("read_"//xios_field_name, field_proxy)
-
-end subroutine dump_read_xios
-
-!> @brief   Write a collection of fields
-!> @details Iterate over a field collection and write each field
-!>          if it is enabled for write
-!>@param[in] state - a collection of fields
-subroutine write_state(state)
-
-    implicit none
-
-    type( field_collection_type ), intent(inout) :: state
-
-    type( field_collection_iterator_type) :: iter
-    class( field_parent_type ), pointer :: fld => null()
-
-    iter=state%get_iterator()
-    do
-      if(.not.iter%has_next())exit
-      fld=>iter%next()
-      select type(fld)
-        type is (field_type)
-          if (fld%can_write()) then
-            write(log_scratch_space,'(3A,I6)') &
-                "Writing ", trim(adjustl(fld%get_name()))
-            call log_event(log_scratch_space,LOG_LEVEL_INFO)
-            call fld%write_field(trim(adjustl(fld%get_name())))
-          else
-
-            call log_event( 'Write method for '// trim(adjustl(fld%get_name())) // &
-                        ' not set up', LOG_LEVEL_INFO )
-
-          end if
-        type is (integer_field_type)
-          ! todo: integer field i/o
-      end select
-    end do
-
-    nullify(fld)
-
-end subroutine write_state
-
-!> @brief   Read into a collection of fields
-!> @details Iterate over a field collection and read each field
-!>          into a collection, if it is enabled for read
-!>@param[in,out] state -  the collection of fields to populate
-subroutine read_state(state)
-
-    implicit none
-
-    type( field_collection_type ), intent(inout) :: state
-
-    type( field_collection_iterator_type) :: iter
-    class( field_parent_type ), pointer :: fld => null()
-
-    iter=state%get_iterator()
-    do
-      if(.not.iter%has_next())exit
-      fld=>iter%next()
-      select type(fld)
-        type is (field_type)
-          if (fld%can_read()) then
-            call log_event( &
-              'Reading '//trim(adjustl(fld%get_name())), &
-              LOG_LEVEL_INFO)
-            call fld%read_field(trim(adjustl(fld%get_name())))
-          else
-            call log_event( 'Read method for  '// trim(adjustl(fld%get_name())) // &
-                        ' not set up', LOG_LEVEL_INFO )
-          end if
-        type is (integer_field_type)
-          ! todo: integer field i/o
-      end select
-    end do
-
-    nullify(fld)
-
-end subroutine read_state
-
-
-!> @brief   Output a field in UGRID format on the node domain via XIOS
-!>@param[in] xios_field_name XIOS identifier for the field
-!>@param[in] field_proxy a field proxy containing the data to output
-!-------------------------------------------------------------------------------
-subroutine xios_write_field_node(xios_field_name, field_proxy)
-
-  implicit none
-
-  character(len=*), intent(in) :: xios_field_name
-  type(field_proxy_type), intent(in) :: field_proxy
-
-  integer(i_def) :: i, undf
-  integer(i_def) :: domain_size, axis_size
-  real(dp_xios), allocatable :: send_field(:)
-
-
-  undf = field_proxy%vspace%get_last_dof_owned()
-
-  ! Get the expected horizontal domain size for the rank
-  call xios_get_domain_attr('node', ni=domain_size)
-  ! Get the expected vertical axis size
-  call xios_get_axis_attr("vert_axis_full_levels", n_glo=axis_size)
-
-
-  ! Size the arrays to be what is expected
-  allocate(send_field(domain_size*axis_size))
-
-
-  ! All data are scalar fields
-
-  ! We need to reshape the raw field data to get the correct data layout for UGRID
-  ! At the moment field array data is 1D with levels ordered sequentially
-  ! This is only true for current scalar fields on lowest order fs and may change
-
-  ! First get the data on the same level ordered in chunks
-  do i=0, axis_size-1
-    send_field(i*(domain_size)+1:(i*(domain_size)) + domain_size) = &
-               field_proxy%data(i+1:undf:axis_size)
-  end do
-
-  ! Reshape into 2D horizontal + vertical levels for output
-  call xios_send_field(xios_field_name, &
-                       reshape (send_field, (/domain_size, axis_size/) ))
-
-  deallocate(send_field)
-
-end subroutine xios_write_field_node
-
-!> @brief   Output a single level field in UGRID format on the face domain via XIOS
-!>@param[in] xios_field_name XIOS identifier for the field
-!>@param[in] field_proxy a field proxy containing the data to output
-!-------------------------------------------------------------------------------
-subroutine xios_write_field_single_face(xios_field_name, field_proxy)
-
-  implicit none
-
-  character(len=*), intent(in) :: xios_field_name
-  type(field_proxy_type), intent(in) :: field_proxy
-
-  integer(i_def) :: undf
-  integer(i_def) :: domain_size
-  real(dp_xios), allocatable :: send_field(:)
-
-  undf = field_proxy%vspace%get_last_dof_owned()
-
-  ! Get the expected horizontal size
-  ! all 2D fields are nominally in W3, hence half levels
-  call xios_get_domain_attr('face_half_levels', ni=domain_size)
-
-  ! Size the arrays to be what is expected
-  allocate(send_field(domain_size))
-
-  ! All data are scalar fields
-
-  send_field(1:domain_size) = field_proxy%data(1:undf)
-
-  call xios_send_field(xios_field_name, send_field)
-
-  deallocate(send_field)
-
-end subroutine xios_write_field_single_face
-
-!> @brief   Output a field in UGRID format on the face domain via XIOS
-!>@param[in] xios_field_name XIOS identifier for the field
-!>@param[in] field_proxy a field proxy containing the data to output
-!-------------------------------------------------------------------------------
-subroutine xios_write_field_face(xios_field_name, field_proxy)
-
-  implicit none
-
-  character(len=*), intent(in) :: xios_field_name
-  type(field_proxy_type), intent(in) :: field_proxy
-
-  integer(i_def) :: i, undf
-  integer(i_def) :: fs_id
-  integer(i_def) :: domain_size, axis_size
-  real(dp_xios), allocatable :: send_field(:)
-
-  undf = field_proxy%vspace%get_last_dof_owned()
-  fs_id = field_proxy%vspace%which()
-
-  ! Get the expected horizontal and vertical axis size
-
-  if (fs_id == W3) then
-    call xios_get_domain_attr('face_half_levels', ni=domain_size)
-    call xios_get_axis_attr("vert_axis_half_levels", n_glo=axis_size)
-  else
-    call xios_get_domain_attr('face_full_levels', ni=domain_size)
-    call xios_get_axis_attr("vert_axis_full_levels", n_glo=axis_size)
-  end if
-
-
-  ! Size the arrays to be what is expected
-  allocate(send_field(domain_size*axis_size))
-
-
-  ! All data are scalar fields
-
-  ! We need to reshape the raw field data to get the correct data layout for UGRID
-  ! At the moment field array data is 1D with levels ordered sequentially
-  ! This is only true for current scalar fields on lowest order fs and may change
-
-  ! First get the data on the same level ordered in chunks
-  do i=0, axis_size-1
-    send_field(i*(domain_size)+1:(i*(domain_size)) + domain_size) = &
-               field_proxy%data(i+1:undf:axis_size)
-  end do
-
-  ! Reshape into 2D horizontal + vertical levels for output
-
-  call xios_send_field(xios_field_name, &
-                       reshape (send_field, (/domain_size, axis_size/) ))
-
-  deallocate(send_field)
-
-end subroutine xios_write_field_face
-
-!> @brief   Read a field in UGRID format on the face domain via XIOS
-!>@param[in] xios_field_name XIOS identifier for the field
-!>@param[in] field_proxy a field proxy to read data into
-subroutine xios_read_field_face(xios_field_name, field_proxy)
-
-  implicit none
-
-  character(len=*), intent(in) :: xios_field_name
-  type(field_proxy_type), intent(inout) :: field_proxy
-
-  integer(i_def) :: i, undf
-  integer(i_def) :: fs_id
-  integer(i_def) :: domain_size, axis_size
-  real(dp_xios), allocatable :: recv_field(:)
-
-  ! Get the size of undf as we only read in up to last owned
-  undf = field_proxy%vspace%get_last_dof_owned()
-  fs_id = field_proxy%vspace%which()
-
-  ! get the horizontal / vertical domain sizes
-
-  if (fs_id == W3) then
-    call xios_get_domain_attr('face_half_levels', ni=domain_size)
-    call xios_get_axis_attr("vert_axis_half_levels", n_glo=axis_size)
-  else
-    call xios_get_domain_attr('face_full_levels', ni=domain_size)
-    call xios_get_axis_attr("vert_axis_full_levels", n_glo=axis_size)
-  end if
-
-
-  ! Size the array to be what is expected
-  allocate(recv_field(domain_size*axis_size))
-
-  ! Read the data into a temporary array - this should be in the correct order
-  ! as long as we set up the horizontal domain using the global index
-  call xios_recv_field(xios_field_name, recv_field)
-
-  ! We need to reshape the incoming data to get the correct data layout for the LFRic
-  ! field - It is the reverse of what we did for writing
-
-  do i=0, axis_size-1
-
-    field_proxy%data(i+1:undf:axis_size) = &
-                                   recv_field(i*(domain_size)+1:(i*(domain_size)) + domain_size)
-  end do
-
-  deallocate(recv_field)
-
-end subroutine xios_read_field_face
-
-!> @brief   Read a single level field in UGRID format on the face domain via XIOS
-!>@param[in] xios_field_name XIOS identifier for the field
-!>@param[in] field_proxy a field proxy to read data into
-subroutine xios_read_field_single_face(xios_field_name, field_proxy)
-
-  implicit none
-
-  character(len=*), intent(in) :: xios_field_name
-  type(field_proxy_type), intent(inout) :: field_proxy
-
-  integer(i_def) :: i, undf
-  integer(i_def) :: domain_size
-  real(dp_xios), allocatable :: recv_field(:)
-
-  ! Get the size of undf as we only read in up to last owned
-  undf = field_proxy%vspace%get_last_dof_owned()
-
-
-  ! Get the expected horizontal size
-  ! all 2D fields are nominally in W3, hence half levels
-  call xios_get_domain_attr('face_half_levels', ni=domain_size)
-
-
-  ! Size the array to be what is expected
-  allocate(recv_field(domain_size))
-
-  ! Read the data into a temporary array - this should be in the correct order
-  ! as long as we set up the horizontal domain using the global index
-  call xios_recv_field(xios_field_name, recv_field)
-
-  field_proxy%data(1:undf) = recv_field(1:domain_size)
-
-  deallocate(recv_field)
-
-
-end subroutine xios_read_field_single_face
-
-
-
-!> @brief   Output a field in UGRID format on the edge domain via XIOS
-!>@param[in] xios_field_name XIOS identifier for the field
-!>@param[in] field_proxy a field proxy containing the data to output
-!-------------------------------------------------------------------------------
-subroutine xios_write_field_edge(xios_field_name, field_proxy)
-
-  implicit none
-
-  character(len=*), intent(in) :: xios_field_name
-  type(field_proxy_type), intent(in) :: field_proxy
-
-  integer(i_def) :: i, undf
-  integer(i_def) :: fs_id
-  integer(i_def) :: domain_size, axis_size
-  real(dp_xios), allocatable :: send_field(:)
-
-  undf = field_proxy%vspace%get_last_dof_owned()
-  fs_id = field_proxy%vspace%which()
-
-  ! Get the expected horizontal and vertical axis size
-
-  call xios_get_domain_attr('edge_half_levels', ni=domain_size)
-  call xios_get_axis_attr("vert_axis_half_levels", n_glo=axis_size)
-
-  ! Size the arrays to be what is expected
-  allocate(send_field(domain_size*axis_size))
-
-  ! All data are scalar fields
-
-  ! We need to reshape the raw field data to get the correct data layout for UGRID
-  ! At the moment field array data is 1D with levels ordered sequentially
-  ! This is only true for current scalar fields on lowest order fs and may change
-
-  ! First get the data on the same level ordered in chunks
-  do i=0, axis_size-1
-    send_field(i*(domain_size)+1:(i*(domain_size)) + domain_size) = &
-               field_proxy%data(i+1:undf:axis_size)
-  end do
-
-  ! Reshape into 2D horizontal + vertical levels for output
-
-  call xios_send_field(xios_field_name, &
-                       reshape (send_field, (/domain_size, axis_size/) ))
-
-  deallocate(send_field)
-
-end subroutine xios_write_field_edge
 
 end module io_mod

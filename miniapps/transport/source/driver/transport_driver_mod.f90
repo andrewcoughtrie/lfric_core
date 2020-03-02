@@ -22,7 +22,7 @@ module transport_driver_mod
   use create_fem_mod,                 only: init_fem
   use create_mesh_mod,                only: init_mesh
   use init_transport_mod,             only: init_transport
-  use io_mod,                         only: xios_domain_init
+  use io_mod,                         only: initialise_xios
   use diagnostics_io_mod,             only: write_scalar_diagnostic,          &
                                             write_vector_diagnostic
   use diagnostics_calc_mod,           only: write_density_diagnostic
@@ -213,12 +213,12 @@ contains
 
     if ( use_xios_io ) then
       dtime = int(dt)
-      call xios_domain_init( xios_ctx,     &
-                             comm,         &
-                             dtime,        &
-                             mesh_id,      &
-                             twod_mesh_id, &
-                             chi)
+      call initialise_xios( xios_ctx,     &
+                            comm,         &
+                            dtime,        &
+                            mesh_id,      &
+                            twod_mesh_id, &
+                            chi)
     end if
 
     ! Output initial conditions

@@ -18,7 +18,7 @@ module init_io_dev_mod
   use log_mod,                        only : log_event,         &
                                              LOG_LEVEL_INFO
   use runtime_constants_mod,          only : create_runtime_constants
-  use io_mod,                         only : xios_write_field_face
+  use write_methods_mod,              only : write_field_face
 
   use io_dev_init_fields_alg_mod,     only : io_dev_init_fields_alg
 
@@ -49,7 +49,7 @@ module init_io_dev_mod
                    function_space_collection%get_fs(mesh_id, element_order, Wtheta) )
 
     ! Set up procedure pointer to IO behaviour
-    tmp_write_ptr => xios_write_field_face
+    tmp_write_ptr => write_field_face
 
     call density%set_write_behaviour(tmp_write_ptr)
     call theta%set_write_behaviour(tmp_write_ptr)

@@ -63,9 +63,9 @@ module gungho_model_mod
                                              dt
   use time_config_mod,            only : timestep_start
 
-  use io_mod,                     only : xios_domain_init, &
-                                         write_state, &
-                                         xios_write_field_single_face
+  use io_mod,                     only : initialise_xios
+  use write_methods_mod,          only : write_state, &
+                                         write_field_single_face
 
   use xios,                       only : xios_initialize,       &
                                          xios_finalize,         &
@@ -243,12 +243,12 @@ module gungho_model_mod
 
       dtime = int(dt)
 
-      call xios_domain_init( xios_ctx,     &
-                             comm,         &
-                             dtime,        &
-                             mesh_id,      &
-                             twod_mesh_id, &
-                             chi)
+      call initialise_xios( xios_ctx,     &
+                            comm,         &
+                            dtime,        &
+                            mesh_id,      &
+                            twod_mesh_id, &
+                            chi)
 
       ts_init = max( (timestep_start - 1), 0 ) ! 0 or t previous.
 

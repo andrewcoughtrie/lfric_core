@@ -25,7 +25,7 @@ module catalyst_demo_driver_mod
   use create_fem_mod,                 only: init_fem
   use create_mesh_mod,                only: init_mesh
   use init_catalyst_demo_mod,         only: init_catalyst_demo
-  use io_mod,                         only: xios_domain_init,   &
+  use io_mod,                         only: initialise_xios,   &
                                             ts_fname
   use diagnostics_io_mod,             only: write_scalar_diagnostic, &
                                             write_vector_diagnostic
@@ -67,7 +67,7 @@ module catalyst_demo_driver_mod
   use xios,                           only : xios_ctx,              &
                                              xios_id,               &
                                              xios_context_finalize, &
-                                             xios_domain_init,      &
+                                             initialise_xios,      &
                                              xios_finalize,         &
                                              xios_initialize,       &
                                              xios_update_calendar
@@ -174,12 +174,12 @@ contains
 
     dtime = int(dt)
 
-    call xios_domain_init( xios_ctx,     &
-                           comm,         &
-                           dtime,        &
-                           mesh_id,      &
-                           twod_mesh_id, &
-                           chi)
+    call initialise_xios( xios_ctx,     &
+                          comm,         &
+                          dtime,        &
+                          mesh_id,      &
+                          twod_mesh_id, &
+                          chi)
 
     ! Make sure XIOS calendar is set to timestep 1 as it starts there
     ! not timestep 0.

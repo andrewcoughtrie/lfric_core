@@ -19,7 +19,7 @@ module init_diagnostics_mod
     use function_space_collection_mod, only : function_space_collection
     use io_config_mod, only : write_diag, &
             use_xios_io
-    use io_mod, only : xios_write_field_face
+    use write_methods_mod, only : write_field_face
     use log_mod, only : log_event, &
             LOG_LEVEL_INFO, &
             LOG_LEVEL_ERROR
@@ -63,7 +63,7 @@ contains
 
         call log_event('diagnostics: Initialising miniapp ...', LOG_LEVEL_INFO)
 
-        tmp_ptr => xios_write_field_face
+        tmp_ptr => write_field_face
         do i = 1, size(prog_field_list)
             call new_field%initialise(vector_space = &
                     function_space_collection%get_fs(mesh_id, element_order, W3), &

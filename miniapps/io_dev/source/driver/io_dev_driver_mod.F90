@@ -23,7 +23,7 @@ use global_mesh_collection_mod, only: global_mesh_collection, &
                                       global_mesh_collection_type
 use init_io_dev_mod,            only: init_io_dev
 use io_dev_mod,                 only: load_configuration, program_name
-use io_mod,                     only: xios_domain_init
+use io_mod,                     only: initialise_xios
 use log_mod,                    only: log_event,          &
                                       log_set_level,      &
                                       log_scratch_space,  &
@@ -168,12 +168,12 @@ contains
   ! Set up XIOS domain and context
   dtime = int(dt)
 
-  call xios_domain_init( xios_ctx,     &
-                         comm,         &
-                         dtime,        &
-                         mesh_id,      &
-                         twod_mesh_id, &
-                         chi )
+  call initialise_xios( xios_ctx,     &
+                        comm,         &
+                        dtime,        &
+                        mesh_id,      &
+                        twod_mesh_id, &
+                        chi )
 
   !-----------------------------------------------------------------------------
   ! Model init

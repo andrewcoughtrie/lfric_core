@@ -32,11 +32,11 @@ module init_catalyst_demo_mod
                                              use_xios_io,      &
                                              checkpoint_write, &
                                              checkpoint_read
-  use io_mod,                         only : xios_write_field_face, &
-                                             xios_write_field_node, &
+  use write_methods_mod,              only : write_field_face, &
+                                             write_field_node, &
                                              checkpoint_write_xios, &
-                                             checkpoint_write_netcdf, &
-                                             checkpoint_read_netcdf, &
+                                             checkpoint_write_netcdf
+  use read_methods_mod,               only : checkpoint_read_netcdf, &
                                              checkpoint_read_xios
 
   use function_space_mod,             only : function_space_type
@@ -128,16 +128,16 @@ module init_catalyst_demo_mod
 
        ! Fields that are output on the XIOS face domain
 
-       tmp_write_diag_ptr => xios_write_field_face
+       tmp_write_diag_ptr => write_field_face
 
        call wind%set_write_diag_behaviour(tmp_write_diag_ptr)
        call pressure%set_write_diag_behaviour(tmp_write_diag_ptr)
 
        if (buoyancy_space == W0) then
-         tmp_write_diag_ptr => xios_write_field_node
+         tmp_write_diag_ptr => write_field_node
          call buoyancy%set_write_diag_behaviour(tmp_write_diag_ptr)
        else
-         tmp_write_diag_ptr => xios_write_field_face
+         tmp_write_diag_ptr => write_field_face
          call buoyancy%set_write_diag_behaviour(tmp_write_diag_ptr)
        end if
 

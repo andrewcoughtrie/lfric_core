@@ -542,7 +542,7 @@ contains
                                               vorticity_in_w1
     use function_space_collection_mod,  only: function_space_collection
     use field_mod,                      only: write_interface
-    use io_mod,                         only: xios_write_field_face
+    use write_methods_mod,              only: write_field_face
     implicit none
 
     type(field_type), intent(out) :: vorticity
@@ -562,7 +562,7 @@ contains
     call compute_vorticity_alg(vorticity, u, .false.)
 
     if ( use_xios_io ) then
-      tmp_write_ptr => xios_write_field_face
+      tmp_write_ptr => write_field_face
       ! Vector fields that are projected to scalar components
       call vorticity%set_write_behaviour(tmp_write_ptr)
       nullify( tmp_write_ptr )

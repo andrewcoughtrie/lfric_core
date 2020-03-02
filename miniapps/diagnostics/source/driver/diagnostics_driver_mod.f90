@@ -70,7 +70,7 @@ contains
         use derived_config_mod, only : set_derived_config
         use global_mesh_collection_mod, only : global_mesh_collection, global_mesh_collection_type
         use init_diagnostics_mod, only : init_diagnostics
-        use io_mod, only : xios_domain_init
+        use io_mod, only : initialise_xios
         use logging_config_mod, only : run_log_level, &
                 key_from_run_log_level, &
                 RUN_LOG_LEVEL_ERROR, &
@@ -169,12 +169,13 @@ contains
             write(log_scratch_space, '(A)') &
                     "init XIOS"
             call log_event(log_scratch_space, LOG_LEVEL_INFO)
-            call xios_domain_init(xios_ctx, &
-                    comm, &
-                    dtime, &
-                    mesh_id, &
-                    twod_mesh_id, &
-                    chi)
+
+            call initialise_xios( xios_ctx, &
+                                  comm, &
+                                  dtime, &
+                                  mesh_id, &
+                                  twod_mesh_id, &
+                                  chi)
 
             ! Make sure XIOS calendar is set to timestep 1 as it starts there
             ! not timestep 0.

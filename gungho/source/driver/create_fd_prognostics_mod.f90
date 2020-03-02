@@ -13,8 +13,8 @@ module create_fd_prognostics_mod
   use field_mod,                      only : field_type,     &
                                              read_interface, &
                                              write_interface
-  use io_mod,                         only : dump_read_xios, &
-                                             dump_write_xios
+  use read_methods_mod,               only : dump_read_xios
+  use write_methods_mod,              only : dump_write_xios
   use finite_element_config_mod,      only : element_order
   use function_space_collection_mod,  only : function_space_collection
   use field_collection_mod,           only : field_collection_type

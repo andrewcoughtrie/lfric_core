@@ -22,7 +22,7 @@ module init_skeleton_mod
   use runtime_constants_mod,          only : create_runtime_constants
   use io_config_mod,                  only : write_diag, &
                                              use_xios_io
-  use io_mod,                         only : xios_write_field_face
+  use write_methods_mod,              only : write_field_face
   implicit none
 
 
@@ -53,7 +53,7 @@ module init_skeleton_mod
 
     if (write_diag .and. use_xios_io) then
 
-       tmp_ptr => xios_write_field_face
+       tmp_ptr => write_field_face
 
        call field_1%set_write_behaviour(tmp_ptr)
 

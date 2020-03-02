@@ -17,10 +17,10 @@ module diagnostics_io_mod
   use io_config_mod,                 only: use_xios_io
   use files_config_mod,              only: diag_stem_name
   use project_output_mod,            only: project_output
-  use io_mod,                        only: ts_fname, &
-                                           nodal_write_field, &
-                                           xios_write_field_face, &
-                                           xios_write_field_edge
+  use io_mod,                        only: ts_fname
+  use write_methods_mod,             only: nodal_write_field, &
+                                           write_field_face, &
+                                           write_field_edge
   use mesh_mod,                      only: mesh_type
   use mesh_collection_mod,           only: mesh_collection
   use field_mod,                     only: field_type, write_interface
@@ -116,7 +116,7 @@ subroutine write_scalar_diagnostic(field_name, field, ts, mesh_id, W3_project)
                                      mesh_id, .false.)
 
     ! Set a field I/O method appropriately
-    tmp_write_ptr => xios_write_field_face
+    tmp_write_ptr => write_field_face
     call output_field(1)%set_write_behaviour(tmp_write_ptr)
 
     ! Call write on the output field
@@ -238,7 +238,7 @@ subroutine write_vector_diagnostic(field_name, field, ts, mesh_id, W3_project)
       call project_output(field, projected_field, output_dim, W3 , mesh_id)
 
       ! Set up correct I/O handler for Xi projected to W3
-      tmp_write_ptr => xios_write_field_face
+      tmp_write_ptr => write_field_face
 
       do i =1,output_dim
 
@@ -270,9 +270,9 @@ subroutine write_vector_diagnostic(field_name, field, ts, mesh_id, W3_project)
 
 
       ! Set up I/O handler as these are derived fields
-      tmp_write_ptr => xios_write_field_face
+      tmp_write_ptr => write_field_face
       call u3_wind%set_write_behaviour(tmp_write_ptr)
-      tmp_write_ptr => xios_write_field_edge
+      tmp_write_ptr => write_field_edge
       call u1_wind%set_write_behaviour(tmp_write_ptr)
       call u2_wind%set_write_behaviour(tmp_write_ptr)
 
