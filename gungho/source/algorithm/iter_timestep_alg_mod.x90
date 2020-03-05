@@ -348,6 +348,9 @@ contains
     ! Predictor the wind field (u-beta*dt*rhs) to be advected
     type( field_type ) :: advected_u
 
+    ! Cloud fields after slow physics to be advected
+    type( field_collection_type ) :: cloud_fields_after_slow
+
     if ( subroutine_timers ) call timer('iter_timestep_alg')
 
     qr = get_qr()
@@ -443,6 +446,8 @@ contains
     !==========================================================================
     ! Start the Outer (advection) loop
     !==========================================================================
+    call pre_advection_generic_field(cloud_fields_after_slow, cloud_fields)
+
     outer_dynamics_loop: do outer = 1,outer_iterations
 
       if (use_wavedynamics) then
@@ -464,7 +469,9 @@ contains
           !   * Cloud-fractions-after-slow values (held on cloud_fields)
           !     will get advected with advecting velocity.
           !   * The advected cloud fields variables get updated during this call
-          call advection_generic_field_alg( cloud_fields, state_n(igh_u), state(igh_u) )
+          call advection_generic_field_alg( cloud_fields,                   &
+                                            cloud_fields_after_slow,        &
+                                            state_n(igh_u), state(igh_u) )
 
         end if
         call bundle_ax(dt, rhs_adv, rhs_adv, bundle_size)
@@ -656,8 +663,7 @@ contains
         call cld_alg_step( dtheta, mr, state(igh_t), state(igh_p),         &
                            derived_fields, turbulence_fields,              &
                            cloud_fields,                                   &
-                           state_n(igh_t),         state_n(igh_p), mr_n,   &
-                           state_after_slow(igh_t),state_after_slow(igh_p) )
+                           state_n(igh_t), state_n(igh_p), mr_n)
 
         call invoke(inc_X_plus_Y(state(igh_t), dtheta))
 
@@ -733,5 +739,60 @@ contains
 
     return
   end subroutine iter_alg_final
+
+  !============================================================================!
+  !> @brief Store temporary copies of generic fields after slow physics
+  !>        to be advected.
+  !> @param[out] generic_fields_after_slow New collection written with fields
+  !>                                       saved after slow physics
+  !> @param[in]  generic_fields            collection we want to save
+  subroutine pre_advection_generic_field(generic_fields_after_slow, &
+                                         generic_fields)
+
+    use field_collection_mod,     only: field_collection_type,       &
+                                        field_collection_real_iterator_type
+
+    implicit none
+
+    type(field_collection_type), intent(out) :: generic_fields_after_slow
+    type(field_collection_type), intent(in)  :: generic_fields
+
+    ! Iterator for field collection
+    type(field_collection_real_iterator_type) :: iterator
+
+    ! One of the single fields out of the generic_fields collection
+    type(field_type), pointer :: single_generic_field => null()
+
+    ! The saved version of single_generic_field after slow physics
+    type(field_type) :: after_slow_generic_field
+
+    logical :: l_advect
+
+    if ( generic_fields%get_length() > 0 ) then
+
+      iterator = generic_fields%get_real_iterator()
+
+      do
+        if ( .not.iterator%has_next() ) exit
+
+        single_generic_field => iterator%next()
+
+        l_advect = single_generic_field%is_advected()
+
+        if ( l_advect ) then
+
+          ! We copy the field we want to save into a new field
+          call single_generic_field%copy_field(after_slow_generic_field)
+
+          ! We add it to the field collection passed in
+          call generic_fields_after_slow%add_field(after_slow_generic_field)
+
+        end if ! ( l_advect )
+
+      end do
+
+    end if
+
+  end subroutine pre_advection_generic_field
 
 end module iter_timestep_alg_mod

@@ -33,24 +33,21 @@ contains
   !>         and adjust vapour and temperature, as described in UMDP29
   !>         (for liquid only for now).
   !>         Parts of PC2 scheme are also done here.
-  !>@param[in,out] theta_inc Potential temperature increment in native space
-  !>@param[in,out] mr        Mixing ratios, in theta space
-  !>@param[in]     theta theta in its native space
-  !>@param[in]     exner  Exner Pressure in w3 space
-  !>@param[in]     derived_fields     Group of derived fields
-  !>@param[in]     turbulence_fields  Fields for turbulence scheme
-  !>@param[in,out] cloud_fields       Fields for cloud scheme
-  !>@param[in]     theta_n theta at start of timestep in its native space
-  !>@param[in]     exner_n exner at start of timestep in its native space
-  !>@param[in]     mr_n micing ratios at start of timestep
-  !>@param[in]     theta_after_slow theta after slow physics in theta space
-  !>@param[in]     exner_after_slow exner after slow physics in w3 space
+  !>@param[in,out] theta_inc         (in,out) Potential temperature increment
+  !>@param[in,out] mr                (in,out) Mixing ratios, in theta space
+  !>@param[in]     theta             (in)     theta in its native space
+  !>@param[in]     exner             (in)     Exner Pressure in w3 space
+  !>@param[in]     derived_fields    (in)     Group of derived fields
+  !>@param[in]     turbulence_fields (in)     Fields for turbulence scheme
+  !>@param[in]     cloud_fields      (in,out) Fields for cloud scheme
+  !>@param[in]     theta_n           (in)     theta at start of timestep
+  !>@param[in]     exner_n           (in)     exner at start of timestep
+  !>@param[in]     mr_n              (in)     mixing ratios at start of timestep
 
   subroutine cld_alg_step(theta_inc, mr, theta, exner,              &
                           derived_fields, turbulence_fields,        &
                           cloud_fields,                             &
-                          theta_n,          exner_n, mr_n,          &
-                          theta_after_slow, exner_after_slow        )
+                          theta_n, exner_n, mr_n)
 
     use cld_kernel_mod, only: cld_kernel_type
 
@@ -58,7 +55,7 @@ contains
 
     type( field_collection_type ), intent(in) :: derived_fields
     type( field_collection_type ), intent(in) :: turbulence_fields
-    type( field_collection_type ), intent(inout) :: cloud_fields
+    type( field_collection_type ), intent(in) :: cloud_fields
 
     type( field_type ), intent( inout ) :: theta_inc, mr(nummr)
 
@@ -70,12 +67,9 @@ contains
     type( field_type ), intent( in )    :: theta_n          ! Start of TS wth
     type( field_type ), intent( in )    :: exner_n          ! Start of TS w3
     type( field_type ), intent( in )    :: mr_n(nummr)      ! Start of TS
-    type( field_type ), intent( in )    :: theta_after_slow ! After slowphys wth
-    type( field_type ), intent( in )    :: exner_after_slow ! After slowphys w3
 
-    ! 2 variables below are for remapping from w3 to wth.
-    type( field_type ) :: exner_wth                         ! Current
-    type( field_type ) :: exner_after_slow_wth              ! After slowphys
+    ! Variable below is for remapping from w3 to wth.
+    type( field_type ) :: exner_wth                         ! Current value
 
     type( field_type ), pointer :: cf_area  => null()
     type( field_type ), pointer :: cf_ice  => null()
@@ -84,8 +78,8 @@ contains
     type( field_type ), pointer :: ntml => null()
     type( field_type ), pointer :: cumulus => null()
     type( field_type ), pointer :: rh_crit => null()
+    type( field_type ), pointer :: exner_after_slow_wth => null()
 
-    type( field_type ) :: dtheta_pc2_inc
     type( field_type ) :: dtheta_pc2_inc_pres
     type( field_type ) :: theta_updated
 
@@ -112,8 +106,7 @@ contains
 
     else if (scheme == scheme_pc2) then
 
-      call theta%copy_field_properties(exner_after_slow_wth)
-      call map_physics_scalars(exner_after_slow_wth, exner_after_slow)
+      exner_after_slow_wth => cloud_fields%get_field('departure_exner_wth')
 
       call theta%copy_field_properties(dtheta_pc2_inc_pres)
       call invoke( setval_c(dtheta_pc2_inc_pres,   0.0_r_def) )
@@ -121,7 +114,6 @@ contains
       ! Do PC2 Pressure forcing
       call pc2_pressure_forcing_alg_step( mr,                      & ! IN
                                           theta,                   & ! IN
-                                          theta_after_slow,        & ! IN
                                           exner_wth,               & ! IN wth
                                           exner_after_slow_wth,    & ! IN
                                           cloud_fields,            & ! INOUT

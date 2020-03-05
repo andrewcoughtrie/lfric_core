@@ -246,6 +246,7 @@
        <field id="liquid_fraction" name="liquid_fraction" long_name="liquid_fraction" unit="1" grid_ref="full_level_face_grid" />
        <field id="bulk_fraction" name="bulk_fraction" long_name="bulk_fraction" unit="1" grid_ref="full_level_face_grid" />
        <field id="rh_crit" name="rh_crit" long_name="critical_relative_humidity" unit="1" grid_ref="full_level_face_grid" />
+       <field id="departure_exner_wth" name="departure_exner_wth" long_name="Exner at departure point in wth space" unit="1" grid_ref="full_level_face_grid" />
        <field id="cca" name="cca" long_name="convective_cloud_amount" unit="1" grid_ref="full_level_face_grid" />
        <field id="ccw" name="ccw" long_name="convective_cloud_water" unit="kg/kg" grid_ref="full_level_face_grid" />
        <field id="rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
@@ -584,6 +585,7 @@
        <field id="init_liquid_fraction" name="liquid_fraction" long_name="liquid_fraction"  unit="1" grid_ref="full_level_face_grid" />
        <field id="init_bulk_fraction" name="bulk_fraction" long_name="bulk_fraction"  unit="1" grid_ref="full_level_face_grid" />
        <field id="init_rh_crit" name="rh_crit" long_name="critical_relative_humidity"  unit="1" grid_ref="full_level_face_grid" />
+       <field id="init_departure_exner_wth" name="departure_exner_wth" long_name="Exner at departure point in wth space"  unit="1" grid_ref="full_level_face_grid" />
        <field id="init_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
        <field id="init_xi1" name="xi1" long_name="Xi1" unit="s-1" grid_ref="half_level_face_grid" />
        <field id="init_xi2" name="xi2" long_name="Xi2" unit="s-1" grid_ref="half_level_face_grid" />
@@ -884,6 +886,7 @@
         <field field_ref="liquid_fraction"/>
         <field field_ref="bulk_fraction"/>
         <field field_ref="rh_crit"/>
+        <field field_ref="departure_exner_wth"/>
         <field field_ref="cca"/>
         <field field_ref="ccw"/>
         <field field_ref="rho"/>

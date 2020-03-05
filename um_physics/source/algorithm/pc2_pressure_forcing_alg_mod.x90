@@ -24,17 +24,15 @@ contains
   !>            get passed down to calculate a pressure difference within the kernel.
   !>         2) Fields do not get updated. Increments are passed back out.
   !>         See UMDP30 for full scheme details.
-  !>@param[inout]  mr                   Current mixing ratios
-  !>@param[in]     theta                Current potential temperature (theta) in wth space
-  !>@param[in]     theta_after_slow     as above but value after slow physics.
-  !>@param[in]     exner_wth            Current exner function in wth space (not w3)
-  !>@param[in]     exner_after_slow_wth as above but value after slow physics in wth space.
-  !>@param[inout]  cloud_fields         Group of cloud fields
-  !>@param[out]    dtheta_pc2_inc       Potential temperature response in wth space
+  !>@param[in,out] mr                   (in,out) Current mixing ratios
+  !>@param[in]     theta                (in)     Current potential temperature
+  !>@param[in]     exner_wth            (in)     Current exner function in wth
+  !>@param[in]     exner_after_slow_wth (in)     Exner at departure point
+  !>@param[in]     cloud_fields         (in,out) Group of cloud fields
+  !>@param[in,out] dtheta_pc2_inc       (in,out) Potential temperature response
 
   subroutine pc2_pressure_forcing_alg_step( mr,                   &
                                             theta,                &
-                                            theta_after_slow,     &
                                             exner_wth,            &
                                             exner_after_slow_wth, &
                                             cloud_fields,         &
@@ -51,9 +49,8 @@ contains
     type( field_type ), intent( inout ) :: mr ( nummr )
     type( field_type ), intent( in )    :: exner_wth
     type( field_type ), intent( in )    :: exner_after_slow_wth
-    type( field_type ), intent( in )    :: theta_after_slow
 
-    type( field_collection_type ), intent(inout) :: cloud_fields
+    type( field_collection_type ), intent(in) :: cloud_fields
 
     type( field_type ), intent( inout ) :: dtheta_pc2_inc
     type( field_type )                  :: dqv_pc2_inc

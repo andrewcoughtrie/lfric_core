@@ -172,10 +172,8 @@ contains
       if ( scheme == scheme_pc2 ) then
         call pc2_conv_coupling_alg_step( mr, derived_fields,                  &
                                          convection_fields, cloud_fields )
-      else if (cv_scheme == cv_scheme_gregory_rowntree) then
+      else
         ! Without PC2, just update vapour field
-        ! @todo This should also be done for LL, but currently the increment is
-        ! @todo added in the algorithm above - this will be fixed in #2006
         dmv_conv => convection_fields%get_field('dmv_conv')
         call invoke( inc_X_plus_Y(mr(imr_v), dmv_conv) )
       end if

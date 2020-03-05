@@ -28,16 +28,16 @@ contains
   !>         PC2 increments to potential temperature returned.
   !>
   !>         See UMDP30 for full scheme details.
-  !>@param[inout]  mr               Current Mixing ratios
-  !>@param[in]     theta            Current Potential temperature (theta) in wth space
-  !>@param[in]     exner_w3         Current value of enver in w3 space
-  !>@param[in]     exner_wth        Current value of exner in wtheta space
-  !>@param[in]     mr_n             Start of timestep mixing ratios
-  !>@param[in]     theta_n          Start of timestep theta in wth space
-  !>@param[in]     derived_fields   Group of derived fields
-  !>@param[in]     turbulence_fields Fields for turbulence scheme
-  !>@param[in,out] cloud_fields      Fields for cloud scheme
-  !>@param[inout]  dtheta_pc2_inc   Potential temperature response in wth space
+  !>@param[in,out] mr                (in,out) Current Mixing ratios
+  !>@param[in]     theta             (in)     Current Potential temperature
+  !>@param[in]     exner_w3          (in)     Current value of enxer in w3 space
+  !>@param[in]     exner_wth         (in)     Current value of exner in wtheta
+  !>@param[in]     mr_n              (in)     Start of timestep mixing ratios
+  !>@param[in]     theta_n           (in)     Start of timestep pot temp
+  !>@param[in]     derived_fields    (in)     Group of derived fields
+  !>@param[in]     turbulence_fields (in)     Fields for turbulence scheme
+  !>@param[in]     cloud_fields      (in,out) Fields for cloud scheme
+  !>@param[in,out] dtheta_pc2_inc    (in,out) Potential temperature response
 
   subroutine pc2_initiation_alg_step( mr,                &
                                       theta,             &
@@ -63,9 +63,9 @@ contains
     type( field_type ), intent( in )    :: mr_n ( nummr ), theta_n
     type( field_type ), intent( in )    :: exner_wth
 
-    type( field_collection_type ), intent(in)    :: derived_fields
-    type( field_collection_type ), intent(in)    :: turbulence_fields
-    type( field_collection_type ), intent(inout) :: cloud_fields
+    type( field_collection_type ), intent(in) :: derived_fields
+    type( field_collection_type ), intent(in) :: turbulence_fields
+    type( field_collection_type ), intent(in) :: cloud_fields
 
     type( field_type ), intent(inout) :: dtheta_pc2_inc
     type( field_type )                :: dqv_pc2_inc

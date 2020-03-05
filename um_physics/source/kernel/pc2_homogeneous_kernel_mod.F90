@@ -227,7 +227,7 @@ subroutine pc2_homogeneous_code( nlayers,                    &
       ! and the values that were intent in.
       dtheta_inc_wth(map_wth(1) + k)  = (theta_work(1,1,k) - theta_wth(map_wth(1) + k)) &
                                             ! Above is the change as a result of the forcing
-                                        - dtheta_forcing_wth(map_wth(1) + k)
+                                        - (dtdt(1,1,k) / exner_wth(map_wth(1) + k) )
                                             ! so take forcing off to get the response to it.
 
       dqv_inc_wth    (map_wth(1) + k) = (qv_work (1,1,k) - mv_wth(map_wth(1) + k)) &

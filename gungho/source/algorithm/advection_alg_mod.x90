@@ -264,18 +264,22 @@ contains
 
   !===========================================================================!
   !> @details A wrapper algorithm for advection a generic prognostic.
-  !> @param[in,out] generic_fields field collection which gets updated
-  !> @param[in]     wind_n Time level n winds
-  !> @param[in]     wind_np1 Time level n+1 winds
-  subroutine advection_generic_field_alg( generic_fields, wind_n, wind_np1 )
+  !> @param[in] generic_fields            (in,out) collection which gets updated
+  !> @param[in] generic_fields_after_slow (in)     collection to advect
+  !> @param[in] wind_n                    (in)     Time level n winds
+  !> @param[in] wind_np1                  (in)     Time level n+1 winds
+  subroutine advection_generic_field_alg( generic_fields,                    &
+                                          generic_fields_after_slow,         &
+                                          wind_n, wind_np1 )
 
     use field_collection_mod,     only: field_collection_type,       &
                                         field_collection_real_iterator_type
 
     implicit none
 
-    type(field_collection_type), intent(inout) :: generic_fields
-    type(field_type),            intent(in)    :: wind_n, wind_np1
+    type(field_collection_type), intent(in) :: generic_fields
+    type(field_collection_type), intent(in) :: generic_fields_after_slow
+    type(field_type),            intent(in) :: wind_n, wind_np1
 
     type(field_type) :: advecting_wind
     type(field_type) :: gf_inc
@@ -286,40 +290,45 @@ contains
     ! One of the single fields out of the generic_fields collection
     type(field_type), pointer :: single_generic_field => null()
 
-    logical :: l_advect
+    ! The saved version of single_generic_field after slow physics
+    type(field_type), pointer :: after_slow_generic_field => null()
 
     if ( subroutine_timers ) call timer('advection_generic_field_alg')
 
     ! Set advecting velocity = 0.5(u_np1 + u_n)
     call advecting_wind%initialise( wind_n%get_function_space() )
-    call invoke( aX_plus_bY(advecting_wind, 0.5_r_def, wind_n, 0.5_r_def, wind_np1) )
+    call invoke( aX_plus_bY(advecting_wind, 0.5_r_def, wind_n, &
+                                            0.5_r_def, wind_np1) )
 
-    if ( generic_fields%get_length() > 0 ) then
+    if ( generic_fields_after_slow%get_length() > 0 ) then
 
-      iterator = generic_fields%get_real_iterator()
+      iterator = generic_fields_after_slow%get_real_iterator()
 
       do
         if ( .not.iterator%has_next() ) exit
 
-        single_generic_field => iterator%next()
+        after_slow_generic_field => iterator%next()
 
-        l_advect = single_generic_field%is_advected()
+        ! N.B. no need to test on the advection flag because this has already
+        ! been used to select the fields in generic_fields_after_slow
 
-        if ( l_advect ) then
+        call log_event( "Advecting "//                                        &
+             trim(after_slow_generic_field%get_name()), LOG_LEVEL_INFO)
+        call after_slow_generic_field%copy_field_properties(gf_inc)
 
-          call log_event( "Advecting "//trim(single_generic_field%get_name()), &
-                          LOG_LEVEL_INFO)
-          call single_generic_field%copy_field_properties(gf_inc)
+        call advect_field( gf_inc, after_slow_generic_field, advecting_wind,  &
+                           scheme_method_of_lines, wind_n, wind_np1, .false., &
+                           dt)
 
-          call advect_field( gf_inc, single_generic_field, advecting_wind,     &
-                             scheme_method_of_lines, wind_n, wind_np1, .false.,&
-                             dt)
-          ! Make inc into an increment by multiplying by dt
-          call invoke( inc_a_times_X(dt, gf_inc ) ,         &
-                       ! and add it on to the field
-                       inc_X_plus_y(single_generic_field, gf_inc ) )
+        ! Get the field from the original collection which we want to update
+        single_generic_field => generic_fields%get_field(                     &
+             trim(after_slow_generic_field%get_name() ) )
 
-        end if ! ( l_advect )
+        ! Make inc into an increment by multiplying by dt
+        call invoke( inc_a_times_X(dt, gf_inc ) ,                             &
+                     ! and add it on to the field
+                     X_plus_Y(single_generic_field, after_slow_generic_field, &
+                                                    gf_inc ) )
 
       end do
 

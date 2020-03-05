@@ -1353,10 +1353,8 @@ contains
     m_cl(map_wth(1) + 0) = m_cl(map_wth(1) + 1)
     m_ci(map_wth(1) + 0) = m_ci(map_wth(1) + 1)
 
-    ! update cloud fractions only if using cloud scheme and only on last
-    ! dynamics iteration
-    if ( cloud == cloud_um .and. &
-         outer == outer_iterations ) then
+    ! update cloud fractions only if using cloud scheme
+    if ( cloud == cloud_um ) then
       if ( scheme == scheme_smith ) then
         do k = 1, nlayers
           cf_bulk(map_wth(1) + k) = bulk_cloud_fraction(1,1,k)

@@ -201,6 +201,7 @@ contains
     type( field_type ), pointer :: liquid_fraction => null()
     type( field_type ), pointer :: ice_fraction    => null()
     type( field_type ), pointer :: bulk_fraction   => null()
+    type( field_type ), pointer :: departure_exner_wth => null()
 
     ! Increments to fields as a response to PC2 processes
     ! N.B. For microphys:
@@ -453,7 +454,13 @@ contains
     end if
 
 #ifdef UM_PHYSICS
-    if (scheme == scheme_pc2 .and. (microphysics_done .or. radiation_done)) then
+    if (scheme == scheme_pc2) then
+
+      departure_exner_wth => cloud_fields%get_field('departure_exner_wth')
+      call invoke( setval_X(departure_exner_wth,exner_in_wth) )
+
+    if (microphysics_done .or. radiation_done) then
+
       ! Having added mr and cloud_fields increments for microphys and/or radiation
       ! (calculated in parallel from start of timestep values),
       ! now need to check whether there are any inconsistencies.
@@ -491,6 +498,7 @@ contains
                   inc_X_plus_Y(liquid_fraction, dcfl_pc2_checks),   &
                   inc_X_plus_Y(ice_fraction,    dcff_pc2_checks),   &
                   inc_X_plus_Y(bulk_fraction,   dbcf_pc2_checks)    )
+     end if ! (microphysics_done .or. radiation_done))
 
      end if ! (cloud_um_scheme == cloud_um_scheme_pc2)
 #endif

@@ -498,6 +498,11 @@ contains
       'bulk_fraction',   wtheta_space, checkpoint_restart_flag,         &
       advection_flag=advection_flag)
 
+    checkpoint_restart_flag = .false.
+    call add_physics_field(cloud_fields, depository, prognostic_fields, &
+      'departure_exner_wth', wtheta_space, checkpoint_restart_flag,     &
+      advection_flag=advection_flag)
+
     !========================================================================
     ! Fields owned by the surface exchange scheme
     !========================================================================

@@ -27,20 +27,17 @@ module interp_bl_kernel_mod
   !> Kernel metadata type.
   type, public, extends(kernel_type) :: interp_bl_kernel_type
     private
-    type(arg_type) :: meta_args(13) = (/            &
+    type(arg_type) :: meta_args(10) = (/            &
          arg_type(GH_FIELD, GH_READ,  WTHETA),      &! rhokm_bl
          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1), &! rhokm_surf
          arg_type(GH_FIELD, GH_READ,  WTHETA),      &! ngstress_bl
          arg_type(GH_FIELD, GH_READ,  W3),          &! dtrdz_uv_bl
          arg_type(GH_FIELD, GH_READ,  WTHETA),      &! rdz_uv_bl
-         arg_type(GH_FIELD, GH_READ,  W3),          &! du_conv
-         arg_type(GH_FIELD, GH_READ,  W3),          &! dv_conv
          arg_type(GH_FIELD, GH_INC,   W2),          &! rhokm_w2
          arg_type(GH_FIELD, GH_INC,   W2),          &! rhokm_surf_w2
          arg_type(GH_FIELD, GH_INC,   W2),          &! ngstress_w2
          arg_type(GH_FIELD, GH_INC,   W2),          &! dtrdz_w2
-         arg_type(GH_FIELD, GH_INC,   W2),          &! rdz_w2
-         arg_type(GH_FIELD, GH_INC,   W2)           &! du_conv_w2
+         arg_type(GH_FIELD, GH_INC,   W2)           &! rdz_w2
          /)
     integer :: iterates_over = CELLS
   contains
@@ -61,14 +58,11 @@ contains
   !> @param[in]     ngstress_bl   Non-gradient stress function on BL levels
   !> @param[in]     dtrdz_uv_bl   dt/(rho*r*r*dz) in w3 space
   !> @param[in]     rdz_uv_bl     1/dz in wth space
-  !> @param[in]     du_conv       'zonal' wind increment from convection
-  !> @param[in]     dv_conv       'meridional' wind increment from convection
   !> @param[in,out] rhokm_w2      Momentum eddy diffusivity mapped to cell faces
   !> @param[in,out] rhokm_surf_w2 Surface eddy diffusivity mapped to cell faces
   !> @param[in,out] ngstress_w2   NG stress function mapped to cell faces
   !> @param[in,out] dtrdz_w2      dt/(rho*r*r*dz) mapped to cell faces
   !> @param[in,out] rdz_w2        1/dz mapped to cell faces
-  !> @param[in,out] du_conv_w2    Convection wind increment mapped to cell faces
   !> @param[in]     ndf_wth       Number of DOFs per cell for potential temperature space
   !> @param[in]     undf_wth      Number of unique DOFs for potential temperature space
   !> @param[in]     map_wth       dofmap for the cell at the base of the column for potential temperature space
@@ -87,14 +81,11 @@ contains
                             ngstress_bl,   &
                             dtrdz_uv_bl,   &
                             rdz_uv_bl,     &
-                            du_conv,       &
-                            dv_conv,       &
                             rhokm_w2,      &
                             rhokm_surf_w2, &
                             ngstress_w2,   &
                             dtrdz_w2,      &
                             rdz_w2,        &
-                            du_conv_w2,    &
                             ndf_wth,       &
                             undf_wth,      &
                             map_wth,       &
@@ -127,21 +118,19 @@ contains
     integer(kind=i_def), intent(in) :: ndf_surf, undf_surf
     integer(kind=i_def), intent(in) :: map_surf(ndf_surf)
 
-    real(kind=r_def), dimension(undf_wth), intent(in) ::rhokm_bl,           &
-                                                        ngstress_bl,        &
-                                                        rdz_uv_bl
+    real(kind=r_def), dimension(undf_wth), intent(in) :: rhokm_bl,           &
+                                                         ngstress_bl,        &
+                                                         rdz_uv_bl
 
-    real(kind=r_def), dimension(undf_w3),  intent(in) :: dtrdz_uv_bl,       &
-                                                         du_conv, dv_conv
+    real(kind=r_def), dimension(undf_w3),  intent(in) :: dtrdz_uv_bl
 
     real(kind=r_def), dimension(undf_surf), intent(in)  :: rhokm_surf
 
-    real(kind=r_def), dimension(undf_w2), intent(out) ::rhokm_w2,           &
-                                                        ngstress_w2,        &
-                                                        rdz_w2,             &
-                                                        dtrdz_w2,           &
-                                                        rhokm_surf_w2,      &
-                                                        du_conv_w2
+    real(kind=r_def), dimension(undf_w2), intent(inout) :: rhokm_w2,           &
+                                                           ngstress_w2,        &
+                                                           rdz_w2,             &
+                                                           dtrdz_w2,           &
+                                                           rhokm_surf_w2
 
     ! Internal variables
     integer :: k, df
@@ -195,15 +184,6 @@ contains
                                        0.5_r_def *ngstress_bl(map_wth(1) + k)
         ngstress_w2(map_w2(df+1) + k) = ngstress_w2(map_w2(df+1) + k) +      &
                                          0.5_r_def *ngstress_bl(map_wth(1) + k)
-      end do
-    end do
-
-    do k = 1, nlayers
-      do df = 1,3,2
-        du_conv_w2(map_w2(df) + k-1) = du_conv_w2(map_w2(df) + k - 1) +      &
-                                        0.5_r_def * du_conv(map_w3(1) + k-1)
-        du_conv_w2(map_w2(df+1) + k-1) = du_conv_w2(map_w2(df+1) + k - 1) +  &
-                                          0.5_r_def * dv_conv(map_w3(1) + k-1)
       end do
     end do
 

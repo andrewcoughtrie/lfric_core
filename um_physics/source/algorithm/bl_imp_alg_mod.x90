@@ -19,6 +19,8 @@ module bl_imp_alg_mod
   ! xios output
   use io_config_mod,      only: write_diag, use_xios_io
 
+  use map_fd_to_prognostics_alg_mod, only: set_wind
+
   implicit none
 
   private
@@ -166,7 +168,7 @@ contains
 
     type( field_type ) :: tmp_diag
     type( field_type ) :: rhokm_w2, rhokm_surf_w2, ngstress_w2, dtrdz_w2, &
-                          rdz_w2, du_conv_w2
+                          rdz_w2, du_conv_w2, dw_conv
 
     ! Local scalars
     integer(i_def) :: i_tile
@@ -270,27 +272,33 @@ contains
     call tile_temperature%copy_field_properties(total_snowmelt)
     call soil_temperature%copy_field_properties(water_extraction)
 
+    ! Map the convection wind increments into w2 space
+    call theta%copy_field_properties(dw_conv)
+    call u_physics%copy_field_properties(du_conv_w2)
+    call invoke(setval_c(dw_conv, 0.0_r_def) )
+    call set_wind(du_conv_w2, du_conv, dv_conv, dw_conv)
+    ! Set wind provides output in dynamics quantites, need to remove
+    ! dA scaling for physics
+    call invoke(inc_X_divideby_Y(du_conv_w2, dA) )
+
     ! Set up required variables in w2 space
     call u_physics%copy_field_properties(rhokm_w2)
     call u_physics%copy_field_properties(rhokm_surf_w2)
     call u_physics%copy_field_properties(ngstress_w2)
     call u_physics%copy_field_properties(dtrdz_w2)
     call u_physics%copy_field_properties(rdz_w2)
-    call u_physics%copy_field_properties(du_conv_w2)
 
     call invoke(setval_c(rhokm_w2,      0.0_r_def), &
                 setval_c(rhokm_surf_w2, 0.0_r_def), &
                 setval_c(ngstress_w2,   0.0_r_def), &
                 setval_c(dtrdz_w2,      0.0_r_def), &
                 setval_c(rdz_w2,        0.0_r_def), &
-                setval_c(du_conv_w2,    0.0_r_def), &
 
                 ! Re-grid the required variables into w2
                 interp_bl_kernel_type(rhokm_bl, rhokm_surf, ngstress_bl,     &
                                       dtrdz_uv_bl, rdz_uv_bl,                &
-                                      du_conv, dv_conv,                      &
                                       rhokm_w2, rhokm_surf_w2, ngstress_w2,  &
-                                      dtrdz_w2, rdz_w2, du_conv_w2),         &
+                                      dtrdz_w2, rdz_w2),                     &
 
     ! Call the scheme
                 bl_imp_kernel_type( outer, theta, wetrho_in_w3,                &

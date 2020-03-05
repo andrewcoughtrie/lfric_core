@@ -25,10 +25,11 @@ module conv_ll_kernel_mod
   !>
   type, public, extends(kernel_type) :: conv_ll_kernel_type
     private
-    type(arg_type) :: meta_args(9) = (/                &
+    type(arg_type) :: meta_args(10) = (/               &
          arg_type(GH_FIELD, GH_WRITE, WTHETA),         & ! dt_conv
          arg_type(GH_FIELD, GH_WRITE, WTHETA),         & ! dmv_conv
          arg_type(GH_FIELD, GH_WRITE, WTHETA),         & ! dmcl_conv
+         arg_type(GH_FIELD, GH_WRITE, WTHETA),         & ! dcfl_conv
          arg_type(GH_FIELD, GH_READ,  WTHETA),         & ! theta_star
          arg_type(GH_FIELD, GH_READ,  WTHETA),         & ! m_v
          arg_type(GH_FIELD, GH_READ,  WTHETA),         & ! m_cl
@@ -53,6 +54,7 @@ contains
   !> @param[out] dt_conv      Convection temperature increment
   !> @param[out] dmv_conv     Convection vapour increment
   !> @param[out] dmcl_conv    Convection liquid increment
+  !> @param[out] dcfl_conv    Convection liquid cloud fraction increment
   !> @param[in]  theta_star   Potential temperature predictor after advection
   !> @param[in]  m_v          Vapour mixing ratio after advection
   !> @param[in]  m_cl         Cloud liquid mixing ratio after advection
@@ -72,6 +74,7 @@ subroutine conv_ll_code(nlayers,      &
                         dt_conv,      &
                         dmv_conv,     &
                         dmcl_conv,    &
+                        dcfl_conv,    &
                         theta_star,   &
                         m_v,          &
                         m_cl,         &
@@ -106,7 +109,7 @@ subroutine conv_ll_code(nlayers,      &
     integer(kind=i_def), dimension(ndf_2d),  intent(in) :: map_2d
 
     real(kind=r_def), dimension(undf_wth), intent(out)  :: dt_conv, dmv_conv, &
-                                                           dmcl_conv
+                                                           dmcl_conv, dcfl_conv
 
     real(kind=r_def), dimension(undf_wth), intent(in)   :: theta_star, &
                                                            m_v, m_cl,  &
@@ -167,11 +170,13 @@ subroutine conv_ll_code(nlayers,      &
       dt_conv(map_wth(1) + k) = theta_inc(1,1,k)*exner_in_wth(map_wth(1) + k)
       dmv_conv(map_wth(1) + k) = q_inc(1,1,k)
       dmcl_conv(map_wth(1) + k) = qcl_inc(1,1,k)
-    end do
+      dcfl_conv(map_wth(1) + k) = cf_liquid_inc(1,1,k)
+     end do
     ! Set lowest level value
     dt_conv(map_wth(1)) = dt_conv(map_wth(1) + 1)
     dmv_conv(map_wth(1)) = dmv_conv(map_wth(1) + 1)
     dmcl_conv(map_wth(1)) = dmcl_conv(map_wth(1) + 1)
+    dcfl_conv(map_wth(1)) = dcfl_conv(map_wth(1) + 1)
 
     ! Copy conv_rain
     conv_rain_2d(map_2d(1))  = conv_rain(1,1)

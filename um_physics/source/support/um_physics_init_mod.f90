@@ -101,7 +101,8 @@ contains
          l_subgrid_qv, ice_width, smith_orig, i_eacf,                      &
          i_pc2_checks_cld_frac_method, l_ensure_min_in_cloud_qcf,          &
          l_simplify_pc2_init_logic, dbsdtbs_turb_0,                        &
-         i_pc2_erosion_method, check_run_cloud, forced_cu_fac
+         i_pc2_erosion_method, check_run_cloud, forced_cu_fac,             &
+         i_pc2_conv_coupling, allicetdegc, starticetkelvin
     use cv_run_mod, only: icvdiag, cvdiag_inv, cvdiag_sh_wtest,            &
          limit_pert_opt, tv1_sd_opt, iconv_congestus, iconv_deep,          &
          ent_fac_dp, cldbase_opt_dp, cldbase_opt_sh, w_cape_limit,         &
@@ -121,7 +122,7 @@ contains
          plume_water_load, rad_cloud_decay_opt, cape_bottom, cape_top,     &
          cape_min, i_convection_vn_6a, i_cv_llcs, midtrig_opt,             &
          llcs_cloud_precip, llcs_opt_all_rain, llcs_rhcrit, llcs_timescale,&
-         check_run_convection
+         check_run_convection, llcs_opt_crit_condens, llcs_detrain_coef
     use cv_param_mod, only: mtrig_ntmlplus2
     use cv_stash_flg_mod, only: set_convection_output_flags
     use cv_set_dependent_switches_mod, only: cv_set_dependent_switches
@@ -328,7 +329,14 @@ contains
       case(cv_scheme_lambert_lewis)
         i_convection_vn   = i_cv_llcs
         non_local_bl      = off
-        llcs_cloud_precip = llcs_opt_all_rain
+        if ( scheme == scheme_pc2 ) then
+          ! If pc2, we detrain some cloud
+          llcs_cloud_precip = llcs_opt_crit_condens
+          llcs_detrain_coef = 0.6_r_um
+        else
+          ! We just rain everything out
+          llcs_cloud_precip = llcs_opt_all_rain
+        end if
         llcs_rhcrit       = 0.8_r_um
         llcs_timescale    = 3600.0_r_um
 
@@ -386,13 +394,16 @@ contains
 
       case(scheme_pc2)
         i_cld_vn = i_cld_pc2
+        allicetdegc                  = -20.0_r_um
         dbsdtbs_turb_0               = 1.50e-4_r_um
         forced_cu_fac                = 0.5_r_um
         i_pc2_checks_cld_frac_method = 2
+        i_pc2_conv_coupling          = 3
         i_pc2_erosion_method         = pc2eros_hybrid_sidesonly
         l_ensure_min_in_cloud_qcf    = .true.
         ! Not GA7, should be false
         l_simplify_pc2_init_logic    = .true.
+        starticetkelvin              = 263.15_r_um
 
       case default
         write( log_scratch_space, '(A,I3)' )  &
