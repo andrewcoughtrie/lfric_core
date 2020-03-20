@@ -357,6 +357,10 @@ contains
 
     @assertEqual( 3, test_fs%get_ndata() )
 
+    ! Test we have the right number of dofs in the multi-data field.
+    ! In this serial test, last owned, annexed and halo dof will all be the same
+    @assertEqual( 3*this%ndof_glob, test_fs%get_last_dof_owned()    )
+
     call test_fs%clear()
     nullify( xp, zp, nodal_coords, dofmap, basis_function,&
              basis_diff_function )

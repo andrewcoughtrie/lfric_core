@@ -40,6 +40,8 @@ module field_parent_mod
     !> Name of the field. Note the name is immutable once defined via
     !! the initialiser.
     character(str_def) :: name = 'unset'
+    !> Flag describes order of data. False=layer first, true=multi-data first
+    logical :: ndata_first
   contains
     !> Initialiser for a field parent object
     !> @param [in] vector_space The function space that the field lives on
@@ -90,6 +92,8 @@ module field_parent_mod
     type(halo_routing_type), public, pointer :: halo_routing => null()
     !> A pointer to the array that holds halo dirtiness
     integer(kind=i_def), public, pointer :: halo_dirty(:) => null()
+    !> Flag describes order of data. False=layer first, true=multi-data first
+    logical, public, pointer :: ndata_first
   contains
     !> Return the maximum halo depth on this field
     !> @return The maximum halo depth on this field
@@ -106,6 +110,9 @@ module field_parent_mod
     !> Flags all the halos up the given depth as clean
     !! @param[in] depth The depth up to which to set the halo to clean
     procedure, public :: set_clean
+    !> Returns if the ordering of data is multi-data quickest
+    !> @return True if the data is ordered multi-data quickest
+    procedure, public :: is_ndata_first
   end type field_parent_proxy_type
 
 contains
@@ -124,6 +131,7 @@ contains
                                        fortran_type, &
                                        fortran_kind, &
                                        name, &
+                                       ndata_first, &
                                        advection_flag)
 
     implicit none
@@ -135,6 +143,7 @@ contains
     !> The kind of data in the field to be halo swapped
     integer(i_def), intent(in)                    :: fortran_kind
     character(*), optional, intent(in)            :: name
+    logical,      optional, intent(in)            :: ndata_first
     logical,      optional, intent(in)            :: advection_flag
 
     type (mesh_type), pointer :: mesh => null()
@@ -151,6 +160,15 @@ contains
                                              fortran_type, &
                                              fortran_kind )
     end if
+
+    ! Set the ordering of the data in the field if given,
+    ! otherwise default to layer first ordering
+    if (present(ndata_first)) then
+      self%ndata_first = ndata_first
+    else
+      self%ndata_first = .false.
+    end if
+
     ! Set the name of the field if given, otherwise default to 'none'
     if (present(name)) then
       self%name = name
@@ -196,6 +214,7 @@ contains
    field_proxy%vspace       => self%vspace
    field_proxy%halo_routing => self%halo_routing
    field_proxy%halo_dirty   => self%halo_dirty
+   field_proxy%ndata_first  => self%ndata_first
 
   end subroutine field_parent_proxy_initialiser
 
@@ -376,5 +395,19 @@ contains
     self%halo_dirty(1:depth) = 0
     nullify( mesh )
   end subroutine set_clean
+
+  !> Returns whether the field data is ordered multi-data first
+  !>
+  !> @return Flag for if field data order is multi-data first
+  function is_ndata_first(self) result(flag)
+
+    implicit none
+
+    class(field_parent_proxy_type), intent(in) :: self
+    logical(l_def) :: flag
+
+    flag = self%ndata_first
+
+  end function is_ndata_first
 
 end module field_parent_mod

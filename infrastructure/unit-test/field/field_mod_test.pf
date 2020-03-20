@@ -9,7 +9,7 @@
 !-------------------------------------------------------------------------------
 module field_mod_test
 
-  use constants_mod,                  only : i_def, r_def, l_def, str_def
+  use constants_mod,                  only : i_def, r_def, str_def
   use halo_routing_collection_mod,    only : halo_routing_collection_type, &
                                              halo_routing_collection
   use halo_routing_mod,               only : halo_routing_type
@@ -211,14 +211,17 @@ contains
 
     type(field_type)       :: f1
     type(field_type)       :: f2
+    type(field_type)       :: f3
     type(field_proxy_type) :: f1_p
     type(field_proxy_type) :: f2_p
+    type(field_proxy_type) :: f3_p
     integer(i_def)         :: i
     integer(i_def)         :: max_halo_depth
     type(halo_routing_type), pointer :: halo_routing
     integer(i_def)         :: order
     real(r_def)            :: test_sum, test_min, test_max
-    logical(l_def)         :: dirty
+    logical                :: dirty
+    logical                :: multidata_order
 
     ! Make a field with a function space
     call f1%initialise( vector_space = this%w2_fs, name='f1' )
@@ -270,6 +273,23 @@ contains
     call f1_p%set_clean(1)
     dirty=f1_p%is_dirty(1)
     @assertEqual ( .false., dirty )
+
+    ! check that a default field is ordered layer-first
+    ! i.e. ndata_first is false
+    multidata_order=f1_p%is_ndata_first()
+    @assertFalse ( multidata_order )
+
+    ! Make a field with different multi-data ordering
+    call f3%initialise( vector_space = this%w2_fs, &
+                        name='f3', &
+                        ndata_first=.true.)
+
+    ! get the proxy
+    f3_p = f3%get_proxy()
+
+    ! check that the multi-data field is ordered multi-data-first
+    multidata_order=f3_p%is_ndata_first()
+    @assertTrue ( multidata_order )
 
   end subroutine test_field_proxy
 

@@ -268,9 +268,15 @@ contains
   !>
   !> @param [in] vector_space the function space that the field lives on
   !> @param [in] name The name of the field. 'none' is a reserved name
+  !> @param [in] ndata_first Whether mutlidata fields have data ordered by
+  !>                         the multidata dimension first
   !> @param [in] advection_flag Whether the field is to be advected
   !>
-  subroutine field_initialiser(self, vector_space, name, advection_flag)
+  subroutine field_initialiser(self, &
+                               vector_space, &
+                               name, &
+                               ndata_first, &
+                               advection_flag)
 
     use log_mod,         only : log_event, &
                                 LOG_LEVEL_ERROR
@@ -279,37 +285,19 @@ contains
     class(field_type), intent(inout)               :: self
     type(function_space_type), pointer, intent(in) :: vector_space
     character(*), optional, intent(in)             :: name
+    logical,      optional, intent(in)             :: ndata_first
     logical,      optional, intent(in)             :: advection_flag
 
     ! If there's already data in the field, destruct it
     ! ready for re-initialisation
     if(allocated(self%data))call field_destructor_scalar(self)
 
-    if (present(name)) then
-      if (present(advection_flag))then
-        call self%field_parent_initialiser(vector_space, &
-                                           name=name, &
-                                           fortran_type=real_type, &
-                                           fortran_kind=r_def, &
-                                           advection_flag=advection_flag)
-      else
-        call self%field_parent_initialiser(vector_space, &
-                                           fortran_type=real_type, &
-                                           fortran_kind=r_def, &
-                                           name=name)
-      endif
-    else
-      if (present(advection_flag))then
-        call self%field_parent_initialiser(vector_space, &
-                                           fortran_type=real_type, &
-                                           fortran_kind=r_def, &
-                                           advection_flag=advection_flag)
-      else
-        call self%field_parent_initialiser(vector_space, &
-                                           fortran_type=real_type, &
-                                           fortran_kind=r_def)
-      end if
-    end if
+    call self%field_parent_initialiser(vector_space, &
+                                       name=name, &
+                                       fortran_type=real_type, &
+                                       fortran_kind=r_def, &
+                                       ndata_first=ndata_first, &
+                                       advection_flag=advection_flag)
 
     ! Create space for holding field data
     allocate( self%data(self%vspace%get_last_dof_halo()) )

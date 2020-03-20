@@ -1831,14 +1831,14 @@ contains
         end do
 
         if(icell == tot_num_inner + mesh%get_num_cells_edge())then
-          last_dof_owned = id_owned - ndata
-          last_dof_annexed = id_owned - id_halo - 2*ndata
+          last_dof_owned = id_owned - 1
+          last_dof_annexed = id_owned - id_halo - 2
         end if
 
       end do cell_loop
 
       if (idepth <= mesh%get_halo_depth()) &
-                            last_dof_halo(idepth) = id_owned - id_halo - 2*ndata
+                            last_dof_halo(idepth) = id_owned - id_halo - 2
 
       start = finish+1
       if (idepth < mesh%get_halo_depth()) then

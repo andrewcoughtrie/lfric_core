@@ -9,7 +9,7 @@ class field_mod::field_type {
   -checkpoint_write_method : procedure <<pointer>>
   -checkpoint_read_method : procedure <<pointer>>
 
-  +intialise( <<in>>vector_space : function_space_type, <<in optional>> name : string )
+  +intialise( <<in>>vector_space : function_space_type, <<in optional>> name : string, <<in optional>> ndata_first : logical,<<in optional>> advection_flag : logical)
   +get_proxy() : field_proxy_type
   +copy_field(<<out>> dest: field_type, <<in optional>> name: string)
   +copy_field_properties(<<out>> dest: field_type, <<in optional>> name: )
