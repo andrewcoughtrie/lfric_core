@@ -13,24 +13,26 @@
 !>          to rho_n using rho_n - dt*increment.
 module cosmic_threed_alg_mod
 
-  use constants_mod,                     only: i_def
-  use field_mod,                         only: field_type
-  use function_space_mod,                only: function_space_type
-  use function_space_collection_mod,     only: function_space_collection
-  use finite_element_config_mod,         only: element_order
-  use fs_continuity_mod,                 only: W2, W3
-  use runtime_constants_mod,             only: get_coordinates,               &
-                                               get_cell_orientation
-  use cusph_split_transport_alg_mod,     only: cusph_split_transport_alg
-  use cusph_fv_density_update_alg_mod,   only: cusph_fv_density_update_alg
-  use flux_direction_mod,                only: x_direction, y_direction,      &
-                                               z_direction
-  use vert_conservative_cosmic_alg_mod,  only: vert_conservative_cosmic_alg
-  use cosmic_divergence_alg_mod,         only: cosmic_divergence_alg
-  use cusph_cosmic_transport_alg_mod,    only: cusph_cosmic_transport_step
-  use io_config_mod,                     only: subroutine_timers
-  use timer_mod,                         only: timer
-  use timestepping_config_mod,           only: dt
+  use constants_mod,                    only: i_def
+  use cosmic_divergence_alg_mod,        only: cosmic_divergence_alg
+  use cusph_cosmic_transport_alg_mod,   only: cusph_cosmic_transport_step
+  use cusph_fv_density_update_alg_mod,  only: cusph_fv_density_update_alg
+  use cusph_split_transport_alg_mod,    only: cusph_split_transport_alg
+  use field_mod,                        only: field_type
+  use finite_element_config_mod,        only: element_order
+  use flux_direction_mod,               only: x_direction, &
+                                              y_direction, &
+                                              z_direction
+  use fs_continuity_mod,                only: W2, W3
+  use function_space_mod,               only: function_space_type
+  use function_space_collection_mod,    only: function_space_collection
+  use io_config_mod,                    only: subroutine_timers
+  use psykal_builtin_light_mod,         only: invoke_X_minus_double_bY
+  use runtime_constants_mod,            only: get_coordinates, &
+                                              get_cell_orientation
+  use timer_mod,                        only: timer
+  use timestepping_config_mod,          only: dt
+  use vert_conservative_cosmic_alg_mod, only: vert_conservative_cosmic_alg
 
   implicit none
 
@@ -93,7 +95,7 @@ contains
     call cusph_cosmic_transport_step( increment_xy, rho, dep_pts_x, dep_pts_y, &
                                       detj_at_w2, cell_orientation )
 
-    call invoke( X_minus_bY( rho_xy, rho, dt, increment_xy ) )
+    call invoke_X_minus_double_bY( rho_xy, rho, dt, increment_xy )
 
     ! Update density in the vertical given the horizontally transported density.
     call vert_conservative_cosmic_alg( mass_flux_z, rho_xy, dep_pts_z, dt )

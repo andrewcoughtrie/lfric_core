@@ -14,6 +14,7 @@ program solver_miniapp
   use constants_mod,                    only : i_def, PRECISION_REAL
   use convert_to_upper_mod,             only : convert_to_upper
   use cli_mod,                          only : get_initial_filename
+  use clock_mod,                        only : clock_type
   use create_mesh_mod,                  only : init_mesh
   use create_fem_mod,                   only : init_fem
   use init_solver_miniapp_mod,          only : init_solver_miniapp
@@ -25,6 +26,7 @@ program solver_miniapp
                                                global_mesh_collection_type
   use field_mod,                        only : field_type
   use field_vector_mod,                 only : field_vector_type
+  use init_clock_mod,                   only : initialise_clock
   use solver_miniapp_alg_mod,           only : solver_miniapp_alg
   use configuration_mod,                only : final_configuration
   use solver_miniapp_mod,               only : load_configuration, program_name
@@ -63,6 +65,10 @@ program solver_miniapp
   type( field_type ), target, dimension(3) :: chi
   type( field_type ) :: field_1, field_2
   type( field_vector_type) :: fv_1
+
+  class(clock_type), allocatable :: clock
+  logical                        :: running
+
   !-----------------------------------------------------------------------------
   ! Driver layer init
   !-----------------------------------------------------------------------------
@@ -110,6 +116,7 @@ program solver_miniapp
       '-bit real numbers'
   call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
 
+  call initialise_clock( clock )
 
   !-----------------------------------------------------------------------------
   ! model init
@@ -132,6 +139,8 @@ program solver_miniapp
   ! Create and initialise prognostic fields
   call init_solver_miniapp(mesh_id, twod_mesh_id, chi, fv_1)
 
+  running = clock%tick()
+
   ! Call an algorithm
   call solver_miniapp_alg(fv_1)
 
@@ -143,8 +152,10 @@ program solver_miniapp
   call fv_1%export_field( field_2, 2 )
 
   ! Write some diagnostic output
-  call write_scalar_diagnostic('solver_field_1', field_1, 0, mesh_id, .false.)
-  call write_scalar_diagnostic('solver_field_2', field_2, 0, mesh_id, .false.)
+  call write_scalar_diagnostic( 'solver_field_1', field_1, &
+                                clock, mesh_id, .false. )
+  call write_scalar_diagnostic( 'solver_field_2', field_2, &
+                                clock, mesh_id, .false. )
 
   !-----------------------------------------------------------------------------
   ! model finalise

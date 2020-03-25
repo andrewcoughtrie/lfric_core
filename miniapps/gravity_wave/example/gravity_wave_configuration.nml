@@ -68,8 +68,9 @@
 /
 
 &time
- timestep_start             = 1
- timestep_end               = 36
+  calendar = 'timestep'
+  timestep_start = '1'
+  timestep_end = '36'
 /
 
 &planet

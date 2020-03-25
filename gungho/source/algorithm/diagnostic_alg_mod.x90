@@ -17,9 +17,9 @@ module diagnostic_alg_mod
    use field_mod,                     only: field_type
    use operator_mod,                  only: operator_type
    use nodal_coordinates_kernel_mod,  only: nodal_coordinates_kernel_type
-   use psykal_lite_mod,               only: invoke_convert_cart2sphere_vector, &
-                                            invoke_pointwise_convert_xyz2llr,  &
-                                            invoke_compute_dof_level_kernel
+   use psykal_lite_mod,               only: invoke_compute_dof_level_kernel
+   use psykal_builtin_light_mod,      only: invoke_convert_cart2sphere_vector, &
+                                            invoke_pointwise_convert_xyz2llr
    use runtime_constants_mod,         only: get_rmultiplicity, &
                                             get_coordinates
    use project_output_mod,            only: project_output

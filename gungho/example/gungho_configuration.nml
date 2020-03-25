@@ -103,8 +103,9 @@
 /
 
 &time
- timestep_start             = 1
- timestep_end               = 10
+  calendar = 'timestep'
+  timestep_start = '1'
+  timestep_end = '10'
 /
 
 &physics

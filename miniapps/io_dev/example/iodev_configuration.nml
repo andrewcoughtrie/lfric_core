@@ -90,8 +90,9 @@
 /
 
 &time
- timestep_start             = 1
- timestep_end               = 1
+  calendar='timestep'
+  timestep_start='1'
+  timestep_end='1'
 /
 
 &planet

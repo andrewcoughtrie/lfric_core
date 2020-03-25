@@ -28,8 +28,8 @@ module cell_locator_api_mod
                                            vtk_grid_filename, &
                                            num_cells_per_bucket, &
                                            rescale_z, z_lo, z_hi
-  use psykal_lite_mod,               only: invoke_nodal_coordinates_kernel, &
-                                           invoke_pointwise_convert_xyz2llr
+  use psykal_lite_mod,               only: invoke_nodal_coordinates_kernel
+  use psykal_builtin_light_mod,      only: invoke_pointwise_convert_xyz2llr
 
   use mpi_mod,                       only: get_comm_size, get_comm_rank
 

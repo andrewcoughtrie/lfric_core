@@ -136,6 +136,7 @@ class _Scalar(_Property):
                        'integer': {'default': 'i_def',
                                    'native':  'i_native',
                                    'short':   'i_short',
+                                   'medium':  'i_medium',
                                    'long':    'i_long'},
                        'real':    {'default': 'r_def',
                                    'native':  'r_native',

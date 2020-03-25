@@ -7,10 +7,11 @@
 !>
 module diagnostics_step_mod
 
-    use constants_mod, only : i_def
-    use diagnostics_alg_mod, only : diagnostics_alg
-    use field_mod, only : field_type
-    use gungho_model_data_mod,      only : model_data_type
+    use clock_mod,             only : clock_type
+    use constants_mod,         only : i_def
+    use diagnostics_alg_mod,   only : diagnostics_alg
+    use field_mod,             only : field_type
+    use gungho_model_data_mod, only : model_data_type
 
     implicit none
 
@@ -23,10 +24,10 @@ contains
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !> Performs time steps.
     !>
-    subroutine diagnostics_step(mesh_id,      &
-                         twod_mesh_id, &
-                         model_data,   &
-                         timestep)
+    subroutine diagnostics_step( mesh_id,      &
+                                 twod_mesh_id, &
+                                 model_data,   &
+                                 clock )
 
         implicit none
 
@@ -34,7 +35,7 @@ contains
         integer(i_def),                  intent(in)    :: mesh_id ! included for consistency with gungho
         integer(i_def),                  intent(in)    :: twod_mesh_id ! included for consistency with gungho
         type( model_data_type ), target, intent(inout) :: model_data
-        integer(i_def),                  intent(in)    :: timestep ! included for consistency with gungho
+        class(clock_type),               intent(in)    :: clock ! included for consistency with gungho
 
         type(field_type), pointer :: red => null(), green => null(), blue => null(), hex => null()
 

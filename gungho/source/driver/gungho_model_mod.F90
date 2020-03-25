@@ -7,9 +7,41 @@
 ! and the gungho model simulations
 module gungho_model_mod
 
-
+  use assign_orography_field_mod, only : assign_orography_field
+  use checksum_alg_mod,           only : checksum_alg
+  use clock_mod,                  only : clock_type
+  use create_fem_mod,             only : init_fem, final_fem
+  use create_mesh_mod,            only : init_mesh, final_mesh
+  use configuration_mod,          only : final_configuration
+  use conservation_algorithm_mod, only : conservation_algorithm
   use constants_mod,              only : i_def, i_native, &
                                          PRECISION_REAL
+  use convert_to_upper_mod,       only : convert_to_upper
+  use count_mod,                  only : count_type, halo_calls
+  use derived_config_mod,         only : set_derived_config
+  use field_mod,                  only : field_type, &
+                                         write_interface
+  use field_collection_mod,       only : field_collection_type, &
+                                         field_collection_iterator_type
+  use formulation_config_mod,     only : transport_only, &
+                                         use_moisture,   &
+                                         use_physics
+  use global_mesh_collection_mod, only : global_mesh_collection, &
+                                         global_mesh_collection_type
+  use gungho_mod,                 only : load_configuration
+  use gungho_model_data_mod,      only : model_data_type
+  use init_altitude_mod,          only : init_altitude
+  use init_clock_mod,             only : initialise_clock
+  use init_altitude_mod,          only : init_altitude
+  use io_mod,                     only : initialise_xios
+  use io_config_mod,              only : subroutine_timers,       &
+                                         subroutine_counters,     &
+                                         use_xios_io,             &
+                                         write_conservation_diag, &
+                                         write_dump,              &
+                                         write_minmax_tseries
+  use iter_timestep_alg_mod,      only : iter_alg_init, &
+                                         iter_alg_final
   use log_mod,                    only : log_event,          &
                                          log_set_level,      &
                                          log_scratch_space,  &
@@ -21,70 +53,14 @@ module gungho_model_mod
                                          LOG_LEVEL_INFO,     &
                                          LOG_LEVEL_DEBUG,    &
                                          LOG_LEVEL_TRACE
-
-  use io_config_mod,              only : subroutine_timers, &
-                                         subroutine_counters, &
-                                         use_xios_io, &
-                                         write_conservation_diag, &
-                                         write_dump, &
-                                         write_minmax_tseries
-
-  use timer_mod,                  only : timer, output_timer, init_timer
-
-  use assign_orography_field_mod, only : assign_orography_field
-  use field_mod,                  only : field_type, &
-                                         write_interface
-  use count_mod,                  only : count_type, halo_calls
-  use runtime_constants_mod,      only : create_runtime_constants, &
-                                         final_runtime_constants
-#ifdef UM_PHYSICS
-  use planet_constants_mod,       only : set_planet_constants
-  use um_control_init_mod,        only : um_control_init
-  use um_physics_init_mod,        only : um_physics_init
-  use jules_control_init_mod,     only : jules_control_init
-  use jules_physics_init_mod,     only : jules_physics_init
-  use socrates_init_mod,          only : socrates_init
-#endif
-  use convert_to_upper_mod,       only : convert_to_upper
-  use mpi_mod,                    only : store_comm, &
-                                         get_comm_size, get_comm_rank
-  use gungho_mod,                 only : load_configuration
-  use configuration_mod,          only : final_configuration
-  use derived_config_mod,         only : set_derived_config
-  use yaxt,                       only : xt_initialize, xt_finalize
-  use global_mesh_collection_mod, only : global_mesh_collection, &
-                                         global_mesh_collection_type
-  use create_mesh_mod,            only : init_mesh, final_mesh
-  use create_fem_mod,             only : init_fem, final_fem
-  use timestepping_config_mod,    only : method, &
-                                         method_semi_implicit, &
-                                         method_rk, &
-                                         dt
-  use time_config_mod,            only : timestep_start
-
-  use io_mod,                     only : initialise_xios
-  use write_methods_mod,          only : write_state, &
-                                         write_field_single_face
-
-  use xios,                       only : xios_context_finalize, &
-                                         xios_update_calendar
-  use checksum_alg_mod,           only : checksum_alg
-  use conservation_algorithm_mod, only : conservation_algorithm
-  use field_collection_mod,       only : field_collection_type, &
-                                         field_collection_iterator_type
-  use gungho_model_data_mod,      only : model_data_type
-  use formulation_config_mod,     only : transport_only, &
-                                         use_moisture,   &
-                                         use_physics
-  use section_choice_config_mod,  only : radiation,         &
-                                         radiation_socrates
-  use iter_timestep_alg_mod,      only : iter_alg_init, &
-                                         iter_alg_final
   use moisture_conservation_alg_mod, &
                                   only : moisture_conservation_alg
   use minmax_tseries_mod,         only : minmax_tseries,      &
                                          minmax_tseries_init, &
                                          minmax_tseries_final
+  use mpi_mod,                    only : store_comm,    &
+                                         get_comm_size, &
+                                         get_comm_rank
   use mr_indices_mod,             only : nummr
   use rk_alg_timestep_mod,        only : rk_alg_init, &
                                          rk_alg_final
@@ -92,14 +68,39 @@ module gungho_model_mod
                                          rk_transport_final
   use runge_kutta_init_mod,       only : runge_kutta_init, &
                                          runge_kutta_final
+  use runtime_constants_mod,      only : create_runtime_constants, &
+                                         final_runtime_constants
+  use section_choice_config_mod,  only : radiation,         &
+                                         radiation_socrates
+  use time_config_mod,            only : timestep_start
+  use timer_mod,                  only : timer, output_timer, init_timer
+  use timestepping_config_mod,    only : method,               &
+                                         method_semi_implicit, &
+                                         method_rk
   use transport_config_mod,       only : scheme, &
                                          scheme_method_of_lines
-  use init_altitude_mod,          only : init_altitude
+  use write_methods_mod,          only : write_state, &
+                                         write_field_single_face
+  use xios,                       only : xios_context_finalize, &
+                                         xios_update_calendar
+  use yaxt,                       only : xt_initialize, xt_finalize
+
+#ifdef UM_PHYSICS
+  use jules_control_init_mod,     only : jules_control_init
+  use jules_physics_init_mod,     only : jules_physics_init
+  use planet_constants_mod,       only : set_planet_constants
+  use socrates_init_mod,          only : socrates_init
+  use um_control_init_mod,        only : um_control_init
+  use um_physics_init_mod,        only : um_physics_init
+#endif
 
   implicit none
 
   private
-  public initialise_infrastructure, initialise_model, finalise_infrastructure, finalise_model
+  public initialise_infrastructure, &
+         initialise_model,          &
+         finalise_infrastructure,   &
+         finalise_model
 
   contains
 
@@ -115,6 +116,7 @@ module gungho_model_mod
   subroutine initialise_infrastructure(communicator, &
                                        filename,     &
                                        program_name, &
+                                       clock,        &
                                        mesh_id,      &
                                        twod_mesh_id, &
                                        chi)
@@ -132,14 +134,13 @@ module gungho_model_mod
     integer(i_native),  intent(in)    :: communicator
     character(*),       intent(in)    :: filename
     character(*),       intent(in)    :: program_name
-    integer(i_def),     intent(inout) :: mesh_id, twod_mesh_id
-    type(field_type),   intent(inout) :: chi(3)
+    class(clock_type), intent(out), allocatable :: clock
+    integer(i_def),    intent(inout)            :: mesh_id, twod_mesh_id
+    type(field_type),  intent(inout)            :: chi(3)
 
     character(len=*), parameter :: xios_ctx  = "gungho_atm"
 
     integer(i_def)    :: total_ranks, local_rank
-    integer(i_def)    :: dtime
-    integer(i_def)    :: ts_init
     integer(i_native) :: log_level
 
     type(field_type)  :: surface_altitude
@@ -182,6 +183,8 @@ module gungho_model_mod
         convert_to_upper(key_from_run_log_level(run_log_level))
     call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
 
+    call initialise_clock( clock )
+
     write(log_scratch_space,'(A)')                        &
         'Application built with '//trim(PRECISION_REAL)// &
         '-bit real numbers'
@@ -211,10 +214,6 @@ module gungho_model_mod
     allocate( global_mesh_collection, &
               source = global_mesh_collection_type() )
 
-    ! Get the rank information from the virtual machine
-    total_ranks = get_comm_size()
-    local_rank  = get_comm_rank()
-
     ! Create the mesh
     call init_mesh(local_rank, total_ranks, mesh_id, twod_mesh_id)
 
@@ -233,18 +232,14 @@ module gungho_model_mod
     ! domain and context
     if ( use_xios_io ) then
 
-      dtime = int(dt)
-
       call initialise_xios( xios_ctx,     &
                             communicator, &
-                            dtime,        &
+                            clock,        &
                             mesh_id,      &
                             twod_mesh_id, &
-                            chi)
+                            chi )
 
-      ts_init = max( (timestep_start - 1), 0 ) ! 0 or t previous.
-
-      if (ts_init == 0) then
+      if (clock%is_initialisation()) then
         ! Make sure XIOS calendar is set to timestep 1 as it starts there
         ! not timestep 0.
         call xios_update_calendar(1)
@@ -297,14 +292,14 @@ module gungho_model_mod
   !> @param[in] mesh_id The identifier of the primary mesh
   !> @param[inout] model_data The working data set for the model run
   !> @param[in] timestep_start number of timestep at which this run started
-  subroutine initialise_model( mesh_id, &
-                               model_data, &
-                               timestep_start )
+  subroutine initialise_model( clock,   &
+                               mesh_id, &
+                               model_data )
     implicit none
 
+    class(clock_type),               intent(in)    :: clock
     integer(i_def),                  intent(in)    :: mesh_id
     type( model_data_type ), target, intent(inout) :: model_data
-    integer(i_def),                  intent(in)    :: timestep_start
 
     type( field_collection_type ), pointer :: prognostic_fields => null()
     type( field_collection_type ), pointer :: diagnostic_fields => null()
@@ -350,18 +345,32 @@ module gungho_model_mod
           call runge_kutta_init()
           call iter_alg_init(mesh_id, u, rho, theta, exner, mr)
           if ( write_conservation_diag ) then
-           call conservation_algorithm(timestep_start, rho, u, theta, exner)
+           call conservation_algorithm( clock%get_step(), &
+                                        rho,              &
+                                        u,                &
+                                        theta,            &
+                                        exner )
            if ( use_moisture ) &
-             call moisture_conservation_alg(timestep_start, rho, mr, 'Before timestep')
+             call moisture_conservation_alg( clock%get_step(), &
+                                             rho,              &
+                                             mr,               &
+                                             'Before timestep' )
           end if
         case( method_rk )             ! RK
           ! Initialise and output initial conditions for first timestep
           call runge_kutta_init()
           call rk_alg_init(mesh_id, u, rho, theta, exner)
           if ( write_conservation_diag ) then
-           call conservation_algorithm(timestep_start, rho, u, theta, exner)
+           call conservation_algorithm( clock%get_step(), &
+                                        rho,              &
+                                        u,                &
+                                        theta,            &
+                                        exner )
            if ( use_moisture ) &
-             call moisture_conservation_alg(timestep_start, rho, mr, 'Before timestep')
+             call moisture_conservation_alg( clock%get_step(), &
+                                             rho,              &
+                                             mr,               &
+                                             'Before timestep' )
           end if
         case default
           call log_event("Gungho: Incorrect time stepping option chosen, "// &

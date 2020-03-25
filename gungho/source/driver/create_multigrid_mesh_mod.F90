@@ -67,6 +67,15 @@ call global_mesh_collection % set_next_source_mesh(global_mesh_ids(1))
 
 allocate( extrusion, source=create_extrusion() )
 
+if (multigrid_chain_nitems > size(ugrid, 1)) then
+  write(log_scratch_space, &
+        '(A, I0, A, I0)') 'Requested ',                                       &
+                          multigrid_chain_nitems,                             &
+                          ' multigrid levels but only specified meshes for ', &
+                          size(ugrid, 1)
+  call log_event( log_scratch_space, log_level_error )
+end if
+
 ! Read global meshes into the global mesh collection,
 ! maps should be created in the order they are added.
 !===================================================================

@@ -8,6 +8,7 @@
 !>
 module gravity_wave_driver_mod
 
+  use clock_mod,                      only: clock_type
   use constants_mod,                  only: i_def, i_native
   use gravity_wave_infrastructure_mod,only: initialise_infrastructure, &
                                             finalise_infrastructure
@@ -16,15 +17,22 @@ module gravity_wave_driver_mod
                                             finalise_io
   use create_gravity_wave_prognostics_mod, &
                                       only: create_gravity_wave_prognostics
-  use runtime_constants_mod,          only: create_runtime_constants
-  use gravity_wave_diagnostics_driver_mod, &
-                                      only: gravity_wave_diagnostics_driver
   use field_mod,                      only: field_type
   use field_collection_mod,           only: field_collection_type
   use function_space_chain_mod,       only: function_space_chain_type
   use gravity_wave_mod,               only: program_name
+  use gravity_wave_diagnostics_driver_mod, &
+                                      only: gravity_wave_diagnostics_driver
+  use gravity_wave_grid_mod,          only: initialise_grid
+  use gravity_wave_infrastructure_mod, &
+                                      only: initialise_infrastructure, &
+                                            finalise_infrastructure
+  use gravity_wave_io_mod,            only: initialise_io, &
+                                            finalise_io
   use gw_init_fields_alg_mod,         only: gw_init_fields_alg
+  use init_clock_mod,                 only: initialise_clock
   use init_gravity_wave_mod,          only: init_gravity_wave
+  use runtime_constants_mod,          only: create_runtime_constants
   use step_gravity_wave_mod,          only: step_gravity_wave
   use final_gravity_wave_mod,         only: final_gravity_wave
   use log_mod,                        only: log_event,          &
@@ -42,8 +50,6 @@ module gravity_wave_driver_mod
                                             nodal_output_on_w3,   &
                                             subroutine_timers
   use files_config_mod,               only: checkpoint_stem_name
-  use time_config_mod,                only: timestep_start, &
-                                            timestep_end
   use timer_mod,                      only: init_timer, timer, output_timer
   use xios,                           only: xios_update_calendar
 
@@ -70,6 +76,8 @@ module gravity_wave_driver_mod
   ! Function space chains
   type(function_space_chain_type) :: multigrid_function_space_chain
 
+  class(clock_type), allocatable :: clock
+
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -81,8 +89,6 @@ contains
 
   character(*),      intent(in) :: filename
   integer(i_native), intent(in) :: model_communicator
-
-  integer(i_def) :: ts_init
 
   ! Initialise aspects of the infrastructure
   call initialise_infrastructure( model_communicator, &
@@ -96,6 +102,8 @@ contains
     call timer(program_name)
   end if
 
+  call initialise_clock( clock )
+
   multigrid_function_space_chain = function_space_chain_type()
 
   ! Initialise aspects of the grid
@@ -104,6 +112,7 @@ contains
 
   !Initialise aspects of output
   call initialise_io( model_communicator, &
+                      clock,              &
                       mesh_id,            &
                       twod_mesh_id,       &
                       chi,                &
@@ -126,7 +135,7 @@ contains
 
   ! Initialise prognostic fields
   if (checkpoint_read) then                 ! Recorded check point to start from
-    call read_checkpoint(prognostic_fields, timestep_start-1)
+    call read_checkpoint(prognostic_fields, clock%get_step()-1)
   else                                      ! No check point to start from
     call gw_init_fields_alg(prognostic_fields)
   end if
@@ -136,21 +145,17 @@ contains
 
   ! Output initial conditions
   ! We only want these once at the beginning of a run
-  ts_init = max( (timestep_start - 1), 0 ) ! 0 or t previous.
-
-  if (ts_init == 0) then
-
+  if (clock%is_initialisation()) then
     if ( use_xios_io ) then
-
-      ! Need to ensure calendar is initialised here as XIOS has no concept of timestep 0
-      call xios_update_calendar(ts_init + 1)
-
+      ! Need to ensure calendar is initialised here as XIOS has no concept of
+      ! timestep 0
+      call xios_update_calendar(1)
     end if
 
     if ( write_diag ) then
       call gravity_wave_diagnostics_driver( mesh_id,           &
                                             prognostic_fields, &
-                                            ts_init,           &
+                                            clock,             &
                                             nodal_output_on_w3)
     end if
 
@@ -165,42 +170,42 @@ contains
 
   implicit none
 
-  integer(i_def) :: timestep
-
   write(log_scratch_space,'(A,I0,A)') 'Running '//program_name//' ...'
   call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
 
   !--------------------------------------------------------------------------
   ! Model step
   !--------------------------------------------------------------------------
-  do timestep = timestep_start,timestep_end
+  do while (clock%tick())
 
-    ! Update XIOS calendar if we are using it for diagnostic output or checkpoint
+    ! Update XIOS calendar if we are using it for diagnostic output or
+    ! checkpoint
+    !
     if ( use_xios_io ) then
-      call log_event( program_name//': Updating XIOS timestep', LOG_LEVEL_INFO )
-      call xios_update_calendar(timestep)
+      call log_event( program_name//': Updating XIOS timestep', &
+                      LOG_LEVEL_INFO )
+      call xios_update_calendar( clock%get_step() )
     end if
 
-    call log_event( &
-    "/****************************************************************************\ ", &
-    LOG_LEVEL_TRACE )
-    write( log_scratch_space, '(A,I0)' ) 'Start of timestep ', timestep
+    write( log_scratch_space, '("/",A,"\ ")' ) repeat('*', 76)
+    call log_event( log_scratch_space, LOG_LEVEL_TRACE )
+    write( log_scratch_space, '(A,I0)' ) 'Start of timestep ', clock%get_step()
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
     call step_gravity_wave(prognostic_fields)
 
-    write( log_scratch_space, '(A,I0)' ) 'End of timestep ', timestep
+    write( log_scratch_space, '(A,I0)' ) 'End of timestep ', clock%get_step()
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
-    call log_event( &
-    '\****************************************************************************/ ', &
-    LOG_LEVEL_INFO )
-    if ( (mod(timestep, diagnostic_frequency) == 0) .and. (write_diag) ) then
+    write( log_scratch_space, '("\",A,"/ ")' ) repeat('*', 76)
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    if ( (mod(clock%get_step(), diagnostic_frequency) == 0) &
+         .and. (write_diag) ) then
 
       call log_event("Gravity Wave: writing diagnostic output", LOG_LEVEL_INFO)
 
       call gravity_wave_diagnostics_driver( mesh_id,           &
                                             prognostic_fields, &
-                                            timestep,          &
+                                            clock,             &
                                             nodal_output_on_w3)
     end if
 
@@ -225,7 +230,7 @@ contains
 
   ! Write checkpoint/restart files if required
   if( checkpoint_write ) then
-    call write_checkpoint(prognostic_fields,timestep_end)
+    call write_checkpoint(prognostic_fields, clock)
   end if
 
   if ( subroutine_timers ) then

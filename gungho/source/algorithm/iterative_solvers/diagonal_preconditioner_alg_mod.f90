@@ -61,7 +61,7 @@ contains
   !>@param[in] x field \f$x\f$ to apply preconditioner to
   !>@param[inout] y Resulting field \f$y=D^-1x\f$
   subroutine apply_diagonal_preconditioner(self, x, y)
-    use psykal_lite_mod, only: invoke_divide_field
+    use psykal_builtin_light_mod, only: invoke_divide_field
     implicit none
     class(diagonal_preconditioner_type), intent(inout) :: self
     class(abstract_vector_type),         intent(in)    :: x

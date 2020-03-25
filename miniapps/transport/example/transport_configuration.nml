@@ -48,9 +48,15 @@ v0=0.0,
 &logging
   run_log_level='info'
 /
+&multigrid
+l_multigrid=.false.
+multigrid_chain_nitems=1
+ugrid='prime'
+/
 &time
- timestep_start             = 1
- timestep_end               = 288
+calendar = 'timestep'
+timestep_start = '1'
+timestep_end = '5'
 /
 &subgrid
 dep_pt_stencil_extent=1,
@@ -76,8 +82,13 @@ operators='fv',
 scheme='horz_cosmic',
 /
 &planet
-radius=6371229.0e-3,
-scaling_factor=1.0,
+cp=1005.0
+gravity=9.80665
+omega=7.292116E-5
+p_zero=100000.0
+radius=6371229.0e-3
+rd=287.05
+scaling_factor=1.0
 /
 
 &idealised

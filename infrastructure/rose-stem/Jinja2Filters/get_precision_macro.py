@@ -47,11 +47,13 @@ def get_precision_macro(call):
         key, value = re.split(' *= *', argument)
         argument_dictionary[key.strip()] = ast.literal_eval(value.strip())
 
-    if len(argument_list) >= 2:
-
+    if len(argument_list) > 0:
         app_name = argument_list[0]
-        configuration = argument_list[1]
-        app_key = app_name + '_' + configuration
+        app_key = app_name
+
+        if len(argument_list) > 1:
+            configuration = argument_list[1]
+            app_key += '_' + configuration
 
         argument_dictionary = {}
         for argument in keyword_arguments:

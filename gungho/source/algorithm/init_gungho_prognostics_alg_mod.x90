@@ -28,7 +28,6 @@ module init_gungho_prognostics_alg_mod
                                              profile_sbr_streamfunction, &
                                              profile_dcmip301_streamfunction
   use io_mod,                          only: ts_fname
-  use time_config_mod,                 only: timestep_start
 
   ! PsyKAl-lite kernels
   use psykal_lite_mod,                 only: invoke_initial_exner_sample_kernel,&

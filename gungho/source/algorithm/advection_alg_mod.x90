@@ -433,9 +433,12 @@ contains
   !> @param[in]     timestep delta t to advect field by
   subroutine advect_field(advection_inc, field, advecting_wind, adv_scheme, &
                           wind_n, wind_np1, advect_density, timestep)
-    use fs_continuity_mod,                only: W3, Wtheta, W2
-    use psykal_lite_mod,                  only: invoke_sign
-    use advective_wind_update_kernel_mod, only: advective_wind_update_kernel_type
+
+    use fs_continuity_mod,        only: W3, Wtheta, W2
+    use psykal_builtin_light_mod, only: invoke_sign
+    use advective_wind_update_kernel_mod, &
+      only: advective_wind_update_kernel_type
+
     implicit none
 
     type(field_type), intent(inout) :: advection_inc

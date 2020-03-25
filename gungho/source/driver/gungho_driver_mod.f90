@@ -9,30 +9,29 @@
 !>
 module gungho_driver_mod
 
+  use clock_mod,                  only : clock_type
   use constants_mod,              only : i_def, i_native, imdi
-  use time_config_mod,            only : timestep_start, &
-                                         timestep_end
   use field_mod,                  only : field_type
-  use io_config_mod,              only : write_diag, &
-                                         diagnostic_frequency, &
-                                         nodal_output_on_w3
-  use log_mod,                    only : log_event,         &
-                                         log_scratch_space, &
-                                         LOG_LEVEL_ALWAYS
   use gungho_mod,                 only : program_name
-  use gungho_model_data_mod,      only : model_data_type, &
-                                         create_model_data, &
-                                         initialise_model_data, &
-                                         output_model_data, &
-                                         finalise_model_data
   use gungho_diagnostics_driver_mod, &
                                   only : gungho_diagnostics_driver
   use gungho_model_mod,           only : initialise_infrastructure, &
                                          initialise_model, &
                                          finalise_infrastructure, &
                                          finalise_model
-  use gungho_update_calendar_mod, only : gungho_update_calendar
+  use gungho_model_data_mod,      only : model_data_type, &
+                                         create_model_data, &
+                                         initialise_model_data, &
+                                         output_model_data, &
+                                         finalise_model_data
   use gungho_step_mod,            only : gungho_step
+  use gungho_update_calendar_mod, only : gungho_update_calendar
+  use io_config_mod,              only : write_diag, &
+                                         diagnostic_frequency, &
+                                         nodal_output_on_w3
+  use log_mod,                    only : log_event,         &
+                                         log_scratch_space, &
+                                         LOG_LEVEL_ALWAYS
 
   implicit none
 
@@ -48,6 +47,8 @@ module gungho_driver_mod
   integer(i_def) :: mesh_id      = imdi
   integer(i_def) :: twod_mesh_id = imdi
 
+  class(clock_type), allocatable :: clock
+
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -60,46 +61,39 @@ contains
     character(*),      intent(in) :: filename
     integer(i_native), intent(in) :: model_communicator
 
-    integer(i_def) :: ts_init
 
     ! Initialise infrastructure and setup constants
     call initialise_infrastructure( model_communicator, &
                                     filename, &
                                     program_name, &
-                                    mesh_id, &
+                                    clock,        &
+                                    mesh_id,      &
                                     twod_mesh_id, &
                                     chi )
 
     ! Instantiate the fields stored in model_data
-    call create_model_data( model_data, &
-                            mesh_id, &
-                            twod_mesh_id )
+    call create_model_data( model_data,   &
+                            mesh_id,      &
+                            twod_mesh_id, &
+                            clock )
 
     ! Initialise the fields stored in the model_data
-    call initialise_model_data( model_data )
+    call initialise_model_data( model_data, clock )
 
     ! Initial output
     ! We only want these once at the beginning of a run
-    ts_init = max( (timestep_start - 1), 0 ) ! 0 or t previous.
-
-    if (ts_init == 0) then
-
-      if ( write_diag ) then
-
+    if (clock%is_initialisation() .and. write_diag) then
         ! Calculation and output of diagnostics
         call gungho_diagnostics_driver( mesh_id,    &
                                         model_data, &
-                                        ts_init,    &
+                                        clock,      &
                                         nodal_output_on_w3 )
-
-      end if
-
     end if
 
     ! Model configuration initialisation
-    call initialise_model( mesh_id,    &
-                           model_data, &
-                           timestep_start )
+    call initialise_model( clock,   &
+                           mesh_id, &
+                           model_data )
 
   end subroutine initialise
 
@@ -110,31 +104,30 @@ contains
 
     implicit none
 
-    integer(i_def) :: timestep
-
     write(log_scratch_space,'(A)') 'Running '//program_name//' ...'
     call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
 
-    do timestep = timestep_start, timestep_end
+    do while (clock%tick())
 
       ! Update the calendar if required
-      call gungho_update_calendar( timestep )
+      call gungho_update_calendar( clock )
 
       ! Perform a timestep
       call gungho_step( mesh_id,      &
                         twod_mesh_id, &
                         model_data,   &
-                        timestep )
+                        clock )
 
       ! Use diagnostic output frequency to determine whether to write
       ! diagnostics on this timestep
 
-      if ( ( mod(timestep, diagnostic_frequency) == 0 ) .and. ( write_diag ) ) then
+      if ( ( mod(clock%get_step(), diagnostic_frequency) == 0 ) &
+           .and. ( write_diag ) ) then
 
         ! Calculation and output diagnostics
         call gungho_diagnostics_driver( mesh_id,    &
                                         model_data, &
-                                        timestep,   &
+                                        clock,      &
                                         nodal_output_on_w3 )
       end if
 
@@ -151,7 +144,7 @@ contains
     call log_event( 'Finalising '//program_name//' ...', LOG_LEVEL_ALWAYS )
 
     ! Output the fields stored in the model_data (checkpoint and dump)
-    call output_model_data( model_data, timestep_end )
+    call output_model_data( model_data, clock )
 
     ! Model configuration finalisation
     call finalise_model( mesh_id,    &

@@ -11,6 +11,7 @@
 
 module gungho_step_mod
 
+  use clock_mod,                      only : clock_type
   use conservation_algorithm_mod,     only : conservation_algorithm
   use constants_mod,                  only : i_def
   use diagnostics_calc_mod,           only : write_density_diagnostic
@@ -54,17 +55,17 @@ module gungho_step_mod
   !> @param[in] twod_mesh_id The identifier of the two-dimensional mesh
   !> @param[inout] model_data The working data set for the model run
   !> @param[in] timestep number of current timestep
-  subroutine gungho_step(mesh_id,      &
-                         twod_mesh_id, &
-                         model_data,   &
-                         timestep)
+  subroutine gungho_step( mesh_id,      &
+                          twod_mesh_id, &
+                          model_data,   &
+                          clock )
 
     implicit none
 
     integer(i_def),                  intent(in)    :: mesh_id
     integer(i_def),                  intent(in)    :: twod_mesh_id
     type( model_data_type ), target, intent(inout) :: model_data
-    integer(i_def),                  intent(in)    :: timestep
+    class(clock_type),               intent(in)    :: clock
 
     type( field_collection_type ), pointer :: prognostic_fields => null()
     type( field_collection_type ), pointer :: diagnostic_fields => null()
@@ -90,7 +91,8 @@ module gungho_step_mod
 
     write( log_scratch_space, '("/", A, "\ ")' ) repeat( "*", 76 )
     call log_event( log_scratch_space, LOG_LEVEL_TRACE )
-    write( log_scratch_space, '(A,I0)' ) 'Start of timestep ', timestep
+    write( log_scratch_space, &
+           '(A,I0)' ) 'Start of timestep ', clock%get_step()
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
     ! Get pointers to field collections for use downstream
@@ -123,11 +125,18 @@ module gungho_step_mod
         case ( scheme_method_of_lines )
           call rk_transport_step( u, rho, theta)
       end select
-      call write_density_diagnostic(rho, timestep)
+      call write_density_diagnostic( rho, clock )
       if ( write_conservation_diag ) then
-        call conservation_algorithm(timestep, rho, u, theta, exner)
+        call conservation_algorithm( clock%get_step(), &
+                                     rho,              &
+                                     u,                &
+                                     theta,            &
+                                     exner )
         if (use_moisture) &
-          call moisture_conservation_alg(timestep, rho, mr, 'After timestep')
+          call moisture_conservation_alg( clock%get_step(), &
+                                          rho,              &
+                                          mr,               &
+                                          'After timestep' )
       end if
     else  ! Not transport_only
       select case( method )
@@ -138,17 +147,27 @@ module gungho_step_mod
                              turbulence_fields, convection_fields,             &
                              cloud_fields, surface_fields, soil_fields,        &
                              snow_fields, aerosol_fields,                      &
-                             timestep, twod_mesh_id)
+                             clock, twod_mesh_id)
         case( method_rk )             ! RK
           call rk_alg_step(u, rho, theta, moist_dyn, exner)
       end select
 
       if ( write_conservation_diag ) then
-        call conservation_algorithm(timestep, rho, u, theta, exner)
+        call conservation_algorithm( clock%get_step(), &
+                                     rho,              &
+                                     u,                &
+                                     theta,            &
+                                     exner )
         if ( use_moisture ) then
-          call moisture_conservation_alg(timestep, rho, mr, 'After timestep')
-          if ( use_physics ) call moisture_fluxes_alg(timestep, microphysics_fields, &
-                                                      convection_fields, surface_fields, dA)
+          call moisture_conservation_alg( clock%get_step(), &
+                                          rho,              &
+                                          mr,               &
+                                          'After timestep' )
+          if ( use_physics ) call moisture_fluxes_alg( clock%get_step(),    &
+                                                       microphysics_fields, &
+                                                       convection_fields,   &
+                                                       surface_fields,      &
+                                                       dA )
         end if
       end if
 
@@ -158,7 +177,8 @@ module gungho_step_mod
 
     end if
 
-    write( log_scratch_space, '(A,I0)' ) 'End of timestep ', timestep
+    write( log_scratch_space, &
+           '(A,I0)' ) 'End of timestep ', clock%get_step()
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
     write( log_scratch_space, '("\", A, "/ ")' ) repeat( "*", 76 )
     call log_event( log_scratch_space, LOG_LEVEL_INFO )

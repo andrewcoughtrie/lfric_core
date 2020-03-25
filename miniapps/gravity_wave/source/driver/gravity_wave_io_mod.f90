@@ -9,14 +9,13 @@
 
 module gravity_wave_io_mod
 
-  use constants_mod,                  only : i_def, i_native
-  use field_mod,                      only : field_type
-  use timestepping_config_mod,        only : dt
-  use time_config_mod,                only : timestep_start
-  use io_config_mod,                  only : use_xios_io
-  use io_mod,                         only : initialise_xios
-  use xios,                           only : xios_context_finalize, &
-                                             xios_update_calendar
+  use clock_mod,               only : clock_type
+  use constants_mod,           only : i_def, i_native
+  use field_mod,               only : field_type
+  use io_config_mod,           only : use_xios_io
+  use io_mod,                  only : initialise_xios
+  use xios,                    only : xios_context_finalize, &
+                                      xios_update_calendar
 
   implicit none
 
@@ -27,21 +26,22 @@ contains
 
   !> @brief Initialises output (diags/checkpointing) used by the model
   !> @param [inout] comm The MPI communicator for use within the model
+  !> @param [in] clock Model time.
   !> @param [in] mesh_id The identifier of the primary mesh
   !> @param [in] twod_mesh_id The identifier of the primary 2d mesh
-  !> @param [in] chi A size 3 array of fields holding the coordinates of the mesh
+  !> @param [in] chi A size 3 array of fields holding the coordinates of the
+  !>                 mesh.
   !> @param [in] xios_ctx XIOS context identifier
-  subroutine initialise_io(comm, mesh_id, twod_mesh_id, chi, xios_ctx)
+  !>
+  subroutine initialise_io(comm, clock, mesh_id, twod_mesh_id, chi, xios_ctx)
 
     implicit none
 
     integer(i_native), intent(in) :: comm
+    type(clock_type),  intent(in) :: clock
     integer(i_def),    intent(in) :: mesh_id, twod_mesh_id
     type(field_type),  intent(in) :: chi(3)
     character(len=*),  intent(in) :: xios_ctx
-
-    integer(i_def) :: dtime
-    integer(i_def) :: ts_init
 
   !----------------------------------------------------------------------------
   ! IO init
@@ -51,18 +51,14 @@ contains
   ! domain and context
   if ( use_xios_io ) then
 
-    dtime = int(dt)
-
     call initialise_xios( xios_ctx,     &
                           comm,         &
-                          dtime,        &
+                          clock,        &
                           mesh_id,      &
                           twod_mesh_id, &
-                          chi)
+                          chi )
 
-    ts_init = max( (timestep_start - 1), 0 ) ! 0 or t previous.
-
-    if (ts_init == 0) then
+    if (clock%is_initialisation()) then
       ! Make sure XIOS calendar is set to timestep 1 as it starts there
       ! not timestep 0.
       call xios_update_calendar(1)

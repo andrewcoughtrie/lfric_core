@@ -9,22 +9,21 @@
 !>
 module catalyst_demo_driver_mod
 
+  use catalyst_demo_mod,              only: load_configuration
   use checksum_alg_mod,               only: checksum_alg
+  use clock_mod,                      only: clock_type
   use constants_mod,                  only: i_def, i_native
   use derived_config_mod,             only: set_derived_config
-  use yaxt,                           only: xt_initialize, xt_finalize
   use field_mod,                      only: field_type
   use finite_element_config_mod,      only: element_order
   use function_space_chain_mod,       only: function_space_chain_type
   use global_mesh_collection_mod,     only: global_mesh_collection, &
                                             global_mesh_collection_type
-  use catalyst_demo_mod,              only: load_configuration
   use gw_alg_mod,                     only: gravity_wave_alg_init, &
                                             gravity_wave_alg_step, &
                                             gravity_wave_alg_final
-  use create_fem_mod,                 only: init_fem
-  use create_mesh_mod,                only: init_mesh
   use init_catalyst_demo_mod,         only: init_catalyst_demo
+  use init_clock_mod,                 only: initialise_clock
   use io_mod,                         only: initialise_xios,   &
                                             ts_fname
   use diagnostics_io_mod,             only: write_scalar_diagnostic, &
@@ -47,8 +46,6 @@ module catalyst_demo_driver_mod
                                             checkpoint_write,     &
                                             checkpoint_stem_name, &
                                             subroutine_timers
-  use time_config_mod,                only: timestep_start, &
-                                            timestep_end
   use timer_mod,                      only: init_timer, timer, output_timer
   use timestepping_config_mod,        only: dt
   use mpi_mod,                        only: store_comm,    &
@@ -103,6 +100,8 @@ module catalyst_demo_driver_mod
   ! Lists of fields for visualisation
   type(vis_field_list_type) :: vis_fields
 
+  class(clock_type), allocatable :: clock
+
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -117,8 +116,12 @@ contains
 
   integer(i_def) :: total_ranks, local_rank
 
-  integer(i_def) :: ts_init
-  integer(i_def) :: dtime
+  ! Initialse mpi and create the default communicator: mpi_comm_world
+  call initialise_comm(comm)
+
+  ! Initialise XIOS and get back the split mpi communicator
+  call init_wait()
+  call xios_initialize(xios_id, return_comm = comm)
 
   !Store the MPI communicator for later use
   call store_comm(model_communicator)
@@ -136,6 +139,8 @@ contains
 
   call load_configuration( filename )
   call set_derived_config( .false. )
+
+  call initialise_clock( clock )
 
   restart = restart_type( restart_filename, local_rank, total_ranks )
 
@@ -166,15 +171,12 @@ contains
   ! If using XIOS for diagnostic output or checkpointing, then set up XIOS
   ! domain and context
   if ( use_xios_io ) then
-
-    dtime = int(dt)
-
     call initialise_xios( xios_ctx,     &
                            model_communicator, &
-                          dtime,        &
+                          clock,        &
                           mesh_id,      &
                           twod_mesh_id, &
-                          chi)
+                          chi )
 
     ! Make sure XIOS calendar is set to timestep 1 as it starts there
     ! not timestep 0.
@@ -212,22 +214,23 @@ contains
 
   ! Output initial conditions
   ! We only want these once at the beginning of a run
-  ts_init = max( (restart%ts_start() - 1), 0 ) ! 0 or t previous.
-
-  if (ts_init == 0) then
+  if (clock%is_initialisation()) then
 
     if ( use_xios_io ) then
 
       ! Need to ensure calendar is initialised here as XIOS has no concept of timestep 0
-      call xios_update_calendar(ts_init + 1)
+      call xios_update_calendar(1)
 
     end if
 
     if ( write_diag ) then
       ! Calculation and output of diagnostics
-      call write_vector_diagnostic('wind', wind, ts_init, mesh_id, nodal_output_on_w3)
-      call write_scalar_diagnostic('pressure', pressure, ts_init, mesh_id, nodal_output_on_w3)
-      call write_scalar_diagnostic('buoyancy', buoyancy, ts_init, mesh_id, nodal_output_on_w3)
+      call write_vector_diagnostic('wind', wind, &
+                                   clock, mesh_id, nodal_output_on_w3)
+      call write_scalar_diagnostic('pressure', pressure, &
+                                   clock, mesh_id, nodal_output_on_w3)
+      call write_scalar_diagnostic('buoyancy', buoyancy, &
+                                   clock, mesh_id, nodal_output_on_w3)
     end if
 
     ! Catalyst visualisation
@@ -241,6 +244,8 @@ contains
 
   end if
 
+  call gravity_wave_alg_init(mesh_id, wind, pressure, buoyancy)
+
   end subroutine initialise
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -250,41 +255,39 @@ contains
 
   implicit none
 
-  integer(i_def) :: timestep
-
   !--------------------------------------------------------------------------
   ! Model step
   !--------------------------------------------------------------------------
-  do timestep = timestep_start,timestep_end
+  do while(clock%tick())
 
     ! Update XIOS calendar if we are using it for diagnostic output or checkpoint
     if ( use_xios_io ) then
       call log_event( program_name//': Updating XIOS timestep', LOG_LEVEL_INFO )
-      call xios_update_calendar(timestep)
+      call xios_update_calendar( clock%get_step() )
     end if
 
-    call log_event( &
-    "/****************************************************************************\ ", &
-    LOG_LEVEL_TRACE )
-    write( log_scratch_space, '(A,I0)' ) 'Start of timestep ', timestep
+    write( log_scratch_space, '("/", A, "\ ")' ) repeat( '*', 76 )
+    call log_event( log_scratch_space, LOG_LEVEL_TRACE )
+    write( log_scratch_space, '(A,I0)' ) 'Start of timestep ', clock%get_step()
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
-    if (timestep == timestep_start) then
-      call gravity_wave_alg_init(mesh_id, wind, pressure, buoyancy)
-    end if
 
     call gravity_wave_alg_step(wind, pressure, buoyancy)
-    write( log_scratch_space, '(A,I0)' ) 'End of timestep ', timestep
+    write( log_scratch_space, '(A,I0)' ) 'End of timestep ', clock%get_step()
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
-    call log_event( &
-    '\****************************************************************************/ ', &
-    LOG_LEVEL_INFO )
-    if ( (mod(timestep, diagnostic_frequency) == 0) .and. (write_diag) ) then
+    write( log_scratch_space, '("\", A, "/")' ) repeat( '*', 76 )
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    if ( (mod(clock%get_step(), diagnostic_frequency) == 0) \
+         .and. (write_diag) ) then
 
-      call log_event("Catalyst demo: writing diagnostic output", LOG_LEVEL_INFO)
+      call log_event("Catalyst demo: writing diagnostic output", &
+                     LOG_LEVEL_INFO)
 
-      call write_vector_diagnostic('wind', wind, timestep, mesh_id, nodal_output_on_w3)
-      call write_scalar_diagnostic('pressure', pressure, timestep, mesh_id, nodal_output_on_w3)
-      call write_scalar_diagnostic('buoyancy', buoyancy, timestep, mesh_id, nodal_output_on_w3)
+      call write_vector_diagnostic('wind', wind, &
+                                   clock, mesh_id, nodal_output_on_w3)
+      call write_scalar_diagnostic('pressure', pressure, &
+                                   clock, mesh_id, nodal_output_on_w3)
+      call write_scalar_diagnostic('buoyancy', buoyancy, &
+                                   clock, mesh_id, nodal_output_on_w3)
 
     end if
 

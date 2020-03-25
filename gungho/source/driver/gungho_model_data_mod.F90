@@ -12,6 +12,7 @@
 !>
 module gungho_model_data_mod
 
+  use clock_mod,                        only : clock_type
   use mr_indices_mod,                   only : nummr
   use moist_dyn_mod,                    only : num_moist_factors
   use field_mod,                        only : field_type, &
@@ -44,7 +45,6 @@ module gungho_model_data_mod
   use create_physics_prognostics_mod,   only : create_physics_prognostics
   use create_fd_prognostics_mod,        only : create_fd_prognostics
   use section_choice_config_mod,        only : cloud, cloud_none
-  use time_config_mod,                  only : timestep_start
   use map_fd_to_prognostics_alg_mod,    only : map_fd_to_prognostics
   use init_gungho_prognostics_alg_mod,  only : init_gungho_prognostics_alg
   use init_physics_prognostics_alg_mod, only : init_physics_prognostics_alg
@@ -59,7 +59,7 @@ module gungho_model_data_mod
 
   private
 
-  !> Holds the working data set for a model run.
+  !> Holds the working data set for a model run and other working state.
   !>
   type :: model_data_type
 
@@ -127,13 +127,15 @@ contains
   !> @param[in]    twod_mesh_id The identifier given to the current 2d mesh
   subroutine create_model_data( model_data, &
                                 mesh_id,    &
-                                twod_mesh_id )
+                                twod_mesh_id, &
+                                clock )
 
     implicit none
 
     type( model_data_type ), intent(inout) :: model_data
-    integer(i_def), intent(in)             :: mesh_id
-    integer(i_def), intent(in)             :: twod_mesh_id
+    integer(i_def),          intent(in)    :: mesh_id
+    integer(i_def),          intent(in)    :: twod_mesh_id
+    class(clock_type),       intent(in)    :: clock
 
     !-------------------------------------------------------------------------
     ! Select how to initialize model prognostic fields
@@ -172,6 +174,7 @@ contains
     ! Create prognostics used by physics
     if (use_physics) then
       call create_physics_prognostics( mesh_id, twod_mesh_id,          &
+                                       clock,                          &
                                        model_data%depository,          &
                                        model_data%prognostic_fields,   &
                                        model_data%derived_fields,      &
@@ -205,11 +208,12 @@ contains
   !-------------------------------------------------------------------------------
   !> @brief Initialises the working data set dependent of namelist configuration
   !> @param [inout] model_data The working data set for a model run
-  subroutine initialise_model_data( model_data )
+  subroutine initialise_model_data( model_data, clock )
 
     implicit none
 
     type( model_data_type ), intent(inout) :: model_data
+    class(clock_type),       intent(in)    :: clock
 
     ! Initialise all the physics fields here. We'll then re initialise
     ! them below if need be
@@ -245,7 +249,8 @@ contains
         ! Initialize prognostics using a checkpoint file
         ! from a previous run
 
-        call read_checkpoint( model_data%prognostic_fields, timestep_start-1 )
+        call read_checkpoint( model_data%prognostic_fields, &
+                              clock%get_first_step() - 1 )
 
         ! Update factors for moist dynamics
         call moist_dyn_factors_alg( model_data%moist_dyn, model_data%mr )
@@ -309,18 +314,19 @@ contains
 
   end subroutine initialise_model_data
 
-  !-------------------------------------------------------------------------------
+  !----------------------------------------------------------------------------
   !> @brief Writes out a checkpoint and dump file dependent on namelist
   !> options
   !> @param[inout] model_data The working data set for the model run
-  !> @param[in] timestep number of current timestep
+  !> @param[in] clock Model time.
+  !>
   subroutine output_model_data( model_data, &
-                                timestep )
+                                clock )
 
     implicit none
 
-    type( model_data_type ), target, intent(inout) :: model_data
-    integer(i_def),          intent(in)    :: timestep
+    type( model_data_type ), intent(inout), target :: model_data
+    class(clock_type),       intent(in)            :: clock
 
     type( field_collection_type ), pointer :: surface_fields => null()
     type( field_collection_type ), pointer :: fd_fields => null()
@@ -366,9 +372,9 @@ contains
 
     end if
 
-    !===================== Write fields to checkpoint files ======================!
+    !=================== Write fields to checkpoint files ====================!
     if( checkpoint_write ) then
-       call write_checkpoint( prognostic_fields, timestep )
+       call write_checkpoint( prognostic_fields, clock )
     end if
 
   end subroutine output_model_data
@@ -400,7 +406,7 @@ contains
       if (allocated(model_data%mr)) deallocate(model_data%mr)
       if (allocated(model_data%moist_dyn)) deallocate(model_data%moist_dyn)
 
-      call log_event( 'finalise_model_data: all fields have been cleared',     &
+      call log_event( 'finalise_model_data: all fields have been cleared', &
                        LOG_LEVEL_INFO )
 
   end subroutine finalise_model_data

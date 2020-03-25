@@ -7,38 +7,38 @@
 !>@brief Calls to the slow physics schemes
 module slow_physics_alg_mod
 
-  use section_choice_config_mod, only: aerosol,                                &
-                                       aerosol_um,                             &
-                                       boundary_layer,                         &
-                                       boundary_layer_um,                      &
-                                       microphysics,                           &
-                                       microphysics_um,                        &
-                                       orographic_drag,                        &
-                                       orographic_drag_um,                     &
-                                       radiation,                              &
-                                       radiation_socrates,                     &
-                                       spectral_gwd,                           &
+  use clock_mod,                 only: clock_type
+  use cloud_config_mod,          only: scheme, &
+                                       scheme_pc2
+  use constants_mod,             only: i_def, r_def
+  use log_mod,                   only: log_event,         &
+                                       LOG_LEVEL_WARNING, &
+                                       LOG_LEVEL_INFO,    &
+                                       LOG_LEVEL_ERROR
+  use physics_config_mod,        only: heldsuarez_thermo_placement,    &
+                                       heldsuarez_wind_placement,      &
+                                       microphysics_placement,         &
+                                       microphysics_placement_slow,    &
+                                       orographic_drag_placement,      &
+                                       orographic_drag_placement_slow, &
+                                       radiation_placement,            &
+                                       radiation_placement_slow,       &
+                                       spectral_gwd_placement,         &
+                                       spectral_gwd_placement_slow
+  use section_choice_config_mod, only: aerosol,            &
+                                       aerosol_um,         &
+                                       boundary_layer,     &
+                                       boundary_layer_um,  &
+                                       microphysics,       &
+                                       microphysics_um,    &
+                                       orographic_drag,    &
+                                       orographic_drag_um, &
+                                       radiation,          &
+                                       radiation_socrates, &
+                                       spectral_gwd,       &
                                        spectral_gwd_um,                        &
                                        surface,                                &
                                        surface_jules
-
-  use constants_mod,    only: i_def,r_def
-  use log_mod,          only: log_event,                         &
-                              LOG_LEVEL_WARNING, LOG_LEVEL_INFO, &
-                              LOG_LEVEL_ERROR
-
-  use physics_config_mod, only: heldsuarez_thermo_placement,                   &
-                                heldsuarez_wind_placement,                     &
-                                microphysics_placement,                        &
-                                microphysics_placement_slow,                   &
-                                orographic_drag_placement,                     &
-                                orographic_drag_placement_slow,                &
-                                radiation_placement,                           &
-                                radiation_placement_slow,                      &
-                                spectral_gwd_placement,                        &
-                                spectral_gwd_placement_slow
-  use cloud_config_mod,   only: scheme,                      &
-                                scheme_pc2
 
   ! PsyKAl PSYClone kernels
   use held_suarez_fv_kernel_mod,      only: held_suarez_fv_kernel_type
@@ -117,7 +117,7 @@ contains
   !> @param[in]     chi                    Coordinate array
   !> @param[in]     delta                  Edge length on wtheta points
   !> @param[in]     max_diff_smag          Maximum diffusion coef allowed
-  !> @param[in]     timestep               Model timestep number
+  !> @param[in]     clock                  Model time
   !> @param[in]     twod_mesh_id           Identifier given to current 2d mesh
   subroutine slow_physics(du, dtheta, mr, visc_m, visc_h,                      &
                           theta, rho, exner, mr_n, derived_fields,             &
@@ -126,7 +126,7 @@ contains
                           convection_fields, cloud_fields, surface_fields,     &
                           soil_fields, snow_fields, aerosol_fields, dA,        &
                           height_w3, height_wth, chi, delta, max_diff_smag,    &
-                          timestep, twod_mesh_id )
+                          clock, twod_mesh_id )
 
     implicit none
 
@@ -159,8 +159,7 @@ contains
 
     integer, intent(in) :: twod_mesh_id
 
-    ! Timestep value
-    integer, intent(in) :: timestep
+    class(clock_type), intent(in) :: clock
 
     ! Local fields (should be created at initialization,
     !               but done here for the time being)
@@ -310,7 +309,7 @@ contains
     if (radiation == radiation_socrates .and. &
         radiation_placement == radiation_placement_slow) then
       call log_event( 'slow_physics: Running Radiation', LOG_LEVEL_INFO )
-      call illuminate_alg_step(radiation_fields, timestep)
+      call illuminate_alg_step( radiation_fields, clock%get_step() )
 
       ! Use a temporary treatment for multi-dimensional fields using
       ! higher-order fields
@@ -327,11 +326,20 @@ contains
       end if
 
       call dtheta_rad%initialise( vector_space = theta%get_function_space() )
-      call radiation_alg_step(dtheta_rad, theta, exner, mr_n,                  &
-                              derived_fields, radiation_fields, cloud_fields,  &
-                              surface_fields, height_w3, height_wth, timestep, &
-                              tile_sw_direct_albedo, tile_sw_diffuse_albedo,   &
-                              tile_lw_albedo)
+      call radiation_alg_step( dtheta_rad,             &
+                               theta,                  &
+                               exner,                  &
+                               mr_n,                   &
+                               derived_fields,         &
+                               radiation_fields,       &
+                               cloud_fields,           &
+                               surface_fields,         &
+                               height_w3,              &
+                               height_wth,             &
+                               clock%get_step(),       &
+                               tile_sw_direct_albedo,  &
+                               tile_sw_diffuse_albedo, &
+                               tile_lw_albedo )
       radiation_done=.true.
 
       if (scheme == scheme_pc2) then

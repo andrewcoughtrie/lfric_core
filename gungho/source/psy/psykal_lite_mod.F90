@@ -31,7 +31,7 @@ module psykal_lite_mod
 contains
 
 
-  !------------------------------------------------------------------------------
+  !----------------------------------------------------------------------------
   !> Invoke_rtheta_bd_kernel: Invoke the boundary part of the RHS of the
   !>                          theta equation
   !> Kernel requires:
@@ -907,50 +907,6 @@ contains
   end subroutine invoke_weighted_proj_theta2_bd_kernel_type
 
 !-------------------------------------------------------------------------------
-!> invoke_divide_field: Divide the values of field1 by field2 and put result in
-!>field_res
-!> c = a/b
-  subroutine invoke_divide_field(field1,field2,field_res)
-    use log_mod, only : log_event, LOG_LEVEL_ERROR
-
-    implicit none
-    type( field_type ), intent(in )    :: field1,field2
-    type( field_type ), intent(inout ) :: field_res
-    type( field_proxy_type)            :: field1_proxy,field2_proxy      &
-                                        , field_res_proxy
-    integer(kind=i_def)                :: i,undf
-
-    field1_proxy = field1%get_proxy()
-    field2_proxy = field2%get_proxy()
-    field_res_proxy = field_res%get_proxy()
-
-    !sanity check
-    undf = field1_proxy%vspace%get_last_dof_annexed()
-    if(undf /= field2_proxy%vspace%get_last_dof_annexed() ) then
-      ! they are not on the same function space
-      call log_event("PSy:divide_field:field1 and field2 live on different w-spaces" &
-                    , LOG_LEVEL_ERROR)
-      !abort
-      stop
-    endif
-    if(undf /= field_res_proxy%vspace%get_last_dof_annexed() ) then
-      ! they are not on the same function space
-      call log_event("PSy:divide_field:field1 and result_field live on different w-spaces" &
-                    , LOG_LEVEL_ERROR)
-      !abort
-      stop
-    endif
-    !$omp parallel do schedule(static), default(none), shared(field1_proxy,field2_proxy, field_res_proxy, undf),  private(i)
-    do i = 1,undf
-      field_res_proxy%data(i) = field1_proxy%data(i)/field2_proxy%data(i)
-    end do
-    !$omp end parallel do
-
-    call field_res_proxy%set_dirty()
-
-  end subroutine invoke_divide_field
-
-!-------------------------------------------------------------------------------
 !> Non pointwise Kernels
 
   !-------------------------------------------------------------------------------
@@ -1040,69 +996,6 @@ contains
     deallocate(basis_chi)
   end subroutine invoke_nodal_coordinates_kernel
 
-
-  subroutine invoke_convert_cart2sphere_vector( field, coords)
-    use coord_transform_mod, only: cart2sphere_vector
-    implicit none
-    type(field_type), intent(inout) :: field(3)
-    type(field_type), intent(in)    :: coords(3)
-
-    type(field_proxy_type) :: f_p(3), x_p(3)
-
-    integer :: i, df, undf
-    real(kind=r_def) :: vector_in(3), vector_out(3), xyz(3)
-
-    do i = 1,3
-      f_p(i) = field(i)%get_proxy()
-      x_p(i) = coords(i)%get_proxy()
-    end do
-
-    undf = f_p(1)%vspace%get_last_dof_annexed()
-
-    do df = 1, undf
-      vector_in(:)  = (/ f_p(1)%data(df), f_p(2)%data(df), f_p(3)%data(df) /)
-      xyz(:)        = (/ x_p(1)%data(df), x_p(2)%data(df), x_p(3)%data(df) /)
-      vector_out(:) = cart2sphere_vector(xyz, vector_in)
-      f_p(1)%data(df) = vector_out(1)
-      f_p(2)%data(df) = vector_out(2)
-      f_p(3)%data(df) = vector_out(3)
-    end do
-
-    call f_p(1)%set_dirty()
-    call f_p(2)%set_dirty()
-    call f_p(3)%set_dirty()
-
-  end subroutine invoke_convert_cart2sphere_vector
-!-------------------------------------------------------------------------------
-  subroutine invoke_pointwise_convert_xyz2llr( coords)
-    use coord_transform_mod, only: xyz2llr
-    implicit none
-    type(field_type), intent(inout) :: coords(3)
-
-    type(field_proxy_type) :: x_p(3)
-
-    integer :: i, df, undf
-    real(kind=r_def) :: llr(3)
-
-    do i = 1,3
-      x_p(i) = coords(i)%get_proxy()
-    end do
-
-    undf = x_p(1)%vspace%get_last_dof_annexed()
-
-    do df = 1, undf
-      call xyz2llr(x_p(1)%data(df), x_p(2)%data(df), x_p(3)%data(df), &
-                   llr(1), llr(2), llr(3))
-      x_p(1)%data(df) = llr(1)
-      x_p(2)%data(df) = llr(2)
-      x_p(3)%data(df) = llr(3)
-    end do
-
-    call x_p(1)%set_dirty()
-    call x_p(2)%set_dirty()
-    call x_p(3)%set_dirty()
-
-  end subroutine invoke_pointwise_convert_xyz2llr
 
 !-------------------------------------------------------------------------------
   subroutine invoke_compute_dof_level_kernel(level)
@@ -1477,7 +1370,12 @@ subroutine invoke_subgrid_coeffs(a0,a1,a2,rho,cell_orientation,direction,rho_app
   end subroutine invoke_subgrid_coeffs_conservative
 
 
-!-------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+! One of the reasons (but not the only one) for this "light" implementation is
+! passing the double precision deltaT value to fv_mass_flux_code. This should
+! not be taken as a requirement, it is simply expedient to get the clock change
+! on trunk. It is probably the wrong thing to be doing in the long run.
+!
 subroutine invoke_fv_mass_fluxes( rho,            &
                                   dep_pts,        &
                                   mass_flux,      &
@@ -2614,56 +2512,105 @@ end subroutine invoke_calc_deppts
     !
   end subroutine invoke_hydrostatic_exner_kernel
 
-!-------------------------------------------------------------------------------
-!> invoke_sign:  y = sign(a,x) a-scalar; x,y-vector
-! See PSyClone issue #560
-  subroutine invoke_sign(field_res, scalar, field)
+  !----------------------------------------------------------------------------
+  !> Handles passing double precission deltaT to the vertical_flux kernel.
+  !>
+  !> It is probably not the correct thing to do but it is expedient for getting
+  !> the clock change on trunk.
+  !>
+  subroutine invoke_vertical_flux_kernel( mass_flux_z, &
+                                          dep_pts,     &
+                                          rho,         &
+                                          a0, a1, a2,  &
+                                          dt )
 
-    use log_mod,  only : log_event, LOG_LEVEL_ERROR
-    use mesh_mod, only : mesh_type ! Work around for intel_v15 failures on the Cray
+    use constants_mod,            only : r_second
+    use mesh_mod,                 only: mesh_type
+    use vertical_flux_kernel_mod, only: vertical_flux_code
 
     implicit none
-    type( field_type ), intent(in )    :: field
-    type( field_type ), intent(inout ) :: field_res
-    real(kind=r_def),   intent(in )    :: scalar
-    type( field_proxy_type)            :: field_proxy,      &
-                                          field_res_proxy
-    integer(kind=i_def)                :: i,undf
-    integer(kind=i_def)                :: depth, dplp
-    type(mesh_type), pointer           :: mesh => null()
 
-    field_proxy = field%get_proxy()
-    field_res_proxy = field_res%get_proxy()
-
-    !sanity check
-    undf = field_proxy%vspace%get_last_dof_annexed()
-    if(undf /= field_res_proxy%vspace%get_last_dof_annexed() ) then
-      ! they are not on the same function space
-      call log_event("PSy:sign:field and result_field live on different w-spaces" &
-                    , LOG_LEVEL_ERROR)
-      !abort
-      stop
-    endif
-
-    !$omp parallel do schedule(static), default(none) &
-    !$omp&  shared(field_proxy,field_res_proxy, &
-    !$omp&  undf, scalar),  private(i)
-    do i = 1,undf
-      field_res_proxy%data(i) = sign(scalar, field_proxy%data(i))
+    real(r_second),   intent(in)    :: dt
+    type(field_type), intent(inout) :: mass_flux_z
+    type(field_type), intent(in)    :: dep_pts, rho, a0, a1, a2
+    integer cell
+    integer nlayers
+    type(field_proxy_type) :: mass_flux_z_proxy, &
+                              dep_pts_proxy,     &
+                              rho_proxy,         &
+                              a0_proxy, a1_proxy, a2_proxy
+    integer, pointer :: map_w2(:,:) => null(), map_w3(:,:) => null()
+    integer ndf_w2, undf_w2, ndf_w3, undf_w3
+    type(mesh_type), pointer :: mesh => null()
+    !
+    ! initialise field and/or operator proxies
+    !
+    mass_flux_z_proxy = mass_flux_z%get_proxy()
+    dep_pts_proxy = dep_pts%get_proxy()
+    rho_proxy = rho%get_proxy()
+    a0_proxy = a0%get_proxy()
+    a1_proxy = a1%get_proxy()
+    a2_proxy = a2%get_proxy()
+    !
+    ! initialise number of layers
+    !
+    nlayers = mass_flux_z_proxy%vspace%get_nlayers()
+    !
+    ! create a mesh object
+    !
+    mesh => mass_flux_z_proxy%vspace%get_mesh()
+    !
+    ! look-up dofmaps for each function space
+    !
+    map_w2 => mass_flux_z_proxy%vspace%get_whole_dofmap()
+    map_w3 => rho_proxy%vspace%get_whole_dofmap()
+    !
+    ! initialise number of dofs for w2
+    !
+    ndf_w2 = mass_flux_z_proxy%vspace%get_ndf()
+    undf_w2 = mass_flux_z_proxy%vspace%get_undf()
+    !
+    ! initialise number of dofs for w3
+    !
+    ndf_w3 = rho_proxy%vspace%get_ndf()
+    undf_w3 = rho_proxy%vspace%get_undf()
+    !
+    ! call kernels and communication routines
+    !
+    if (mass_flux_z_proxy%is_dirty(depth=1)) then
+      call mass_flux_z_proxy%halo_exchange(depth=1)
+    end if
+    !
+    if (dep_pts_proxy%is_dirty(depth=1)) then
+      call dep_pts_proxy%halo_exchange(depth=1)
+    end if
+    !
+    if (rho_proxy%is_dirty(depth=1)) then
+      call rho_proxy%halo_exchange(depth=1)
+    end if
+    !
+    if (a0_proxy%is_dirty(depth=1)) then
+      call a0_proxy%halo_exchange(depth=1)
+    end if
+    !
+    if (a1_proxy%is_dirty(depth=1)) then
+      call a1_proxy%halo_exchange(depth=1)
+    end if
+    !
+    if (a2_proxy%is_dirty(depth=1)) then
+      call a2_proxy%halo_exchange(depth=1)
+    end if
+    !
+    do cell=1,mesh%get_last_halo_cell(1)
+      !
+      call vertical_flux_code(nlayers, mass_flux_z_proxy%data, dep_pts_proxy%data, rho_proxy%data, a0_proxy%data, a1_proxy%data, &
+  &a2_proxy%data, dt, ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))
     end do
-    !$omp end parallel do
+    !
+    ! set halos dirty/clean for fields modified in the above loop
+    !
+    call mass_flux_z_proxy%set_dirty()
 
-    mesh => field_res%get_mesh()
-    depth = mesh%get_halo_depth()
-
-    do dplp = 1, depth
-      if( field_proxy%is_dirty(depth=dplp) ) then
-        call field_res_proxy%set_dirty()
-      else
-        call field_res_proxy%set_clean(dplp)
-      end if
-    end do
-
-  end subroutine invoke_sign
+  end subroutine invoke_vertical_flux_kernel
 
 end module psykal_lite_mod

@@ -14,6 +14,7 @@ module io_mod
 
   use base_mesh_config_mod,          only: geometry, &
                                            geometry_spherical
+  use clock_mod,                     only: clock_type
   use constants_mod,                 only: i_def, i_native, i_halo_index, &
                                            r_def, dp_xios,                &
                                            str_def, str_max_filename,     &
@@ -51,16 +52,14 @@ module io_mod
   use mesh_mod,                      only: mesh_type
   use mesh_collection_mod,           only: mesh_collection
   use mpi_mod,                       only: get_comm_size, get_comm_rank, all_gather
-  use psykal_lite_mod,               only: invoke_nodal_coordinates_kernel, &
-                                           invoke_pointwise_convert_xyz2llr
+  use psykal_lite_mod,               only: invoke_nodal_coordinates_kernel
+  use psykal_builtin_light_mod,      only: invoke_pointwise_convert_xyz2llr
   use runtime_constants_mod,         only: get_coordinates
-  use time_config_mod,               only: timestep_start, &
-                                           timestep_end
   use xios
 
   implicit none
   private
-  public :: ts_fname,                     &
+  public :: ts_fname, &
             initialise_xios
 
 ! Each column of a higher-order discontinuous field can be used to
@@ -83,12 +82,12 @@ contains
 !!
 !!  @param[in]      xios_ctx      XIOS context identifier
 !!  @param[in]      mpi_comm      The MPI comm object
-!!  @param[in]      dtime         XIOS timestep interval
+!!  @param[in]      clock         Model time
 !!  @param[in]      mesh_id       Mesh id
 !!  @param[in]      twod_mesh_id  2D Mesh id
 !!  @param[in]      chi           Coordinate field
 !-------------------------------------------------------------------------------
-subroutine initialise_xios(xios_ctx, mpi_comm, dtime, &
+subroutine initialise_xios(xios_ctx, mpi_comm, clock, &
                            mesh_id, twod_mesh_id,  chi)
 
   use fs_continuity_mod, only : name_from_functionspace
@@ -98,7 +97,7 @@ subroutine initialise_xios(xios_ctx, mpi_comm, dtime, &
   ! Arguments
   character(len=*),   intent(in)       :: xios_ctx
   integer(i_def),     intent(in)       :: mpi_comm
-  integer(i_def),     intent(in)       :: dtime
+  type(clock_type),   intent(in)       :: clock
   integer(i_def),     intent(in)       :: mesh_id
   integer(i_def),     intent(in)       :: twod_mesh_id
   type(field_type),   intent(in)       :: chi(:)
@@ -138,14 +137,14 @@ subroutine initialise_xios(xios_ctx, mpi_comm, dtime, &
   !!!!!!!!!!!!! Setup diagnostic output context information !!!!!!!!!!!!!!!!!!
 
   ! Set diagnostic output (configured in timesteps) frequency in seconds
-  o_freq%second =  diagnostic_frequency*dtime
+  o_freq%second =  diagnostic_frequency * clock%get_seconds_per_step()
 
   call xios_get_handle("lfric_diag",ofile_hdl)
   call xios_set_attr(ofile_hdl, output_freq=o_freq)
 
   ! Set diagnostic output (configured in timesteps) frequency in seconds
   if (xios_is_valid_file("lfric_averages")) then
-    av_freq%second = timestep_end*dtime
+    av_freq%second = clock%seconds_from_steps(clock%get_last_step())
 
     call xios_get_handle("lfric_averages",ofile_hdl)
     call xios_set_attr(ofile_hdl, output_freq=av_freq)
@@ -161,10 +160,11 @@ subroutine initialise_xios(xios_ctx, mpi_comm, dtime, &
 
     ! Create dump filename from base name and end timestep
     write(dump_fname,'(A,A,I6.6)') &
-       trim(start_dump_directory)//'/'//trim(start_dump_filename),"_", timestep_end
+       trim(start_dump_directory)//'/'//trim(start_dump_filename),"_", clock%get_last_step()
+
 
     ! Set dump frequency (end timestep) in seconds
-    dump_freq%second = timestep_end*dtime
+    dump_freq%second = clock%seconds_from_steps(clock%get_last_step())
 
     call xios_get_handle("lfric_fd_dump",dumpfile_hdl)
     call xios_set_attr(dumpfile_hdl,name=dump_fname, enabled=.true.)
@@ -228,10 +228,10 @@ subroutine initialise_xios(xios_ctx, mpi_comm, dtime, &
 
     ! Create checkpoint filename from stem and end timestep
     write(checkpoint_write_fname,'(A,A,I6.6)') &
-                              trim(checkpoint_stem_name),"_", timestep_end
+                              trim(checkpoint_stem_name),"_", clock%get_last_step()
 
     ! Set checkpoint frequency (end timestep) in seconds
-    cp_freq%second = timestep_end*dtime
+    cp_freq%second = clock%seconds_from_steps(clock%get_last_step())
 
     call xios_get_handle("lfric_checkpoint_write",cpfile_hdl)
     call xios_set_attr(cpfile_hdl,name=checkpoint_write_fname, enabled=.true.)
@@ -247,7 +247,7 @@ subroutine initialise_xios(xios_ctx, mpi_comm, dtime, &
 
     ! Create checkpoint filename from stem and (start - 1) timestep
     write(checkpoint_read_fname,'(A,A,I6.6)') &
-                            trim(checkpoint_stem_name),"_", (timestep_start - 1)
+                            trim(checkpoint_stem_name),"_", (clock%get_first_step() - 1)
 
     call xios_get_handle("lfric_checkpoint_read",rsfile_hdl)
     call xios_set_attr(rsfile_hdl, name=checkpoint_read_fname, enabled=.true.)
@@ -256,16 +256,14 @@ subroutine initialise_xios(xios_ctx, mpi_comm, dtime, &
   end if
 
 
-  !!!!!!!!!!!!!!!!!!!!!! Setup calendar and finalise context !!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!! Setup calendar and finalise context !!!!!!!!!!!!!!!!!!!!
 
   call xios_get_start_date(xios_start_date)
-
-  xios_timestep%second = dtime
-
-  xios_start_date = xios_start_date + (timestep_start-1) * xios_timestep
-
+  xios_start_date%second = xios_start_date%second &
+                           + clock%seconds_from_steps(clock%get_first_step())
   call xios_set_start_date(xios_start_date)
 
+  xios_timestep%second = clock%get_seconds_per_step()
   call xios_set_timestep(xios_timestep)
 
   call xios_close_context_definition()

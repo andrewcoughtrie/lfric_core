@@ -57,8 +57,24 @@ auto=.true.,
 /
 
 &time
- timestep_start             = 1
- timestep_end               = 5
+ calendar = 'timestep'
+ timestep_start = '1'
+ timestep_end = '5'
+/
+
+&timestepping
+alpha=0.0
+dt=1.0
+inner_iterations=1
+method='semi_implicit'
+outer_iterations=1
+runge_kutta_method='ssp2'
+spinup_alpha=.false.
+spinup_period=0.0
+spinup_winds=.false.
+tau_r=0.0
+tau_t=0.0
+tau_u=0.0
 /
 
 &diagnostics_miniapp

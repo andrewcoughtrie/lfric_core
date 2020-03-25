@@ -11,6 +11,8 @@
 !!           which are written to the output log.
 !-------------------------------------------------------------------------------
 module diagnostics_calc_mod
+
+  use clock_mod,                     only: clock_type
   use constants_mod,                 only: i_def, r_def, str_max_filename
   use diagnostic_alg_mod,            only: divergence_diagnostic_alg,   &
                                            density_diagnostic_alg,      &
@@ -63,12 +65,12 @@ contains
 !!> @param[in] mesh_id     Mesh_id
 !-------------------------------------------------------------------------------
 
-subroutine write_divergence_diagnostic(u_field, ts, mesh_id)
+subroutine write_divergence_diagnostic(u_field, clock, mesh_id)
   implicit none
 
-  type(field_type), intent(in)    :: u_field
-  integer(i_def),   intent(in)    :: ts
-  integer(i_def),   intent(in)    :: mesh_id
+  type(field_type),  intent(in)    :: u_field
+  class(clock_type), intent(in)    :: clock
+  integer(i_def),    intent(in)    :: mesh_id
 
   type(field_type)                :: div_field
   real(r_def)                     :: l2_norm
@@ -89,7 +91,8 @@ subroutine write_divergence_diagnostic(u_field, ts, mesh_id)
       call div_field%set_write_behaviour(tmp_write_ptr)
   end if
 
-  call write_scalar_diagnostic('divergence', div_field, ts, mesh_id, .false.)
+  call write_scalar_diagnostic( 'divergence', div_field, &
+                                clock, mesh_id, .false. )
 
   nullify(tmp_write_ptr)
 
@@ -104,22 +107,22 @@ end subroutine write_divergence_diagnostic
 !!> @param[in] ts          Timestep
 !-------------------------------------------------------------------------------
 
-subroutine write_density_diagnostic(rho_field, ts)
+subroutine write_density_diagnostic( rho_field, clock )
+
   implicit none
 
-  type(field_type), intent(in)    :: rho_field
-  integer(i_def),   intent(in)    :: ts
+  type(field_type),  intent(in) :: rho_field
+  class(clock_type), intent(in) :: clock
 
   real(r_def)                     :: l2_norm
 
   ! Note that timestep (ts) is required for the actual calculation
   ! of the density diagnostic and so is passed to the algorithm call
-  call density_diagnostic_alg(l2_norm, rho_field, ts)
+  call density_diagnostic_alg( l2_norm, rho_field, clock%get_step() )
 
   write( log_scratch_space, '(A,E16.8)' )  &
        'L2 of rho difference =', l2_norm
   call log_event( log_scratch_space, LOG_LEVEL_INFO )
-
 
 end subroutine write_density_diagnostic
 
@@ -165,17 +168,17 @@ end subroutine write_hydbal_diagnostic
 !!> @param[in] timestep  Model timestep to index the output file
 !-------------------------------------------------------------------------------
 
-subroutine write_vorticity_diagnostic(u_field, timestep)
+subroutine write_vorticity_diagnostic(u_field, clock)
   implicit none
 
-  type(field_type), intent(in) :: u_field
-  integer(i_def),   intent(in) :: timestep
+  type(field_type),  intent(in) :: u_field
+  class(clock_type), intent(in) :: clock
 
   type(field_type) :: vorticity
 
   call vorticity_diagnostic_alg(vorticity, u_field)
 
-  call write_vector_diagnostic('xi', vorticity, timestep, &
+  call write_vector_diagnostic('xi', vorticity, clock, &
                                vorticity%get_mesh_id(), nodal_output_on_w3)
 
 end subroutine write_vorticity_diagnostic

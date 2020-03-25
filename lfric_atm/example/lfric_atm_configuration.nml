@@ -251,8 +251,9 @@ surf_tile_fracs=0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.0,0.2,0.0,
 use_hydrology=.true.
 /
 &time
-timestep_end=48,
-timestep_start=1,
+calendar='timestep'
+timestep_end='48',
+timestep_start='1',
 /
 &timestepping
 alpha=0.5,

@@ -9,6 +9,7 @@
 !>
 module io_dev_driver_mod
 
+use clock_mod,                  only: clock_type
 use configuration_mod,          only: final_configuration
 use constants_mod,              only: i_def, i_native, PRECISION_REAL
 use convert_to_upper_mod,       only: convert_to_upper
@@ -21,6 +22,7 @@ use field_mod,                  only: field_type
 use finite_element_config_mod,  only: element_order
 use global_mesh_collection_mod, only: global_mesh_collection, &
                                       global_mesh_collection_type
+use init_clock_mod,             only: initialise_clock
 use init_io_dev_mod,            only: init_io_dev
 use io_dev_mod,                 only: load_configuration, program_name
 use io_mod,                     only: initialise_xios
@@ -63,6 +65,8 @@ type(field_type), target, dimension(3) :: chi
 integer(i_def) :: mesh_id
 integer(i_def) :: twod_mesh_id
 
+class(clock_type), allocatable :: clock
+
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -85,7 +89,6 @@ contains
 
   integer(i_def) :: total_ranks, local_rank
 
-  integer(i_def) :: dtime
   integer(i_native) :: log_level
 
   ! Save lfric's part of the split communicator for later use
@@ -128,6 +131,8 @@ contains
 
   call set_derived_config( .true. )
 
+  call initialise_clock( clock )
+
   !----------------------------------------------------------------------------
   ! Mesh init
   !----------------------------------------------------------------------------
@@ -151,11 +156,9 @@ contains
   !-----------------------------------------------------------------------------
 
   ! Set up XIOS domain and context
-  dtime = int(dt)
-
   call initialise_xios( xios_ctx,     &
                         model_communicator, &
-                        dtime,        &
+                        clock,        &
                         mesh_id,      &
                         twod_mesh_id, &
                         chi )
@@ -185,12 +188,16 @@ contains
 
   implicit none
 
+  logical :: running
+
   write(log_scratch_space,'(A)') 'Running '//program_name//' ...'
   call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
 
   !-----------------------------------------------------------------------------
   ! Model step
   !-----------------------------------------------------------------------------
+
+  running = clock%tick()
 
   ! Update XIOS calendar
   call log_event( program_name//': Updating XIOS timestep', LOG_LEVEL_INFO )
@@ -199,9 +206,9 @@ contains
   ! Write out the fields
 
   call log_event( program_name//': Writing XIOS output', LOG_LEVEL_INFO)
-  call write_scalar_diagnostic('density', density, 1, mesh_id, .false.)
-  call write_scalar_diagnostic('theta', theta, 1, mesh_id, .false.)
-  call write_vector_diagnostic('wind', wind, 1, mesh_id, .false.)
+  call write_scalar_diagnostic('density', density, clock, mesh_id, .false.)
+  call write_scalar_diagnostic('theta', theta, clock, mesh_id, .false.)
+  call write_vector_diagnostic('wind', wind, clock, mesh_id, .false.)
 
   end subroutine run
 

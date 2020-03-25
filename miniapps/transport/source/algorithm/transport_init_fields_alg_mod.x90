@@ -27,11 +27,21 @@ module transport_init_fields_alg_mod
 
 contains
   !> @param[inout] density Density field
-  subroutine transport_init_fields_alg( density )
+  subroutine transport_init_fields_alg( wind_n,    &
+                                        density,   &
+                                        dep_pts_x, &
+                                        dep_pts_y, &
+                                        dep_pts_z, &
+                                        divergence )
 
     implicit none
 
+    type(field_type), intent(inout)     :: wind_n
     type(field_type), intent(inout)     :: density
+    type(field_type), intent(inout)     :: dep_pts_x
+    type(field_type), intent(inout)     :: dep_pts_y
+    type(field_type), intent(inout)     :: dep_pts_z
+    type(field_type), intent(inout)     :: divergence
 
     type(quadrature_xyoz_type)          :: qr
     type(quadrature_rule_gaussian_type) :: quadrature_rule
@@ -40,6 +50,12 @@ contains
 
     chi => get_coordinates()
     qr = quadrature_xyoz_type( element_order+3, quadrature_rule )
+
+    call invoke( setval_c( wind_n, 1.0_r_def ),    &
+                 setval_c( dep_pts_x, 1.0_r_def ), &
+                 setval_c( dep_pts_y, 1.0_r_def ), &
+                 setval_c( dep_pts_z, 1.0_r_def ), &
+                 setval_c( divergence, 1.0_r_def) )
 
     if ( sample_init_rho ) then
       call invoke( initial_rho_sample_kernel_type( density, chi, initial_time ) )

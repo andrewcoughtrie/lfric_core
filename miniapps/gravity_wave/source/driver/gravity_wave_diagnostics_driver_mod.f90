@@ -12,11 +12,12 @@
 
 module gravity_wave_diagnostics_driver_mod
 
-  use constants_mod,                  only : i_def
-  use field_mod,                      only : field_type
-  use field_collection_mod,           only : field_collection_type
-  use diagnostics_io_mod,             only : write_scalar_diagnostic, &
-                                             write_vector_diagnostic
+  use clock_mod,            only : clock_type
+  use constants_mod,        only : i_def
+  use field_mod,            only : field_type
+  use field_collection_mod, only : field_collection_type
+  use diagnostics_io_mod,   only : write_scalar_diagnostic, &
+                                   write_vector_diagnostic
   implicit none
 
   private
@@ -28,20 +29,20 @@ contains
   !> @param [in] mesh_id The identifier of the primary mesh
   !> @param [inout] state A collection containing the fields that will
   !>                   be written to diagnostic output
-  !> @param [in] timestep The timestep at which the fields are valid
+  !> @param [in] clock Model time.
   !> @param [in] W3_project Flag that determines if vector fields should be
   !>                        projected to W3
   subroutine gravity_wave_diagnostics_driver( mesh_id, &
-                                              state, &
-                                              timestep, &
+                                              state,   &
+                                              clock,   &
                                               W3_project )
 
     implicit none
 
     type(field_collection_type), intent(inout) :: state
-    integer(i_def),   intent(in)    :: mesh_id
-    integer(i_def),   intent(in)    :: timestep
-    logical,          intent(in)    :: W3_project
+    integer(i_def),              intent(in)    :: mesh_id
+    class(clock_type),           intent(in)    :: clock
+    logical,                     intent(in)    :: W3_project
 
     type( field_type), pointer :: wind => null()
     type( field_type), pointer :: buoyancy => null()
@@ -55,9 +56,12 @@ contains
     pressure => state%get_field('pressure')
 
     ! Calculation and output of diagnostics
-    call write_vector_diagnostic('wind', wind, timestep, mesh_id, W3_project)
-    call write_scalar_diagnostic('pressure', pressure, timestep, mesh_id, W3_project)
-    call write_scalar_diagnostic('buoyancy', buoyancy, timestep, mesh_id, W3_project)
+    call write_vector_diagnostic( 'wind', wind, &
+                                  clock, mesh_id, W3_project )
+    call write_scalar_diagnostic( 'pressure', pressure, &
+                                  clock, mesh_id, W3_project )
+    call write_scalar_diagnostic( 'buoyancy', buoyancy, &
+                                  clock, mesh_id, W3_project )
 
   end subroutine gravity_wave_diagnostics_driver
 

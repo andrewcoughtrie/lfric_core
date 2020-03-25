@@ -6,6 +6,7 @@
 {%- set appConfigsCompilerRuns = {} %}
 {%- set appPrecisionRuns = {} %}
 {%- set appPrecisionBuilds = {} %}
+{%- set variables = {} %}
 {%- set rdef_build_precisions = [] %}
 {%- set rose_suite_gui_headers = [] %}
 {%- set resolution_choices = {} %}
@@ -275,7 +276,6 @@
 {%- for compiler in compiler_setup.keys() -%}
 {%-   for build in build_profiles %}
 {%-     for precision in rdef_build_precisions %}
-
 {%-       set label      = (compiler|lower + '_' + precision + '-bit_' + build|lower) %}
 {%-       set family     = (label|upper) %}
 
@@ -510,8 +510,8 @@
             execution retry delays = 2*PT5S, 5*PT10S, 9*PT1M, 5*PT10M, 3*PT1H
 {%-       endif %}
 
-{# #############################################################################}
-{# CANNED CONFIGURATIONS #}
+{#############################################################################}
+{# CANNED CONFIGURATIONS                                                     #}
 {%-       for appName in canned_configurations %}
 {%-         if 'run_' + appName + '_canned_test_' + label in scheduledTasks %}
 {%-           if 'CANNED_TASKS_' + label|upper not in rose_suite_gui_headers %}
@@ -519,7 +519,6 @@
     [[CANNED_TASKS_{{label|upper}}]]
         inherit = {{family}}, TARGET
 {%-           endif %}
-
     [[run_{{appName}}_canned_test_{{label}}]]
         inherit = CANNED_TASKS_{{label|upper}}
         pre-script = """
@@ -536,6 +535,9 @@
         [[[environment]]]
             APP_NAME         = {{appName}}
             BIN_DIR          = $DESTINATION_DIRECTORY/bin
+{%-           if 'canned_processes' in variables %}
+            PROCESSES        = {{variables['canned_processes']}}
+{%-           endif %}
             OMP_NUM_THREADS  = 1
             HYPERTHREADS     = 1
 

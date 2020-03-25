@@ -10,6 +10,7 @@
 module skeleton_driver_mod
 
   use checksum_alg_mod,           only : checksum_alg
+  use clock_mod,                  only : clock_type
   use configuration_mod,          only : final_configuration
   use constants_mod,              only : i_def, i_native, PRECISION_REAL
   use convert_to_upper_mod,       only : convert_to_upper
@@ -20,6 +21,7 @@ module skeleton_driver_mod
   use field_mod,                  only : field_type
   use global_mesh_collection_mod, only : global_mesh_collection, &
                                          global_mesh_collection_type
+  use init_clock_mod,             only : initialise_clock
   use init_skeleton_mod,          only : init_skeleton
   use io_mod,                     only : initialise_xios
   use io_config_mod,              only : write_diag, &
@@ -51,6 +53,7 @@ module skeleton_driver_mod
 
   character(len=*), public, parameter   :: xios_ctx  = program_name
 
+  class(clock_type), allocatable :: clock
 
   ! Prognostic fields
   type( field_type ) :: field_1
@@ -81,7 +84,6 @@ contains
     integer(i_native), intent(in)              :: model_communicator
 
     integer(i_def) :: total_ranks, local_rank
-    integer(i_def) :: dtime
 
     integer(i_native) :: log_level
 
@@ -126,6 +128,7 @@ contains
 
     call set_derived_config( .true. )
 
+    call initialise_clock( clock )
 
     !-------------------------------------------------------------------------
     ! Model init
@@ -156,22 +159,18 @@ contains
     ! XIOS domain and context
 
     if ( use_xios_io ) then
-
-      dtime = 1
-
       call initialise_xios( xios_ctx,     &
                             model_communicator, &
-                            dtime,        &
+                            clock,        &
                             mesh_id,      &
                             twod_mesh_id, &
-                            chi)
+                            chi )
 
       ! Make sure XIOS calendar is set to timestep 1 as it starts there
       ! not timestep 0.
       call xios_update_calendar(1)
 
     end if
-
 
     ! Create and initialise prognostic fields
     call init_skeleton(mesh_id, twod_mesh_id, chi, field_1)
@@ -185,16 +184,20 @@ contains
 
     implicit none
 
+    logical :: running
+
+    running = clock%tick()
+
     ! Call an algorithm
     call skeleton_alg(field_1)
-
 
     ! Write out output file
     call log_event(program_name//": Writing diagnostic output", LOG_LEVEL_INFO)
 
     if (write_diag ) then
       ! Calculation and output of diagnostics
-      call write_scalar_diagnostic('skeleton_field', field_1, 1, mesh_id, .false.)
+      call write_scalar_diagnostic( 'skeleton_field', field_1, &
+                                    clock, mesh_id, .false. )
     end if
 
   end subroutine run
@@ -206,9 +209,7 @@ contains
 
     implicit none
 
-    integer(i_def) :: rc
-
-    !-----------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
     ! Model finalise
     !-----------------------------------------------------------------------------
     call log_event( 'Finalising '//program_name//' ...', LOG_LEVEL_ALWAYS )

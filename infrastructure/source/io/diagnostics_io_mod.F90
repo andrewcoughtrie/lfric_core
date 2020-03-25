@@ -9,7 +9,10 @@
 !!  @details Module implementing a basic diagnostic system
 !-------------------------------------------------------------------------------
 module diagnostics_io_mod
-  use constants_mod,                 only: i_def, r_def, str_max_filename
+
+  use clock_mod,                     only: clock_type
+  use constants_mod,                 only: i_def, i_timestep, &
+                                           r_def, str_max_filename
   use diagnostic_alg_mod,            only: split_wind_diagnostic_alg, &
                                            scalar_nodal_diagnostic_alg, &
                                            scalar_ugrid_diagnostic_alg, &
@@ -52,32 +55,45 @@ contains
 !!> @param[in] W3_project  Logical to allow projection to W3
 !-------------------------------------------------------------------------------
 
-subroutine write_scalar_diagnostic(field_name, field, ts, mesh_id, W3_project)
+subroutine write_scalar_diagnostic( field_name, field, &
+                                    clock, mesh_id, W3_project )
   implicit none
 
-  character(len=*), intent(in)    :: field_name
-  type(field_type), intent(in)    :: field
-  integer(i_def),   intent(in)    :: ts
-  integer(i_def),   intent(in)    :: mesh_id
-  logical,          intent(in)    :: W3_project
+  character(len=*),  intent(in)    :: field_name
+  type(field_type),  intent(in)    :: field
+  class(clock_type), intent(in)    :: clock
+  integer(i_def),    intent(in)    :: mesh_id
+  logical,           intent(in)    :: W3_project
+
+  integer(i_def), parameter       :: nodal_output_unit = 21
 
   ! Local Variables
   type(field_type)                :: nodal_coordinates(3)
   type(field_type)                :: output_field(3)
   type(field_type)                :: level
   character(len=str_max_filename) :: fname
-  integer(i_def), parameter       :: nodal_output_unit = 21
+  integer(i_timestep)             :: timestep
 
   procedure(write_interface), pointer  :: tmp_write_ptr => null()
 
   ! Nodal output
   if ( .not. (use_xios_io) )  then
 
+    if (clock%is_initialisation()) then
+      timestep = 0
+    else
+      timestep = clock%get_step()
+    end if
+
     ! Always call straight nodal output
 
     ! Setup output filename
 
-    fname=trim(ts_fname(trim(diag_stem_name), "nodal_", field_name, ts, ".m"))
+    fname=trim(ts_fname( trim(diag_stem_name), &
+                         "nodal_",             &
+                         field_name,           &
+                         timestep,             &
+                         ".m" ))
 
     ! Call diagnostic processing to create nodal field
     call scalar_nodal_diagnostic_alg(output_field, nodal_coordinates, &
@@ -92,8 +108,11 @@ subroutine write_scalar_diagnostic(field_name, field, ts, mesh_id, W3_project)
 
     if (W3_project .and. (field%which_function_space() /= W3)) then
 
-      fname=trim(ts_fname(trim(diag_stem_name), "nodal_w3projection_",  &
-                          field_name, ts, ".m"))
+      fname=trim(ts_fname( trim(diag_stem_name),  &
+                           "nodal_w3projection_", &
+                           field_name,            &
+                           timestep,              &
+                           ".m" ))
 
 
       ! Call diagnostic processing to create nodal field
@@ -107,7 +126,7 @@ subroutine write_scalar_diagnostic(field_name, field, ts, mesh_id, W3_project)
 
     end if
 
-  else
+  else ! (use_xios_io)
 
     ! XIOS UGRID output
 
@@ -122,7 +141,7 @@ subroutine write_scalar_diagnostic(field_name, field, ts, mesh_id, W3_project)
     ! Call write on the output field
 
     ! Check if we need to write an initial field
-    if (ts == 0) then
+    if (clock%is_initialisation()) then
        call output_field(1)%write_field(trim('init_'//field_name))
     else
        call output_field(1)%write_field(trim(field_name))
@@ -147,14 +166,17 @@ end subroutine write_scalar_diagnostic
 !!> @param[in] W3_project  Logical to allow projection to W3
 !-------------------------------------------------------------------------------
 
-subroutine write_vector_diagnostic(field_name, field, ts, mesh_id, W3_project)
+subroutine write_vector_diagnostic( field_name, field, &
+                                    clock, mesh_id, W3_project )
   implicit none
 
-  character(len=*), intent(in)    :: field_name
-  type(field_type), intent(in)    :: field
-  integer(i_def),   intent(in)    :: ts
-  integer(i_def),   intent(in)    :: mesh_id
-  logical,          intent(in)    :: W3_project
+  character(len=*),  intent(in)    :: field_name
+  type(field_type),  intent(in)    :: field
+  class(clock_type), intent(in)    :: clock
+  integer(i_def),    intent(in)    :: mesh_id
+  logical,           intent(in)    :: W3_project
+
+  integer(i_def), parameter       :: nodal_output_unit = 21
 
   ! Local Variables
   type(mesh_type), pointer        :: mesh => null()
@@ -166,9 +188,9 @@ subroutine write_vector_diagnostic(field_name, field, ts, mesh_id, W3_project)
   character(len=str_max_filename) :: fname
   character(len=1)                :: uchar
   character(len=str_max_filename) :: field_name_new
-  integer(i_def), parameter       :: nodal_output_unit = 21
   integer(i_def)                  :: i
   integer(i_def)                  :: output_dim
+  integer(i_timestep)             :: timestep
 
   procedure(write_interface), pointer  :: tmp_write_ptr => null()
 
@@ -178,10 +200,20 @@ subroutine write_vector_diagnostic(field_name, field, ts, mesh_id, W3_project)
   ! Nodal output
   if ( .not. (use_xios_io) )  then
 
+    if (clock%is_initialisation()) then
+      timestep = 0
+    else
+      timestep = clock%get_step()
+    end if
+
     ! Always call straight nodal output
 
     ! Setup output filename
-    fname=trim(ts_fname(trim(diag_stem_name), "nodal_", field_name, ts, ".m"))
+    fname=trim(ts_fname(trim(diag_stem_name), &
+                        "nodal_",             &
+                        field_name,           &
+                        timestep,             &
+                        ".m"))
 
     call vector_nodal_diagnostic_alg(output_field, output_dim, &
                                      nodal_coordinates, level, &
@@ -206,7 +238,11 @@ subroutine write_vector_diagnostic(field_name, field, ts, mesh_id, W3_project)
          field_name_new = trim("w3projection_"//field_name//uchar)
 
          ! Setup output filename
-         fname=trim(ts_fname(trim(diag_stem_name), "nodal_", field_name_new, ts, ".m"))
+         fname=trim(ts_fname(trim(diag_stem_name), &
+                             "nodal_",             &
+                             field_name_new,       &
+                             timestep,             &
+                             ".m"))
 
          ! Call scalar output on each component
          call scalar_nodal_diagnostic_alg(output_field(i), nodal_coordinates,        &
@@ -249,7 +285,7 @@ subroutine write_vector_diagnostic(field_name, field, ts, mesh_id, W3_project)
         field_name_new = trim(field_name//uchar)
 
         ! Check if we need to write an initial field
-        if (ts == 0) then
+        if (clock%is_initialisation()) then
           call projected_field(i)%write_field(trim('init_'//field_name_new))
         else
           call projected_field(i)%write_field(trim(field_name_new))
@@ -276,7 +312,7 @@ subroutine write_vector_diagnostic(field_name, field, ts, mesh_id, W3_project)
       call u1_wind%set_write_behaviour(tmp_write_ptr)
       call u2_wind%set_write_behaviour(tmp_write_ptr)
 
-      if (ts == 0) then
+      if (clock%is_initialisation()) then
         call u1_wind%write_field("init_"//trim(field_name)//"1")
         call u2_wind%write_field("init_"//trim(field_name)//"2")
         call u3_wind%write_field("init_"//trim(field_name)//"3")

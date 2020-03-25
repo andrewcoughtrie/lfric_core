@@ -9,6 +9,7 @@
 !>
 module diagnostics_driver_mod
 
+    use clock_mod, only : clock_type
     use constants_mod, only : i_def, i_native, str_def
     use diagnostics_configuration_mod, only : load_configuration, program_name
     use field_mod, only : field_type
@@ -16,6 +17,7 @@ module diagnostics_driver_mod
     use field_collection_mod, only : field_collection_type, &
             field_collection_iterator_type
     use gungho_model_data_mod, only : model_data_type
+    use init_clock_mod, only : initialise_clock
     use integer_field_mod, only : integer_field_type
     use io_config_mod, only : write_diag, &
             use_xios_io
@@ -49,6 +51,8 @@ module diagnostics_driver_mod
     type(field_type), target, dimension(3) :: chi
 
     integer(i_def) :: mesh_id, twod_mesh_id
+
+    class(clock_type), allocatable :: clock
 
     character(len = *), public, parameter :: xios_ctx = program_name
     character(len = *), public, parameter :: xios_id = "lfric_client"
@@ -87,7 +91,6 @@ contains
         character(len = *), parameter :: xios_ctx = "diagnostics"
 
         integer(i_def) :: total_ranks, local_rank
-        integer(i_def) :: dtime
 
         integer(i_native) :: log_level
 
@@ -127,10 +130,11 @@ contains
 
         call set_derived_config(.true.)
 
+        call initialise_clock( clock )
 
-        !-------------------------------------------------------------------------
+        !----------------------------------------------------------------------
         ! Model init
-        !-------------------------------------------------------------------------
+        !----------------------------------------------------------------------
         call log_event('Initialising ' // program_name // ' ...', LOG_LEVEL_ALWAYS)
 
         allocate(global_mesh_collection, &
@@ -152,14 +156,13 @@ contains
 
         if (use_xios_io) then
 
-            dtime = 1
             write(log_scratch_space, '(A)') &
                     "init XIOS"
             call log_event(log_scratch_space, LOG_LEVEL_INFO)
 
             call initialise_xios( xios_ctx, &
                                   model_communicator, &
-                                  dtime, &
+                                  clock, &
                                   mesh_id, &
                                   twod_mesh_id, &
                                   chi)
@@ -200,11 +203,9 @@ contains
         use diagnostics_alg_mod, only : diagnostics_alg
         use diagnostics_step_mod, only : diagnostics_step
         use gungho_update_calendar_mod, only : gungho_update_calendar
-        use time_config_mod, only : timestep_start, timestep_end
 
         implicit none
 
-        integer(i_def) :: timestep
         type(field_collection_type), pointer :: depository
         class(field_parent_type), pointer :: tmp_field
         ! Iterator for field collection
@@ -212,21 +213,22 @@ contains
         character(str_def) :: name
 
         ! standard timestepping from gungho
-        do timestep = timestep_start, timestep_end
+        do while (clock%tick())
 
             write(log_scratch_space, '("/", A, "\ ")') repeat("*", 76)
             call log_event(log_scratch_space, LOG_LEVEL_TRACE)
-            write(log_scratch_space, '(A,I0)') 'Start of timestep ', timestep
+            write( log_scratch_space, &
+                   '(A,I0)' ) 'Start of timestep ', clock%get_step()
             call log_event(log_scratch_space, LOG_LEVEL_INFO)
 
             ! Update XIOS calendar if we are using it for diagnostic output or checkpoint
-            call gungho_update_calendar(timestep)
+            call gungho_update_calendar( clock )
 
             call log_event('Running ' // program_name // ' ...', LOG_LEVEL_ALWAYS)
-            call diagnostics_step(mesh_id, &
-                    twod_mesh_id, &
-                    model_data, &
-                    timestep)
+            call diagnostics_step( mesh_id,      &
+                                   twod_mesh_id, &
+                                   model_data,   &
+                                   clock )
 
             ! leaving the writing non-standard as it will be replaced wholesale by
             ! diag work - for the time being dump everything!

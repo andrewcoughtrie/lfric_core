@@ -98,7 +98,12 @@ module init_transport_mod
     call create_runtime_constants( mesh_id, twod_mesh_id, chi, shifted_mesh_id, shifted_chi )
 
     ! Initialise density field
-    call transport_init_fields_alg( density )
+    call transport_init_fields_alg( wind_n,    &
+                                    density,   &
+                                    dep_pts_x, &
+                                    dep_pts_y, &
+                                    dep_pts_z, &
+                                    divergence )
 
     ! Set I/O behaviours for diagnostic output
 

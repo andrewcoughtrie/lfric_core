@@ -46,7 +46,9 @@
                           "directives":{"default":{"mpi_parts":12,"threads":1,"wallclock":"00:40:00"} } },
                      plotstr="slices.py ' + appDiagStemName + ' $NODAL_DATA_DIR density T000000:T000036 45 -1000 -1000 $PLOT_DIR" )',
     'check_compilers("transport", "cosine_hill_45deg", "fast-debug",
-                     resolution=("C32", 4050.0))' ],
+                     resolution=("C32", 4050.0))',
+    'canned_test( "transport", processes=6, precisions=["32", "64"] )' ],
+
 'nightly': [
     'run_application( "transport", "divergence_cosmic", precisions=["32","64"],
                       resolutions=[("C32",1.0)],

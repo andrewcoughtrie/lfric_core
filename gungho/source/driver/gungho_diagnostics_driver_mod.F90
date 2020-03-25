@@ -12,26 +12,27 @@
 
 module gungho_diagnostics_driver_mod
 
-  use constants_mod,                  only : i_def, str_def
-  use diagnostics_io_mod,             only : write_scalar_diagnostic, &
-                                             write_vector_diagnostic
-  use diagnostics_calc_mod,           only : write_divergence_diagnostic, &
-                                             write_hydbal_diagnostic, &
-                                             write_vorticity_diagnostic
-  use field_collection_mod,           only : field_collection_type, &
-                                             field_collection_iterator_type
-  use gungho_model_data_mod,          only : model_data_type
-  use field_mod,                      only : field_type
-  use field_parent_mod,               only : field_parent_type
-  use formulation_config_mod,         only : use_moisture, &
-                                             use_physics
-  use fs_continuity_mod,              only : W3, Wtheta
-  use integer_field_mod,              only : integer_field_type
-  use moist_dyn_mod,                  only : num_moist_factors
-  use mr_indices_mod,                 only : nummr, mr_names
-  use section_choice_config_mod,      only : cloud, cloud_um
-  use log_mod,                        only : log_event, &
-                                             LOG_LEVEL_INFO
+  use clock_mod,                 only : clock_type
+  use constants_mod,             only : i_def, str_def
+  use diagnostics_io_mod,        only : write_scalar_diagnostic, &
+                                        write_vector_diagnostic
+  use diagnostics_calc_mod,      only : write_divergence_diagnostic, &
+                                        write_hydbal_diagnostic, &
+                                        write_vorticity_diagnostic
+  use field_collection_mod,      only : field_collection_type, &
+                                        field_collection_iterator_type
+  use gungho_model_data_mod,     only : model_data_type
+  use field_mod,                 only : field_type
+  use field_parent_mod,          only : field_parent_type
+  use formulation_config_mod,    only : use_moisture, &
+                                        use_physics
+  use fs_continuity_mod,         only : W3, Wtheta
+  use integer_field_mod,         only : integer_field_type
+  use moist_dyn_mod,             only : num_moist_factors
+  use mr_indices_mod,            only : nummr, mr_names
+  use section_choice_config_mod, only : cloud, cloud_um
+  use log_mod,                   only : log_event, &
+                                        LOG_LEVEL_INFO
 
   implicit none
 
@@ -46,17 +47,17 @@ contains
   !> @param[in] timestep The timestep at which the fields are valid
   !> @param[in] nodal_output_on_w3 Flag that determines if vector fields
   !>                  should be projected to W3 for nodal output
-  subroutine gungho_diagnostics_driver( mesh_id, &
+  subroutine gungho_diagnostics_driver( mesh_id,    &
                                         model_data, &
-                                        timestep, &
+                                        clock,      &
                                         nodal_output_on_w3 )
 
     implicit none
 
-    integer(i_def), intent(in)                :: mesh_id
-    type(model_data_type), target, intent(in) :: model_data
-    integer(i_def), intent(in)                :: timestep
-    logical, intent(in)                       :: nodal_output_on_w3
+    integer(i_def),        intent(in)         :: mesh_id
+    type(model_data_type), intent(in), target :: model_data
+    class(clock_type),     intent(in)         :: clock
+    logical,               intent(in)         :: nodal_output_on_w3
 
     type( field_collection_type ), pointer :: prognostic_fields => null()
     type( field_collection_type ), pointer :: diagnostic_fields => null()
@@ -101,22 +102,22 @@ contains
 
     ! Scalar fields
     call write_scalar_diagnostic('rho', rho, &
-                                 timestep, mesh_id, nodal_output_on_w3)
+                                 clock, mesh_id, nodal_output_on_w3)
     call write_scalar_diagnostic('theta', theta, &
-                                 timestep, mesh_id, nodal_output_on_w3)
+                                 clock, mesh_id, nodal_output_on_w3)
     call write_scalar_diagnostic('exner', exner, &
-                                 timestep, mesh_id, nodal_output_on_w3)
+                                 clock, mesh_id, nodal_output_on_w3)
 
     ! Vector fields
     call write_vector_diagnostic('u', u, &
-                                 timestep, mesh_id, nodal_output_on_w3)
-    call write_vorticity_diagnostic(u, timestep)
+                                 clock, mesh_id, nodal_output_on_w3)
+    call write_vorticity_diagnostic( u, clock )
 
     ! Moisture fields
     if (use_moisture) then
       do i=1,nummr
         call write_scalar_diagnostic( trim(mr_names(i)), mr(i), &
-                                      timestep, mesh_id, nodal_output_on_w3 )
+                                      clock, mesh_id, nodal_output_on_w3 )
       end do
     end if
 
@@ -132,7 +133,8 @@ contains
           type is (field_type)
             name = trim(adjustl( field_ptr%get_name() ))
             call write_scalar_diagnostic( trim(name), field_ptr, &
-                                        timestep, mesh_id, nodal_output_on_w3 )
+                                          clock,                 &
+                                          mesh_id, nodal_output_on_w3 )
           type is (integer_field_type)
             ! todo: integer field i/o
         end select
@@ -153,7 +155,8 @@ contains
             if ( fs == W3 .or. fs == Wtheta ) then
               name = trim(adjustl( field_ptr%get_name() ))
               call write_scalar_diagnostic( trim(name), field_ptr, &
-                                        timestep, mesh_id, nodal_output_on_w3 )
+                                            clock,                 &
+                                            mesh_id, nodal_output_on_w3 )
             end if
           type is (integer_field_type)
             ! todo: integer field i/o
@@ -163,7 +166,7 @@ contains
     end if
 
     ! Other derived diagnostics with special pre-processing
-    call write_divergence_diagnostic(u, timestep, mesh_id)
+    call write_divergence_diagnostic(u, clock, mesh_id)
     call write_hydbal_diagnostic(theta, moist_dyn, exner, mesh_id)
 
   end subroutine gungho_diagnostics_driver

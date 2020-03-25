@@ -11,10 +11,19 @@
 !> functionality to work, the subroutine store_comm must first be called to
 !> store a valid MPI communicator.
 !>
+!> @todo This module should not be using default kinds of any sort. Instead
+!>       it should provide routines specific to a particular word size. The
+!>       compiler will then choose the correct one through an interface
+!>       regardless of what the default is set to. I have not blitzed the file
+!>       as I have other things which need doing yesterday but the broadcast
+!>       of reals shows the model.
+!>
 module mpi_mod
 
   use constants_mod, only : i_def, i_halo_index, i_native, &
-                            l_def, r_def, str_def,         &
+                            l_def,                         &
+                            r_def, r_double, r_single,     &
+                            str_def,                       &
                             real_type, integer_type, logical_type
   use mpi,           only : mpi_comm_rank, mpi_comm_size, mpi_finalize, &
                             mpi_init, mpi_success, mpi_comm_world,      &
@@ -45,9 +54,10 @@ module mpi_mod
 
   ! Generic interface for specific broadcast functions
   interface broadcast
-   module procedure broadcast_l_def, &
-                    broadcast_i_def, &
-                    broadcast_r_def, &
+   module procedure broadcast_l_def,    &
+                    broadcast_i_def,    &
+                    broadcast_r_double, &
+                    broadcast_r_single, &
                     broadcast_str
   end interface
 
@@ -380,24 +390,26 @@ contains
     end if
   end subroutine broadcast_i_def
 
-  !> Broadcasts real data from the root MPI task to all other MPI tasks
+  !> Broadcasts double real data from the root MPI task to all other MPI tasks.
   !>
   !> @param buffer On the root MPI task, contains the data to broadcast,
   !>               on other tasks the data from root task will be writen to here
   !> @param count The number of items in buffer
   !> @param root The MPI task from which data will be broadcast
-  subroutine broadcast_r_def(buffer, count, root)
+  subroutine broadcast_r_double(buffer, count, root)
 
     implicit none
 
-    real(r_def),    intent(inout) :: buffer(:)
+    real(r_double), intent(inout) :: buffer(:)
     integer(i_def), intent(in)    :: count
     integer(i_def), intent(in)    :: root
 
     integer(i_def) :: err
 
     if(comm_set)then
-      call mpi_bcast( buffer, count, get_mpi_datatype( real_type, r_def ), root, comm, err )
+      call mpi_bcast( buffer, count, &
+                      get_mpi_datatype( real_type, r_double ), &
+                      root, comm, err )
       if (err /= mpi_success) &
         call log_event('Call to real broadcast failed with an MPI error.', &
                        LOG_LEVEL_ERROR )
@@ -406,7 +418,37 @@ contains
       'Call to broadcast failed. Must call store_comm first',&
       LOG_LEVEL_ERROR )
     end if
-  end subroutine broadcast_r_def
+  end subroutine broadcast_r_double
+
+  !> Broadcasts single real data from the root MPI task to all other MPI tasks.
+  !>
+  !> @param buffer On the root MPI task, contains the data to broadcast,
+  !>               on other tasks the data from root task will be writen to here
+  !> @param count The number of items in buffer
+  !> @param root The MPI task from which data will be broadcast
+  subroutine broadcast_r_single(buffer, count, root)
+
+    implicit none
+
+    real(r_single), intent(inout) :: buffer(:)
+    integer(i_def), intent(in)    :: count
+    integer(i_def), intent(in)    :: root
+
+    integer(i_def) :: err
+
+    if(comm_set)then
+      call mpi_bcast( buffer, count, &
+                      get_mpi_datatype( real_type, r_single ), &
+                      root, comm, err )
+      if (err /= mpi_success) &
+        call log_event('Call to real broadcast failed with an MPI error.', &
+                       LOG_LEVEL_ERROR )
+    else
+      call log_event( &
+      'Call to broadcast failed. Must call store_comm first',&
+      LOG_LEVEL_ERROR )
+    end if
+  end subroutine broadcast_r_single
 
   !> Broadcasts character data from the root MPI task to all other MPI tasks
   !>

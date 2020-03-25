@@ -9,21 +9,22 @@
 module transport_driver_mod
 
   use checksum_alg_mod,               only: checksum_alg
-  use constants_mod,                  only: i_def, i_native, r_def
-  use convert_to_upper_mod,           only: convert_to_upper
-  use derived_config_mod,             only: set_derived_config
-  use yaxt,                           only: xt_initialize, xt_finalize
-  use field_mod,                      only: field_type
-  use global_mesh_collection_mod,     only: global_mesh_collection,           &
-                                            global_mesh_collection_type
+  use clock_mod,                      only: clock_type
   use configuration_mod,              only: final_configuration
-  use transport_mod,                  only: transport_load_configuration, &
-                                            program_name
+  use constants_mod,                  only: i_def, r_def, i_native
+  use convert_to_upper_mod,           only: convert_to_upper
   use create_fem_mod,                 only: init_fem
   use create_mesh_mod,                only: init_mesh
+  use derived_config_mod,             only: set_derived_config
+  use field_mod,                      only: field_type
+  use global_mesh_collection_mod,     only: global_mesh_collection, &
+                                            global_mesh_collection_type
+  use init_clock_mod,                 only: initialise_clock
   use init_transport_mod,             only: init_transport
+  use transport_mod,                  only: transport_load_configuration, &
+                                            program_name
   use io_mod,                         only: initialise_xios
-  use diagnostics_io_mod,             only: write_scalar_diagnostic,          &
+  use diagnostics_io_mod,             only: write_scalar_diagnostic, &
                                             write_vector_diagnostic
   use diagnostics_calc_mod,           only: write_density_diagnostic
   use log_mod,                        only: log_event,                        &
@@ -42,14 +43,12 @@ module transport_driver_mod
                                             write_diag,                       &
                                             use_xios_io,                      &
                                             subroutine_timers
-  use time_config_mod,                only: timestep_start, &
-                                            timestep_end
   use timer_mod,                      only: init_timer, timer, output_timer
-  use timestepping_config_mod,        only: dt
   use mpi_mod,                        only: store_comm,    &
                                             get_comm_size, &
                                             get_comm_rank
-  use transport_config_mod,           only: scheme,               &
+  use transport_config_mod,           only: key_from_scheme,      &
+                                            scheme,               &
                                             scheme_yz_bip_cosmic, &
                                             scheme_cosmic_3D,     &
                                             scheme_horz_cosmic
@@ -64,6 +63,7 @@ module transport_driver_mod
                                             get_detj_at_w2_shifted,           &
                                             get_cell_orientation,             &
                                             get_cell_orientation_shifted
+  use yaxt,                           only: xt_initialize, xt_finalize
   use xios,                           only: xios_context_finalize, &
                                             xios_update_calendar
 
@@ -93,6 +93,8 @@ module transport_driver_mod
   ! Coordinate field
   type(field_type), target, dimension(3) :: chi
   type(field_type), target, dimension(3) :: shifted_chi
+
+  class(clock_type), allocatable :: clock
 
   integer(i_def) :: mesh_id
   integer(i_def) :: twod_mesh_id
@@ -128,6 +130,10 @@ contains
     !Store the MPI communicator for later use
     call store_comm( model_communicator )
 
+    call transport_load_configuration( filename )
+
+    call initialise_clock( clock )
+
     ! Initialise YAXT
     call xt_initialize( model_communicator )
 
@@ -136,8 +142,6 @@ contains
     local_rank  = get_comm_rank()
 
     call initialise_logging( local_rank, total_ranks, program_name )
-
-    call transport_load_configuration( filename )
 
     select case (run_log_level)
     case( RUN_LOG_LEVEL_ERROR )
@@ -201,19 +205,16 @@ contains
     cell_orientation_shifted => get_cell_orientation_shifted()
 
     if ( use_xios_io ) then
-      dtime = int(dt)
       call initialise_xios( xios_ctx,     &
                             model_communicator, &
-                            dtime,        &
+                            clock,        &
                             mesh_id,      &
                             twod_mesh_id, &
-                            chi)
+                            chi )
     end if
 
     ! Output initial conditions
-    ts_init = max( (timestep_start - 1), 0 )
-
-    if ( ts_init == 0 ) then
+    if (clock%is_initialisation()) then
 
       if ( write_diag ) then
 
@@ -224,8 +225,10 @@ contains
 
         end if
 
-        call write_vector_diagnostic('wind', wind_n, ts_init, mesh_id, nodal_output_on_w3)
-        call write_scalar_diagnostic('density', density, ts_init, mesh_id, nodal_output_on_w3)
+        call write_vector_diagnostic( 'wind', wind_n, clock, &
+                                      mesh_id, nodal_output_on_w3 )
+        call write_scalar_diagnostic( 'density', density, clock, &
+                                      mesh_id, nodal_output_on_w3 )
 
      end if
 
@@ -240,8 +243,6 @@ contains
 
     implicit none
 
-    integer(i_def) :: timestep
-
     call log_event( 'Running '//program_name//' ...', LOG_LEVEL_ALWAYS )
     call log_event( program_name//': Miniapp will run with default precision set as:', LOG_LEVEL_INFO )
     write(log_scratch_space, '(I1)') kind(1.0_r_def)
@@ -252,22 +253,23 @@ contains
     !--------------------------------------------------------------------------
     ! Model step
     !--------------------------------------------------------------------------
-    do timestep = timestep_start, timestep_end
+    do while (clock%tick())
 
-      call log_event( &
-      "/****************************************************************************\ ", &
-      LOG_LEVEL_TRACE )
-      write( log_scratch_space, '(A,I0)' ) 'Start of timestep ', timestep
+      write(log_scratch_space, '("/", A, "\ ")') repeat('*', 76)
+      call log_event( log_scratch_space, LOG_LEVEL_TRACE )
+      write( log_scratch_space, '(A,I0)' ) &
+        'Start of timestep ', clock%get_step()
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
-      ! Update XIOS calendar if we are using it for diagnostic output or checkpoint
+      ! Update XIOS calendar if we are using it for diagnostic output or
+      ! checkpoint
       if ( use_xios_io ) then
         call log_event( "Transport: Updating XIOS timestep", LOG_LEVEL_INFO )
-        call xios_update_calendar( timestep )
+        call xios_update_calendar( clock%get_step() )
       end if
 
       ! Update the wind each timestep.
-      call set_winds( wind_n, mesh_id, timestep )
+      call set_winds( wind_n, mesh_id, clock%get_step() )
       ! Calculate departure points.
       ! Here the wind is assumed to be the same at timestep n and timestep n+1
       call calc_dep_pts( dep_pts_x, dep_pts_y, dep_pts_z, wind_divergence,    &
@@ -286,8 +288,9 @@ contains
           call cosmic_threed_transport_step( increment, density, dep_pts_x,   &
                            dep_pts_y, dep_pts_z, detj_at_w2, cell_orientation )
         case default
-          call log_event( "Transport mini-app: incorrect transport option chosen, "// &
-                          "stopping program! ",LOG_LEVEL_ERROR )
+          write(log_scratch_space, '(A, A)') &
+            "Unrecognised transport scheme: ", key_from_scheme(scheme)
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
           stop
       end select
 
@@ -295,27 +298,29 @@ contains
 
       ! Add the increment to density
       call density_inc_update_alg(density, increment)
-      call write_density_diagnostic( density, timestep )
+      call write_density_diagnostic( density, clock )
 
-      call mass_conservation( timestep, density )
+      call mass_conservation( clock%get_step(), density )
 
-      write( log_scratch_space, '(A,I0)' ) 'End of timestep ', timestep
+      write( log_scratch_space, '(A,I0)' ) 'End of timestep ', clock%get_step()
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
-      call log_event( &
-      '\****************************************************************************/ ', &
-      LOG_LEVEL_INFO )
+      write(log_scratch_space, '("\", A, "/ ")') repeat('*', 76)
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
       ! Output wind and density values.
-      if ( (mod( timestep, diagnostic_frequency ) == 0) .and. write_diag ) then
+      if ( (mod( clock%get_step(), diagnostic_frequency ) == 0) &
+           .and. write_diag ) then
 
-        call write_vector_diagnostic('wind', wind_n, timestep, mesh_id, nodal_output_on_w3)
-        call write_scalar_diagnostic('density', density, timestep, mesh_id, nodal_output_on_w3)
-        call write_scalar_diagnostic('wind_divergence', wind_divergence, timestep,    &
-                                      mesh_id, nodal_output_on_w3)
+        call write_vector_diagnostic( 'wind', wind_n,                     &
+                                      clock, mesh_id, nodal_output_on_w3)
+        call write_scalar_diagnostic( 'density', density,                 &
+                                      clock, mesh_id, nodal_output_on_w3)
+        call write_scalar_diagnostic( 'wind_divergence', wind_divergence, &
+                                      clock, mesh_id, nodal_output_on_w3)
 
       end if
 
-    end do
+    end do ! while clock%is_running()
 
     nullify( detj_at_w2, detj_at_w2_shifted, cell_orientation, &
              cell_orientation_shifted )

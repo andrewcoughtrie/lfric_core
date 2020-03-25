@@ -8,19 +8,20 @@
 !>  @details Holds all routines for writing LFRic fields
 module write_methods_mod
 
-  use constants_mod,                 only: i_def, dp_xios, &
-                                           str_max_filename
-  use field_mod,                     only: field_type, field_proxy_type
-  use field_collection_mod,          only: field_collection_type, &
-                                           field_collection_iterator_type
-  use field_parent_mod,              only: field_parent_type
-  use files_config_mod,              only: checkpoint_stem_name
-  use fs_continuity_mod,             only: W3
-  use io_mod,                        only: ts_fname
-  use integer_field_mod,             only: integer_field_type
-  use log_mod,                       only: log_event,         &
-                                           log_scratch_space, &
-                                           LOG_LEVEL_INFO
+  use clock_mod,            only: clock_type
+  use constants_mod,        only: i_def, dp_xios, &
+                                  str_max_filename
+  use field_mod,            only: field_type, field_proxy_type
+  use field_collection_mod, only: field_collection_type, &
+                                  field_collection_iterator_type
+  use field_parent_mod,     only: field_parent_type
+  use files_config_mod,     only: checkpoint_stem_name
+  use fs_continuity_mod,    only: W3
+  use io_mod,               only: ts_fname
+  use integer_field_mod,    only: integer_field_type
+  use log_mod,              only: log_event,         &
+                                  log_scratch_space, &
+                                  LOG_LEVEL_INFO
   use xios
 
   implicit none
@@ -369,14 +370,15 @@ end subroutine write_state
 !> @brief   Write a checkpoint from a collection of fields
 !> @details Iterate over a field collection and checkpoint each field
 !>          if it is enabled for checkpointing
-!>@param[in] state - a collection of fields to checkpoint
-!>@param[in] timestep the current timestep
-subroutine write_checkpoint(state, timestep)
+!>@param[in] state Fields to checkpoint.
+!>@param[in] clock Model time
+!>
+subroutine write_checkpoint( state, clock )
 
   implicit none
 
   type(field_collection_type), intent(inout) :: state
-  integer(i_def),              intent(in)    :: timestep
+  class(clock_type),           intent(in)    :: clock
 
   type(field_collection_iterator_type) :: iter
 
@@ -389,13 +391,16 @@ subroutine write_checkpoint(state, timestep)
     select type(fld)
       type is (field_type)
         if ( fld%can_checkpoint() ) then
-          write(log_scratch_space,'(3A,I6)') &
-                "Checkpointing ", trim(adjustl(fld%get_name())), &
-                " at timestep ", timestep
+          write(log_scratch_space,'(2A)') &
+                "Checkpointing ", trim(adjustl(fld%get_name()))
           call log_event(log_scratch_space, LOG_LEVEL_INFO)
-          call fld%write_checkpoint( "checkpoint_"//trim(adjustl(fld%get_name())), &
-                                     trim(ts_fname(checkpoint_stem_name, "",       &
-                                     trim(adjustl(fld%get_name())),timestep,"")) )
+          call fld%write_checkpoint( "checkpoint_"                       &
+                                     // trim(adjustl(fld%get_name())),   &
+                                     trim(ts_fname(checkpoint_stem_name, &
+                                                   "",                   &
+                                                   trim(adjustl(fld%get_name())), &
+                                                   clock%get_step(),     &
+                                                   "")) )
         else
 
           call log_event( 'Checkpointing for  '// trim(adjustl(fld%get_name())) // &

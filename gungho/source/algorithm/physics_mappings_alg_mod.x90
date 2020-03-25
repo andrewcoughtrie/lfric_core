@@ -63,8 +63,9 @@ contains
                                              geometry_spherical
     use convert_hdiv_field_kernel_mod, only: convert_hdiv_field_kernel_type
     use nodal_coordinates_kernel_mod,  only: nodal_coordinates_kernel_type
-    use psykal_lite_mod,               only: invoke_convert_cart2sphere_vector
+    use psykal_builtin_light_mod,      only: invoke_convert_cart2sphere_vector
     use runtime_constants_mod,         only: get_coordinates
+
     implicit none
 
     ! Prognostic fields

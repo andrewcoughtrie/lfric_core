@@ -7,6 +7,7 @@
 !> @details Creates the physics prognostic fields
 module create_physics_prognostics_mod
 
+  use clock_mod,                      only : clock_type
   use constants_mod,                  only : i_def, l_def
   use field_mod,                      only : field_type,                       &
                                              write_interface,                  &
@@ -37,7 +38,7 @@ module create_physics_prognostics_mod
                                              convection, convection_um
   use cloud_config_mod,               only : scheme, &
                                              scheme_pc2
-  use time_config_mod,                only : timestep_start, timestep_end
+
   implicit none
 
   private
@@ -47,9 +48,9 @@ contains
   !>@brief Routine to initialise the field objects required by the physics
   !> @param[in]    mesh_id The identifier given to the current 3d mesh
   !> @param[in]    twod_mesh_id The identifier given to the current 2d mesh
-  !> @param[inout] depository Main collection of all fields in memory
-  !> @param[inout] prognostic_fields A collection of the fields that make up the
-  !>                                 prognostic variables in the model
+  !> @param[in]    clock Model time.
+  !> @param[in,out] depository Main collection of all fields in memory
+  !> @param[in,out] prognostic_fields The prognostic variables in the model
   !> @param[out]   derived_fields Collection of FD fields derived from FE fields
   !> @param[out]   radition_fields Collection of fields for radiation scheme
   !> @param[out]   microphysics_fields Collection of fields for microphys scheme
@@ -61,26 +62,28 @@ contains
   !> @param[out]   soil_fields Collection of fields for soil hydrology scheme
   !> @param[out]   snow_fields Collection of fields for snow scheme
   !> @param[out]   aerosol_fields Collection of fields for aerosol scheme
-  subroutine create_physics_prognostics( mesh_id,                              &
-                                         twod_mesh_id,                         &
-                                         depository,                           &
-                                         prognostic_fields,                    &
-                                         derived_fields,                       &
-                                         radiation_fields,                     &
-                                         microphysics_fields,                  &
-                                         orography_fields,                     &
-                                         turbulence_fields,                    &
-                                         convection_fields,                    &
-                                         cloud_fields,                         &
-                                         surface_fields,                       &
-                                         soil_fields,                          &
-                                         snow_fields,                          &
+  subroutine create_physics_prognostics( mesh_id,             &
+                                         twod_mesh_id,        &
+                                         clock,               &
+                                         depository,          &
+                                         prognostic_fields,   &
+                                         derived_fields,      &
+                                         radiation_fields,    &
+                                         microphysics_fields, &
+                                         orography_fields,    &
+                                         turbulence_fields,   &
+                                         convection_fields,   &
+                                         cloud_fields,        &
+                                         surface_fields,      &
+                                         soil_fields,         &
+                                         snow_fields,         &
                                          aerosol_fields )
 
     implicit none
 
-    integer(i_def), intent(in) :: mesh_id
-    integer(i_def), intent(in) :: twod_mesh_id
+    integer(i_def),    intent(in) :: mesh_id
+    integer(i_def),    intent(in) :: twod_mesh_id
+    class(clock_type), intent(in) :: clock
 
     ! Collections of fields
     type(field_collection_type), intent(inout) :: depository
@@ -237,12 +240,16 @@ contains
       'lw_heating_rate', wtheta_space, checkpoint_restart_flag )
 
     ! Fields which need checkpointing for radiation timestepping
+    !
+    !> @todo There is probably a better way of handling this test which doesn't
+    !>       involving passing the clock down here.
+    !>
     if (radiation == radiation_socrates) then
       ! Checkpoint unless both the first timestep of this run and the
       ! first timestep of the next run are radiation timesteps
       checkpoint_restart_flag = &
-        mod(timestep_start-1, n_radstep) /= 0 .or. &
-        mod(timestep_end,     n_radstep) /= 0
+        mod(clock%get_first_step()-1, n_radstep) /= 0 .or. &
+        mod(clock%get_last_step(),    n_radstep) /= 0
     else
       checkpoint_restart_flag = .false.
     end if

@@ -12,9 +12,10 @@
 !>          upward flow (i.e. positive z direction with outward normal).
 module vert_conservative_cosmic_alg_mod
 
-  use constants_mod,             only: r_def, i_def
+  use constants_mod,             only: r_def, r_second, i_def
   use field_mod,                 only: field_type
   use function_space_mod,        only: function_space_type
+  use psykal_lite_mod,           only: invoke_vertical_flux_kernel
   use subgrid_config_mod,        only: rho_approximation_constant_subgrid,     &
                                        rho_approximation_constant_positive,    &
                                        rho_approximation_ppm_no_limiter,       &
@@ -22,7 +23,6 @@ module vert_conservative_cosmic_alg_mod
                                        rho_approximation_ppm_positive_monotone
   use subgrid_config_mod,        only: rho_approximation
   use log_mod,                   only: log_event, LOG_LEVEL_ERROR
-  use vertical_flux_kernel_mod,  only: vertical_flux_kernel_type
   use vert_ppm_no_limiter_kernel_mod, only: vert_ppm_no_limiter_kernel_type
 
   implicit none
@@ -48,10 +48,10 @@ contains
 
     implicit none
 
-    type(field_type),    intent(inout)  :: mass_flux_z
-    type(field_type),    intent(in)     :: rho
-    type(field_type),    intent(in)     :: dep_pts
-    real(kind=r_def),    intent(in)     :: dt
+    type(field_type), intent(inout) :: mass_flux_z
+    type(field_type), intent(in)    :: rho
+    type(field_type), intent(in)    :: dep_pts
+    real(r_second),   intent(in)    :: dt
 
     type(field_type) :: a0, a1, a2
     type(function_space_type), pointer :: w3_fs     => null()
@@ -79,7 +79,7 @@ contains
 
     ! Calculate mass flux in one-dimesion.
     ! The integral summation allows for CFL values larger than 1.0.
-    call invoke( vertical_flux_kernel_type(mass_flux_z,dep_pts,rho,a0,a1,a2,dt) )
+    call invoke_vertical_flux_kernel(mass_flux_z,dep_pts,rho,a0,a1,a2,dt)
 
     nullify( w3_fs )
 
