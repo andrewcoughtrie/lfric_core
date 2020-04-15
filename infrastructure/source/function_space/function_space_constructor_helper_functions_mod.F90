@@ -1393,38 +1393,43 @@ contains
   !>          stores them in a master dofmap object. The master dofmap is the
   !>          same as a stencil dofmap of a single dof.
   !>
-  !> @param[in] mesh                  Mesh to define the function space on.
-  !> @param[in] gungho_fs             Enumeration of the function space.
-  !> @param[in] element_order         Polynomial order of the function space.
-  !> @param[in] ndata                 The number of data values to be held
-  !>                                  at each dof location
-  !> @param[in] ncells_2d_with_ghost  Number of 2d cells with ghost cells.
-  !> @param[in] ndof_vert             Number of dofs on vertices.
-  !> @param[in] ndof_edge             Number of dofs on edges.
-  !> @param[in] ndof_face             Number of dofs on faces.
-  !> @param[in] ndof_vol              Number of dofs in volumes.
-  !> @param[in] ndof_cell             Number of dofs associated with a cell.
-  !> @param[out] last_dof_owned       Index of last owned dof for the
-  !>                                  partition.
-  !> @param[out] last_dof_annexed     Index of last annexed dof for the
-  !>                                  partition.
-  !> @param[out] last_dof_halo        Index of last halo dof for the
-  !>                                  partition.
-  !> @param[out] dofmap               Array containing the dofmap indexed by
-  !>                                  cells.
-  !> @param[out] global_dof_id        Global id of dofs.
-  !> @param[out] global_dof_id_2d     Global id of dofs on the 2D
-  !>                                  horizontal domain
+  !> @param[in] mesh                   Mesh to define the function space on.
+  !> @param[in] gungho_fs              Enumeration of the function space.
+  !> @param[in] element_order          Polynomial order of the function space.
+  !> @param[in] ndata                  The number of data values to be held
+  !>                                   at each dof location
+  !> @param[in] ncells_2d_with_ghost   Number of 2d cells with ghost cells.
+  !> @param[in] ndof_vert              Number of dofs on vertices.
+  !> @param[in] ndof_edge              Number of dofs on edges.
+  !> @param[in] ndof_face              Number of dofs on faces.
+  !> @param[in] ndof_vol               Number of dofs in volumes.
+  !> @param[in] ndof_cell              Number of dofs associated with a cell.
+  !> @param[out] last_dof_owned        Index of last owned dof for the
+  !>                                   partition.
+  !> @param[out] last_dof_annexed      Index of last annexed dof for the
+  !>                                   partition.
+  !> @param[out] last_dof_halo         Index of last halo dof for the
+  !>                                   partition.
+  !> @param[out] dofmap                Array containing the dofmap indexed by
+  !>                                   cells.
+  !> @param[out] global_dof_id         Global id of dofs.
+  !> @param[out] global_cell_dof_id_2d Global id of cell dofs on the 2D
+  !>                                   horizontal domain
+  !> @param[out] global_edge_dof_id_2d Global id of edge dofs on the 2D
+  !>                                   horizontal domain
+  !> @param[out] global_vert_dof_id_2d Global id of vertex dofs on the 2D
+  !>                                   horizontal domain
   !>
   subroutine dofmap_setup( mesh, gungho_fs, element_order, ndata, &
                            ncells_2d_with_ghost, &
                            ndof_vert, ndof_edge, ndof_face, &
                            ndof_vol,  ndof_cell, last_dof_owned, &
                            last_dof_annexed, last_dof_halo, dofmap, &
-                           global_dof_id, global_dof_id_2d )
-
+                           global_dof_id, &
+                           global_cell_dof_id_2d, &
+                           global_edge_dof_id_2d, &
+                           global_vert_dof_id_2d )
     implicit none
-
 
     type(mesh_type), intent(in), pointer :: mesh
     integer(i_def),  intent(in) :: gungho_fs
@@ -1442,7 +1447,9 @@ contains
     integer(i_def), intent(out) :: dofmap(ndof_cell,0:ncells_2d_with_ghost)
 
     integer(i_halo_index), intent(out) :: global_dof_id(:)
-    integer(i_def), intent(out)        :: global_dof_id_2d(:)
+    integer(i_def), intent(out)        :: global_cell_dof_id_2d(:)
+    integer(i_def), intent(out)        :: global_edge_dof_id_2d(:)
+    integer(i_def), intent(out)        :: global_vert_dof_id_2d(:)
 
     class(reference_element_type), pointer :: reference_element => null()
 
@@ -1987,25 +1994,62 @@ contains
       end do
     end do
 
-    ! Calculate a globally unique id for each dof on the 2D horizontal part
-    ! of the local domain. Only used for W3 and Wtheta.
+    ! Calculate a globally unique id for the dofs in the volume of each cell
+    ! in the 2D horizontal part of the local domain. This uses cell lookups, so
+    ! will work for all function spaces - even if they don't have cell vol dofs
 
-    global_dof_id_2d(:) = 0_i_def
+    ! loop over local cells
+    do icell=1, mesh%get_last_edge_cell()
+      global_cell_id = mesh % get_gid_from_lid(icell)
+      do m=1, ndata
+        ! The global ids must be 0 based
+        global_cell_dof_id_2d( (icell-1)*ndata + m ) = &
+                          (global_cell_id - 1)*ndata + m - 1
+      end do
+    end do
 
-    if ( element_order==0 .and. (gungho_fs==W3 .or. gungho_fs==WTHETA) ) then
+    ! Calculate a globally unique id for the dofs on the edges of each cell
+    ! in the 2D horizontal part of the local domain - only possible for
+    ! function spaces that (appear to) have 2d edge dofs
+    ! (for the moment, using W2H as an example of such a function space
+    ! - the 2d layer at the half levels appears to have edge dofs).
+    if(element_order==0 .and. gungho_fs==W2H)then
       ! loop over local cells
       do icell=1, mesh%get_last_edge_cell()
-        global_cell_id = mesh % get_gid_from_lid(icell)
-        if (icell == dof_cell_owner(1,icell)) then
-          do m=1, ndata
-            ! The global ids must be 0 based
-            global_dof_id_2d(icell*ndata + (m - 1)) = &
-                              (global_cell_id - 1)*ndata + (m - 1)
-          end do
-        end if
+        ! loop over 2d edges within a cell
+        do iedge=1, mesh%get_nedges_per_cell_2d()
+          if(mesh%is_edge_owned(iedge,icell))then
+            do m=1, ndata
+              global_edge_dof_id_2d(((dofmap(iedge,icell)-1)/(nlayers*ndata))+1) = &
+                 (mesh%get_edge_gid_on_cell(iedge,icell) - 1)*ndata + m - 1
+            end do
+          endif
+        end do
       end do
+    else
+      global_edge_dof_id_2d(:) = -1
     end if
 
+    ! Calculate a globally unique id for the dofs on the vertices of each cell
+    ! in the 2D horizontal part of the local domain - only possible for
+    ! function spaces that have vertex dofs.
+    ! (for the moment, using W0 as an example of such a function space).
+    if(element_order==0 .and. gungho_fs==W0)then
+      ! loop over local cells
+      do icell=1, mesh%get_last_edge_cell()
+        ! loop over 2d vertices within a cell
+        do ivert=1, mesh%get_nverts_per_cell_2d()
+          if(mesh%is_vertex_owned(ivert,icell))then
+            do m=1, ndata
+              global_vert_dof_id_2d(((dofmap(ivert,icell)-1)/((nlayers+1)*ndata))+1) = &
+                 (mesh%get_vert_gid_on_cell(ivert,icell) - 1)*ndata + m - 1
+            end do
+          endif
+        end do
+      end do
+    else
+      global_vert_dof_id_2d(:) = -1
+    end if
 
     if (allocated(dof_column_height)) deallocate( dof_column_height )
     if (allocated(dof_cell_owner))    deallocate( dof_cell_owner )

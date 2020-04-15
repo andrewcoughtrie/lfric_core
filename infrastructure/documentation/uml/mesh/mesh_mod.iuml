@@ -19,6 +19,7 @@ class mesh_mod::mesh_type {
   -ncells_2d_with_ghost : integer
   -nverts_per_2d_cell : integer
   -nverts_per_edge : integer
+  -nedges_per_2d_cell : integer
   -nverts : integer
   -nedges : integer
   -nfaces : integer
@@ -28,6 +29,8 @@ class mesh_mod::mesh_type {
   -nedges_per_cell : integer
   -nfaces_per_cell : integer
   -cell_lid_gid_map : integer[:] <<allocatable>>
+  -vert_on_cell_2d_gid : integer[::] <<allocatable>>
+  -edge_on_cell_2d_gid : integer[::] <<allocatable>>
   -cell_next : integer[::] <<allocatable>>
   -vert_on_cell : integer[::] <<allocatable>>
   -face_on_cell : integer[::] <<allocatable>>
@@ -71,6 +74,7 @@ class mesh_mod::mesh_type {
   +get_nverts_per_cell_2d() : integer
   +get_nverts_per_edge() : integer
   +get_nedges_per_cell() : integer
+  *get_nedges_per_cell_2d() : integer
   +get_nfaces_per_cell() : integer
   +get_cell_gid( <<in>>cell_lid: integer ) : integer
   +get_cell_lid( <<in>>cell_gid: integer ) : integer
@@ -78,6 +82,8 @@ class mesh_mod::mesh_type {
   +get_face_on_cell( <<in>>iface: integer, <<in>>icell: integer ) : integer
   +get_edge_on_cell( <<in>>iedge: integer, <<in>>icell: integer ) : integer
   +get_vert_on_cell( <<in>>ivert: integer, <<in>>icell: integer ) : integer
+  +get_edge_gid_on_cell( <<in>>iedge: integer, <<in>>icell: integer ) : integer
+  +get_vert_gid_on_cell( <<in>>ivert: integer, <<in>>icell: integer ) : integer
   +get_domain_size() : domain_size_type
   +get_domain_top() : real
   +get_dz( <<out>>dz: real[:] )
@@ -87,6 +93,8 @@ class mesh_mod::mesh_type {
   +is_vertex_owned( <<in>>vertex_index: integer, <<in>>cell_lid: integer ) : logical
   +is_edge_owned( <<in>>edge_index: integer, <<in>>cell_lid: integer ) : logical
   +is_cell_owned( <<in>>cell_lid: integer) : integer
+  +get_num_edges_owned_2d() : integer
+  +get_num_verts_owned_2d() : integer
   +get_inner_depth() : integer
   +get_num_cells_inner( <<in>>depth: integer ) : integer
   +get_last_inner_cell( <<in>>depth: integer ) : integer

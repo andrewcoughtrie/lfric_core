@@ -665,7 +665,7 @@ subroutine diagnostic_domain_init(mesh_id, chi)
   allocate(domain_index(num_face_local))
 
   ! Populate domain_index for this rank
-  call proxy_coord_output(1)%vspace%get_global_dof_id_2d(domain_index)
+  call proxy_coord_output(1)%vspace%get_global_cell_dof_id_2d(domain_index)
 
   ! Pass local portion of domain_index
   call xios_set_domain_attr("face_half_levels", &

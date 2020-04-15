@@ -96,6 +96,7 @@ module mesh_mod
 
     integer(i_def) :: nverts_per_2d_cell   ! Number of vertices per face
     integer(i_def) :: nverts_per_edge      ! Number of vertices per edge
+    integer(i_def) :: nedges_per_2d_cell   ! Number of edges per face
 
     ! Local partition 3d-mesh
     integer(i_def) :: nverts               !< Total number of verts in mesh
@@ -117,6 +118,11 @@ module mesh_mod
     ! Map is only for the base level, i.e. the surface level.
     ! The index of the array is taken to be the entities local id.
     integer(i_def), allocatable :: cell_lid_gid_map(:)
+
+    ! Global ids of vertices connected to local 2d cell
+    integer(i_def), allocatable :: vert_on_cell_2d_gid (:,:)
+    ! Global ids o edges connected to local 2d cell.
+    integer(i_def), allocatable :: edge_on_cell_2d_gid (:,:)
 
     !==========================================================================
     ! Connectivities
@@ -202,6 +208,7 @@ module mesh_mod
     procedure, public :: get_nverts_per_cell_2d
     procedure, public :: get_nverts_per_edge
     procedure, public :: get_nedges_per_cell
+    procedure, public :: get_nedges_per_cell_2d
     procedure, public :: get_nfaces_per_cell
     procedure, public :: get_cell_gid
     procedure, public :: get_cell_lid
@@ -209,6 +216,8 @@ module mesh_mod
     procedure, public :: get_face_on_cell
     procedure, public :: get_edge_on_cell
     procedure, public :: get_vert_on_cell
+    procedure, public :: get_edge_gid_on_cell
+    procedure, public :: get_vert_gid_on_cell
     procedure, public :: get_domain_size
     procedure, public :: get_domain_top
     procedure, public :: get_dz
@@ -218,6 +227,8 @@ module mesh_mod
     procedure, public :: is_vertex_owned
     procedure, public :: is_edge_owned
     procedure, public :: is_cell_owned
+    procedure, public :: get_num_edges_owned_2d
+    procedure, public :: get_num_verts_owned_2d
     procedure, public :: get_inner_depth
     procedure, public :: get_num_cells_inner
 
@@ -317,8 +328,6 @@ contains
 
     integer(i_def) :: i, j, counter        ! loop counters
 
-    integer(i_def) :: nedges_per_2d_cell
-
     ! Arrays used in entity ownership calculation - see their names
     ! for a descriptioin of what they actually contain
     integer(i_def), allocatable :: verts( : )
@@ -344,8 +353,6 @@ contains
 
     ! Arrays where the connected entity ids are global ids
     integer(i_def), allocatable :: &
-      vert_on_cell_2d_gid (:,:),   &! Vertices connected to local 2d cell.
-      edge_on_cell_2d_gid (:,:),   &! Edges connected to local 2d cell.
       cell_next_2d_gid    (:,:)     ! Local 2d cell connectivity.
 
     integer(i_def), allocatable :: &
@@ -378,7 +385,7 @@ contains
 
     self%nverts_per_2d_cell = global_mesh%get_nverts_per_cell()
     self%nverts_per_edge = global_mesh%get_nverts_per_edge()
-    nedges_per_2d_cell = global_mesh%get_nedges_per_cell()
+    self%nedges_per_2d_cell = global_mesh%get_nedges_per_cell()
 
     global_mesh_id  = global_mesh%get_id()
     mesh_id_counter = mesh_id_counter+1
@@ -420,40 +427,41 @@ contains
 
     ! Get global mesh statistics to size connectivity arrays
     self%nverts_per_2d_cell = global_mesh%get_nverts_per_cell()
-    nedges_per_2d_cell      = global_mesh%get_nedges_per_cell()
+    self%nedges_per_2d_cell = global_mesh%get_nedges_per_cell()
 
-    self%nverts_per_cell = 2*nedges_per_2d_cell
-    self%nedges_per_cell = 2*nedges_per_2d_cell + self%nverts_per_2d_cell
-    self%nfaces_per_cell = nedges_per_2d_cell + 2
+    self%nverts_per_cell = 2*self%nedges_per_2d_cell
+    self%nedges_per_cell = 2*self%nedges_per_2d_cell + self%nverts_per_2d_cell
+    self%nfaces_per_cell = self%nedges_per_2d_cell + 2
 
     ! Get partition statistics
     max_num_vertices_2d  = self%ncells_2d_with_ghost*self%nverts_per_2d_cell
-    max_num_edges_2d     = self%ncells_2d_with_ghost*nedges_per_2d_cell
+    max_num_edges_2d     = self%ncells_2d_with_ghost*self%nedges_per_2d_cell
 
 
     ! Allocate arrays to hold partition connectivities, as global ids
 
-    allocate( edge_on_cell_2d_gid (nedges_per_2d_cell, &
+    allocate( self%edge_on_cell_2d_gid (self%nedges_per_2d_cell, &
                                    self%ncells_2d_with_ghost) )
 
     ! Get 2d cell lid/gid map
     allocate( self%cell_lid_gid_map(self%ncells_2d_with_ghost) )
 
-    allocate( vert_on_cell_2d_gid (self%nverts_per_2d_cell, self%ncells_2d_with_ghost) )
+    allocate( self%vert_on_cell_2d_gid (self%nverts_per_2d_cell, self%ncells_2d_with_ghost) )
 
     ! Note: Multiple partition, the global ids lid-gid map is required
     !       and cell_next_2d arrays need to be constructed with local
     !       cell ids.
-    allocate( cell_next_2d_gid(nedges_per_2d_cell, self%ncells_2d_with_ghost) )
+    allocate( &
+        cell_next_2d_gid(self%nedges_per_2d_cell, self%ncells_2d_with_ghost) )
 
     do i=1, self%ncells_2d_with_ghost
 
       cell_gid = partition%get_gid_from_lid(i)
       self%cell_lid_gid_map(i) = cell_gid
 
-      call global_mesh%get_vert_on_cell (cell_gid, vert_on_cell_2d_gid(:,i))
-      call global_mesh%get_edge_on_cell (cell_gid, edge_on_cell_2d_gid(:,i))
-      call global_mesh%get_cell_next    (cell_gid, cell_next_2d_gid(:,i))
+      call global_mesh%get_vert_on_cell(cell_gid, self%vert_on_cell_2d_gid(:,i))
+      call global_mesh%get_edge_on_cell(cell_gid, self%edge_on_cell_2d_gid(:,i))
+      call global_mesh%get_cell_next   (cell_gid, cell_next_2d_gid(:,i))
 
     end do
 
@@ -461,14 +469,14 @@ contains
     ! Now get a list of all unique entities in partition (cells/vertices/edges)
     !--------------------------------------------------------------------------
     ! A. Generate cell_next for partition, in local ids
-    allocate( cell_next_2d (nedges_per_2d_cell, self%ncells_2d_with_ghost) )
+    allocate( cell_next_2d (self%nedges_per_2d_cell, self%ncells_2d_with_ghost) )
 
     ! Set default to 0, For missing cells, i.e. at the edge of a partition
     ! there is no cell_next. So default to zero if a cell_next is not found
     cell_next_2d(:,:) = 0
 
     do i=1, self%ncells_2d_with_ghost
-      do j=1, nedges_per_2d_cell
+      do j=1, self%nedges_per_2d_cell
         ! For a 2D cell in the partition, get the each global id of its
         ! adjacent cell.
         cell_gid = cell_next_2d_gid(j,i)
@@ -504,7 +512,7 @@ contains
     do i=1, self%ncells_2d_with_ghost
       do j=1, self%nverts_per_2d_cell
 
-        vert_gid = vert_on_cell_2d_gid(j,i)
+        vert_gid = self%vert_on_cell_2d_gid(j,i)
         vert_gid_present = .false.
 
         do counter=1, n_uniq_verts
@@ -524,8 +532,6 @@ contains
       end do
     end do
 
-    deallocate (vert_on_cell_2d_gid)
-
     allocate(vert_lid_gid_map(n_uniq_verts))
     vert_lid_gid_map(:) = tmp_list(1:n_uniq_verts)
 
@@ -537,15 +543,16 @@ contains
     ! Get global ids of all edges on partition, by looping over the cell-edge
     ! connectivity on the partition.
     allocate( tmp_list(max_num_edges_2d) )
-    allocate( edge_on_cell_2d (nedges_per_2d_cell, self%ncells_2d_with_ghost) )
+    allocate( &
+        edge_on_cell_2d (self%nedges_per_2d_cell, self%ncells_2d_with_ghost) )
 
     n_uniq_edges = 0
 
     do i=1, self%ncells_2d_with_ghost       ! cells in local order in partition
-      do j=1, nedges_per_2d_cell ! edges from that cell
+      do j=1, self%nedges_per_2d_cell ! edges from that cell
 
         ! Get the global id of the edge
-        edge_gid = edge_on_cell_2d_gid(j,i)
+        edge_gid = self%edge_on_cell_2d_gid(j,i)
 
         ! Initialise the flag, we assume this gedge global id has not been
         ! encountered yet
@@ -582,8 +589,6 @@ contains
 
       end do
     end do
-
-    deallocate(edge_on_cell_2d_gid)
 
     self%nedges_2d = n_uniq_edges
 
@@ -626,7 +631,7 @@ contains
                         vertex_coords_2d,                             &
                         is_spherical,                                 &
                         self%nverts_per_2d_cell,                      &
-                        nedges_per_2d_cell,                           &
+                        self%nedges_per_2d_cell,                      &
                         self%nverts_2d,                               &
                         self%nverts,                                  &
                         self%ncells_2d_with_ghost,                    &
@@ -663,14 +668,14 @@ contains
     allocate( &
       self%vertex_ownership (self%nverts_per_2d_cell, self%ncells_2d_with_ghost) )
     allocate( &
-      self%edge_ownership   (nedges_per_2d_cell, self%ncells_2d_with_ghost) )
+      self%edge_ownership   (self%nedges_per_2d_cell, self%ncells_2d_with_ghost) )
     allocate( &
       self%vert_cell_owner  (self%nverts_per_2d_cell, self%ncells_2d_with_ghost) )
     allocate( &
-      self%edge_cell_owner  (nedges_per_2d_cell, self%ncells_2d_with_ghost) )
+      self%edge_cell_owner  (self%nedges_per_2d_cell, self%ncells_2d_with_ghost) )
 
     allocate( verts (self%nverts_per_2d_cell) )
-    allocate( edges (nedges_per_2d_cell) )
+    allocate( edges (self%nedges_per_2d_cell) )
 
     do i=1, self%ncells_2d_with_ghost
       ! Vertex ownership
@@ -689,7 +694,7 @@ contains
 
       ! Edge ownership
       call global_mesh%get_edge_on_cell(partition%get_gid_from_lid(i), edges)
-      do j=1, nedges_per_2d_cell
+      do j=1, self%nedges_per_2d_cell
         self%edge_cell_owner(j,i) = partition%get_lid_from_gid( &
                                    global_mesh%get_edge_cell_owner( edges(j) ) )
 
@@ -710,7 +715,7 @@ contains
         allocate ( self%mesh_maps, source = mesh_map_collection_type() )
 
     if ( .not. allocated(self%face_id_in_adjacent_cell) )           &
-      allocate ( self%face_id_in_adjacent_cell( nedges_per_2d_cell, &
+      allocate ( self%face_id_in_adjacent_cell( self%nedges_per_2d_cell, &
                                                 self%ncells_2d_with_ghost) )
 
     call calc_face_id_in_adjacent_cell(                                                 &
@@ -752,8 +757,6 @@ contains
     if (allocated( tmp_list) )     deallocate(tmp_list)
     if (allocated( gid_from_lid) ) deallocate(gid_from_lid)
 
-    if (allocated( vert_on_cell_2d_gid )) deallocate(vert_on_cell_2d_gid)
-    if (allocated( edge_on_cell_2d_gid )) deallocate(edge_on_cell_2d_gid)
     if (allocated( cell_next_2d_gid ))    deallocate(cell_next_2d_gid)
     if (allocated( vert_lid_gid_map ))    deallocate(vert_lid_gid_map)
 
@@ -989,6 +992,21 @@ contains
 
   end function get_nedges_per_cell
 
+  !> @details This function returns the number of
+  !>          edges per 2d-cell/face on this mesh
+  !> @return  Number of edges per 2d-cell/face on mesh
+  !============================================================================
+  function get_nedges_per_cell_2d(self) result (nedges_per_cell_2d)
+
+    ! Returns number of edges per 2d-cell on this mesh
+
+    implicit none
+    class (mesh_type), intent(in) :: self
+    integer(i_def)                :: nedges_per_cell_2d
+
+    nedges_per_cell_2d = self%nedges_per_2d_cell
+
+  end function get_nedges_per_cell_2d
 
   !> @details This function returns the number
   !>          of faces per 3d-cell on this et-mesh
@@ -1095,6 +1113,49 @@ contains
     vert_lid = self%vert_on_cell(ivert, icell)
 
   end function get_vert_on_cell
+
+
+  !> @details This function returns the global edge id on the local cell
+  !> @param [in] iedge    The index of the edge whose global id is requested
+  !> @param [in] icell    The local id of the cell on which the edge is located
+  !> @return              Global id of edge on index iedge of cell with
+  !>                      local id icell
+  !============================================================================
+  function get_edge_gid_on_cell(self, iedge, icell) result (edge_gid)
+
+    ! Return global edge id on local cell
+
+    implicit none
+    class(mesh_type), intent(in) :: self
+    integer(i_def),   intent(in) :: iedge   ! Index of edge required
+    integer(i_def),   intent(in) :: icell   ! Local cell id
+    integer(i_def)               :: edge_gid
+
+    edge_gid = self%edge_on_cell_2d_gid(iedge, icell)
+
+  end function get_edge_gid_on_cell
+
+
+  !> @details This function returns the global vertex id on the local cell
+  !> @param [in] ivert    The index of the vertex whose global id is requested
+  !> @param [in] icell    The local id of the cell on which the vertex
+  !>                      is located
+  !> @return              Global id of vertex on index ivert of cell with
+  !>                      local id icell
+  !============================================================================
+  function get_vert_gid_on_cell(self, ivert, icell) result (vert_gid)
+
+    ! Returns global vertex id on local cell
+
+    implicit none
+    class(mesh_type), intent(in) :: self
+    integer(i_def),   intent(in) :: ivert   ! Index of vertex required
+    integer(i_def),   intent(in) :: icell   ! Local cell id
+    integer(i_def)               :: vert_gid
+
+    vert_gid = self%vert_on_cell_2d_gid(ivert, icell)
+
+  end function get_vert_gid_on_cell
 
 
   !> @details This function returns the number of cells in the horizontal
@@ -1481,6 +1542,56 @@ contains
          self%partition%get_local_rank())    owned = .true.
 
   end function is_cell_owned
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Returns the number of edges owned by the local partition.
+  !>
+  !> @return Number of edges owned by the local partition.
+  !>
+  function get_num_edges_owned_2d( self ) result (num_owned_edges)
+
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+    integer(i_def)               :: num_owned_edges
+
+    integer(i_def) :: icell
+    integer(i_def) :: iedge
+
+    num_owned_edges = 0
+    do icell=1, self%get_last_edge_cell()
+      do iedge=1, self%get_nedges_per_cell_2d()
+        if ( self%get_edge_cell_owner( iedge, icell ) == icell) &
+                                    num_owned_edges = num_owned_edges + 1
+      end do
+    end do
+
+  end function get_num_edges_owned_2d
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Returns the number of vertices owned by the local partition.
+  !>
+  !> @return Number of vertices owned by the local partition.
+  !>
+  function get_num_verts_owned_2d( self ) result (num_owned_verts)
+
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+    integer(i_def)               :: num_owned_verts
+
+    integer(i_def) :: icell
+    integer(i_def) :: ivert
+
+    num_owned_verts = 0
+    do icell=1, self%get_last_edge_cell()
+      do ivert=1, self%get_nverts_per_cell_2d()
+        if ( self%get_vertex_cell_owner( ivert, icell ) == icell) &
+                                    num_owned_verts = num_owned_verts + 1
+      end do
+    end do
+
+  end function get_num_verts_owned_2d
 
   !> Returns the maximum depth of the inner halos from the partition object
   !> @return inner_halo_depth The maximum depth of the inner halo cells
@@ -2290,6 +2401,8 @@ contains
     self%nverts_per_cell = 8
     self%nedges_per_cell = 12
     self%nfaces_per_cell = 6
+    self%nverts_per_2d_cell = 4
+    self%nedges_per_2d_cell = 4
     self%ncells_global_mesh = 9
     self%ncolours        = -1  ! Initialise ncolours to error status
 
@@ -2341,8 +2454,10 @@ contains
     allocate( self%cell_next         ( self%nfaces_per_cell, self%ncells) )
     allocate( self%cell_lid_gid_map  ( self%ncells_2d) )
     allocate( self%vert_on_cell      ( self%nverts_per_cell, self%ncells) )
+    allocate( self%vert_on_cell_2d_gid(self%nverts_per_2d_cell, self%ncells_2d) )
     allocate( self%face_on_cell      ( self%nfaces_per_cell, self%ncells_2d) )
     allocate( self%edge_on_cell      ( self%nedges_per_cell, self%ncells_2d) )
+    allocate( self%edge_on_cell_2d_gid(self%nedges_per_2d_cell, self%ncells_2d) )
     allocate( self%vertex_coords     ( 3, self%nverts) )
 
     allocate( self%vert_cell_owner   ( nverts_per_2d_cell, self%ncells_2d ) )
@@ -2532,6 +2647,8 @@ contains
       self%vert_on_cell(:,44) = [73, 75, 79, 77, 89, 91, 95, 93]
       self%vert_on_cell(:,45) = [75, 76, 80, 79, 91, 92, 96, 95]
 
+      self%vert_on_cell_2d_gid(:,:) = self%vert_on_cell(1:4,1:9)
+
       !=========================================================
       ! Assign edge local ids on cell edges
       !
@@ -2559,6 +2676,16 @@ contains
       self%edge_on_cell(:,7) = [47, 33, 49, 51, 36, 35, 53, 54, 48, 34, 50, 52]
       self%edge_on_cell(:,8) = [49, 39, 55, 57, 35, 41, 59, 53, 50, 40, 56, 58]
       self%edge_on_cell(:,9) = [55, 44, 60, 62, 41, 46, 64, 59, 56, 45, 61, 63]
+
+      self%edge_on_cell_2d_gid(:,1) = [ 1,  2,  3,  4]
+      self%edge_on_cell_2d_gid(:,2) = [ 3,  5,  6,  7]
+      self%edge_on_cell_2d_gid(:,3) = [ 6,  8,  9, 10]
+      self%edge_on_cell_2d_gid(:,4) = [11,  4, 12, 13]
+      self%edge_on_cell_2d_gid(:,5) = [12,  7, 14, 15]
+      self%edge_on_cell_2d_gid(:,6) = [14, 10, 16, 17]
+      self%edge_on_cell_2d_gid(:,7) = [18, 13, 19, 20]
+      self%edge_on_cell_2d_gid(:,8) = [19, 15, 21, 22]
+      self%edge_on_cell_2d_gid(:,9) = [21, 17, 23, 24]
 
       !=========================================================
       ! Assign face local ids on cell sides
@@ -2892,6 +3019,8 @@ contains
       self%vert_on_cell(:,26) = [25, 27, 23, 20, 34, 36, 32, 29]
       self%vert_on_cell(:,27) = [27, 26, 19, 23, 36, 35, 28, 32]
 
+      self%vert_on_cell_2d_gid(:,:) = self%vert_on_cell(1:4,1:9)
+
       !=========================================================
       ! Assign edge local ids on cell edges
       !
@@ -2920,6 +3049,15 @@ contains
       self%edge_on_cell(:,8) = [42, 35, 44, 13, 31, 37, 19, 10, 43, 36, 45, 14]
       self%edge_on_cell(:,9) = [44, 38, 40, 21, 37, 32,  9, 19, 45, 39, 41, 22]
 
+      self%edge_on_cell_2d_gid(:,1) = [ 1,  2,  3,  4]
+      self%edge_on_cell_2d_gid(:,2) = [ 3,  5,  6,  7]
+      self%edge_on_cell_2d_gid(:,3) = [ 6,  8,  1,  9]
+      self%edge_on_cell_2d_gid(:,4) = [10,  4, 11, 12]
+      self%edge_on_cell_2d_gid(:,5) = [11,  7, 13, 14]
+      self%edge_on_cell_2d_gid(:,6) = [13,  9, 10, 15]
+      self%edge_on_cell_2d_gid(:,7) = [16, 12, 17,  2]
+      self%edge_on_cell_2d_gid(:,8) = [17, 14, 18,  5]
+      self%edge_on_cell_2d_gid(:,9) = [18, 15, 16,  8]
 
       !=========================================================
       ! Assign face local ids on cell sides

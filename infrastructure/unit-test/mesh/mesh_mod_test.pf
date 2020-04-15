@@ -235,8 +235,18 @@ contains
     @assertEqual ( 16, test_integer )
 
     !-------------------------------------------------------------------
+    ! Test get_num_verts_owned_2d
+    test_integer = mesh_1%get_num_verts_owned_2d()
+    @assertEqual ( 16, test_integer )
+
+    !-------------------------------------------------------------------
     ! Test get_nedges_2d
     test_integer = mesh_1%get_nedges_2d()
+    @assertEqual ( 24, test_integer )
+
+    !-------------------------------------------------------------------
+    ! Test get_num_edges_owned_2d
+    test_integer = mesh_1%get_num_edges_owned_2d()
     @assertEqual ( 24, test_integer )
 
     !-------------------------------------------------------------------
@@ -265,9 +275,19 @@ contains
     @assertEqual ( 8, test_integer )
 
     !-------------------------------------------------------------------
+    ! Test get_nverts_per_cell_2d
+    test_integer = mesh_1%get_nverts_per_cell_2d()
+    @assertEqual ( 4, test_integer )
+
+    !-------------------------------------------------------------------
     ! Test get_nedges_per_cell
     test_integer = mesh_1%get_nedges_per_cell()
     @assertEqual ( 12, test_integer )
+
+    !-------------------------------------------------------------------
+    ! Test get_nedges_per_cell_2d
+    test_integer = mesh_1%get_nedges_per_cell_2d()
+    @assertEqual ( 4, test_integer )
 
     !-------------------------------------------------------------------
     ! Test get_nfaces_per_cell
@@ -301,6 +321,16 @@ contains
     @assertEqual ( 39, test_integer )
 
     !-------------------------------------------------------------------
+    ! Test get_vert_on_cell()
+    test_integer = mesh_1%get_vert_on_cell( 2, 7 )
+    @assertEqual ( 9, test_integer )
+
+    !-------------------------------------------------------------------
+    ! Test get_vert_gid_on_cell()
+    test_integer = mesh_1%get_vert_gid_on_cell( 1, 6 )
+    @assertEqual ( 7, test_integer )
+
+    !-------------------------------------------------------------------
     ! Test get_edge_on_cell()
     test_integer = mesh_1%get_edge_on_cell( 1, 5 )
     @assertEqual ( 31, test_integer )
@@ -316,6 +346,11 @@ contains
 
     test_integer = mesh_1%get_edge_on_cell( 6, 9 )
     @assertEqual ( 46, test_integer )
+
+    !-------------------------------------------------------------------
+    ! Test get_edge_gid_on_cell()
+    test_integer = mesh_1%get_edge_gid_on_cell( 4, 5 )
+    @assertEqual ( 16, test_integer )
 
   end subroutine test_get_scalar
 

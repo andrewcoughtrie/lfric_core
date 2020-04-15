@@ -256,7 +256,14 @@ contains
     integer(i_def) :: test_dim_space_diff
 
     integer :: cell
-    integer(i_def) :: fs_id
+    integer(i_def) :: fs_id, ndat
+
+    integer(i_def) :: global_cell_dof_id_2d(9)
+    integer(i_def) :: known_global_cell_dof_id_2d(9)
+    integer(i_def) :: global_edge_dof_id_2d(18)
+    integer(i_def) :: known_global_edge_dof_id_2d(18)
+    integer(i_def) :: global_vert_dof_id_2d(9)
+    integer(i_def) :: known_global_vert_dof_id_2d(9)
 
     qr = quadrature_xyoz_type(3, quadrature_rule)
     qr_proxy = qr%get_quadrature_proxy()
@@ -347,19 +354,47 @@ contains
                                               xp, zp )
     @assertEqual(basis_diff_function, this%test_diff_basis, margin)
 
+    ! check unique 2d dof ids are as expected - for cell volumes
+    known_global_cell_dof_id_2d=[0,1,2,3,4,5,6,7,8]
+    call  test_fs%get_global_cell_dof_id_2d(global_cell_dof_id_2d)
+    @assertEqual(known_global_cell_dof_id_2d, global_cell_dof_id_2d)
+
+    ! check unique 2d dof ids are as expected - for edges
+    if(this%function_space == W2H)then
+      known_global_edge_dof_id_2d=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]
+      call  test_fs%get_global_edge_dof_id_2d(global_edge_dof_id_2d)
+      @assertEqual(known_global_edge_dof_id_2d, global_edge_dof_id_2d)
+    else
+      known_global_edge_dof_id_2d(:) = -1
+      call  test_fs%get_global_edge_dof_id_2d(global_edge_dof_id_2d)
+      @assertEqual(known_global_edge_dof_id_2d, global_edge_dof_id_2d)
+    end if
+
+    ! check unique 2d dof ids are as expected - for vertices
+    if(this%function_space == W0)then
+      known_global_vert_dof_id_2d=[0,1,2,3,4,5,6,7,8]
+      call  test_fs%get_global_vert_dof_id_2d(global_vert_dof_id_2d)
+      @assertEqual(known_global_vert_dof_id_2d, global_vert_dof_id_2d)
+    else
+      known_global_vert_dof_id_2d(:) = -1
+      call  test_fs%get_global_vert_dof_id_2d(global_vert_dof_id_2d)
+      @assertEqual(known_global_vert_dof_id_2d, global_vert_dof_id_2d)
+    end if
+
     call test_fs%clear()
 
     ! Now test multidata function spaces
+    ndat = 4
     test_fs = function_space_type( this%mesh_id,  &
                                    element_order, &
                                    this%function_space, &
-                                   ndata=3 )
+                                   ndata=ndat )
 
-    @assertEqual( 3, test_fs%get_ndata() )
+    @assertEqual( ndat, test_fs%get_ndata() )
 
     ! Test we have the right number of dofs in the multi-data field.
     ! In this serial test, last owned, annexed and halo dof will all be the same
-    @assertEqual( 3*this%ndof_glob, test_fs%get_last_dof_owned()    )
+    @assertEqual( ndat*this%ndof_glob, test_fs%get_last_dof_owned()    )
 
     call test_fs%clear()
     nullify( xp, zp, nodal_coords, dofmap, basis_function,&

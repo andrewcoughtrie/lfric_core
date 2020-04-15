@@ -138,8 +138,16 @@ type, extends(linked_list_data_type), public :: function_space_type
   integer(i_halo_index), allocatable :: global_dof_id(:)
 
   !> A one dimensional, allocatable array which holds a unique global index for
-  !> dofs in the 2D horizontal portion of the local domain
-  integer(i_def), allocatable :: global_dof_id_2d(:)
+  !> cell dofs in the 2D horizontal portion of the local domain
+  integer(i_def), allocatable :: global_cell_dof_id_2d(:)
+
+  !> A one dimensional, allocatable array which holds a unique global index for
+  !> edge dofs in the 2D horizontal portion of the local domain
+  integer(i_def), allocatable :: global_edge_dof_id_2d(:)
+
+  !> A one dimensional, allocatable array which holds a unique global index for
+  !> vertex dofs in the 2D horizontal portion of the local domain
+  integer(i_def), allocatable :: global_vert_dof_id_2d(:)
 
   !> The index within the dofmap of the last "owned" dof
   integer(i_def) :: last_dof_owned
@@ -297,9 +305,17 @@ contains
   !> Gets the array that holds the global indices of all dofs
   procedure get_global_dof_id
 
-  !> Gets the array that holds the global indices of all dofs
+  !> Gets the array that holds the global indices of all cell dofs
   !> in 2D horizontal domain
-  procedure get_global_dof_id_2d
+  procedure get_global_cell_dof_id_2d
+
+  !> Gets the array that holds the global indices of all edge dofs
+  !> in 2D horizontal domain
+  procedure get_global_edge_dof_id_2d
+
+  !> Gets the array that holds the global indices of all vertex dofs
+  !> in 2D horizontal domain
+  procedure get_global_vert_dof_id_2d
 
   !> Gets the index within the dofmap of the last "owned" dof
   procedure get_last_dof_owned
@@ -491,7 +507,14 @@ subroutine init_function_space( self )
                                , 0:ncells_2d_with_ghost ) )
 
   allocate( self%global_dof_id ( self%ndof_glob*self%ndata ) )
-  allocate( self%global_dof_id_2d ( self%mesh%get_last_edge_cell()*self%ndata) )
+  allocate( &
+    self%global_cell_dof_id_2d( self%mesh%get_last_edge_cell()*self%ndata ) )
+
+  allocate( &
+    self%global_edge_dof_id_2d( self%mesh%get_num_edges_owned_2d()*self%ndata ) )
+
+  allocate( &
+    self%global_vert_dof_id_2d( self%mesh%get_num_verts_owned_2d()*self%ndata ) )
 
   allocate( self%last_dof_halo ( self%mesh % get_halo_depth()) )
 
@@ -500,8 +523,10 @@ subroutine init_function_space( self )
                       self%ndof_vert, self%ndof_edge, self%ndof_face,      &
                       self%ndof_vol,  self%ndof_cell, self%last_dof_owned, &
                       self%last_dof_annexed, self%last_dof_halo, dofmap,   &
-                      self%global_dof_id, self%global_dof_id_2d )
-
+                      self%global_dof_id, &
+                      self%global_cell_dof_id_2d, &
+                      self%global_edge_dof_id_2d, &
+                      self%global_vert_dof_id_2d )
 
   self%master_dofmap = master_dofmap_type( dofmap )
 
@@ -1041,20 +1066,52 @@ subroutine get_global_dof_id(self, global_dof_id)
 end subroutine get_global_dof_id
 
 !-----------------------------------------------------------------------------
-! Gets the array that holds the global indices of all dofs in 2D
+! Gets the array that holds the global indices of cell dofs in 2D
 ! Horizontal domain
 !-----------------------------------------------------------------------------
-subroutine get_global_dof_id_2d(self, global_dof_id_2d)
+subroutine get_global_cell_dof_id_2d(self, global_cell_dof_id_2d)
 
   implicit none
-  class(function_space_type) :: self
+  class(function_space_type), intent(in) :: self
 
-  integer(i_def) :: global_dof_id_2d(:)
+  integer(i_def), intent(out) :: global_cell_dof_id_2d(:)
 
-  global_dof_id_2d(:) = self%global_dof_id_2d(:)
+  global_cell_dof_id_2d(:) = self%global_cell_dof_id_2d(:)
 
   return
-end subroutine get_global_dof_id_2d
+end subroutine get_global_cell_dof_id_2d
+
+!-----------------------------------------------------------------------------
+! Gets the array that holds the global indices of edge dofs in 2D
+! Horizontal domain
+!-----------------------------------------------------------------------------
+subroutine get_global_edge_dof_id_2d(self, global_edge_dof_id_2d)
+
+  implicit none
+  class(function_space_type), intent(in) :: self
+
+  integer(i_def), intent(out) :: global_edge_dof_id_2d(:)
+
+  global_edge_dof_id_2d(:) = self%global_edge_dof_id_2d(:)
+
+  return
+end subroutine get_global_edge_dof_id_2d
+
+!-----------------------------------------------------------------------------
+! Gets the array that holds the global indices of vertex dofs in 2D
+! Horizontal domain
+!-----------------------------------------------------------------------------
+subroutine get_global_vert_dof_id_2d(self, global_vert_dof_id_2d)
+
+  implicit none
+  class(function_space_type), intent(in) :: self
+
+  integer(i_def), intent(out) :: global_vert_dof_id_2d(:)
+
+  global_vert_dof_id_2d(:) = self%global_vert_dof_id_2d(:)
+
+  return
+end subroutine get_global_vert_dof_id_2d
 
 !-----------------------------------------------------------------------------
 ! Gets the index within the dofmap of the last "owned" dof
@@ -1241,18 +1298,23 @@ subroutine clear(self)
 
   class (function_space_type), intent(inout) :: self
 
-  if (allocated(self%entity_dofs))       deallocate( self%entity_dofs )
-  if (allocated(self%nodal_coords))      deallocate( self%nodal_coords )
-  if (allocated(self%basis_order))       deallocate( self%basis_order )
-  if (allocated(self%basis_index))       deallocate( self%basis_index )
-  if (allocated(self%basis_vector))      deallocate( self%basis_vector )
-  if (allocated(self%basis_x))           deallocate( self%basis_x )
-  if (allocated(self%global_dof_id))     deallocate( self%global_dof_id )
-  if (allocated(self%global_dof_id_2d))  deallocate( self%global_dof_id_2d )
-  if (allocated(self%last_dof_halo))     deallocate( self%last_dof_halo )
-  if (allocated(self%fractional_levels)) deallocate( self%fractional_levels )
+  if (allocated(self%entity_dofs))      deallocate( self%entity_dofs )
+  if (allocated(self%nodal_coords))     deallocate( self%nodal_coords )
+  if (allocated(self%basis_order))      deallocate( self%basis_order )
+  if (allocated(self%basis_index))      deallocate( self%basis_index )
+  if (allocated(self%basis_vector))     deallocate( self%basis_vector )
+  if (allocated(self%basis_x))          deallocate( self%basis_x )
+  if (allocated(self%global_dof_id))    deallocate( self%global_dof_id )
+  if (allocated(self%global_cell_dof_id_2d)) &
+                                        deallocate( self%global_cell_dof_id_2d )
+  if (allocated(self%global_edge_dof_id_2d)) &
+                                        deallocate( self%global_edge_dof_id_2d )
+  if (allocated(self%global_vert_dof_id_2d)) &
+                                        deallocate( self%global_vert_dof_id_2d )
+  if (allocated(self%last_dof_halo))    deallocate( self%last_dof_halo )
+  if (allocated(self%fractional_levels))deallocate( self%fractional_levels )
   if (allocated(self%dof_on_vert_boundary)) &
-                                         deallocate( self%dof_on_vert_boundary )
+                                        deallocate( self%dof_on_vert_boundary )
   call self%master_dofmap%clear()
   call self%dofmap_list%clear()
 
