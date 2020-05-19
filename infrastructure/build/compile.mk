@@ -16,9 +16,14 @@
 # ROOT: Project directory
 # BIN_DIR: Path to directory for resulting executables.
 #          Default: $(ROOT)/bin
+# CXX_LINK: Set this macro to have the C++ runtime library linked to the
+#           executable.
 # EXTERNAL_LIBRARIES: Libraries required by link stage. These should be
 #                     specified in static link order, even if you are linking
 #                     dynamically.
+# FFLAG_GROUPS: Space separated list of FFLAG_<group name> variables to use in
+#               building up the FFLAGS variable. Only the group name is
+#               specified.
 # LINK_TYPE: 'static' or 'dynamic' linking.
 #            Default: dynamic, except on Crays where it's static
 # PROGRAMS: Names of programs to compile.
@@ -53,10 +58,15 @@ ALL_OBJECTS = $(foreach proj, $(shell echo $(PROGRAMS) | tr a-z A-Z), $($(proj)_
 -include $(COMPILE_OPTIONS)
 
 .PHONY: applications
+applications: FFLAGS += $(foreach group, $(FFLAG_GROUPS), $(FFLAGS_$(group)))
 applications: $(addprefix $(BIN_DIR)/, $(PROGRAMS))
 
 ##############################################################################
+
 include $(LFRIC_BUILD)/lfric.mk
+include $(LFRIC_BUILD)/fortran.mk
+include $(LFRIC_BUILD)/cxx.mk
+-include $(COMPILE_OPTIONS)
 
 BIN_DIR   ?= $(ROOT)/bin
 
@@ -64,6 +74,10 @@ BIN_DIR   ?= $(ROOT)/bin
 #
 ifdef F_MOD_DESTINATION_ARG
   MODULE_DESTINATION_ARGUMENT = $(F_MOD_DESTINATION_ARG)$(dir $@)
+endif
+
+ifdef CXX_LINK
+  EXTERNAL_DYNAMIC_LIBRARIES += $(CXX_RUNTIME_LIBRARY)
 endif
 
 ifdef CRAY_ENVIRONMENT

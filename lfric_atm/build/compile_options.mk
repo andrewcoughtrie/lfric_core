@@ -4,11 +4,10 @@
 # under which the code may be used.
 ##############################################################################
 
+include $(LFRIC_BUILD)/compile_options.mk
+
 $(info UM physics specific compile options)
 
-science/%.o science/%.mod: export FFLAGS := $(FFLAGS) $(FFLAGS_UM_PHYSICS)
+include $(PROJECT_DIR)/build/fortran/$(FORTRAN_COMPILER).mk
 
-$(info LFRic compile options required for files with OpenMP when using Intel - see Ticket 1490)
-%psy.o %psy.mod:                                     export FFLAGS := $(FFLAGS) $(FFLAGS_INTEL_FIX_ARG)
-psy/%.o psy/%.mod:                                   export FFLAGS := $(FFLAGS) $(FFLAGS_INTEL_FIX_ARG)
-
+science/%.o science/%.mod: export FFLAGS += $(FFLAGS_UM_PHYSICS)

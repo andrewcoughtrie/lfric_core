@@ -59,3 +59,4 @@ MACRO_ARGUMENTS = $(addprefix -macro ,$(PRE_PROCESS_MACROS))
 	$(Q)touch $@
 
 include $(LFRIC_BUILD)/lfric.mk
+include $(LFRIC_BUILD)/fortran.mk

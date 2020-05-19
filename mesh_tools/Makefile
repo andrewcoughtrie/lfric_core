@@ -58,9 +58,6 @@ default: build unit-tests
 
 include $(ROOT_DIR)/infrastructure/build/lfric.mk
 
-export FFLAGS  += $(OPENMP_ARG)
-export LDFLAGS += $(OPENMP_ARG)
-
 ##############################################################################
 # Launch gscan to monitor suites from this suite-group
 #
@@ -84,21 +81,19 @@ test-suite: launch-suite-gscan launch-test-suite
 # Build
 #
 .PHONY: build
-ifeq "$(PROFILE)" "full-debug"
-build: export FFLAGS += $(FFLAGS_DEBUG) $(FFLAGS_WARNINGS) $(FFLAGS_INIT) \
-            $(FFLAGS_RUNTIME) $(FFLAGS_NO_OPTIMISATION) $(STANDARDS_CHECK_ARG)
-else ifeq "$(PROFILE)" "fast-debug"
-build: export FFLAGS += $(FFLAGS_DEBUG) $(FFLAGS_WARNINGS) \
-            $(FFLAGS_SAFE_OPTIMISATION) $(STANDARDS_CHECK_ARG)
-else ifeq "$(PROFILE)" "production"
-build: export FFLAGS += $(FFLAGS_DEBUG) $(FFLAGS_WARNINGS) $(FFLAGS_RISKY_OPTIMISATION)
-else
-  $(error Unrecognised profile "$(PROFILE)". Must be one of full-debug, fast-debug or production)
-endif
 build: BIN_DIR     ?= $(PROJECT_DIR)/bin
 build: PROGRAMS    := $(basename $(notdir $(shell find source -maxdepth 1 -name '*.[Ff]90' -print)))
 build: PROJECT      = mesh_tools
 build: WORKING_DIR := $(WORKING_DIR)/mesh_tools
+ifeq "$(PROFILE)" "full-debug"
+build: export FFLAG_GROUPS = DEBUG WARNINGS INIT RUNTIME NO_OPTIMISATION FORTRAN_STANDARD
+else ifeq "$(PROFILE)" "fast-debug"
+build: export FFLAG_GROUPS = DEBUG WARNINGS SAFE_OPTIMISATION FORTRAN_STANDARD
+else ifeq "$(PROFILE)" "production"
+build: export FFLAG_GROUPS = DEBUG WARNINGS RISKY_OPTIMISATION
+else
+  $(error Unrecognised profile "$(PROFILE)". Must be one of full-debug, fast-debug or production)
+endif
 build: ALWAYS
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
                   SOURCE_DIR=$(LFRIC_INFRASTRUCTURE)/source \
@@ -127,7 +122,7 @@ build: ALWAYS
 unit-tests: export ADDITIONAL_EXTRACTION = $(ROOT_DIR)/infrastructure/source
 unit-tests: export BIN_DIR ?= test
 unit-tests: export EXTERNAL_STATIC_LIBRARIES += pfunit
-unit-tests: export FFLAGS += $(FFLAGS_DEBUG) $(FFLAGS_NO_OPTIMISATION) $(FFLAGS_INIT)
+unit-tests: export FFLAG_GROUPS = DEBUG NO_OPTIMISATION INIT
 unit-tests: export META_FILE_DIR = rose-meta/lfric-mesh_tools/HEAD
 unit-tests: export PROGRAMS = mesh_tools_unit_tests
 unit-tests: export PROJECT = mesh_tools

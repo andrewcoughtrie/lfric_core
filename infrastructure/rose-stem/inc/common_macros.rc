@@ -1,42 +1,26 @@
-{#---------------------------------------------------------------------------#}
-{# Sets up jinja2 dictionary with common variables based on a host family    #}
-{# This is a reasonably compact solution to remove duplication/complexity    #}
-{# from the main suite.rc. It may need to be overhauled at a later date,     #}
-{# that is fine as it main purpose was to remove duplication and clean up    #}
-{# the suite.rc files.                                                       #}
-{%- macro set_hosts_dictionary() %}
-{%-   do hosts_dictionary.update({'LOCAL': {'BASE_SETUP':LOCAL_BASE_SETUP,
-                                            'BUILD_ROOT':LOCAL_BUILD_ROOT,
-                                            'REVEAL_SETUP':LOCAL_REVEAL_SETUP,
-                                            'TECHNICAL_SETUP':LOCAL_TECHNICAL_SETUP}}) -%}
-{%-   do hosts_dictionary.update({'TARGET':{'BASE_SETUP':TARGET_BASE_SETUP,
-                                            'BUILD_ROOT':TARGET_BUILD_ROOT,
-                                            'REVEAL_SETUP':TARGET_REVEAL_SETUP,
-                                            'TECHNICAL_SETUP':TARGET_TECHNICAL_SETUP}}) -%}
-{%- endmacro %}
-
 {# CHECK STYLE MACROS #}
 {#---------------------------------------------------------------------------#}
 {%- macro check_style_graph() %}
-{%-   if 'check_style' in TECHNICAL_DEVELOPER_TESTS %}
+{%-   if 'check_style' in RUN_TECHNICAL %}
     [[[R1]]]
     export_source => check_style
 {%-   endif %}
 {%- endmacro %}
 
-{%- macro check_style_task( host_family ) %}
+{%- macro check_style_task( family, setup ) %}
 {%-   if 'check_style' in scheduledTasks %}
   [[check_style]]
-    inherit = TECHNICAL, {{host_family}}
+    inherit = {{family}}
     pre-script = """
-                 {{'\n'|command_list( hosts_dictionary[host_family]['BASE_SETUP'],
-                                      hosts_dictionary[host_family]['TECHNICAL_SETUP'],
-                                      hosts_dictionary[host_family]['REVEAL_SETUP'])}}
+                 {{ '\n'
+                    | command_list( setup['base'],
+                                    setup['tech'],
+                                    setup['reveal'] ) }}
                  """
     script = stylist -verbose $SOURCE_DIRECTORY
 
     [[[environment]]]
-      PYTHONPATH = $CYLC_SUITE_SHARE_DIR/source/infrastructure/tools/lib-python:$PYTHONPATH
+      PYTHONPATH = $CYLC_SUITE_SHARE_DIR/source/infrastructure/tools/lib-python:${PYTHONPATH:-}
       PATH = $CYLC_SUITE_SHARE_DIR/source/infrastructure/tools/bin:$PATH
 {%-   endif %}
 {%- endmacro %}
@@ -63,16 +47,16 @@
 {# VALIDATE ROSE METADATA MACROS #}
 {#---------------------------------------------------------------------------#}
 {%- macro validate_rose_meta_graph( projectName ) %}
-{%-   if 'validate_metadata' in TECHNICAL_DEVELOPER_TESTS %}
+{%-   if 'validate_metadata' in RUN_TECHNICAL %}
     [[[R1]]]
     export_source => validate_{{projectName}}_rose-meta
 {%-   endif %}
 {%- endmacro %}
 
-{%- macro validate_rose_meta_task( projectName, host_family ) %}
+{%- macro validate_rose_meta_task( projectName, family, setup ) %}
 {%-   if 'validate_' + projectName + '_rose-meta' in scheduledTasks %}
   [[validate_{{projectName}}_rose-meta]]
-    inherit = TECHNICAL, {{host_family}}
+    inherit = {{family}}
     script = $SOURCE_ROOT/bin/validate_rose_meta {{projectName}}
 {%-   endif %}
 {%- endmacro %}
@@ -82,7 +66,7 @@
 {# DESIGN DOCUMENTATION MACROS #}
 {#---------------------------------------------------------------------------#}
 {%- macro design_documentation_graph( publish=False ) %}
-{%-   if 'documentation' in TECHNICAL_DEVELOPER_TESTS %}
+{%-   if 'documentation' in RUN_TECHNICAL %}
     [[[R1]]]
     export_source => design_documentation
 {%-     if publish %}
@@ -92,20 +76,26 @@
 {%-   endif %}
 {%- endmacro %}
 
-{%- macro design_documentation_task(host_family) %}
+
+{#- In order to allow the document generation and publication to appear in
+ #  different family groups this macro takes both as arguments.
+ #
+ #  TODO: There may be a better way to handle this.
+ #}
+{%- macro design_documentation_task(doc_family, pub_family, setup) %}
 {%-   if 'design_documentation' in scheduledTasks %}
   [[design_documentation]]
-    inherit = DOCUMENTATION, TECHNICAL, {{host_family}}
+    inherit = {{doc_family}}
 
     # The sleep is to help mitigate problems with
     # overloaded Lustre filesystems.
     pre-script = """
-                 {{'\n                     '|
-                   command_list( hosts_dictionary[host_family]['BASE_SETUP'],
-                                 hosts_dictionary[host_family]['TECHNICAL_SETUP'],
-                                 hosts_dictionary[host_family]['REVEAL_SETUP'],
-                                 'mkdir -p $DOCUMENT_DIR',
-                                 'sleep 30' )}}
+                 {{ '\n'
+                    | command_list( setup['base'],
+                                    setup['tech'],
+                                    setup['reveal'],
+                                    'mkdir -p $DOCUMENT_DIR',
+                                    'sleep 30' ) }}
                  """
     script = make -C $SOURCE_DIRECTORY document-latex {{verboseMake()}}
 
@@ -116,9 +106,10 @@
       execution retry delays = 2*PT5S, 5*PT10S, 9*PT1M, 5*PT10M, 3*PT1H
 {%-   endif %}
 
+
 {%-   if 'publish_design_documentation' in scheduledTasks %}
   [[publish_design_documentation]]
-    inherit = PUBLISH, TECHNICAL, {{host_family}}
+    inherit = {{pub_family}}
     pre-script = """
                  {{ensureDestination()}}
                  sleep 5
@@ -137,11 +128,10 @@
 {%- endmacro %}
 
 
-
 {# API DOCUMENTATION MACROS #}
 {#---------------------------------------------------------------------------#}
 {%- macro api_documentation_graph( publish=False ) %}
-{%-   if 'documentation' in TECHNICAL_DEVELOPER_TESTS %}
+{%-   if 'documentation' in RUN_TECHNICAL %}
     [[[R1]]]
     export_source => api_documentation
 {%-     if publish %}
@@ -153,16 +143,22 @@
 {%-   endif %}
 {%- endmacro %}
 
-{%- macro api_documentation_task(host_family) %}
+
+{#- In order to allow the document generation and publication to appear in
+ #  different family groups this macro takes both as arguments.
+ #
+ #  TODO: There may be a better way to handle this.
+ #}
+{%- macro api_documentation_task(doc_family, pub_family, doc_setup, pub_target) %}
 {%-   if 'api_documentation' in scheduledTasks %}
   [[api_documentation]]
-    inherit = DOCUMENTATION, TECHNICAL, {{host_family}}
+    inherit = {{doc_family}}
     pre-script = """
-                 {{'\n                     '|
-                   command_list( hosts_dictionary[host_family]['BASE_SETUP'],
-                                 hosts_dictionary[host_family]['TECHNICAL_SETUP'],
-                                 hosts_dictionary[host_family]['REVEAL_SETUP'],
-                                 'mkdir -p $DOCUMENT_DIR' )}}
+                 {{ '\n'
+                    | command_list( doc_setup['base'],
+                                    doc_setup['tech'],
+                                    doc_setup['reveal'],
+                                    'mkdir -p $DOCUMENT_DIR' ) }}
                  """
     script = make -C $SOURCE_DIRECTORY document-api VERBOSE=1
     post-script = """
@@ -175,30 +171,33 @@
       DOCUMENT_DIR = $OUTPUT_ROOT/documents/api
 {%-   endif %}
 
+
 {%-   if 'publish_api_log' in scheduledTasks %}
   [[publish_api_log]]
-    inherit = PUBLISH, TECHNICAL, {{host_family}}
+    inherit = {{pub_family}}
     pre-script = """
                  {{ensureDestination()}}
-                 mkdir -p $DESTINATION_DIRECTORY/api
-                 cd $DESTINATION_DIRECTORY/api
+                 mkdir -p $OUTPUT_DIRECTORY/api
+                 cd $OUTPUT_DIRECTORY/api
                  RELATIVE_DESTINATION_DIRECTORY=`echo $DOCUMENT_DIR | sed "s|$HOME/||"`
-                 scp {{TARGET_HOST}}:$RELATIVE_DESTINATION_DIRECTORY/api.log.path .
-                 scp {{TARGET_HOST}}:$(cat api.log.path).status .
-                 scp {{TARGET_HOST}}:$(cat api.log.path).out .
-                 scp {{TARGET_HOST}}:$(cat api.log.path).err .
+                 scp {{pub_target['hostname']}}:$RELATIVE_DESTINATION_DIRECTORY/api.log.path .
+                 scp {{pub_target['hostname']}}:$(cat api.log.path).status .
+                 scp {{pub_target['hostname']}}:$(cat api.log.path).out .
+                 scp {{pub_target['hostname']}}:$(cat api.log.path).err .
                  """
     script = rose task-run --app-key=publish_doxygen
 
     [[[environment]]]
-      DOCUMENT_DIR = $OUTPUT_ROOT/documents/api
-      LOG_STATUS = $DESTINATION_DIRECTORY/api/job.status
-      LOG_ERR    = $DESTINATION_DIRECTORY/api/job.err
+      DOCUMENT_DIR     = $OUTPUT_ROOT/documents/api
+      LOG_STATUS       = $DESTINATION_DIRECTORY/api/job.status
+      LOG_ERR          = $DESTINATION_DIRECTORY/api/job.err
+      OUTPUT_DIRECTORY = $OUTPUT_ROOT/{{SECONDARY_TARGET['compiler']}}_fast-debug
 {%-   endif %}
+
 
 {%-   if 'publish_api_documentation' in scheduledTasks %}
   [[publish_api_documentation]]
-    inherit = PUBLISH, TECHNICAL, {{host_family}}
+    inherit = {{pub_family}}
     pre-script = """
                  {{ensureDestination()}}
                  """
@@ -211,11 +210,10 @@
 {%- endmacro %}
 
 
-
 {# UML DOCUMENTATION MACROS #}
 {#---------------------------------------------------------------------------#}
 {%- macro uml_documentation_graph( publish=False ) %}
-{%-   if 'documentation' in TECHNICAL_DEVELOPER_TESTS %}
+{%-   if 'documentation' in RUN_TECHNICAL %}
     [[[R1]]]
     export_source => uml_documentation
 {%-     if publish %}
@@ -225,16 +223,22 @@
 {%-   endif %}
 {%- endmacro %}
 
-{%- macro uml_documentation_task(host_family) %}
+
+{#- In order to allow the document generation and publication to appear in
+ #  different family groups this macro takes both as arguments.
+ #
+ #  TODO: There may be a better way to handle this.
+ #}
+{%- macro uml_documentation_task(doc_family, pub_family, setup) %}
 {%-   if 'uml_documentation' in scheduledTasks %}
   [[uml_documentation]]
-    inherit = DOCUMENTATION, TECHNICAL, {{host_family}}
+    inherit = {{doc_family}}
     pre-script = """
-                 {{'\n                     '|
-                   command_list( hosts_dictionary[host_family]['BASE_SETUP'],
-                                 hosts_dictionary[host_family]['TECHNICAL_SETUP'],
-                                 hosts_dictionary[host_family]['REVEAL_SETUP'],
-                                 'mkdir -p $DOCUMENT_DIR' )}}
+                 {{ '\n'
+                    | command_list( setup['base'],
+                                    setup['tech'],
+                                    setup['reveal'],
+                                    'mkdir -p $DOCUMENT_DIR' ) }}
                  """
     script = make -C $SOURCE_DIRECTORY document-uml VERBOSE=1
 
@@ -242,9 +246,10 @@
       DOCUMENT_DIR = $OUTPUT_ROOT/documents/uml
 {%-   endif %}
 
+
 {%-   if 'publish_uml_documentation' in scheduledTasks %}
   [[publish_uml_documentation]]
-    inherit = PUBLISH, TECHNICAL, {{host_family}}
+    inherit = {{pub_family}}
     pre-script = """
                  {{ensureDestination()}}
                  """
@@ -271,14 +276,12 @@
   test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( echo ** Unable to delete "{{directory}}", not writable >&2; false )
 {%- endmacro %}
 
-{# PROCESS NODE MACRO #}
+{# PUBLISH NODE MACRO #}
 {#---------------------------------------------------------------------------#}
-{%- macro processnode_task() %}
+{%- macro publish_node_task(family) %}
 {%- if 'publish_node' in scheduledTasks %}
-    [[PUBLISH]]
-    
     [[publish_node]]
-        inherit = PUBLISH
+        inherit = {{family}}
         script = true
 {%- endif %}
 {%- endmacro %}

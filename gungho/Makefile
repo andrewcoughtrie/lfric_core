@@ -15,8 +15,7 @@ PROFILE ?= fast-debug
 .NOTPARALLEL:
 
 export IGNORE_DEPENDENCIES = netcdf MPI yaxt pfunit_mod xios mod_wait
-export EXTERNAL_DYNAMIC_LIBRARIES = yaxt yaxt_c netcdff netcdf hdf5 \
-                                    $(CXX_RUNTIME_LIBRARY)
+export EXTERNAL_DYNAMIC_LIBRARIES = yaxt yaxt_c netcdff netcdf hdf5
 export EXTERNAL_STATIC_LIBRARIES = xios
 
 LFRIC_TARGET_PLATFORM ?= generic-x86
@@ -43,19 +42,16 @@ documentation doc docs: document-uml document-latex document-api
 
 include $(ROOT_DIR)/infrastructure/build/lfric.mk
 
-export FFLAGS  := $(FFLAGS) $(OPENMP_ARG)
-export LDFLAGS := $(LDFLAGS) $(OPENMP_ARG)
-
-
 ##############################################################################
 # Launch gscan to monitor suites from this suite-group
 #
 .PHONY: launch-suite-gscan
 launch-suite-gscan: gscan_processes := $(shell ps --no-headers -o command -C cylc-gscan)
 launch-suite-gscan: ALWAYS
-	$(Q)-if [[ "$(gscan_processes)" != *"--name=$(SUITE_GROUP_NAME)"* ]]; then \
-          cylc gscan $(DOUBLE_VERBOSE_ARG) --name=$(SUITE_GROUP_NAME) &            \
-          usleep 1                                                                ;\
+	$(Q)-if [[ "$(gscan_processes)" != *"--name=$(SUITE_GROUP_NAME)"* ]]; \
+        then \
+          cylc gscan $(DOUBLE_VERBOSE_ARG) --name=$(SUITE_GROUP_NAME) & \
+          usleep 1;\
         fi
 
 ##############################################################################
@@ -105,43 +101,35 @@ document-api: api-documentation
 # Build
 #
 .PHONY: build
+build: export BIN_DIR     ?= $(PROJECT_DIR)/bin
+build: export CXX_LINK     = TRUE
+build: export PROGRAMS    := $(basename $(notdir $(shell find source -maxdepth 1 -name '*.[Ff]90' -print)))
+build: export WORKING_DIR := $(WORKING_DIR)/gungho
 ifeq "$(PROFILE)" "full-debug"
-build: export FFLAGS += $(FFLAGS_DEBUG) $(FFLAGS_WARNINGS) $(FFLAGS_INIT) \
-            $(FFLAGS_RUNTIME) $(FFLAGS_NO_OPTIMISATION) $(STANDARDS_CHECK_ARG)
+build: export FFLAG_GROUPS = DEBUG WARNINGS INIT RUNTIME NO_OPTIMISATION FORTRAN_STANDARD
 else ifeq "$(PROFILE)" "fast-debug"
-build: export FFLAGS += $(FFLAGS_DEBUG) $(FFLAGS_WARNINGS) \
-            $(FFLAGS_SAFE_OPTIMISATION) $(STANDARDS_CHECK_ARG)
+build: export FFLAG_GROUPS = DEBUG WARNINGS SAFE_OPTIMISATION FORTRAN_STANDARD
 else ifeq "$(PROFILE)" "production"
-build: export FFLAGS += $(FFLAGS_DEBUG) $(FFLAGS_WARNINGS) $(FFLAGS_RISKY_OPTIMISATION)
+build: export FFLAG_GROUPS = DEBUG WARNINGS RISKY_OPTIMISATION
 else
   $(error Unrecognised profile "$(PROFILE)". Must be one of full-debug, fast-debug or production)
 endif
-build: BIN_DIR     ?= $(PROJECT_DIR)/bin
-build: PROGRAMS    := $(basename $(notdir $(shell find source -maxdepth 1 -name '*.[Ff]90' -print)))
-build: WORKING_DIR := $(WORKING_DIR)/gungho
 build: ALWAYS
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
-	          SOURCE_DIR=$(LFRIC_INFRASTRUCTURE)/source \
-	          WORKING_DIR=$(WORKING_DIR)
+	          SOURCE_DIR=$(LFRIC_INFRASTRUCTURE)/source
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone.mk \
-	          SOURCE_DIR=$(LFRIC_INFRASTRUCTURE)/source \
-	          WORKING_DIR=$(WORKING_DIR)
+	          SOURCE_DIR=$(LFRIC_INFRASTRUCTURE)/source
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
-	          SOURCE_DIR=source \
-	          WORKING_DIR=$(WORKING_DIR)
+	          SOURCE_DIR=source
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/configuration.mk \
 	          PROJECT=gungho \
 	          SOURCE_DIR=source \
-	          WORKING_DIR=$(WORKING_DIR) \
                   META_FILE_DIR=$(META_FILE_DIR) \
                   FIX_ENUMS_OPT=$(FIX_ENUMS_OPT)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone.mk \
-	          SOURCE_DIR=source \
-	          WORKING_DIR=$(WORKING_DIR)
+	          SOURCE_DIR=source
 	$Q$(MAKE) $(QUIET_ARG) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/analyse.mk
-	$Q$(MAKE) $(QUIET_ARG) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/compile.mk \
-	          BIN_DIR=$(BIN_DIR) PROGRAMS="$(PROGRAMS)"
-
+	$Q$(MAKE) $(QUIET_ARG) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/compile.mk
 
 ##############################################################################
 # Unit tests
@@ -149,8 +137,9 @@ build: ALWAYS
 .PHONY: unit-tests
 unit-tests: export ADDITIONAL_EXTRACTION = $(ROOT_DIR)/infrastructure/source
 unit-tests: export BIN_DIR ?= $(PROJECT_DIR)/test
+unit-tests: export CXX_LINK = TRUE
 unit-tests: export EXTERNAL_STATIC_LIBRARIES += pfunit
-unit-tests: export FFLAGS += $(FFLAGS_DEBUG) $(FFLAGS_NO_OPTIMISATION) $(FFLAGS_INIT)
+unit-tests: export FFLAG_GROUPS = DEBUG NO_OPTIMISATION INIT
 unit-tests: export META_FILE_DIR = rose-meta/lfric-gungho/HEAD
 unit-tests: export PROGRAMS = gungho_unit_tests
 unit-tests: export PROJECT = gungho

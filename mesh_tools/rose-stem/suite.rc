@@ -1,20 +1,14 @@
 #!jinja2
 
+%include inc/targets.rc
 %include inc/common_macros.rc
 %include inc/suite_macros.rc
 %include suite_control.rc
 
 {# SETUP SOME JINJA2 VARIABLES #}
 {%- set build_profiles = ['fast-debug', 'full-debug', 'production'] %}
-{%- set hosts_dictionary = {} %}
 {%- set rose_suite_gui_headers = [] %}
 {%- set rdef_build_precisions = []  %}
-
-{%- set compiler_setup = {} %}
-{%- for compiler, setup in TARGET_COMPILER_SETUP|batch(2) %}
-{%-   do compiler_setup.update({compiler : [setup]}) %}
-{%- endfor %}
-
 
 {#- #########################################################################}
 
@@ -37,8 +31,6 @@
 {%-   set appPathFragment = '' %}
 {%- endif %}
 
-{{set_hosts_dictionary()}}
-
 [cylc]
   UTC mode = True
   [[events]]
@@ -57,7 +49,7 @@
 
   [[queues]]
     [[[host_throttle]]]
-      limit = {{TARGET_THROTTLE}}
+      limit = {{SUITE_THROTTLE}}
       members = root
     [[dependencies]]
 {%- set scheduledTasks = schedule() | deduplicate_schedule() %}
@@ -115,16 +107,22 @@
       batch system = background
 
   [[TARGET]]
-    inherit = {{TARGET_OPT|upper}}
+    inherit = {{PRIMARY_TARGET['platform']|upper}}
     [[[remote]]]
-      host = {{TARGET_HOST}}
+      host = {{ get_target_property( PRIMARY_TARGET, 'hostname' ) }}
     [[[job]]]
-      batch system = {{TARGET_BATCHER}}
+      batch system = {{ get_target_property( PRIMARY_TARGET, 'batcher' ) }}
 
+  [[TECHNICAL]]
+    [[[remote]]]
+      host = {{ get_target_property(SECONDARY_TARGET, 'hostname') }}
+    [[[job]]]
+      batch system = {{ get_target_property(SECONDARY_TARGET, 'batcher') }}
+    [[[environment]]]
+      SOURCE_DIRECTORY = $SOURCE_ROOT/{{projectName}}
 
-
-{# PRELIMINARIES #}
 ##############################################################################
+{#- PRELIMINARIES                                                            #}
 
 {%- if 'PRELIMINARIES' not in rose_suite_gui_headers %}
 {%-   do rose_suite_gui_headers.append('PRELIMINARIES') %}
@@ -138,7 +136,7 @@
                 mkdir -p `dirname $SOURCE_ROOT`
                 svn export --force {{SOURCE_LFRIC}} $SOURCE_ROOT
 
-                HOST={{TARGET_HOST}}
+                HOST={{ get_target_property( PRIMARY_TARGET, 'hostname' ) }}
                 RELATIVE_SOURCE_DIRECTORY=`echo $SOURCE_DIRECTORY | sed "s|$HOME/||"`
                 ssh $HOST mkdir -p $RELATIVE_SOURCE_DIRECTORY
                 rsync -avz $SOURCE_DIRECTORY/ $HOST:$RELATIVE_SOURCE_DIRECTORY/
@@ -151,32 +149,17 @@
 {%- endif %}
 
 ##############################################################################
+{#- PUBLISH                                                                  #}
 
-  [[TECHNICAL]]
-    [[[environment]]]
-      SOURCE_DIRECTORY = $SOURCE_ROOT/{{projectName}}
-
-{{validate_rose_meta_task(projectName, 'LOCAL')}}
-{{check_style_task('LOCAL')}}
-
-# Run locally as they need workstation tools such as Doxygen, Inkscape
-{{api_documentation_task('LOCAL')}}
-{{uml_documentation_task('LOCAL')}}
-{{design_documentation_task('LOCAL')}}
-
-{{processnode_task()}}
-
-{# PUBLISH #}
-##############################################################################
-
-{%- set publish_destination = '$CYLC_SUITE_SHARE_DIR/publish-' + projectName + '-' + publishGroup + '-' + TARGET_OPT %}
+{%- set publish_destination = '$CYLC_SUITE_SHARE_DIR/publish-' + projectName + '-' + publishGroup + '-' + PRIMARY_TARGET['platform'] %}
   [[PUBLISH]]
+    inherit = TECHNICAL
     [[[environment]]]
       DESTINATION = {{publish_destination}}
 
 {%- if 'publish_index' in scheduledTasks %}
   [[publish_index]]
-    inherit = PUBLISH, LOCAL
+    inherit = PUBLISH
     script = rose task-run --app-key=publish --command-key=index
 
     [[[environment]]]
@@ -187,39 +170,65 @@
 
 {%- if 'mirror_results_local' in scheduledTasks %}
   [[mirror_results_local]]
-    inherit = PUBLISH, LOCAL
+    inherit = PUBLISH
     pre-script = """
-                 {{'\n'|command_list(LOCAL_BASE_SETUP,
-                                     LOCAL_TECHNICAL_SETUP,
-                                     LOCAL_REVEAL_SETUP)}}
+                 {{ '\n'
+                    | command_list( get_target_property(SECONDARY_TARGET,
+                                                        'setup.base'),
+                                    get_target_property(SECONDARY_TARGET,
+                                                        'setup.tech'),
+                                    get_target_property(SECONDARY_TARGET,
+                                                        'setup.reveal') ) }}
                  """
     script = rose task-run --app-key=publish_mirror
 
     [[[environment]]]
       REWRITE = ''
       SOURCE  = {{publish_destination}}
-      TARGET  = file://$HOME/public_html/lfric-{{projectName}}-{{TARGET_OPT}}-{{publishGroup}}
+      TARGET  = file://$HOME/public_html/lfric-{{projectName}}-{{PRIMARY_TARGET['platform']}}-{{publishGroup}}
 {%- endif %}
 
 {%- if 'mirror_results_remote' in scheduledTasks %}
   [[mirror_results_remote]]
-    inherit = PUBLISH, LOCAL
+    inherit = PUBLISH
     pre-script = """
-                 {{'\n'|command_list(LOCAL_BASE_SETUP,
-                                     LOCAL_TECHNICAL_SETUP,
-                                     LOCAL_REVEAL_SETUP)}}
+                 {{ '\n'
+                    | command_list( get_target_property(SECONDARY_TARGET,
+                                                        'setup.base'),
+                                    get_target_property(SECONDARY_TARGET,
+                                                        'setup.tech'),
+                                    get_target_property(SECONDARY_TARGET,
+                                                        'setup.reveal') ) }}
                  """
     script = rose task-run --app-key=publish_mirror
 
     [[[environment]]]
       REWRITE = {{MIRROR_REWRITE}}
       SOURCE  = {{publish_destination}}
-      TARGET  = {{MIRROR_UPLOAD_URL}}lfric-{{projectName}}-{{TARGET_OPT}}-{{publishGroup}}
+      TARGET  = {{MIRROR_UPLOAD_URL}}lfric-{{projectName}}-{{PRIMARY_TARGET['platform']}}-{{publishGroup}}
 {%- endif %}
+
+{{  publish_node_task('PUBLISH') }}
+
+##############################################################################
+{#- Technical tasks                                                          #}
+
+{{ validate_rose_meta_task( projectName, 'TECHNICAL',
+                            get_target_property(SECONDARY_TARGET, 'setup') ) }}
+{{ check_style_task( 'TECHNICAL',
+                     get_target_property(SECONDARY_TARGET, 'setup') ) }}
+
+{{ api_documentation_task( 'TECHNICAL', 'PUBLISH',
+                           get_target_property(SECONDARY_TARGET, 'setup') ) }}
+{{ uml_documentation_task( 'TECHNICAL', 'PUBLISH',
+                           get_target_property(SECONDARY_TARGET, 'setup') ) }}
+{{ design_documentation_task( 'TECHNICAL', 'PUBLISH',
+                           get_target_property(SECONDARY_TARGET, 'setup') ) }}
 
 ##############################################################################
 
-{%- for compiler in compiler_setup.keys() -%}
+{%- for compiler in get_target_property(PRIMARY_TARGET,
+                                        'setup')['compiler'].keys() -%}
 {%-   for build in build_profiles %}
 {%-     for precision in rdef_build_precisions %}
 {%-       set label = compiler | lower + '_' + precision + '-bit_' + build | lower %}
@@ -235,21 +244,27 @@
       DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{label}}
       BIN_DIR               = $DESTINATION_DIRECTORY/bin
       COMPILER              = {{compiler}}
-      TARGET_OPT            = {{TARGET_OPT}}
+      TARGET_OPT            = {{PRIMARY_TARGET['platform']}}
       {#- We can't define WORKING_DIR here as it may contain    #}
       {#- target specific variables not existing on the local machine #}
 {%-         endif %}
 {%-       endif %}
 
+
 {%-       if 'compile_' + projectName + '_with_' + label in scheduledTasks %}
   [[compile_{{projectName}}_with_{{label}}]]
     inherit = {{family}}, TARGET
     pre-script = """
-                 {{'\n'|command_list(TARGET_BASE_SETUP,
-                                    compiler_setup[compiler],
-                                    TARGET_BUILD_SETUP,
-                                    TARGET_REVEAL_SETUP,
-                                    deleteDirectory("$WORKING_DIR"))}}
+                 {{'\n'|command_list( get_target_property( PRIMARY_TARGET,
+                                                           'setup.base' ),
+                                      get_target_property( PRIMARY_TARGET,
+                                                           'setup.compiler',
+                                                           compiler=compiler ),
+                                      get_target_property( PRIMARY_TARGET,
+                                                           'setup.build' ),
+                                      get_target_property( PRIMARY_TARGET,
+                                                           'setup.reveal' ),
+                                      deleteDirectory("$WORKING_DIR") ) }}
                  """
     script      = rose task-run --app-key=compile
     post-script = """
@@ -260,9 +275,9 @@
 
     [[[environment]]]
       SOURCE_DIRECTORY      = $SOURCE_ROOT/{{projectName}}
-      WORKING_DIR           = {{TARGET_BUILD_ROOT}}/{{label}}/mesh_tools
+      WORKING_DIR           = {{ get_target_property(PRIMARY_TARGET, 'build_root') }}/{{label}}/mesh_tools
       BUILD_TARGET          = {{build}}
-      LFRIC_TARGET_PLATFORM = {{TARGET_OPT}}
+      LFRIC_TARGET_PLATFORM = {{PRIMARY_TARGET['platform']}}
       PROFILE               = {{build}}
       TARGET                = build
       MAKE_THREADS          = 4
@@ -271,35 +286,41 @@
       FIX_ENUMS             = 1
 {%-         endif %}
 
-    [[[directives]]]
-{%-         for DIRECTIVE in TARGET_BUILD_BATCHER_DIRECTIVES %}
-      {{DIRECTIVE}}
-{%-         endfor %}
+{{ directives(PRIMARY_TARGET, 'build') }}
 {%-       endif %} {#- if 'compile_'+ projectName + '_with_' + label in scheduledTasks #}
+
 
 {%-       if 'publish_' + label + '_compile' in scheduledTasks %}
   [[publish_{{label}}_compile]]
-      inherit = PUBLISH, {{family}}, LOCAL
+      inherit = PUBLISH, {{family}}
       pre-script = """
                    {{ensureDestination()}}
                    """
       script = rose task-run --app-key=publish_compile
       [[[environment]]]
-          HOST={{TARGET_HOST}}
+          HOST = {{ get_target_property(PRIMARY_TARGET, 'hostname') }}
           CONTEXT  = {{build}}
           DIR_FILE=lfric.mesher.{{compiler}}.log
       [[[job]]]
           execution retry delays = PT5S, 10*PT1M
 {%-       endif %} {#- if 'publish_' + label + '_compile' in scheduledTasks #}
 
+
 {%-       if 'unit_test_with_' + label in scheduledTasks %}
   [[unit_test_with_{{label}}]]
     inherit = {{family}}, TARGET
     pre-script  = """
-                  {{'\n'|command_list( TARGET_BASE_SETUP,
-                                      compiler_setup[compiler],
-                                      TARGET_BUILD_SETUP,
-                                      TARGET_REVEAL_SETUP)}}
+                 {{'\n'|command_list( get_target_property( PRIMARY_TARGET,
+                                                           'setup.base' ),
+                                      get_target_property( PRIMARY_TARGET,
+                                                           'setup.compiler',
+                                                           compiler=compiler ),
+                                      get_target_property( PRIMARY_TARGET,
+                                                           'setup.build' ),
+                                      get_target_property( PRIMARY_TARGET,
+                                                           'setup.tech' ),
+                                      get_target_property( PRIMARY_TARGET,
+                                                           'setup.reveal' ) ) }}
                   """
     script      = """
                   UNIT_TESTS=''
@@ -317,7 +338,7 @@
                   """
     [[[environment]]]
       SOURCE_DIRECTORY = $SOURCE_ROOT/{{appPathFragment}}{{projectName}}
-      WORKING_DIR      = {{TARGET_BUILD_ROOT}}/{{label}}/unit-test
+      WORKING_DIR      = {{ get_target_property(PRIMARY_TARGET, 'build_root') }}/{{label}}/unit-test
       TARGET           = unit-tests
       PROFILE          = {{build}}
       MAKE_THREADS     = 6
@@ -325,11 +346,8 @@
 {%-         if fix_enums %}
       FIX_ENUMS        = 1
 {%-         endif %}
-    [[[directives]]]
-{%-         for DIRECTIVE in TARGET_BUILD_BATCHER_DIRECTIVES %}
-      {{DIRECTIVE}}
-{%-         endfor %}
 
+{{ directives(PRIMARY_TARGET, 'build') }}
 {%-       endif %} {#- 'unit_test_with_' + label in scheduledTasks #}
 
 {%-       for mesh in mesh_types %}
@@ -337,40 +355,48 @@
   [[{{mesh|upper}}_{{label|upper}}]]
     inherit = {{family}}, TARGET
 
+
   [[generate_{{mesh}}_{{label}}]]
     inherit = {{mesh|upper}}_{{label|upper}}
     pre-script = """
                  mkdir -p $DESTINATION_DIRECTORY/meshes
-                 {{'\n'| command_list( TARGET_BASE_SETUP,
-                                       compiler_setup[compiler],
-                                       TARGET_RUN_SETUP,
-                                       TARGET_REVEAL_SETUP )}}
+                 {{'\n'|command_list( get_target_property( PRIMARY_TARGET,
+                                                           'setup.base' ),
+                                      get_target_property( PRIMARY_TARGET,
+                                                           'setup.compiler',
+                                                           compiler=compiler ),
+                                      get_target_property( PRIMARY_TARGET,
+                                                           'setup.tech' ),
+                                      get_target_property( PRIMARY_TARGET,
+                                                           'setup.reveal' ) ) }}
                  """
     script = "rose task-run --app-key=mesh --opt-conf-key={{mesh}}"
     [[[environment]]]
       OUTPUT_FILE = $DESTINATION_DIRECTORY/meshes/{{mesh}}.nc
 
-    [[[directives]]]
-{%-           for DIRECTIVE in TARGET_RUN_BATCHER_DIRECTIVES %}
-      {{DIRECTIVE}}
-{%-           endfor %}
+{{ directives(PRIMARY_TARGET, 'tech') }}
 {%-         endif %} {#- 'generate_' + mesh + '_' + label in scheduledTasks #}
 
-{%-         if 'summarise_' + mesh + '_' + label in scheduledTasks %}
-{%-           set command_key = '' %}
-{%-           if TARGET_OPT == 'meto-xc40' %}
-{%-             set command_key = '--command-key=aprun' %}
-{%-           endif %}
 
+{%-         if 'summarise_' + mesh + '_' + label in scheduledTasks %}
   [[summarise_{{mesh}}_{{label}}]]
     inherit = {{mesh|upper}}_{{label|upper}}
     pre-script = """
-                 {{'\n'|command_list( TARGET_BASE_SETUP,
-                                     compiler_setup[compiler],
-                                     TARGET_RUN_SETUP,
-                                     TARGET_REVEAL_SETUP )}}
+                 {{'\n'|command_list( get_target_property( PRIMARY_TARGET,
+                                                           'setup.base' ),
+                                      get_target_property( PRIMARY_TARGET,
+                                                           'setup.compiler',
+                                                           compiler=compiler ),
+                                      get_target_property( PRIMARY_TARGET,
+                                                           'setup.tech' ),
+                                      get_target_property( PRIMARY_TARGET,
+                                                           'setup.reveal' ) ) }}
                  """
-    script = rose task-run --app-key=summarise_ugrid {{command_key}}
+    script = """
+             rose task-run --app-key=summarise_ugrid \
+             --command-key={{get_target_property( PRIMARY_TARGET,
+                                                  'queue.tech.launcher' ) }}
+             """
 
     post-script = """
                   cat $SUMMARY_FILE
@@ -381,24 +407,23 @@
       MESH_FILE    = $DESTINATION_DIRECTORY/meshes/{{mesh}}.nc
       SUMMARY_FILE = $DESTINATION_DIRECTORY/summary_{{mesh}}_ugrid.txt
 
-    [[[directives]]]
+{{ directives(PRIMARY_TARGET, 'tech') }}
+{%-         endif %}
 
-{%-           if TARGET_OPT == 'meto-xc40' %}
-      -l select=1
-      -l walltime=00:05:00
-      -q=normal
-{%-           else %}
-{%-             for DIRECTIVE in TARGET_RUN_BATCHER_DIRECTIVES %}
-      {{DIRECTIVE}}
-{%-             endfor %}
-{%-           endif %}
 
+{%-         if 'check_summary_' + mesh + '_' + label in scheduledTasks %}
   [[check_summary_{{mesh}}_{{label}}]]
     inherit = {{mesh|upper}}_{{label|upper}}
     pre-script = """
-                 {{'\n'|command_list( TARGET_BASE_SETUP,
-                                     compiler_setup[compiler],
-                                     TARGET_REVEAL_SETUP )}}
+                 {{'\n'|command_list( get_target_property( PRIMARY_TARGET,
+                                                           'setup.base' ),
+                                      get_target_property( PRIMARY_TARGET,
+                                                           'setup.compiler',
+                                                           compiler=compiler ),
+                                      get_target_property( PRIMARY_TARGET,
+                                                           'setup.tech' ),
+                                      get_target_property( PRIMARY_TARGET,
+                                                           'setup.reveal' ) ) }}
                  sed -e 's/.*INFO : //' -e 's/===*//'      \
                      -e '/File.*contains ugrid mesh(es)/d' \
                      -e '/^\s*Application.*resources/d'    \
@@ -411,35 +436,35 @@
       SUMMARY_KGO  = summary_{{mesh}}_ugrid.kgo.txt
       SUMMARY_FILE = $DESTINATION_DIRECTORY/summary_{{mesh}}_ugrid.txt
 
-    [[[directives]]]
-{%-           for DIRECTIVE in TARGET_TECHNICAL_BATCHER_DIRECTIVES %}
-      {{DIRECTIVE}}
-{%-           endfor %}
-
+{{ directives( PRIMARY_TARGET, 'tech') }}
 {%-         endif %} {#- 'summarise_' + mesh + '_' + label in scheduledTasks #}
+
 
 {%-         if 'check_mesh_' + mesh + '_' + label in scheduledTasks %}
   [[check_mesh_{{mesh}}_{{label}}]]
     inherit = {{mesh|upper}}_{{label|upper}}
     pre-script = """
-                 {{'\n'| command_list(TARGET_BASE_SETUP,
-                         compiler_setup[compiler],
-                         TARGET_REVEAL_SETUP)}}
+                 {{'\n'|command_list( get_target_property( PRIMARY_TARGET,
+                                                           'setup.base' ),
+                                      get_target_property( PRIMARY_TARGET,
+                                                           'setup.compiler',
+                                                           compiler=compiler ),
+                                      get_target_property( PRIMARY_TARGET,
+                                                           'setup.tech' ),
+                                      get_target_property( PRIMARY_TARGET,
+                                                           'setup.reveal' ) ) }}
                  """
     script = rose task-run --app-key=check_mesh_kgo
 
     [[[environment]]]
       APP_NAME   = mesh
       KGO_DIR    = $SOURCE_ROOT/{{projectName}}/kgos
-      TARGET_OPT = {{TARGET_OPT}}
+      TARGET_OPT = {{PRIMARY_TARGET['platform']}}
       CONFIG     = {{mesh}}
       MESH_DIR   = $DESTINATION_DIRECTORY/meshes
       MESH_FILE  = {{mesh}}.nc
 
-    [[[directives]]]
-{%-           for DIRECTIVE in TARGET_TECHNICAL_BATCHER_DIRECTIVES %}
-      {{DIRECTIVE}}
-{%-           endfor %}
+{{ directives(PRIMARY_TARGET, 'tech') }}
 {%-         endif %} {#- 'check_mesh_' + mesh + '_' + label in scheduledTasks #}
 {%-       endfor %} {#- mesh in mesh_type #}
 

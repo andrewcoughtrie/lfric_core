@@ -33,7 +33,7 @@ LDFLAGS := $(LDFLAGS) -L$(VTK_DIR)/lib -L$(MINT_DIR)/lib
 
 export IGNORE_DEPENDENCIES = $(MINT_LIBRARIES) $(VTK_LIBRARIES) netcdf MPI yaxt pfunit_mod mpicontext_mod xios mod_wait mnt_celllocator_capi_mod
 export EXTERNAL_DYNAMIC_LIBRARIES = $(MINT_LIBRARIES) $(VTK_LIBRARIES) yaxt yaxt_c netcdff netcdf hdf5_hl hdf5
-EXTERNAL_DYNAMIC_LIBRARIES += $(EXTRA_NETCDF_LIBRARIES) $(CXX_RUNTIME_LIBRARY)
+EXTERNAL_DYNAMIC_LIBRARIES += $(EXTRA_NETCDF_LIBRARIES)
 export EXTERNAL_STATIC_LIBRARIES = xios $(MINT_LIBRARIES)
 
 LFRIC_TARGET_PLATFORM ?= generic-x86
@@ -59,10 +59,7 @@ documentation doc docs: document-uml document-latex document-api
 	$(Q)echo > /dev/null
 
 include $(ROOT_DIR)/infrastructure/build/lfric.mk
-include $(ROOT_DIR)/infrastructure/build/fortran/$(FORTRAN_COMPILER).mk
 
-export FFLAGS  := $(FFLAGS)  $(OPENMP_ARG) $(LFRIC_INTEL_FIX_ARG)
-export LDFLAGS := $(LDFLAGS) $(OPENMP_ARG)
 ANY_UNIT_TESTS := $(shell if [ -d unit-test ] ; then \
                              find unit-test -name *test.pf ; \
                           fi )
@@ -128,69 +125,60 @@ document-api: api-documentation
 # Build
 #
 .PHONY: build
+build: export BIN_DIR     ?= $(PROJECT_DIR)/bin
+build: export CXX_LINK     = TRUE
+build: export SOURCE_DIR   = source
+build: export PROGRAMS    := $(basename $(notdir $(shell find $(SOURCE_DIR) -maxdepth 1 -name '*.[Ff]90' -print)))
+build: export PROJECT      = $(PROJECT_NAME)
+build: export WORKING_DIR := $(WORKING_DIR)
 ifeq "$(PROFILE)" "full-debug"
-build: export FFLAGS += $(FFLAGS_DEBUG) $(FFLAGS_WARNINGS) $(FFLAGS_INIT) \
-        $(FFLAGS_RUNTIME) $(FFLAGS_NO_OPTIMISATION) $(STANDARDS_CHECK_ARG)
+build: export FFLAG_GROUPS = DEBUG WARNINGS INIT RUNTIME NO_OPTIMISATION FORTRAN_STANDARD
 else ifeq "$(PROFILE)" "fast-debug"
-build: export FFLAGS += $(FFLAGS_DEBUG) $(FFLAGS_WARNINGS) \
-        $(FFLAGS_SAFE_OPTIMISATION) $(STANDARDS_CHECK_ARG)
+build: export FFLAG_GROUPS = DEBUG WARNINGS SAFE_OPTIMISATION FORTRAN_STANDARD
 else ifeq "$(PROFILE)" "production"
-build: export FFLAGS += $(FFLAGS_DEBUG) $(FFLAGS_WARNINGS) $(FFLAGS_RISKY_OPTIMISATION)
+build: export FFLAG_GROUPS = DEBUG WARNINGS RISKY_OPTIMISATION
 else
   $(error Unrecognised profile "$(PROFILE)". Must be one of full-debug, fast-debug or production)
 endif
-build: PROJECT      = $(PROJECT_NAME)
-build: SOURCE_DIR   = source
-build: WORKING_DIR := $(WORKING_DIR)
-build: BIN_DIR     ?= $(PROJECT_DIR)/bin
-build: PROGRAMS    := $(basename $(notdir $(shell find $(SOURCE_DIR) -maxdepth 1 -name '*.[Ff]90' -print)))
 build: ALWAYS
 	$(call MESSAGE,===============================)
 	$(call MESSAGE,Extracting LFRic Infrastructure)
 	$(call MESSAGE,===============================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
-	          SOURCE_DIR=$(ROOT_DIR)/infrastructure/source \
-	          WORKING_DIR=$(WORKING_DIR)
+	          SOURCE_DIR=$(ROOT_DIR)/infrastructure/source
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone.mk \
 	          SOURCE_DIR=$(LFRIC_INFRASTRUCTURE)/source \
-	          WORKING_DIR=$(WORKING_DIR) \
 	          OPTIMISATION_PATH=$(OPTIMISATION_PATH)
 	$(call MESSAGE,========================================)
 	$(call MESSAGE,Extracting Gungho dynamical core)
 	$(call MESSAGE,========================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
 	          SOURCE_DIR=$(ROOT_DIR)/gungho/source \
-	          WORKING_DIR=$(WORKING_DIR) \
 	          WITHOUT_PROGRAMS=1
 	$(call MESSAGE,====================================)
 	$(call MESSAGE,Psycloning Gungho dynamical core)
 	$(call MESSAGE,====================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone.mk \
 	          SOURCE_DIR=$(ROOT_DIR)/gungho/source \
-	          WORKING_DIR=$(WORKING_DIR) \
 	          OPTIMISATION_PATH=$(OPTIMISATION_PATH)
 	$(call MESSAGE,==============================)
 	$(call MESSAGE,Extracting $(PROJECT_NAME))
 	$(call MESSAGE,==============================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
-	          SOURCE_DIR=$(SOURCE_DIR) \
-	          WORKING_DIR=$(WORKING_DIR)
+	          SOURCE_DIR=$(SOURCE_DIR)
 	$(call MESSAGE,==============================)
 	$(call MESSAGE,Psycloning $(PROJECT_NAME))
 	$(call MESSAGE,==============================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone.mk \
 	          SOURCE_DIR=source \
-	          WORKING_DIR=$(WORKING_DIR) \
 	          OPTIMISATION_PATH=$(OPTIMISATION_PATH)
 	$(call MESSAGE,=========================================================)
 	$(call MESSAGE,Processing namelist loaders for $(PROJECT))
 	$(call MESSAGE,=========================================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/configuration.mk \
-	          PROJECT=$(PROJECT) \
 	          SOURCE_DIR=$(SOURCE_DIR) \
-	          WORKING_DIR=$(WORKING_DIR) \
 	          META_FILE_DIR=$(META_FILE_DIR) \
-                  FIX_ENUMS_OPT=$(FIX_ENUMS_OPT)
+	          FIX_ENUMS_OPT=$(FIX_ENUMS_OPT)
 	$(call MESSAGE,=========================================================)
 	$(call MESSAGE,Analysing $(PROJECT) build dependencies)
 	$(call MESSAGE,=========================================================)
@@ -207,7 +195,7 @@ build: ALWAYS
 .PHONY: unit-tests
 unit-tests: export BIN_DIR     ?= $(PROJECT_DIR)/test
 unit-tests: export EXTERNAL_STATIC_LIBRARIES += pfunit
-unit-tests: export FFLAGS      += $(FFLAGS_DEBUG) $(FFLAGS_NO_OPTIMISATION) $(FFLAGS_INIT)
+unit-tests: export FFLAG_GROUPS = DEBUG NO_OPTIMISATION INIT
 unit-tests: export IGNORE_DEPENDENCIES += pfunit_mod mpicontext_mod
 unit-tests: export PROGRAMS     = $(PROJECT_NAME)_unit_tests
 unit-tests: export PROJECT      = $(PROJECT_NAME)

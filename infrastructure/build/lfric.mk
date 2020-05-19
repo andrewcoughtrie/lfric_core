@@ -25,14 +25,9 @@
 # PURGE_SUITES: Set to non-zero value to clean out exisiting rose suites of
 #               same name. (this is also the default action)
 #               Set to zero to not clean out existing rose suite.
-#
-# Plus the normal compiler macros...
-#
-# FC: Fortran compiler command
-# FFLAGS: Fortran compiler flags including "-I" module file locations
-# LD: Linker command, probably the same as FC
-# MPILD: MPI linker command
-# LDFLAGS: Linker flags including "-L" library locations
+# TEST_SUITE_TARGETS: Space separated list of target identifiers to be used
+#                     when launching the test suite. Default is "meto-spice
+#                     meto-xc40"
 #
 ##############################################################################
 
@@ -45,16 +40,12 @@ ifeq ($(filter else-if,$(value .FEATURES)),)
   $(error The build system requires else-if support from GMake)
 endif
 
-# The default value of FC is almost always "f77" which is of no use to us.
-# An empty FC is also of no use.
-ifneq "$(or $(filter default, $(origin FC)), $(filter x, x$(FC)))" ""
-  $(error The FC environment variable must be set to a Fortran compiler command)
-endif
-
 # Default variables...
 #
 export WORKING_DIR ?= working
 export PWD ?= $(shell pwd)
+
+TEST_SUITE_TARGETS ?= meto-spice meto-xc40
 
 # Make the build system available...
 #
@@ -64,69 +55,16 @@ export LFRIC_BUILD := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 #
 export LFRIC_INFRASTRUCTURE := $(realpath $(LFRIC_BUILD)/..)
 
-# Make compiler macros available...
-#
-# Sometimes FC holds a full path which needs to be stripped off. It may also
-# include a version number which also needs to go.
-#
-FORTRAN_COMPILER := $(firstword $(subst -, ,$(notdir $(FC))))
-
 # Attempt to identify Cray systems...
 #
 ifdef PE_ENV
   CRAY_ENVIRONMENT = true
-  ifeq '$(PE_ENV)' 'CRAY'
-    FORTRAN_COMPILER = crayftn
-  else ifeq '$(PE_ENV)' 'INTEL'
-    FORTRAN_COMPILER = ifort
-  else ifeq '$(PE_ENV)' 'GNU'
-    FORTRAN_COMPILER = gfortran
-  else ifeq '$(PE_ENV)' 'PGI'
-    FORTRAN_COMPILER = pgfortran
-  else
-    $(error Unrecognised Cray programming environment)
-  endif
+  export CRAY_ENVIRONMENT
 endif
 
 # Set the default precision for reals
 RDEF_PRECISION ?= 64
 export PRE_PROCESS_MACROS += RDEF_PRECISION=$(RDEF_PRECISION)
-
-include $(LFRIC_BUILD)/fortran/$(FORTRAN_COMPILER).mk
-export F_MOD_DESTINATION_ARG OPENMP_ARG
-
-FFLAGS += $(FFLAGS_COMPILER)
-export FFLAGS
-
-# As XIOS is written in C++ we have to concern ourselves with
-# compilers for that as well.
-#
-# We assume GCC is in use unless the CXX environment variable is set.
-#
-CXX ?= g++
-
-# Try to work out the compiler from CXX which may contain a full path and a
-# version number.
-#
-CXX_COMPILER := $(firstword $(subst -, ,$(notdir $(CXX))))
-
-# Attempt to identify Cray systems...
-ifdef CRAY_ENVIRONMENT
-  ifeq '$(PE_ENV)' 'CRAY'
-    CXX_COMPILER = craycc
-  else ifeq '$(PE_ENV)' 'INTEL'
-    CXX_COMPILER = icc
-  else ifeq '$(PE_ENV)' 'GNU'
-    CXX_COMPILER = g++
-  else ifeq '$(PE_ENV)' 'PGI'
-    CXX_COMPILER = pgc++
-  else
-    $(error Unrecognised Cray programming environment)
-  endif
-endif
-
-include $(LFRIC_BUILD)/cxx/$(CXX_COMPILER).mk
-export CXX_RUNTIME_LIBRARY
 
 # The compile options file overrides compile options based on file-name pattern matching.
 # Use the miniapp-specific file if it exists. Otherwise use the infrastructure file.
@@ -252,7 +190,6 @@ api-documentation: ALWAYS
 #
 .PHONY: launch-test-suite
 launch-test-suite: SUITE_GROUP ?= developer
-launch-test-suite: TEST_SUITE_TARGETS ?= $(error Please set the TEST_SUITE_TARGETS environment variable.)
 launch-test-suite: SUITE_NAME = $(SUITE_BASE_NAME)-$$target-$(SUITE_GROUP)
 ifdef VERBOSE
 launch-test-suite: VERBOSE_ARG = --define-suite=VERBOSE=$(VERBOSE)

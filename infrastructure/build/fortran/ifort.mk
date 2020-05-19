@@ -20,8 +20,6 @@ endif
 
 F_MOD_DESTINATION_ARG = -module$(SPACE)
 OPENMP_ARG            = -qopenmp
-# Option for checking code meets Fortran standard - currently 2008
-STANDARDS_CHECK_ARG       = -stand f08
 FORTRAN_RUNTIME       = 
 
 FFLAGS_COMPILER           =
@@ -32,6 +30,8 @@ FFLAGS_DEBUG              = -g -traceback
 FFLAGS_WARNINGS           = -warn all -warn errors
 FFLAGS_INIT               = -ftrapuv
 FFLAGS_RUNTIME            = -check all -fpe0
+# Option for checking code meets Fortran standard - currently 2008
+FFLAGS_FORTRAN_STANDARD   = -stand f08
 
 #########################################################################
 # Application and file-specific options referenced in build/compile_options.mk files 

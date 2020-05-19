@@ -19,8 +19,6 @@ endif
 
 F_MOD_DESTINATION_ARG     = -J
 OPENMP_ARG = -fopenmp
-# Option for checking code meets Fortran standard - currently 2008
-STANDARDS_CHECK_ARG       = -std=f2008
 
 FFLAGS_COMPILER           = -ffree-line-length-none
 FFLAGS_NO_OPTIMISATION    = -O0
@@ -31,6 +29,8 @@ FFLAGS_WARNINGS           = -Wall
 FFLAGS_INIT               = -finit-integer=31173 -finit-real=snan \
                             -finit-logical=true -finit-character=85
 FFLAGS_RUNTIME            = -fcheck=all -ffpe-trap=invalid,zero,overflow,underflow
+# Option for checking code meets Fortran standard - currently 2008
+FFLAGS_FORTRAN_STANDARD   = -std=f2008
 
 LDFLAGS_COMPILER =
 

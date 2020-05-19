@@ -1,0 +1,224 @@
+{#- ##########################################################################
+ # (c) Crown copyright 2020 Met Office. All rights reserved.
+ # The file LICENCE, distributed with this code, contains details of the terms
+ # under which the code may be used.
+ #############################################################################}
+{#-
+ # The data structure defined here holds information used to target the
+ # various computer platforms we use for testing.
+ #
+ # The goal is that the suits themselves should be complete platform agnostic
+ # and all specifics be defined here.
+ #}
+{%- set target = {
+    'meto-spice' : {
+        'hostname' : ROSE_ORIG_HOST,
+        'batcher' : 'slurm',
+        'build_root' : '${TMPDIR}',
+        'update' : 'interupt',
+        'setup' : {
+            'base' : [
+                'umask 0022',
+                'module use /data/users/lfric/modules/modulefiles.rhel7'
+            ],
+            'build' : [
+            ],
+            'compiler' : {
+                'intel' : [
+                    'module load environment/lfric/intel/17.0.1'
+                ],
+                'gnu' : [
+                    'module use /project/ukmo/rhel7/fortran/opt/gfortran/modulefiles',
+                    'module load environment/lfric/gnu/6.1.0'
+                ]
+            },
+            'plot' : ['module load scitools/production-os41-1'],
+            'reveal' : ['module list 2>&1', 'export'],
+            'tech' : ['module load common-environment/lfric']
+        },
+        'queue' : {
+            'build' : {
+                'launcher' : 'mpiexec',
+                'directives' : [
+                    '--partition=rhel7', '--time=00:10:00',
+                    '--ntasks=6', '--mem-per-cpu=1G', '--gres=tmp:1024',
+                    '--export=NONE'
+                ]
+            },
+            'run' : {
+                'launcher' : 'mpiexec',
+                'directives' : [
+                    '--partition=rhel7', '--time=00:05:00',
+                    '--ntasks=6', '--mem-per-cpu=1G', '--export=NONE'
+                ]
+            },
+            'tech' : {
+                'launcher' : 'mpiexec',
+                'directives' : [
+                    '--partition=rhel7', '--time=00:05:00', '--ntasks=1',
+                    '--mem-per-cpu=1G', '--export=NONE'
+                ]
+            }
+        }
+    },
+    'meto-xc40' : {
+        'hostname' : 'xc',
+        'batcher' : 'pbs',
+        'build_root' : '\$RAMTMP',
+        'update' : 'interupt',
+        'setup' : {
+            'base' : [
+                'umask 0022',
+                'source /data/d03/lfric/modules/setup'
+            ],
+            'build' : ['module load python/v2.7.9'],
+            'compiler' : {
+                'intel' : [
+                    'module load meto-environment/lfric/intel/17.0.0.098'
+                ],
+                'cray' : [
+                    'module load meto-environment/lfric/cce/8.4.3'
+                ]
+            },
+            'reveal' : ['module list 2>&1', 'export'],
+            'tech' : ['module load cray-snplauncher']
+        },
+        'queue' : {
+            'build' : {
+                'launcher' : 'mpiexec',
+                'directives' : [
+                    '-l select=1:ncpus=6:mem=6GB:tmpsize=1GB',
+                    '-l walltime=00:10:00',
+                    '-q=shared'
+                ]
+            },
+            'run' : {
+                'launcher': 'aprun',
+                'directives' : [
+                    '-l select=1:ncpus=6:mem=6GB',
+                    '-l walltime=00:10:00',
+                    '-q=parallel'
+                ]
+            },
+            'tech' : {
+                'launcher' : 'mpiexec',
+                'directives' : [
+                    '-l select=1:ncpus=1:mem=1GB',
+                    '-l walltime=00:05:00',
+                    '-q=shared'
+                ]
+            }
+        }
+    },
+    'meto-xcs' : {
+        'hostname' : 'xcsr',
+        'batcher' : 'pbs',
+        'build_root' : '\${RAMTMP}',
+        'update' : 'polling',
+        'setup' : {
+            'base' : [
+                'umask 0022',
+                'module use /common/lfric/modules/modulefiles'
+            ],
+            'build' : [
+                'module load python/v2.7.9'
+            ],
+            'compiler' : {
+                'intel' : [
+                    'module load meto-environment/lfric/intel/17.0.0.098'
+                ],
+                'cray' : [
+                    'module load meto-environment/lfric/cray/8.7.0'
+                ]
+            },
+            'reveal' : ['module list 2>&1', 'export'],
+            'tech' : ['module load cray-snplauncher']
+        },
+        'queue' : {
+            'build' : {
+                'launcher' : 'mpiexec',
+                'directives' : [
+                    '-l select=1:ncpus=6:mem=6GB:tmpsize=1GB',
+                    '-l walltime=00:10:00',
+                    '-q=shared'
+                ]
+            },
+            'run' : {
+                'launcher': 'aprun',
+                'directives' : [
+                    '-l select=1:ncpus=6:mem=6GB',
+                    '-l walltime=00:10:00',
+                    '-q=parallel'
+                ]
+            },
+            'tech' : {
+                'launcher' : 'mpiexec',
+                'directives' : [
+                    '-l select=1:ncpus=1:mem=1GB',
+                    '-l walltime=00:05:00',
+                    '-q=shared'
+                ]
+            }
+        }
+    },
+    'monsoon-xc40' : {
+        'hostname' : 'xcsc',
+        'batcher' : 'pbs',
+        'build_root' : '\${RAMTMP}',
+        'update' : 'polling',
+        'setup' : {
+            'base' : [
+                'umask 0022',
+                'module use /common/lfric/modules/modulefiles'
+            ],
+            'build' : [
+                'module load python/v2.7.9'
+            ],
+            'compiler' : {
+                'intel' : [
+                    'module load meto-environment/lfric/intel/17.0.0.098'
+                ],
+                'cray' : [
+                    'module load meto-environment/lfric/cray/8.7.0'
+                ]
+            },
+            'reveal' : ['module list 2>&1', 'export']
+        },
+        'queue' : {
+            'build' : {
+                'launcher' : 'mpiexec',
+                'directives' : [
+                    '-l select=1:ncpus=6:mem=6GB:tmpsize=1GB',
+                    '-l walltime=00:10:00',
+                    '-q=shared'
+                ]
+            },
+            'run' : {
+                'launcher': 'aprun',
+                'directives' : [
+                    '-l select=1:ncpus=6:mem=6GB',
+                    '-l walltime=00:10:00',
+                    '-q=parallel'
+                ]
+            },
+            'tech' : {
+                'launcher' : 'mpiexec',
+                'directives' : [
+                    '-l select=1:ncpus=1:mem=1GB',
+                    '-l walltime=00:05:00',
+                    '-q=shared'
+                ]
+            }
+        }
+    }
+} -%}
+
+{#- Convenience Macros #}
+
+{%- macro directives( target, nature ) %}
+    [[[directives]]]
+{%- for directive in get_target_property(target,
+                                         'queue.' ~ nature ~ '.directives') %}
+      {{directive}}
+{%- endfor %}
+{%- endmacro %}

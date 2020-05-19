@@ -5,16 +5,17 @@
 {%- macro check_compilers( build, precisions=[rdef_default], publish=False ) %}
 [[[R1]]]
   graph = """
-{%-   for compiler in compiler_setup.keys() %}
+{%-   for compiler in get_target_property(PRIMARY_TARGET,
+                                          'setup')['compiler'].keys() %}
 {%-     for precision in precisions %}
 {%-       if precision not in rdef_build_precisions %}
 {%-          do rdef_build_precisions.append(precision) -%}
 {%-       endif %}
 {%-       set label = compiler | lower + '_' + precision + '-bit_'+ build | lower%}
-{%-       if compiler in TARGET_PERFORM_UNIT_TESTS %}
+{%-       if compiler in UNIT_TEST_WITH %}
     export_source => unit_test_with_{{label}}
 {%-       endif %}
-{%-       if compiler in TARGET_PERFORM_INTEGRATION_TESTS %}
+{%-       if compiler in INTEGRATION_TEST_WITH %}
     export_source => integration_test_with_{{label}}
 {%-       endif %}
 {%-     endfor %} {# precisions #}

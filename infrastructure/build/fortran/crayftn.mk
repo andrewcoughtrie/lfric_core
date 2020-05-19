@@ -19,8 +19,6 @@ ifeq ($(shell test $(CRAYFTN_VERSION) -lt 008003004; echo $$?), 0)
 endif
 
 OPENMP_ARG            = -h omp
-# Option for checking code meets Fortran standards
-STANDARDS_CHECK_ARG       = -en
 
 FFLAGS_COMPILER           =
 FFLAGS_NO_OPTIMISATION    = -O0
@@ -29,6 +27,8 @@ FFLAGS_RISKY_OPTIMISATION = -O3
 FFLAGS_DEBUG              = -Gfast
 FFLAGS_WARNINGS           = -m 0
 FFLAGS_RUNTIME            = -R bcdps -h fp_trap
+# Option for checking code meets Fortran standards
+FFLAGS_FORTRAN_STANDARD   = -en
 
 LDFLAGS_COMPILER = -K trap=fp,denorm,inexact,unf
 

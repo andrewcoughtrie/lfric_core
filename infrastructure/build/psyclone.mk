@@ -11,6 +11,7 @@
 psykal-source: jump
 
 include $(LFRIC_BUILD)/lfric.mk
+include $(LFRIC_BUILD)/fortran.mk
 
 ALGORITHM_ONLY_FILES := ${shell find $(SOURCE_DIR) -name '*.x90' -exec grep -EiL '[^!]\s*call\s+invoke\s*[$(OPEN_PAREN)]' {} \; }
 HAND_WRITTEN_FILES := $(shell find $(SOURCE_DIR) -path '*/psy/*' -a -name '*_psy.[Ff]90' -print)

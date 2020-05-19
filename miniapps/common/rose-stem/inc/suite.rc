@@ -1,5 +1,6 @@
+%include "inc/targets.rc"
+
 {# SETUP SOME JINJA2 VARIABLES #}
-{%- set hosts_dictionary = {} %}
 {%- set plot_config = {} %}
 {%- set compiler_setup = {} %}
 {%- set appsToRun = [] %}
@@ -42,8 +43,6 @@
 {%- endif %}
 
 {%- set build_profiles = ['fast-debug', 'full-debug', 'production'] %}
-
-{{set_hosts_dictionary()}}
 
 {%- if MIRROR_UPLOAD_URL is defined %}
 {%-   if MIRROR_UPLOAD_URL and MIRROR_UPLOAD_URL|list|last != '/' %}
@@ -104,7 +103,7 @@
 
     [[queues]]
         [[[host_throttle]]]
-            limit   = {{ TARGET_THROTTLE }}
+            limit   = {{ SUITE_THROTTLE }}
             members = root
     [[dependencies]]
 {%- set scheduledTasks = schedule() | deduplicate_schedule() %}
@@ -173,8 +172,20 @@
         [[[job]]]
             batch system = {{TARGET_BATCHER}}
 
-{# PRELIMINARIES #}
+    [[TECHNICAL]]
+        [[[remote]]]
+            host = {{ get_target_property(SECONDARY_TARGET, 'hostname') }}
+        [[[job]]]
+            batch system = {{ get_target_property(SECONDARY_TARGET,
+                                                  'batcher') }}
+{{ directives(SECONDARY_TARGET, 'tech') }}
+        [[[environment]]]
+            SOURCE_DIRECTORY      = $SOURCE_ROOT/{{appPathFragment}}{{projectName}}
+            DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{SECONDARY_TARGET['compiler']}}_fast-debug
+            WORKING_DIR           = {{ get_target_property(SECONDARY_TARGET, 'build_root') }}/{{SECONDARY_TARGET['compiler']}}_fast-debug
+
 ##############################################################################
+{#- PRELIMINARIES                                                            #}
 {%- if 'preliminaries' not in rose_suite_gui_headers %}
 {%-   do rose_suite_gui_headers.append('preliminaries') %}
     [[PRELIMINARIES]]
@@ -212,18 +223,20 @@
 {%- endif %}
 
 
-{# DOCUMENTATION #}
 ##############################################################################
+{#- DOCUMENTATION                                                            #}
 {%- if 'documentation' not in rose_suite_gui_headers %}
 {%-   do rose_suite_gui_headers.append('documentation') %}
     [[DOCUMENTATION]]
+        inherit = TECHNICAL
 {%- endif %}
 
 
-{# PUBLISH #}
 ##############################################################################
+{#- PUBLISH                                                                  #}
 {%- set publish_destination = '$CYLC_SUITE_SHARE_DIR/publish-' + projectName + '-' + publishGroup + '-' + TARGET_OPT %}
     [[PUBLISH]]
+        inherit = TECHNICAL
         [[[environment]]]
             DESTINATION = {{publish_destination}}
 
@@ -234,12 +247,15 @@
 
 {%- if 'publish_index' in scheduledTasks %}
     [[publish_index]]
-        inherit = PUBLISH, LOCAL
+        inherit = PUBLISH
         pre-script = """
-                     {{'\n                     '|
-                       command_list( LOCAL_BASE_SETUP,
-                                     LOCAL_TECHNICAL_SETUP,
-                                     LOCAL_REVEAL_SETUP )}}
+                     {{'\n                     '
+                       | command_list( get_target_property(SECONDARY_TARGET,
+                                                           'setup.base' ),
+                                       get_target_property(SECONDARY_TARGET,
+                                                           'setup.tech' ),
+                                       get_target_property(SECONDARY_TARGET,
+                                                           'setup.reveal' ) ) }}
                      """
         script = rose task-run --app-key=publish --command-key=index
         [[[environment]]]
@@ -251,11 +267,15 @@
 
 {%- if 'mirror_results_local' in scheduledTasks %}
     [[mirror_results_local]]
-        inherit = PUBLISH, LOCAL
+        inherit = PUBLISH
         pre-script = """
-                     {{'\n'|command_list(LOCAL_BASE_SETUP,
-                                         LOCAL_TECHNICAL_SETUP,
-                                         LOCAL_REVEAL_SETUP)}}
+                     {{'\n'
+                       | command_list( get_target_property(SECONDARY_TARGET,
+                                                           'setup.base' ),
+                                       get_target_property(SECONDARY_TARGET,
+                                                           'setup.tech' ),
+                                       get_target_property(SECONDARY_TARGET,
+                                                           'setup.reveal' ) ) }}
                      """
         script = rose task-run --app-key=publish_mirror
         [[[environment]]]
@@ -275,25 +295,25 @@
             TARGET  = {{MIRROR_UPLOAD_URL}}lfric-{{projectName}}-{{TARGET_OPT}}-{{publishGroup}}
 {%- endif %}
 
+{{ publish_node_task('PUBLISH') }}
 
 ##############################################################################
 # TECHNICAL                                                                  #
 ##############################################################################
-    [[TECHNICAL]]
-        [[[environment]]]
-            SOURCE_DIRECTORY      = $SOURCE_ROOT/{{appPathFragment}}{{projectName}}
-            DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{TARGET_TECHNICAL_COMPILER}}_fast-debug
-            WORKING_DIR           = {{LOCAL_BUILD_ROOT}}/{{TARGET_TECHNICAL_COMPILER}}_fast-debug
 
-{{validate_rose_meta_task(projectName, 'LOCAL')}}
-{{check_style_task('LOCAL')}}
+{{ validate_rose_meta_task( projectName, 'TECHNICAL',
+                            get_target_property(SECONDARY_TARGET, 'setup') ) }}
+{{ check_style_task( 'TECHNICAL',
+                     get_target_property(SECONDARY_TARGET, 'setup') ) }}
 
-# Run locally as they need workstation tools such as Doxygen, Inkscape
-{{api_documentation_task('LOCAL')}}
-{{uml_documentation_task('LOCAL')}}
-{{design_documentation_task('LOCAL')}}
-
-{{processnode_task()}}
+{{ api_documentation_task( 'DOCUMENTATION', 'PUBLISH',
+                           get_target_property(SECONDARY_TARGET, 'setup'),
+                           get_target_property(SECONDARY_TARGET) ) }}
+{{ uml_documentation_task( 'DOCUMENTATION', 'PUBLISH',
+                           get_target_property(SECONDARY_TARGET, 'setup') ) }}
+{{ design_documentation_task( 'DOCUMENTATION', 'PUBLISH',
+                              get_target_property(SECONDARY_TARGET,
+                                                  'setup') ) }}
 
 ##############################################################################
 # COMPILE {{projectName|upper}} PROJECT
@@ -359,7 +379,7 @@
 {%-         if 'compilation_info' not in rose_suite_gui_headers %}
 {%-           do rose_suite_gui_headers.append('compilation_info') %}
     [[COMPILATION_INFO]]
-        inherit = PUBLISH, LOCAL
+        inherit = PUBLISH
 {%-         endif %}
 
     [[publish_{{label}}_compile]]
@@ -374,6 +394,11 @@
             HOST     = {{TARGET_HOST}}
             CONTEXT  = {{build}}
             DIR_FILE = compile.log.path
+            # This needs to be overridden as it is set to a none word-size
+            # specific directory (e.g. intel_fast-debug) by the PUBLISH
+            # family. It should be set by the {{family}} family
+            # but for reasons unclear to me that doesn't override.
+            DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{label}}
 
         [[[job]]]
             execution retry delays = 2*PT5S, 5*PT10S, 9*PT1M, 5*PT10M, 3*PT1H
@@ -900,7 +925,7 @@
 {%-                   set plot_label = appLabel %}
 
     [[plot_{{configuration_label_res}}]]
-        inherit = {{appLabel|upper}}_{{label|upper}}, PUBLISH, TARGET
+        inherit = {{appLabel|upper}}_{{label|upper}}, TARGET
         pre-script = """
                      {{ensureDestination()}}
                      mkdir -p $PLOT_DIR
@@ -911,9 +936,10 @@
         script = rose task-run --app-key=plot
 
         [[[environment]]]
-             NODAL_DATA_DIR = $DESTINATION_DIRECTORY/{{pathFragment}}/results
-             PLOT_DIR = $DESTINATION_DIRECTORY/{{pathFragment}}/plots
-             PLOT_CONFIG = {{plot_config[plot_label]}}
+            DESTINATION = {{publish_destination}}
+            NODAL_DATA_DIR = $DESTINATION_DIRECTORY/{{pathFragment}}/results
+            PLOT_DIR = $DESTINATION_DIRECTORY/{{pathFragment}}/plots
+            PLOT_CONFIG = {{plot_config[plot_label]}}
 
         [[[directives]]]
 {%-                   for DIRECTIVE in TARGET_TECHNICAL_BATCHER_DIRECTIVES %}
@@ -921,11 +947,11 @@
 {%-                   endfor %}
 {%-                 endif %}
 
-{# #############################################################################}
-{# PUBLISH THE APP OUTPUT #}
+{#- ##########################################################################}
+{#- PUBLISH THE APP OUTPUT                                                   #}
 {%-                 if 'publish_' + configuration_label_res + '_run' in scheduledTasks %}
     [[publish_{{configuration_label_res}}_run]]
-        inherit = {{appLabel|upper}}_{{label|upper}}, PUBLISH, LOCAL
+        inherit = {{appLabel|upper}}_{{label|upper}}, PUBLISH
         pre-script = """
                      {{ensureDestination()}}
                      mkdir -p $DESTINATION_DIRECTORY/{{pathFragment}}
@@ -953,7 +979,7 @@
 {# PUBLISH THE APP PLOTS #}
 {%-                 if 'publish_' + configuration_label_res + '_plots' in scheduledTasks %}
     [[publish_{{configuration_label_res}}_plots]]
-        inherit = {{appLabel|upper}}_{{label|upper}}, PUBLISH, LOCAL
+        inherit = {{appLabel|upper}}_{{label|upper}}, PUBLISH
         script = """
                  mkdir -p $DESTINATION/{{compiler}}/{{build}}/{{pathFragment}}
                  RELATIVE_DESTINATION_DIRECTORY=`echo $DESTINATION_DIRECTORY | sed "s|$HOME/||"`

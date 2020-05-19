@@ -1,19 +1,14 @@
 #!jinja2
 
+%include inc/targets.rc
 %include inc/common_macros.rc
 %include inc/suite_macros.rc
 %include suite_control.rc
 
 {# SETUP SOME JINJA2 VARIABLES #}
-{%- set hosts_dictionary = {} -%}
 {%- set build_profiles = ['fast-debug', 'full-debug', 'production'] -%}
 {%- set rose_suite_gui_headers = [] -%}
 {%- set rdef_build_precisions = []  -%}
-
-{%- set compiler_setup = {} -%}
-{%- for compiler, setup in TARGET_COMPILER_SETUP|batch(2) -%}
-{%-     do compiler_setup.update({compiler : [setup]}) -%}
-{%- endfor -%}
 
 {%- if RUN_NAMES is defined %}
 {%-   if RUN_NAMES is string %}
@@ -33,8 +28,6 @@
 {%- else  %}
 {%-   set appPathFragment = '' %}
 {%- endif %}
-
-{{set_hosts_dictionary()}}
 
 {%- if MIRROR_UPLOAD_URL and MIRROR_UPLOAD_URL|list|last != '/' %}
 {%-   set MIRROR_UPLOAD_URL = MIRROR_UPLOAD_URL + '/' %}
@@ -58,7 +51,7 @@
 
   [[queues]]
     [[[host_throttle]]]
-      limit = {{ TARGET_THROTTLE }}
+      limit = {{SUITE_THROTTLE}}
       members = root
   [[dependencies]]
 {%- set scheduledTasks = schedule() | deduplicate_schedule()%}
@@ -109,61 +102,72 @@
     [[MONSOON-XCS]]
         inherit = METO-XC
 
-  [[ LOCAL ]]
+  [[LOCAL]]
     [[[remote]]]
       host = {{ ROSE_ORIG_HOST }}
     [[[job]]]
       batch system = background
 
   [[TARGET]]
-    inherit = {{TARGET_OPT|upper}}
+    inherit = {{PRIMARY_TARGET['platform'] | upper}}
     [[[remote]]]
-      host = {{TARGET_HOST}}
+      host = {{ get_target_property(PRIMARY_TARGET, 'hostname') }}
     [[[job]]]
-      batch system = {{TARGET_BATCHER}}
+      batch system = {{ get_target_property(PRIMARY_TARGET, 'batcher') }}
+    [[[environment]]]
+      SOURCE_DIRECTORY = $SOURCE_ROOT/{{projectName}}
 
+  [[TECHNICAL]]
+    [[[remote]]]
+      host = {{get_target_property(SECONDARY_TARGET, 'hostname')}}
+    [[[job]]]
+      batch system = {{get_target_property(SECONDARY_TARGET, 'batcher')}}
+    [[[environment]]]
+      SOURCE_DIRECTORY      = $SOURCE_ROOT/{{projectName}}
+      DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{SECONDARY_TARGET['compiler']}}_fast-debug
+      WORKING_DIR           = {{get_target_property(SECONDARY_TARGET, 'build_root')}}/{{SECONDARY_TARGET['compiler']}}_fast-debug
+{{ directives(SECONDARY_TARGET, 'tech') }}
 
-
-{# PRELIMINARIES #}
 ##############################################################################
+{# PRELIMINARIES #}
 
 {%- if 'preliminaries' not in rose_suite_gui_headers %}
 {%-   do rose_suite_gui_headers.append('preliminaries') %}
     [[PRELIMINARIES]]
 {%- endif %}
 
+
 {%- if 'export_source' in scheduledTasks %}
+  # Extraction has to be run locally since we may be running from an edited
+  # working copy. Otherwise nothing else should.
+  #
   [[export_source]]
     inherit = PRELIMINARIES, LOCAL
     script  = """
               mkdir -p `dirname $SOURCE_ROOT`
               svn export --force {{SOURCE_LFRIC}} $SOURCE_ROOT
 
-              HOST={{TARGET_HOST}}
+              HOST={{ get_target_property(PRIMARY_TARGET, 'hostname') }}
               RELATIVE_SOURCE_DIRECTORY=`echo $SOURCE_DIRECTORY | sed "s|$HOME/||"`
               ssh $HOST mkdir -p $RELATIVE_SOURCE_DIRECTORY
               rsync -avz $SOURCE_DIRECTORY/ $HOST:$RELATIVE_SOURCE_DIRECTORY/
               sleep 5
               """
-
     [[[environment]]]
       SOURCE_DIRECTORY = $SOURCE_ROOT
 {%- endif %}
 
-{# DOCUMENTATION #}
 ##############################################################################
 
-{%- if 'documentation' not in rose_suite_gui_headers %}
-{%-   do rose_suite_gui_headers.append('documentation') %}
-    [[DOCUMENTATION]]
-{%- endif %}
-
-##############################################################################
-
-{%- set publish_destination = '$CYLC_SUITE_SHARE_DIR/publish-' + projectName + '-' + publishGroup + '-' + TARGET_OPT %}
+{%- set publish_destination = '$CYLC_SUITE_SHARE_DIR/publish-' + projectName + '-' + publishGroup + '-' + PRIMARY_TARGET['platform'] %}
+  # Publication tasks are concerned with producing a web site of results.
+  # This will be created on the "technical" host.
+  #
   [[PUBLISH]]
+    inherit = TECHNICAL
     [[[environment]]]
       DESTINATION = {{publish_destination}}
+
 
 {%- if 'publish_nothing' in scheduledTasks %}
   # This task exists purely to ensure that the PUBLISH family has something in it.
@@ -172,9 +176,10 @@
     script = true
 {%- endif %}
 
+
 {%- if 'publish_index' in scheduledTasks %}
   [[publish_index]]
-    inherit = PUBLISH, LOCAL
+    inherit = PUBLISH
     script = mkdir -p $DESTINATION; rose task-run --app-key=publish --command-key=index
     [[[environment]]]
 {%-   if ROSE_BUSH_URL %}
@@ -182,74 +187,100 @@
 {%-   endif %}
 {%- endif %}
 
+
 {%- if 'mirror_results_local' in scheduledTasks %}
   [[mirror_results_local]]
     inherit = PUBLISH, LOCAL
     pre-script = """
-                 {{'\n'|command_list(LOCAL_BASE_SETUP,
-                                     LOCAL_TECHNICAL_SETUP,
-                                     LOCAL_REVEAL_SETUP)}}
+                 {{ '\n'
+                    | command_list( get_target_property(SECONDARY_TARGET,
+                                                         'setup.base'),
+                                    get_target_property(SECONDARY_TARGET,
+                                                         'setup.tech'),
+                                    get_target_property(SECONDARY_TARGET,
+                                                         'setup.reveal') ) }}
                  """
     script = rose task-run --app-key=publish_mirror
     [[[environment]]]
       REWRITE = ''
       SOURCE  = {{publish_destination}}
-      TARGET  = file://$HOME/public_html/lfric-{{projectName}}-{{TARGET_OPT}}-{{publishGroup}}
+      TARGET  = file://$HOME/public_html/lfric-{{projectName}}-{{PRIMARY_TARGET['platform']}}-{{publishGroup}}
 {%- endif %}
+
 
 {%- if 'mirror_results_remote' in scheduledTasks %}
   [[mirror_results_remote]]
-    inherit = PUBLISH, LOCAL
+    inherit = PUBLISH
     pre-script = """
-                 {{'\n'|command_list(LOCAL_BASE_SETUP,
-                                     LOCAL_TECHNICAL_SETUP,
-                                     LOCAL_REVEAL_SETUP)}}
+                 {{ '\n'
+                    | command_list( get_target_property(SECONDARY_TARGET,
+                                                         'setup.base'),
+                                    get_target_property(SECONDARY_TARGET,
+                                                         'setup.tech'),
+                                    get_target_property(SECONDARY_TARGET,
+                                                         'setup.reveal') ) }}
                  """
     script = rose task-run --app-key=publish_mirror
     [[[environment]]]
       REWRITE = {{MIRROR_REWRITE}}
       SOURCE  = {{publish_destination}}
-      TARGET  = {{MIRROR_UPLOAD_URL}}lfric-{{projectName}}-{{TARGET_OPT}}-{{publishGroup}}
+      TARGET  = {{MIRROR_UPLOAD_URL}}lfric-{{projectName}}-{{PRIMARY_TARGET['platform']}}-{{publishGroup}}
 {%- endif %}
 
+{{publish_node_task('PUBLISH')}}
+
 ##############################################################################
+{#- DOCUMENTATION                                                            #}
 
-    [[TECHNICAL]]
-        [[[environment]]]
-            SOURCE_DIRECTORY      = $SOURCE_ROOT/{{projectName}}
-            DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{TARGET_TECHNICAL_COMPILER}}_fast-debug
-            WORKING_DIR           = {{LOCAL_BUILD_ROOT}}/{{TARGET_TECHNICAL_COMPILER}}_fast-debug
+{%- if 'documentation' not in rose_suite_gui_headers %}
+{%-   do rose_suite_gui_headers.append('documentation') %}
+    [[DOCUMENTATION]]
+      inherit = TECHNICAL
+{%- endif %}
 
-{{validate_rose_meta_task(projectName, 'LOCAL')}}
-{{check_style_task('LOCAL')}}
+{{ api_documentation_task('DOCUMENTATION', 'PUBLISH',
+                          get_target_property(SECONDARY_TARGET, 'setup'),
+                          get_target_property(SECONDARY_TARGET)) }}
+{{ uml_documentation_task('DOCUMENTATION', 'PUBLISH',
+                          get_target_property(SECONDARY_TARGET, 'setup')) }}
+{{ design_documentation_task('DOCUMENTATION', 'PUBLISH',
+                             get_target_property(SECONDARY_TARGET, 'setup')) }}
 
-# Run locally as they need workstation tools such as Doxygen, Inkscape
-{{api_documentation_task('LOCAL')}}
-{{uml_documentation_task('LOCAL')}}
-{{design_documentation_task('LOCAL')}}
+#############################################################################
+# TECHNICAL
 
-{{processnode_task()}}
+{{ validate_rose_meta_task(projectName, 'TECHNICAL',
+                           get_target_property(SECONDARY_TARGET, 'setup')) }}
+{{ check_style_task('TECHNICAL',
+                    get_target_property(SECONDARY_TARGET, 'setup')) }}
 
 {%- if 'unit_test_build_tools' in scheduledTasks %}
+    # The build tools have to be unit tested on the build target. Not much
+    # point proving they work on some other machine.
+    #
     [[unit_test_build_tools]]
-      inherit = TECHNICAL, TARGET
+      inherit = TARGET  # Should be BUILD target
       pre-script = """
-                   {{'\n'|command_list(TARGET_BASE_SETUP,
-                                    compiler_setup[TARGET_TECHNICAL_COMPILER],
-                                      TARGET_REVEAL_SETUP)}}
+                   {{ '\n'
+                      | command_list( get_target_property(PRIMARY_TARGET,
+                                                          'setup.base'),
+                                      get_target_property(PRIMARY_TARGET,
+                                                          'setup.compiler'),
+                                      get_target_property(PRIMARY_TARGET,
+                                                          'setup.reveal') ) }}
                    """
       script = rose task-run --app-key=unit_test_build_tools
-    [[[directives]]]
-{%-   for DIRECTIVE in TARGET_BUILD_BATCHER_DIRECTIVES %}
-      {{DIRECTIVE}}
-{%-   endfor %}
+
+{{ directives(PRIMARY_TARGET, 'build') }}
+
     [[[job]]]
         execution retry delays = 2*PT5S, 5*PT10S, 9*PT1M, 5*PT10M, 3*PT1H
 {%- endif %}
 
 ##############################################################################
 
-{%- for compiler in compiler_setup.keys() -%}
+{%- for compiler in get_target_property(PRIMARY_TARGET,
+                                        'setup')['compiler'].keys() -%}
 {%-   for build in build_profiles %}
 {%-     for precision in rdef_build_precisions %}
 {%-       set label = compiler | lower + '_' + precision + '-bit_' + build | lower %}
@@ -273,10 +304,18 @@
   [[unit_test_with_{{label}}]]
     inherit = {{family}}, TARGET
     pre-script  = """
-                  {{'\n'|command_list(TARGET_BASE_SETUP,
-                                     compiler_setup[compiler],
-                                     TARGET_BUILD_SETUP,
-                                     TARGET_REVEAL_SETUP)}}
+                  {{ '\n'
+                     | command_list( get_target_property(PRIMARY_TARGET,
+                                                         'setup.base'),
+                                     get_target_property(PRIMARY_TARGET,
+                                                         'setup.compiler',
+                                                         compiler=compiler),
+                                     get_target_property(PRIMARY_TARGET,
+                                                         'setup.build'),
+                                     get_target_property(PRIMARY_TARGET,
+                                                         'setup.tech'),
+                                     get_target_property(PRIMARY_TARGET,
+                                                         'setup.reveal') ) }}
                   """
     script      = """
                   UNIT_TESTS=''
@@ -290,11 +329,11 @@
                   fi
                   """
     post-script = """
-                  {{'\n'|command_list(deleteDirectory('$WORKING_DIR'))}}
+                  {{ deleteDirectory('$WORKING_DIR') }}
                   """
     [[[environment]]]
       SOURCE_DIRECTORY = $SOURCE_ROOT/{{appPathFragment}}{{projectName}}
-      WORKING_DIR      = {{TARGET_BUILD_ROOT}}/{{label}}/unit-test
+      WORKING_DIR      = {{get_target_property(PRIMARY_TARGET, 'build_root')}}/{{label}}/unit-test
       TARGET           = unit-tests
       PROFILE          = {{build}}
       MAKE_THREADS     = 4
@@ -303,12 +342,8 @@
       FIX_ENUMS        = 1
 {%-         endif %}
 
-    [[[directives]]]
-{%-         for DIRECTIVE in TARGET_BUILD_BATCHER_DIRECTIVES %}
-      {{DIRECTIVE}}
-{%-         endfor %}
+{{ directives(PRIMARY_TARGET, 'build') }}
 {%-       endif %}
-
 
 
 {# INTEGRATION TESTS #}
@@ -316,10 +351,18 @@
   [[integration_test_with_{{label}}]]
     inherit = {{family}}, TARGET
     pre-script  = """
-                  {{'\n'|command_list(TARGET_BASE_SETUP,
-                                     compiler_setup[compiler],
-                                     TARGET_BUILD_SETUP,
-                                     TARGET_REVEAL_SETUP)}}
+                  {{ '\n'
+                     | command_list( get_target_property(PRIMARY_TARGET,
+                                                         'setup.base'),
+                                     get_target_property(PRIMARY_TARGET,
+                                                         'setup.compiler',
+                                                         compiler=compiler),
+                                     get_target_property(PRIMARY_TARGET,
+                                                         'setup.build'),
+                                     get_target_property(PRIMARY_TARGET,
+                                                         'setup.tech'),
+                                     get_target_property(PRIMARY_TARGET,
+                                                         'setup.reveal') ) }}
                   """
     script      = """
                   INTEGRATION_TESTS=''
@@ -333,11 +376,11 @@
                   fi
                   """
     post-script = """
-                  {{'\n'|command_list(deleteDirectory('$WORKING_DIR'))}}
+                  {{ deleteDirectory('$WORKING_DIR') }}
                   """
     [[[environment]]]
       SOURCE_DIRECTORY = $SOURCE_ROOT/{{appPathFragment}}{{projectName}}
-      WORKING_DIR      = {{TARGET_BUILD_ROOT}}/{{label}}/integration-test
+      WORKING_DIR      = {{get_target_property(PRIMARY_TARGET, 'build_root')}}/{{label}}/integration-test
       TARGET           = integration-tests
       PROFILE          = {{build}}
       MAKE_THREADS     = 1
@@ -346,10 +389,7 @@
       FIX_ENUMS        = 1
 {%-         endif %}
 
-    [[[directives]]]
-{%-         for DIRECTIVE in TARGET_BUILD_BATCHER_DIRECTIVES %}
-      {{DIRECTIVE}}
-{%-         endfor %}
+{{ directives(PRIMARY_TARGET, 'build') }}
 {%-       endif %}   {# integration_tests #}
 
 {%-     endfor %}  {# rdef_precision #}
