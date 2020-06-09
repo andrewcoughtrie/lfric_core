@@ -80,7 +80,7 @@ type, public :: ugrid_2d_type
   class(ugrid_file_type), allocatable :: file_handler
 
 contains
-  procedure :: get_nmeshes
+  procedure :: get_n_meshes
   procedure :: get_mesh_names
   procedure :: get_dimensions
   procedure :: set_by_generator
@@ -185,20 +185,20 @@ end subroutine get_mesh_names
 !> @param[in]  filename   The name of the file to query
 !> @param[out] n_meshes   Integer, Number of mesh topologies in the file.
 !-------------------------------------------------------------------------------
-subroutine get_nmeshes(self, filename, nmeshes)
+subroutine get_n_meshes(self, filename, n_meshes)
 
   implicit none
 
   class(ugrid_2d_type), intent(inout) :: self
   character(len=*),     intent(in)    :: filename
-  integer(i_def),       intent(out)   :: nmeshes
+  integer(i_def),       intent(out)   :: n_meshes
 
   call self%file_handler%file_open(trim(filename))
-  nmeshes = self%file_handler%get_nmeshes()
+  n_meshes = self%file_handler%get_n_meshes()
   call self%file_handler%file_close()
 
   return
-end subroutine get_nmeshes
+end subroutine get_n_meshes
 
 !-------------------------------------------------------------------------------
 !>  @brief   Allocates ugrid_2d internal storage, populated by ugrid generator.

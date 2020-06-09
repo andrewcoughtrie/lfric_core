@@ -841,7 +841,7 @@ subroutine calc_edges(self)
   ! Top panel row, cell@left panel edge (ID:1)
   !--------------------------------------------
   ! Cell western edge
-  self%edges_on_cell(W, cell)  = edge_id
+  self%edges_on_cell(W, cell)      = edge_id
   self%verts_on_edge(1, edge_id)   = self%verts_on_cell(NW, cell)
   self%verts_on_edge(2, edge_id)   = self%verts_on_cell(SW, cell)
 

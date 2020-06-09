@@ -264,7 +264,7 @@ subroutine init_mesh( local_rank, total_ranks, prime_mesh_id, twod_mesh_id, shif
   ! contained mesh topologies
   allocate( ncdf_quad_type :: file_handler )
   call ugrid_2d%set_file_handler( file_handler )
-  call ugrid_2d%get_nmeshes( trim(filename), n_meshes )
+  call ugrid_2d%get_n_meshes( trim(filename), n_meshes )
 
   allocate( mesh_names(n_meshes) )
   call ugrid_2d%get_mesh_names( trim(filename), mesh_names )

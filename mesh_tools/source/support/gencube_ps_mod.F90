@@ -28,7 +28,7 @@ module gencube_ps_mod
   use calc_global_cell_map_mod,       only: calc_global_cell_map
   use constants_mod,                  only: r_def, i_def, str_def, l_def,     &
                                             str_long, PI, radians_to_degrees, &
-                                            degrees_to_radians
+                                            degrees_to_radians, rmdi
   use coord_transform_mod,            only: ll2xyz, xyz2ll
   use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
   use log_mod,                        only: log_event, log_scratch_space, &
@@ -65,20 +65,20 @@ module gencube_ps_mod
 
     private
 
-    character(str_def)          :: mesh_name
-    character(str_def)          :: mesh_class
-    character(str_def)          :: coord_units_x
-    character(str_def)          :: coord_units_y
-    character(str_long)         :: constructor_inputs
-    integer(i_def)              :: edge_cells
-    integer(i_def)              :: nsmooth
-    integer(i_def)              :: npanels
-    integer(i_def)              :: nmaps
+    character(str_def)  :: mesh_name
+    character(str_def)  :: mesh_class
+    character(str_def)  :: coord_units_x
+    character(str_def)  :: coord_units_y
+    character(str_long) :: constructor_inputs
+    integer(i_def)      :: edge_cells
+    integer(i_def)      :: nsmooth
+    integer(i_def)      :: npanels
+    integer(i_def)      :: nmaps
 
-    real(r_def)                 :: lat_north
-    real(r_def)                 :: lon_north
-    real(r_def)                 :: rotate_angle
-    logical                     :: do_rotate
+    real(r_def)         :: lat_north    = rmdi
+    real(r_def)         :: lon_north    = rmdi
+    real(r_def)         :: rotate_angle = rmdi
+    logical             :: do_rotate    = .false.
 
     character(str_def), allocatable :: target_mesh_names(:)
     integer(i_def),     allocatable :: target_edge_cells(:)
@@ -177,30 +177,30 @@ contains
   self%npanels    = NPANELS
   self%nmaps      = 0
 
-  ! Input as degrees, store as radians
-
-  if ( present(do_rotate) ) then
-
-    self%do_rotate = do_rotate
-
-    if ( do_rotate ) then
-
-      self%lat_north      = lat_north    * degrees_to_radians
-      self%lon_north      = lon_north    * degrees_to_radians
-      self%rotate_angle   = rotate_angle * degrees_to_radians
-
-    end if
-
-  else
-
-    self%do_rotate = .false.
-
-  end if
-
+  ! Construct string to report construction arguments
+  ! This string should be updated if new arguments are
+  ! applied.
   write(self%constructor_inputs,'(2(A,I0))')     &
       'edge_cells=',    self%edge_cells,  ';' // &
       'smooth_passes=', self%nsmooth
 
+
+
+  if (present(do_rotate)) then
+
+    self%do_rotate = do_rotate
+
+    if ( do_rotate ) then
+      ! The namelist inputs were in degrees, so convert
+      ! and store them as radians.
+      self%lat_north      = lat_north    * degrees_to_radians
+      self%lon_north      = lon_north    * degrees_to_radians
+      self%rotate_angle   = rotate_angle * degrees_to_radians
+    end if
+
+  end if
+
+  ! Constructor inputs for any target mesh maps
   if ( present(target_edge_cells) .and. &
        present(target_mesh_names) ) then
 

@@ -18,9 +18,11 @@
                                 'publish_commit']} %}
 
 {%- set mesh_types = ['cubedsphere',
+                      'cubedsphere_maps',
                       'cubedsphere_c1',
                       'cubedsphere_c2',
                       'cubedsphere_c3',
+                      'planar_maps',
                       'cubedsphere_rotated',
                       'planar_biperiodic',
                       'planar_non_periodic',

@@ -42,7 +42,7 @@ class ncdf_quad_mod::ncdf_quad_type {
   +append_mesh( ... )
   +get_dimensions( ... )
   +get_mesh_names( ... )
-  +get_nmeshes( ... )
+  +get_n_meshes( ... )
   +is_mesh_present( ... )
   +file_close( ... )
   +file_new( ... )

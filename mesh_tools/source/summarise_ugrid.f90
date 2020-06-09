@@ -69,7 +69,7 @@ program summarise_ugrid
   call infile%set_file_handler(ugrid_file)
 
   ! Get the names of all mesh topologies in the UGRID file
-  call infile%get_nmeshes( trim(filename), n_meshes )
+  call infile%get_n_meshes( trim(filename), n_meshes )
   allocate( mesh_names(n_meshes) )
   call infile%get_mesh_names( trim(filename), mesh_names )
 

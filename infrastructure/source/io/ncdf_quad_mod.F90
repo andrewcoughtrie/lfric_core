@@ -115,7 +115,7 @@ contains
   procedure :: append_mesh
   procedure :: get_dimensions
   procedure :: get_mesh_names
-  procedure :: get_nmeshes
+  procedure :: get_n_meshes
   procedure :: is_mesh_present
   procedure :: file_open
   procedure :: file_close
@@ -1071,27 +1071,27 @@ end subroutine check_err
 !>  @details Scans the variable attributes for cf_role = mesh_topology as
 !>           a flag that the variable name relates to a mesh.
 !>
-!>  @return nmeshes    Integer, The number of mesh topologies in the NetCDf file
+!>  @return n_meshes  Integer, The number of mesh topologies in the NetCDf file
 !-------------------------------------------------------------------------------
-function get_nmeshes(self) result (nmeshes)
+function get_n_meshes(self) result (n_meshes)
 
   implicit none
 
   class(ncdf_quad_type), intent(in) :: self
 
-  integer(i_def) :: nmeshes
+  integer(i_def) :: n_meshes
 
   character(str_def), allocatable :: mesh_names(:)
   integer(i_def), parameter :: max_n_topologies = 20
 
 
   allocate( mesh_names (max_n_topologies) )
-  call scan_for_topologies(self, mesh_names, nmeshes)
+  call scan_for_topologies(self, mesh_names, n_meshes)
 
   deallocate(mesh_names)
 
   return
-end function get_nmeshes
+end function get_n_meshes
 
 !-------------------------------------------------------------------------------
 !>  @brief Returns the names of mesh topologies described in this file.
@@ -1106,9 +1106,9 @@ subroutine get_mesh_names(self, mesh_names)
   class(ncdf_quad_type), intent(in)  :: self
   character(len=*),      intent(out) :: mesh_names(:)
 
-  integer(i_def) :: nmeshes
+  integer(i_def) :: n_meshes
 
-  call scan_for_topologies(self, mesh_names, nmeshes)
+  call scan_for_topologies(self, mesh_names, n_meshes)
 
   return
 end subroutine get_mesh_names
@@ -1624,17 +1624,17 @@ function is_mesh_present(self, mesh_name) result(answer)
 
   character(nf90_max_name), allocatable :: mesh_names(:)
 
-  integer(i_def) :: nmeshes
+  integer(i_def) :: n_meshes
   integer(i_def) :: i
 
-  nmeshes = self%get_nmeshes()
-  allocate(mesh_names(nmeshes))
+  n_meshes = self%get_n_meshes()
+  allocate(mesh_names(n_meshes))
   mesh_names = ''
 
   call get_mesh_names(self, mesh_names)
 
   answer = .false.
-  do i=1, nmeshes
+  do i=1, n_meshes
     if ( trim(mesh_names(i)) == trim(mesh_name) ) then
       answer = .true.
       exit
@@ -1758,16 +1758,16 @@ end subroutine append_mesh
 !>
 !>  @param[out] mesh_names  Character[:], Names of the mesh_topologies
 !>                          in the NetCDF file
-!>  @param[out] nmeshes     Integer, The number of mesh topologies
+!>  @param[out] n_meshes    Integer, The number of mesh topologies
 !>                          in the NetCDf file <<optional>>
 !-------------------------------------------------------------------------------
-subroutine scan_for_topologies(self, mesh_names, nmeshes)
+subroutine scan_for_topologies(self, mesh_names, n_meshes)
 
   implicit none
 
   class(ncdf_quad_type), intent(in)  :: self
   character(len=*),      intent(out) :: mesh_names(:)
-  integer(i_def),        intent(out) :: nmeshes
+  integer(i_def),        intent(out) :: n_meshes
 
   character(nf90_max_name), allocatable :: var_names(:)
   integer(i_def),           allocatable :: var_n_attributes(:)
@@ -1848,7 +1848,7 @@ subroutine scan_for_topologies(self, mesh_names, nmeshes)
     end if
   end do
 
-  nmeshes = n_mesh_topologies
+  n_meshes = n_mesh_topologies
 
   deallocate(var_names)
   deallocate(var_n_attributes)

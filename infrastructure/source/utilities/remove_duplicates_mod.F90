@@ -7,7 +7,7 @@
 !>
 module remove_duplicates_mod
 
-  use constants_mod, only: i_def, imdi, str_def
+  use constants_mod, only: i_def, imdi, str_def, cmdi
 
   implicit none
 
@@ -18,10 +18,16 @@ module remove_duplicates_mod
     module procedure get_unique_char_array
   end interface remove_duplicates
 
+  interface any_duplicates
+    module procedure any_int_duplicates
+    module procedure any_char_duplicates
+  end interface any_duplicates
+
   !> @brief Function call for integer and character arrays
   !> @param[in] array_in  Integer/Character array to remove duplicates from
   !> @returns   array_out Pointer to processed array with duplicate removed
-  public :: remove_duplicates
+
+  public :: remove_duplicates, any_duplicates
 
 contains
 
@@ -109,6 +115,56 @@ function get_unique_char_array(array_in) result(array_out)
   if (allocated(unique_list)) deallocate (unique_list)
   return
 end function get_unique_char_array
+
+!-----------------------------------------------------------------------------
+! Private function to check for duplicates from integer arrays
+!-----------------------------------------------------------------------------
+function any_int_duplicates(array_in) result(answer)
+
+  implicit none
+
+  integer(i_def), intent(in) :: array_in(:)
+
+  integer(i_def) :: n_entries, i
+
+  logical :: answer
+
+  n_entries = size(array_in)
+  answer = .false.
+
+  do i=1, n_entries
+    if (count(array_in(i) == array_in) > 1) answer=.true.
+  end do
+
+  return
+end function any_int_duplicates
+
+
+!-----------------------------------------------------------------------------
+! Private function to remove duplicates from character arrays
+!-----------------------------------------------------------------------------
+function any_char_duplicates(array_in) result(answer)
+
+  implicit none
+
+  character(str_def), intent(in) :: array_in(:)
+
+  integer(i_def) :: n_entries, i
+
+  logical :: answer
+
+  n_entries = size(array_in)
+  answer = .false.
+
+  do i=1, n_entries
+    if (trim(array_in(i)) /= trim(cmdi)) then
+      if (count(array_in(i) == array_in) > 1) answer=.true.
+    end if
+  end do
+
+  return
+end function any_char_duplicates
+
 
 end module remove_duplicates_mod
 

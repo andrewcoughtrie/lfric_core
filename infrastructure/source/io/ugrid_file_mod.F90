@@ -33,7 +33,7 @@ contains
   procedure (write_mesh_interface),      deferred :: append_mesh
   procedure (get_dimensions_interface),  deferred :: get_dimensions
   procedure (get_mesh_names_interface),  deferred :: get_mesh_names
-  procedure (get_nmeshes_interface),     deferred :: get_nmeshes
+  procedure (get_n_meshes_interface),    deferred :: get_n_meshes
   procedure (is_mesh_present_interface), deferred :: is_mesh_present
 
 end type ugrid_file_type
@@ -106,9 +106,9 @@ abstract interface
   !> @brief  Interface: Queries the file for the names of meshes it content.
   !>
   !> @param[in]  self        The ugrid file object.
-  !> @return     nmeshes     Integer, Number of mesh topologies in file
+  !> @return     n_meshes    Integer, Number of mesh topologies in file
   !-----------------------------------------------------------------------------
-  function get_nmeshes_interface( self ) result( nmeshes )
+  function get_n_meshes_interface( self ) result( n_meshes )
 
     import :: ugrid_file_type, i_def
 
@@ -116,9 +116,9 @@ abstract interface
 
     ! Arguments
     class(ugrid_file_type), intent(in)  :: self
-    integer(i_def) :: nmeshes
+    integer(i_def) :: n_meshes
 
-  end function get_nmeshes_interface
+  end function get_n_meshes_interface
 
   !-----------------------------------------------------------------------------
   !> @brief  Interface: Populates arguments with data from the mesh given

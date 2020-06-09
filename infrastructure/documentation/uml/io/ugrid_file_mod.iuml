@@ -8,7 +8,7 @@ interface ugrid_file_mod::ugrid_file_type{
   +{abstract} append_mesh( <<in>> mesh_name: string, <<in>> mesh_class: string, <<in>> periodic_x: logical, <<in>> periodic_y: logical, <<in>> constructor_inputs: string, <<in>> num_nodes: integer, <<in>> num_edges: integer, <<in>> num_faces: integer, <<in>> node_coordinates: real[::], <<in>> face_coordinates: real[::], <<in>> coord_units_x: string, <<in>> coord_units_y: string, <<in>> face_node_connectivity: integer[::], <<in>> edge_node_connectivity: integer[::], <<in>> face_edge_connectivity: integer[::], <<in>> face_face_connectivity: integer[::], <<in>> num_targets: integer, <<in>> target_mesh_names: string[:] <<allocatable>>, <<in>> target_mesh_maps: global_mesh_map_collection_type <<pointer>> )
   +{abstract} get_dimensions( <<in>> mesh_name: string, <<out>> num_nodes: integer, <<out>> num_edges: integer, <<out>> num_faces: integer, <<out>> num_nodes_per_face: integer, <<out>> num_edges_per_face: integer, <<out>> num_nodes_per_edge: integer, <<out>> max_num_faces_per_node: integer )
   +{abstract} get_mesh_names( <<out>> mesh_names: string[:] )
-  +{abstract} get_nmeshes() :  integer
+  +{abstract} get_n_meshes() :  integer
   +{abstract} is_mesh_present( <<in>> mesh_name:string ): logical
 
 }

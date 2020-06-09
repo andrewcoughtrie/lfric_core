@@ -15,14 +15,13 @@
 program cubedsphere_mesh_generator
 
   use cli_mod,           only: get_initial_filename
-  use constants_mod,     only: i_def, imdi, l_def, str_def, str_long
-  use cubedsphere_mesh_generator_config_mod,                                    &
-                         only: read_cubedsphere_mesh_generator_namelist,        &
-                               postprocess_cubedsphere_mesh_generator_namelist, &
-                               edge_cells, smooth_passes, nmeshes, mesh_names,  &
-                               mesh_filename, do_rotate, lat_north, lon_north,  &
-                               rotate_angle
-
+  use constants_mod,     only: i_def, imdi, l_def, str_def, str_long, cmdi
+  use configuration_mod, only: read_configuration, final_configuration
+  use mesh_config_mod,   only: n_meshes, mesh_names, mesh_filename, mesh_maps
+  use cubedsphere_mesh_config_mod,                        &
+                         only: edge_cells, smooth_passes, &
+                               do_rotate, lat_north,      &
+                               lon_north, rotate_angle
   use mpi_mod,           only: initialise_comm, store_comm, finalise_comm, &
                                get_comm_size, get_comm_rank
   use gencube_ps_mod,    only: gencube_ps_type
@@ -32,7 +31,8 @@ program cubedsphere_mesh_generator
                                log_scratch_space, &
                                LOG_LEVEL_INFO, LOG_LEVEL_ERROR
   use ncdf_quad_mod,     only: ncdf_quad_type
-  use remove_duplicates_mod, only: remove_duplicates
+
+  use remove_duplicates_mod, only: any_duplicates
   use ugrid_2d_mod,      only: ugrid_2d_type
   use ugrid_file_mod,    only: ugrid_file_type
 
@@ -41,44 +41,51 @@ program cubedsphere_mesh_generator
   integer(i_def) :: comm, total_ranks, local_rank
 
   character(:), allocatable   :: filename
-  integer(i_def)              :: namelist_unit
 
   integer(i_def),         allocatable :: ncells(:)
   integer(i_def),         allocatable :: cpp(:)
-  type(gencube_ps_type),  allocatable :: csgen(:)
+  type(gencube_ps_type),  allocatable :: mesh_gen(:)
   type(ugrid_2d_type),    allocatable :: ugrid_2d(:)
   class(ugrid_file_type), allocatable :: ugrid_file
 
   integer(i_def) :: fsize
   integer(i_def) :: max_res
 
-  integer(i_def) :: target
   integer(i_def) :: nsmooth
-  integer(i_def) :: targets
-  integer(i_def) :: n_unique_meshes
-  integer(i_def) :: test_int
+  integer(i_def) :: n_mesh_maps = 0
+  integer(i_def) :: n_targets
 
-  integer(i_def),     allocatable :: unique_edge_cells(:)
+  character(len=1),   allocatable :: map_spec(:)
+
   integer(i_def),     allocatable :: target_edge_cells(:)
   character(str_def), allocatable :: target_mesh_names(:)
 
-  integer(i_def),     allocatable :: unique_target_edge_cells(:)
-  character(str_def), allocatable :: unique_mesh_names(:)
+  integer(i_def),     allocatable :: target_edge_cells_tmp(:)
+  character(str_def), allocatable :: target_mesh_names_tmp(:)
+
+  character(str_def) :: map_entry
 
   ! Switches
   logical(l_def) :: l_found = .false.
+  logical(l_def) :: any_duplicate_names = .false.
 
   ! Parametes
   integer(i_def), parameter :: npanels = 6
   integer(i_def), parameter :: max_n_targets = 6
 
   ! Temporary variables
-  character(str_long) :: tmp_str1
-  character(str_long) :: tmp_str2
+  character(str_def), allocatable :: requested_mesh_maps(:)
+  character(str_def) :: first_mesh
+  character(str_def) :: second_mesh
+  character(str_def) :: source_mesh
+  character(str_def) :: target_mesh
+  character(str_def) :: tmp_str
+  character(str_def) :: check_mesh(2)
+  integer(i_def)     :: first_mesh_edge_cells
+  integer(i_def)     :: second_mesh_edge_cells
 
   ! Counters
-  integer(i_def) :: i, j, k
-
+  integer(i_def) :: i, j, k, l, n_voids
 
   !===================================================================
   ! 1.0 Set the logging level for the run, should really be able
@@ -99,19 +106,34 @@ program cubedsphere_mesh_generator
   ! 3.0 Read in the control namelists from file
   !===================================================================
   call get_initial_filename( filename )
-  namelist_unit = open_file( filename )
-  call read_cubedsphere_mesh_generator_namelist( namelist_unit, 0 )
-  call postprocess_cubedsphere_mesh_generator_namelist()
-  call close_file( namelist_unit )
+  call read_configuration( filename )
   deallocate( filename )
+
+  max_res = maxval(edge_cells(:n_meshes))
+
+  n_voids = count(cmdi == mesh_maps)
+  if ( n_voids == 0 ) then
+    n_mesh_maps = size(mesh_maps)
+  else
+    n_mesh_maps = size(mesh_maps) - n_voids
+  end if
 
   !===================================================================
   ! 4.0 Perform some error checks on the namelist inputs
   !===================================================================
   ! 4.1 Check the number of meshes requested.
-  if (nmeshes < 1) then
+  if (n_meshes < 1) then
     write(log_scratch_space,'(A,I0,A)') &
-       'Invalid number of meshes requested, (',nmeshes,')'
+       'Invalid number of meshes requested, (n_meshes = ',&
+       n_meshes,')'
+    call log_event(log_scratch_space,LOG_LEVEL_ERROR)
+  end if
+
+  if ( any(mesh_names == cmdi) .or. &
+       any(edge_cells == imdi) ) then
+    write(log_scratch_space,'(A,I0,A)') &
+       'Invalid number of meshes/edge_cells requested, '//&
+       '(n_meshes = ',n_meshes,')'
     call log_event(log_scratch_space,LOG_LEVEL_ERROR)
   end if
 
@@ -122,81 +144,162 @@ program cubedsphere_mesh_generator
     call log_event(log_scratch_space,LOG_LEVEL_ERROR)
   end if
 
+  ! 4.3 Check that all meshes requested have unique names.
+  any_duplicate_names = any_duplicates(mesh_names)
+  if (any_duplicate_names)  then
+    write(log_scratch_space,'(A)')          &
+       'Duplicate mesh names found, '// &
+       'all requested meshes must have unique names.'
+    call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+  end if
 
-  !===================================================================
-  ! 5.0 Get the unique mesh_names list as meshes could appear more than
-  !     once the chain
-  !===================================================================
-  unique_mesh_names = remove_duplicates(mesh_names)
-  n_unique_meshes   = size(unique_mesh_names)
+  ! 4.4 Check that all mesh map requests are unique.
+  any_duplicate_names = any_duplicates(mesh_maps)
+  if (any_duplicate_names)  then
+    write(log_scratch_space,'(A)')          &
+       'Duplicate mesh requests found, '//  &
+       'please remove duplicate requests.'
+    call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+  end if
 
-  allocate(unique_edge_cells(n_unique_meshes))
+  ! Perform a number of checks related to mesh map
+  ! requests.
+  if (n_mesh_maps > 0) then
+    do i=1, n_mesh_maps
 
-  do i=1, n_unique_meshes
-    l_found=.false.
-    test_int = imdi
-    unique_edge_cells(i) = imdi
+      ! Process entry for checks
+      map_entry = mesh_maps(i)
+      allocate(map_spec(len(map_entry)))
+      do j=1,len(map_entry)
+        map_spec(j) = map_entry(j:j)
+      end do
 
-    do j=1, nmeshes
-      if (trim(mesh_names(j)) == trim(unique_mesh_names(i))) then
-        test_int = edge_cells(j)
-        if (l_found) then
-          if (test_int /= unique_edge_cells(i)) then
-            write(log_scratch_space,'(A)')        &
-                'All instances of a mesh tag "'// &
-                trim(mesh_names(j))//             &
-                '" must have the same mesh specification.'
-            call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-          end if
-        else
-          unique_edge_cells(i) = test_int
-          l_found = .true.
+      check_mesh(1) = trim(adjustl(map_entry(:index(map_entry,':')-1)))
+      check_mesh(2) = trim(adjustl(map_entry(index(map_entry,':')+1:)))
+      first_mesh    = check_mesh(1)
+      second_mesh   = check_mesh(2)
+
+      do j=1, n_meshes
+        if (trim(mesh_names(j)) == trim(first_mesh)) then
+          first_mesh_edge_cells = edge_cells(j)
         end if
 
+        if (trim(mesh_names(j)) == trim(second_mesh)) then
+          second_mesh_edge_cells = edge_cells(j)
+        end if
+      end do
+
+      ! 4.4 Check that there is a ':' in the map specification.
+      if (count(':' == map_spec ) /= 1) then
+        write(log_scratch_space,'(A)')                               &
+           '['//trim(adjustl(map_entry))//'] '//                     &
+           'Incorrectly specified map entry must contain one ":" '// &
+           'separating the mesh identifiers'
+        call log_event( trim(log_scratch_space), LOG_LEVEL_ERROR )
       end if
+      deallocate(map_spec)
+
+      ! 4.4 Check that mesh names in the map request exist.
+      do j=1, size(check_mesh)
+
+        l_found = .false.
+        do k=1, n_meshes
+          if (trim(check_mesh(j)) == trim(mesh_names(k))) then
+            l_found = .true.
+          end if
+        end do
+
+        if ( .not. l_found ) then
+          write(log_scratch_space,'(A)')         &
+           '['//trim(adjustl(map_entry))//'] '// &
+             'Mesh "'//trim(check_mesh(j))//     &
+             '" not configured for this file.'
+          call log_event( trim(log_scratch_space), LOG_LEVEL_ERROR )
+        end if
+      end do
+
+      ! 4.5 Check the map request is not mapping at mesh
+      !     to itself.
+      if (trim(first_mesh) == trim(second_mesh)) then
+        write(log_scratch_space,'(A)')               &
+           '['//trim(adjustl(map_entry))//'] '//     &
+           'Found identical adjacent mesh names "'// &
+           trim(mesh_maps(i))//'", requested for mapping.'
+        call log_event( trim(log_scratch_space), LOG_LEVEL_ERROR )
+      end if
+
+      ! 4.6 Check that the number of edge cells of the meshes
+      !     are not the same.
+      if (first_mesh_edge_cells == second_mesh_edge_cells) then
+        write(log_scratch_space,'(A,I0,A)')                    &
+           '['//trim(adjustl(map_entry))//'] '//               &
+           'Found identical adjacent mesh edge cells,',        &
+           first_mesh_edge_cells,', requested for mapping "'// &
+           trim(first_mesh)//'"-"'//trim(second_mesh)//'".'
+        call log_event( trim(log_scratch_space), LOG_LEVEL_ERROR )
+      end if
+
+      ! 4.7 Check that the number of edge cells for one mesh is a
+      !     factor of the number of edges cells on the other mesh.
+      if ( mod(first_mesh_edge_cells, second_mesh_edge_cells) /= 0 .and. &
+           mod(second_mesh_edge_cells, first_mesh_edge_cells) /= 0 ) then
+        write(log_scratch_space, '(2(A,I0))')                            &
+          '['//trim(adjustl(map_entry))//'] '//                          &
+          'Edges cells of one mesh must be a factor of the other. '//    &
+          trim(first_mesh)//' edge cells=',first_mesh_edge_cells,', '//  &
+          trim(second_mesh)//' edge cells=',second_mesh_edge_cells
+        call log_event( trim(log_scratch_space), LOG_LEVEL_ERROR )
+      end if
+
+    end do  ! n_mesh_maps
+  end if  ! n_mesh_maps > 0
+
+
+  !===================================================================
+  ! 5.0 Create unique list of Requested Mesh maps
+  !     Each map request will create two maps, one in each direction
+  !===================================================================
+  if (n_mesh_maps > 0) then
+    allocate(requested_mesh_maps(n_mesh_maps*2))
+    j=1
+    do i=1, n_mesh_maps
+      tmp_str = mesh_maps(i)
+      first_mesh  = tmp_str(:index(tmp_str,':')-1)
+      second_mesh = tmp_str(index(tmp_str,':')+1:)
+      write(requested_mesh_maps(j),   '(A)') &
+          trim(first_mesh)//':'//trim(second_mesh)
+      write(requested_mesh_maps(j+1), '(A)') &
+          trim(second_mesh)//':'//trim(first_mesh)
+      j=j+2
     end do
-  end do
+  end if
 
-  max_res = maxval(unique_edge_cells)
-
-  !===================================================================
-  ! 5.1  Check that all meshes have edge_cells which are a factor of the
-  !      highest edge_cells value.
-  !===================================================================
-  do i=1, n_unique_meshes
-    if (mod(max_res, unique_edge_cells(i)) /= 0) then
-      write(log_scratch_space, '(A,I0,A)')                             &
-          '  All mesh edge cell values must be a factor of the ' //    &
-          'maximum edge cell value[', max_res,']'
-      call log_event( trim(log_scratch_space), LOG_LEVEL_ERROR )
-    end if
-  end do
 
   !===================================================================
-  ! 6.0 Report/Check what the code thinks is requested by user
+  ! 6.0 Generate each mesh and any maps associated with it
+  !     where the mesh is that source.
   !===================================================================
-  call log_event( "Generating ordered cubed-sphere mesh(es):", &
-                  LOG_LEVEL_INFO )
-  tmp_str1=''
-  tmp_str2=''
-  do i=1, nmeshes
-    write(tmp_str1,'(2(A,I0),A)')            &
-        trim(adjustl(mesh_names(i))) // '(', &
-        edge_cells(i), ',', edge_cells(i), ')'
-    if (i==1) then
-      tmp_str2 = trim(adjustl(tmp_str1))
-    else
-      tmp_str2 = trim(adjustl(tmp_str2))//'-'//trim(adjustl(tmp_str1))
-    end if
-  end do
-  write(log_scratch_space, '(A)') &
-      '  Names(edge_cells): '//trim(tmp_str2)
-  call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
-  write(log_scratch_space, '(A,I0)') &
-      '  Smoothing passes for maximum resolution: ', smooth_passes
-  call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
+  call log_event( "Generating cubed-sphere mesh(es):", LOG_LEVEL_INFO )
 
-  if (do_rotate)then
+
+  ! 6.1 Generate objects which know how to generate each requested
+  !     unique mesh.
+  allocate( cpp      (n_meshes) )
+  allocate( mesh_gen (n_meshes) )
+  allocate( ncells   (n_meshes) )
+  allocate( ugrid_2d (n_meshes) )
+
+
+  ! 6.2 Assign temporary arrays for target meshes in requested maps
+  if (n_mesh_maps > 0) then
+    if (allocated( target_mesh_names_tmp)) deallocate( target_mesh_names_tmp )
+    if (allocated( target_edge_cells_tmp)) deallocate( target_edge_cells_tmp )
+    allocate( target_mesh_names_tmp(n_mesh_maps*2) )
+    allocate( target_edge_cells_tmp(n_mesh_maps*2) )
+  end if
+
+
+  if (do_rotate) then
     write(log_scratch_space, '(A)') &
        '  Rotation of mesh requested with: '
     call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
@@ -211,127 +314,111 @@ program cubedsphere_mesh_generator
     call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
   end if
 
-  !===================================================================
-  ! 7.0 Generate objects which know how to generate each requested
-  !     unique mesh.
-  !===================================================================
-  allocate( cpp      (n_unique_meshes) )
-  allocate( csgen    (n_unique_meshes) )
-  allocate( ncells   (n_unique_meshes) )
-  allocate( ugrid_2d (n_unique_meshes) )
 
-
-
-  !===================================================================
-  ! 8.0 Determine which targets meshes are required for each
-  !     unique mesh.
-  !===================================================================
-  allocate( target_edge_cells(max_n_targets) )
-
-  do i=1, n_unique_meshes
-    cpp(i)    = unique_edge_cells(i)*unique_edge_cells(i)
+  do i=1, n_meshes
+    cpp(i)    = edge_cells(i)*edge_cells(i)
     ncells(i) = cpp(i)*npanels
 
     ! Only smooth this mesh if it is the mesh with the highest
-    ! number of cells in the chain
-    if (unique_edge_cells(i) == max_res) then
+    ! number of cells in the chain.
+
+    ! NOTE: Do not consider smoothing unless all requested
+    !       mesh edge cells are a factor of the maximum requested
+    !       mesh edge cell.
+    if (edge_cells(i) == max_res) then
       nsmooth = smooth_passes
     else
       nsmooth = 0
     end if
 
-    if (n_unique_meshes > 1) then
+    write(log_scratch_space,'(2(A,I0),A)')           &
+        '  Creating Mesh: '// trim(mesh_names(i)) // &
+        '(',edge_cells(i),',',edge_cells(i),')'
+    call log_event( trim(log_scratch_space), LOG_LEVEL_INFO)
 
-      ! From the requested chain, get all the edge_cell values for
-      ! all the other meshes this mesh need to map to
-      target_edge_cells = imdi
-      target            = 1
+    write(log_scratch_space,'(A,I0)') &
+        '    Smoothing passes: ', nsmooth
+    call log_event( trim(log_scratch_space), LOG_LEVEL_INFO)
 
-      do j=1, nmeshes
-        if (unique_edge_cells(i) == edge_cells(j)) then
-          if (j==1) then
-            target_edge_cells(target) = edge_cells(j+1)
 
-            target=target+1
-          else if (j==nmeshes) then
-            target_edge_cells(target) = edge_cells(j-1)
 
-            target=target+1
-          else
-            target_edge_cells(target)   = edge_cells(j+1)
-            target_edge_cells(target+1) = edge_cells(j-1)
-            target=target+2
-          end if
+    ! 6.3 Get any target mappings requested for this mesh
+    n_targets = 0
+    if (n_mesh_maps > 0) then
+
+      target_mesh_names_tmp = cmdi
+      target_edge_cells_tmp = imdi
+      l=1
+      do j=1, size(requested_mesh_maps)
+        tmp_str= requested_mesh_maps(j)
+        source_mesh = tmp_str( :index(tmp_str,':')-1)
+        target_mesh = tmp_str( index(tmp_str,':')+1:)
+        if (trim(source_mesh) == trim(mesh_names(i))) then
+          do k=1, n_meshes
+            if ( trim(target_mesh) == trim(mesh_names(k)) ) then
+              target_mesh_names_tmp(l) = trim(mesh_names(k))
+              target_edge_cells_tmp(l) = edge_cells(k)
+              l=l+1
+            end if
+          end do
         end if
       end do
+      n_targets=l-1
+    end if
 
-      unique_target_edge_cells = remove_duplicates(target_edge_cells)
-      targets =size(unique_target_edge_cells)
-      allocate(target_mesh_names(targets))
-      target_mesh_names=''
+    ! 6.4 Call generation stratedgy
+    if (n_targets == 0 .or. n_meshes == 1 ) then
+      ! No mesh maps required for this mesh
+      mesh_gen(i) = gencube_ps_type( mesh_name    = mesh_names(i), &
+                                     edge_cells   = edge_cells(i), &
+                                     nsmooth      = nsmooth,       &
+                                     do_rotate    = do_rotate,     &
+                                     lat_north    = lat_north,     &
+                                     lon_north    = lon_north,     &
+                                     rotate_angle = rotate_angle )
 
-      do k=1, targets
-        do j=1,nmeshes
-          if (unique_target_edge_cells(k) == edge_cells(j) ) then
-            target_mesh_names(k) =trim(mesh_names(j))
-          end if
-        end do
+    else if (n_meshes > 1) then
+
+      if (allocated(target_mesh_names)) deallocate(target_mesh_names)
+      if (allocated(target_edge_cells)) deallocate(target_edge_cells)
+
+      allocate(target_mesh_names(n_targets))
+      allocate(target_edge_cells(n_targets))
+      target_mesh_names(:) = target_mesh_names_tmp(:n_targets)
+      target_edge_cells(:) = target_edge_cells_tmp(:n_targets)
+
+      write(log_scratch_space,'(A,I0)') '    Maps to: '
+      do j=1, n_targets
+        write(log_scratch_space,'(2(A,I0),A)') trim(log_scratch_space)//' '//&
+              trim(target_mesh_names(j))//&
+              '(',target_edge_cells(j),',',target_edge_cells(j),')'
       end do
-
-
-      tmp_str1=''
-      tmp_str2=''
-      do j=1, targets
-        write(tmp_str1,'(A,I0,A)') &
-          trim(adjustl(target_mesh_names(j))) // '(' , unique_target_edge_cells(j), ')'
-        if (j==1) then
-          tmp_str2 = trim(adjustl(tmp_str1))
-        else
-          tmp_str2 = trim(adjustl(tmp_str2))//', '//trim(adjustl(tmp_str1))
-        end if
-      end do
-
-      write(log_scratch_space,'(2(A,I0),A)')               &
-          '  Creating Mesh: '// trim(unique_mesh_names(i)) &
-                             //'(',unique_edge_cells(i),',',unique_edge_cells(i),')'
       call log_event( trim(log_scratch_space), LOG_LEVEL_INFO)
 
-      write(log_scratch_space,'(A,I0)') '    Smoothing passes: ', nsmooth
-      call log_event( trim(log_scratch_space), LOG_LEVEL_INFO)
-
-      csgen(i) = gencube_ps_type( mesh_name=unique_mesh_names(i),             &
-                                  edge_cells=unique_edge_cells(i),            &
-                                  target_mesh_names=target_mesh_names,        &
-                                  target_edge_cells=unique_target_edge_cells, &
-                                  nsmooth=nsmooth, do_rotate=do_rotate,       &
-                                  lat_north=lat_north, lon_north=lon_north,   &
-                                  rotate_angle=rotate_angle)
-
-    else if ( n_unique_meshes == 1 ) then
-
-      ! Only 1 mesh requested, so it must be the prime mesh
-      ! and so no optional target_ndivs required
-      csgen(i) = gencube_ps_type( mesh_name  = unique_mesh_names(i), &
-                                  edge_cells = unique_edge_cells(i), &
-                                  nsmooth    = nsmooth,              &
-                                  do_rotate  = do_rotate,            &
-                                  lat_north  = lat_north,            &
-                                  lon_north  = lon_north,            &
-                                  rotate_angle=rotate_angle)
-
+      mesh_gen(i) = gencube_ps_type(                         &
+                        mesh_name=mesh_names(i),             &
+                        edge_cells=edge_cells(i),            &
+                        target_mesh_names=target_mesh_names, &
+                        target_edge_cells=target_edge_cells, &
+                        nsmooth=nsmooth,                     &
+                        do_rotate=do_rotate,                 &
+                        lat_north=lat_north,                 &
+                        lon_north=lon_north,                 &
+                        rotate_angle=rotate_angle )
     else
       write(log_scratch_space, "(A,I0,A)") &
-           '  Number of unique meshes is negative [', n_unique_meshes,']'
+           '  Number of unique meshes is negative [', n_meshes,']'
       call log_event( trim(log_scratch_space), LOG_LEVEL_ERROR)
     end if
 
     ! Pass the cubesphere generation object to the ugrid file writer
-    call ugrid_2d(i)%set_by_generator(csgen(i))
+    call ugrid_2d(i)%set_by_generator(mesh_gen(i))
     if (allocated(target_mesh_names)) deallocate(target_mesh_names)
-  end do
 
-  if ( allocated( target_edge_cells)  ) deallocate(target_edge_cells)
-  if ( allocated( ncells)             ) deallocate(ncells)
+  end do  ! n_meshes
+
+  if ( allocated(target_edge_cells) ) deallocate(target_edge_cells)
+  if ( allocated(ncells)            ) deallocate(ncells)
 
   call log_event( "...generation complete.", LOG_LEVEL_INFO )
 
@@ -339,7 +426,8 @@ program cubedsphere_mesh_generator
   !===================================================================
   ! 9.0 Write out to ugrid file
   !===================================================================
-  do i=1, n_unique_meshes
+  do i=1, n_meshes
+
     if (.not. allocated(ugrid_file)) allocate(ncdf_quad_type::ugrid_file)
 
     call ugrid_2d(i)%set_file_handler(ugrid_file)
@@ -352,28 +440,34 @@ program cubedsphere_mesh_generator
 
     inquire(file=trim(mesh_filename), size=fsize)
     write( log_scratch_space, '(A,I0,A)')                 &
-        'Adding mesh (' // trim(unique_mesh_names(i)) //  &
+        'Adding mesh (' // trim(mesh_names(i)) //         &
         ') to ' // trim(adjustl(mesh_filename)) // ' - ', &
         fsize, ' bytes written.'
 
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
-
     if (allocated(ugrid_file)) deallocate(ugrid_file)
-  end do
+
+  end do  ! n_meshes
+
+
+  !===================================================================
+  ! 10.0 Clean up and Finalise
+  !===================================================================
+  if ( allocated( ncells   ) ) deallocate (ncells)
+  if ( allocated( cpp      ) ) deallocate (cpp)
+  if ( allocated( mesh_gen ) ) deallocate (mesh_gen)
+
+  if ( allocated( requested_mesh_maps   ) ) deallocate (requested_mesh_maps)
+  if ( allocated( target_edge_cells     ) ) deallocate (target_edge_cells)
+  if ( allocated( target_mesh_names     ) ) deallocate (target_mesh_names)
+  if ( allocated( target_edge_cells_tmp ) ) deallocate (target_edge_cells_tmp)
+  if ( allocated( target_mesh_names_tmp ) ) deallocate (target_mesh_names_tmp)
 
   call finalise_comm()
 
-  if ( allocated( ncells ) )   deallocate (ncells)
-  if ( allocated( cpp ) )      deallocate (cpp)
-  if ( allocated( csgen ) )    deallocate (csgen)
-
-  if ( allocated( unique_mesh_names) ) &
-                               deallocate(unique_mesh_names)
-  if ( allocated( unique_target_edge_cells) ) &
-                               deallocate(unique_target_edge_cells)
-
-  ! Finalise the logging system
   call finalise_logging()
+
+  call final_configuration()
 
 end program cubedsphere_mesh_generator
