@@ -48,19 +48,20 @@ contains
     !Store the MPI communicator for later use
     call store_comm(this%getMpiCommunicator())
 
-    call feign_formulation_config( transport_only       = .false.,         &
-                                   rotating             = .true.,          &
-                                   use_moisture         = .false.,         &
-                                   use_physics          = .false.,         &
-                                   shallow              = .false.,         &
-                                   use_wavedynamics     = .true.,          &
-                                   dry_static_adjust    = .false.,         &
-                                   exner_from_eos       = .false.,         &
-                                   set_hydrostatic_init = .false.,         &
-                                   init_exner_bt        = .true.,          &
-                                   dlayer_on            = .false.,         &
-                                   si_momentum_equation = .true.,          &
-                                   vector_invariant     = .true.  )
+    call feign_formulation_config( transport_only        = .false.,         &
+                                   rotating              = .true.,          &
+                                   use_moisture          = .false.,         &
+                                   use_physics           = .false.,         &
+                                   shallow               = .false.,         &
+                                   use_wavedynamics      = .true.,          &
+                                   dry_static_adjust     = .false.,         &
+                                   exner_from_eos        = .false.,         &
+                                   set_hydrostatic_init  = .false.,         &
+                                   init_exner_bt         = .true.,          &
+                                   dlayer_on             = .false.,         &
+                                   si_momentum_equation  = .true.,          &
+                                   vector_invariant      = .true.,          &
+                                   moisture_conservation = .false.          )
 
   end subroutine setUp
 

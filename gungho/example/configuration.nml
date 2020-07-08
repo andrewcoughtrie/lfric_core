@@ -26,19 +26,20 @@
 /
 
 &formulation
-  transport_only       = .false.
-  rotating             = .true.
-  use_moisture         = .false.
-  shallow              = .false.
-  use_physics          = .false.
-  use_wavedynamics     = .true.
-  dlayer_on            = .false.
-  dry_static_adjust    = .false.
-  exner_from_eos       = .true.
-  set_hydrostatic_init = .false.
-  init_exner_bt        = .true.
-  si_momentum_equation = .false.
-  vector_invariant     = .false.
+  transport_only        = .false.
+  rotating              = .true.
+  use_moisture          = .false.
+  shallow               = .false.
+  use_physics           = .false.
+  use_wavedynamics      = .true.
+  dlayer_on             = .false.
+  dry_static_adjust     = .false.
+  exner_from_eos        = .true.
+  set_hydrostatic_init  = .false.
+  init_exner_bt         = .true.
+  si_momentum_equation  = .false.
+  vector_invariant      = .false.
+  moisture_conservation = .false.
 /
 
 &idealised

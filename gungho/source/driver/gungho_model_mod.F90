@@ -120,16 +120,20 @@ module gungho_model_mod
   !> @param [in,out] chi A size 3 array of fields holding the coordinates of the mesh
   !> @param [in,out] shifted_mesh_id The identifier given to the vertically shifted 3d mesh
   !> @param [in,out] shifted_chi A size 3 array of fields holding the coordinates of the shifted mesh
-
-  subroutine initialise_infrastructure(communicator,    &
-                                       filename,        &
-                                       program_name,    &
-                                       clock,           &
-                                       mesh_id,         &
-                                       twod_mesh_id,    &
-                                       chi,             &
-                                       shifted_mesh_id, &
-                                       shifted_chi )
+  !> @param [in,out] double_level_mesh_id The identifier given to the double-level 3d mesh
+  !> @param [in,out] double_level_chi A size 3 array of fields holding the coordinates of
+  !> the double-level mesh
+  subroutine initialise_infrastructure(communicator,         &
+                                       filename,             &
+                                       program_name,         &
+                                       clock,                &
+                                       mesh_id,              &
+                                       twod_mesh_id,         &
+                                       chi,                  &
+                                       shifted_mesh_id,      &
+                                       shifted_chi,          &
+                                       double_level_mesh_id, &
+                                       double_level_chi )
 
     use logging_config_mod, only: run_log_level,          &
                                   key_from_run_log_level, &
@@ -145,8 +149,10 @@ module gungho_model_mod
     character(*),       intent(in)    :: filename
     character(*),       intent(in)    :: program_name
     class(clock_type), intent(out), allocatable :: clock
-    integer(i_def),    intent(inout)            :: mesh_id, twod_mesh_id, shifted_mesh_id
-    type(field_type),  intent(inout)            :: chi(3), shifted_chi(3)
+
+    integer(i_def),     intent(inout) :: mesh_id, twod_mesh_id
+    integer(i_def),     intent(inout) :: double_level_mesh_id, shifted_mesh_id
+    type(field_type),   intent(inout) :: chi(3), shifted_chi(3), double_level_chi(3)
 
     character(len=*), parameter :: xios_ctx  = "gungho_atm"
 
@@ -227,10 +233,12 @@ module gungho_model_mod
               source = global_mesh_collection_type() )
 
     ! Create the mesh
-    call init_mesh(local_rank, total_ranks, mesh_id, twod_mesh_id, shifted_mesh_id)
+    call init_mesh(local_rank, total_ranks, mesh_id, twod_mesh_id, &
+                   shifted_mesh_id, double_level_mesh_id)
 
     ! Create FEM specifics (function spaces and chi field)
-    call init_fem(mesh_id, chi, shifted_mesh_id, shifted_chi)
+    call init_fem(mesh_id, chi, shifted_mesh_id, shifted_chi, &
+                  double_level_mesh_id, double_level_chi)
 
     ! Full global meshes no longer required, so reclaim
     ! the memory from global_mesh_collection
@@ -269,6 +277,7 @@ module gungho_model_mod
     ! Assignment of orography from surface_altitude
     call assign_orography_field(chi, mesh_id, surface_altitude)
     call assign_orography_field(shifted_chi, shifted_mesh_id, surface_altitude)
+    call assign_orography_field(double_level_chi, double_level_mesh_id, surface_altitude)
 
     !-------------------------------------------------------------------------
     ! Setup constants
@@ -277,8 +286,10 @@ module gungho_model_mod
     ! Create runtime_constants object. This in turn creates various things
     ! needed by the timestepping algorithms such as mass matrix operators, mass
     ! matrix diagonal fields and the geopotential field
-    call create_runtime_constants(mesh_id, twod_mesh_id, chi, &
-                                  shifted_mesh_id, shifted_chi, surface_altitude)
+    call create_runtime_constants(mesh_id, twod_mesh_id, chi,             &
+                                  shifted_mesh_id, shifted_chi,           &
+                                  double_level_mesh_id, double_level_chi, &
+                                  surface_altitude)
 
 #ifdef UM_PHYSICS
     ! Set derived planet constants and presets

@@ -83,7 +83,8 @@ contains
                                   set_hydrostatic_init = .false.,          &
                                   init_exner_bt        = .true.,           &
                                   si_momentum_equation = .true.,           &
-                                  vector_invariant=.true.  )
+                                  vector_invariant=.true.,                 &
+                                  moisture_conservation=.false.            )
     allocate( this%map(ndf), &
               this%x(undf),  &
               this%y(undf),  &

@@ -24,6 +24,7 @@ module iter_timestep_alg_mod
                                        use_wavedynamics,                     &
                                        dry_static_adjust,                    &
                                        exner_from_eos,                       &
+                                       moisture_conservation,                &
                                        si_momentum_equation
 
   use io_config_mod,             only: subroutine_timers,                    &
@@ -77,10 +78,11 @@ module iter_timestep_alg_mod
   ! Algorithms
   use mass_matrix_solver_alg_mod,  only: mass_matrix_solver_alg
   use rhs_alg_mod,                 only: rhs_alg
-  use advection_alg_mod,           only: advection_alg,       &
-                                         advection_alg_init,  &
-                                         advection_alg_final, &
-                                         advection_mr_alg,    &
+  use advection_alg_mod,           only: advection_alg,           &
+                                         advection_alg_init,      &
+                                         advection_alg_final,     &
+                                         advection_mr_alg,        &
+                                         conservative_mr_adv_alg, &
                                          advection_generic_field_alg
   use si_operators_alg_mod,        only: create_si_operators,  &
                                          compute_si_operators, &
@@ -492,18 +494,38 @@ contains
 
       if (use_wavedynamics) then
         call log_event("Advecting prognostic fields...", LOG_LEVEL_INFO)
-        if (write_conservation_diag .and. outer == outer_iterations .and. use_moisture) then
+        if (write_conservation_diag .and. use_moisture .and. outer == outer_iterations) then
           call moisture_conservation_alg( clock%get_step(),        &
                                           state_after_slow(igh_d), &
                                           mr_after_slow,           &
                                           'Before transport' )
         end if
         call advection_alg(rhs_adv, state_after_slow, state_n(igh_u), state(igh_u), advected_u )
-        if ( use_moisture )then
+        call bundle_ax(dt, rhs_adv, rhs_adv, bundle_size)
+
+        if ( use_moisture ) then
           ! Advect mr_after_slow values with latest advecting velocity
-          call advection_mr_alg(mr_inc, mr_after_slow, state_n(igh_u), state(igh_u))
-          ! Update latest value for mr
-          call add_bundle(mr_inc, mr_after_slow, mr, nummr)
+          if ( moisture_conservation ) then
+            call conservative_mr_adv_alg(mr, mr_after_slow, state_n(igh_u), state(igh_u), &
+                                         state_after_slow(igh_d), rho_guess)
+          else
+            call advection_mr_alg(mr_inc, mr_after_slow, state_n(igh_u), state(igh_u))
+            ! Update latest value for mr
+            call add_bundle(mr_inc, mr_after_slow, mr, nummr)
+          end if
+
+          if (write_conservation_diag .and. outer == outer_iterations) then
+            if (.not. moisture_conservation ) then
+              ! Calculate guess of rho = state_after_slow + rhs_adv
+              call invoke(X_plus_Y(rho_guess, state_after_slow(igh_d), rhs_adv(igh_d)))
+            end if
+            call moisture_conservation_alg( clock%get_step(), &
+                                            rho_guess, mr,    &
+                                            'Before clipping' )
+          end if
+
+
+          ! Clip moisture mixing ratios to remove negative values
           do i_mr = 1, nummr
             call invoke( enforce_lower_bound_kernel_type (mr(i_mr), 0.0_r_def) )
           end do
@@ -519,14 +541,11 @@ contains
                                             cloud_fields_after_slow,        &
                                             state_n(igh_u), state(igh_u) )
 
-        end if
-        call bundle_ax(dt, rhs_adv, rhs_adv, bundle_size)
-        if (write_conservation_diag .and. outer == outer_iterations .and. use_moisture) then
-          ! Calculate guess of rho = state_after_slow + rhs_adv
-          call invoke(X_plus_Y(rho_guess, state_after_slow(igh_d), rhs_adv(igh_d)))
-          call moisture_conservation_alg( clock%get_step(), &
-                                          rho_guess, mr,    &
-                                          'After transport' )
+          if (write_conservation_diag .and. outer == outer_iterations) then
+            call moisture_conservation_alg( clock%get_step(), &
+                                            rho_guess, mr,    &
+                                            'After transport' )
+          end if
         end if
         call log_event("Finished advecting prognostic fields...", LOG_LEVEL_INFO)
       else

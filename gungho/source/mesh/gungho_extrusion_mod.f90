@@ -25,21 +25,22 @@ module gungho_extrusion_mod
                                    geometry_planar,   &
                                    geometry_spherical
   use constants_mod,        only : r_def, i_def
-  use extrusion_mod,        only : extrusion_type,                             &
-                                   uniform_extrusion_type,                     &
-                                   quadratic_extrusion_type,                   &
-                                   geometric_extrusion_type,                   &
-                                   shifted_extrusion_type
-  use extrusion_config_mod, only : method,                    &
-                                   key_from_method,           &
-                                   method_uniform,            &
-                                   method_quadratic,          &
-                                   method_geometric,          &
-                                   method_dcmip,              &
-                                   method_um_L38_29t_9s_40km, &
+  use extrusion_mod,        only : extrusion_type,             &
+                                   uniform_extrusion_type,     &
+                                   quadratic_extrusion_type,   &
+                                   geometric_extrusion_type,   &
+                                   shifted_extrusion_type,     &
+                                   double_level_extrusion_type
+  use extrusion_config_mod, only : method,                     &
+                                   key_from_method,            &
+                                   method_uniform,             &
+                                   method_quadratic,           &
+                                   method_geometric,           &
+                                   method_dcmip,               &
+                                   method_um_L38_29t_9s_40km,  &
                                    method_um_L85_50t_35s_85km, &
                                    method_um_L70_50t_20s_80km, &
-                                   domain_top,                &
+                                   domain_top,                 &
                                    number_of_layers
   use log_mod,              only : log_event,       &
                                    log_level_error, &
@@ -49,7 +50,7 @@ module gungho_extrusion_mod
   implicit none
 
   private
-  public create_extrusion, create_shifted_extrusion
+  public create_extrusion, create_shifted_extrusion, create_double_level_extrusion
 
   character(*), parameter :: module_name = 'gungho_extrusion_mod'
 
@@ -468,5 +469,21 @@ contains
     allocate(new, source=shifted_extrusion_type(old))
 
   end function create_shifted_extrusion
+
+  !> @brief Creates vertical mesh extrusion for double level mesh.
+  !> @details Creates vertically double level mesh from normal and shifted meshes
+  !> @return new     Extrusion class
+  function create_double_level_extrusion(old) result(new)
+
+    implicit none
+
+    class(extrusion_type),  intent(in) :: old
+    class(extrusion_type), allocatable :: new
+
+    if (allocated(new)) deallocate(new)
+
+    allocate(new, source=double_level_extrusion_type(old))
+
+  end function create_double_level_extrusion
 
 end module gungho_extrusion_mod

@@ -59,7 +59,8 @@ contains
   !> @param[in]    x input field
   !> @param[in]    bc_flag optional flag to overide the default application of
   !>               boundary conditions
-  subroutine mass_matrix_solver_alg(y, x, bc_flag)
+  !> @param[in]    shifted_flag optional flag to denote that field is on shifted mesh
+  subroutine mass_matrix_solver_alg(y, x, bc_flag, shifted_flag)
     use solver_config_mod,           only: maximum_iterations,                 &
                                            tolerance,                          &
                                            method,                             &
@@ -78,8 +79,8 @@ contains
     use runtime_constants_mod,       only: get_mass_matrix,                    &
                                            get_mass_matrix_diagonal,           &
                                            w0_id, w1_id, w2_id,                &
-                                           w2v_id, w2h_id,                     &
-                                           wt_id, w3inv_id
+                                           w2v_id, w2h_id, w2_shift_id,        &
+                                           wt_id, w3inv_id, w3inv_shift_id
     use fs_continuity_mod,           only: W0, W1, W2, W3, Wtheta, W2v, W2h
     use dg_matrix_vector_kernel_mod, only: dg_matrix_vector_kernel_type
     implicit none
@@ -89,6 +90,8 @@ contains
     type( field_type), intent(in)    :: x
     ! Optional flag to overide default boundary condition application
     logical, optional,   intent(in) :: bc_flag
+    ! Optional flag to denote that we are on shifted mesh
+    logical, optional,   intent(in) :: shifted_flag
 
     !> todo Replace passing in of field types with passing in field_vector types
     type( field_vector_type ) :: vec_y, vec_x
@@ -103,6 +106,7 @@ contains
 
     integer(kind=i_def)             :: fs
     logical                         :: apply_bc
+    logical                         :: shifted
     integer(kind=i_def)             :: mm_id
     type(operator_type), pointer    :: mass_matrix => null()
     type(field_type),    pointer    :: mass_matrix_diagonal => null()
@@ -110,11 +114,19 @@ contains
 
     if ( subroutine_timers ) call timer('mass_matrix_solver_alg')
 
+    shifted = .false.
+    if (present(shifted_flag)) shifted = .true.
+
     fs = x%which_function_space()
     if ( fs == W3 ) then
     ! Direct solve for fully discontinuous spaces
     !> todo this needs to be extended to all DG spaces
-      mass_matrix => get_mass_matrix(w3inv_id)
+      if (shifted) then
+        mass_matrix => get_mass_matrix(w3inv_shift_id)
+      else
+        mass_matrix => get_mass_matrix(w3inv_id)
+      end if
+
       call invoke( dg_matrix_vector_kernel_type(y, x, mass_matrix) )
     else
     ! Iterative solve for (semi-)continuous spaces
@@ -163,22 +175,34 @@ contains
         apply_bc = .false.
       end if
       if ( present(bc_flag) ) apply_bc = bc_flag
-      select case ( fs )
-        case ( W0 )
-          mm_id = w0_id
-        case ( W1 )
-          mm_id = w1_id
-        case ( W2 )
-          mm_id = w2_id
-        case ( W2h )
-          mm_id = w2h_id
-        case ( W2v )
-          mm_id = w2v_id
-        case ( Wtheta )
-          mm_id = wt_id
-        case default
-          call log_event('Unsupported function space in solver algorithm', LOG_LEVEL_ERROR )
-      end select
+
+      if (shifted) then
+        select case ( fs )
+          case ( W2 )
+            call log_event('Getting mass matrix for W2 shifted', LOG_LEVEL_INFO)
+            mm_id = w2_shift_id
+          case default
+            call log_event('Unsupported function space in solver algorithm', LOG_LEVEL_ERROR )
+        end select
+      else
+        select case ( fs )
+          case ( W0 )
+            mm_id = w0_id
+          case ( W1 )
+            mm_id = w1_id
+          case ( W2 )
+            mm_id = w2_id
+          case ( W2h )
+            mm_id = w2h_id
+          case ( W2v )
+            mm_id = w2v_id
+          case ( Wtheta )
+            mm_id = wt_id
+          case default
+            call log_event('Unsupported function space in solver algorithm', LOG_LEVEL_ERROR )
+        end select
+      end if
+
       mass_matrix          => get_mass_matrix(mm_id)
       mass_matrix_diagonal => get_mass_matrix_diagonal(mm_id)
 

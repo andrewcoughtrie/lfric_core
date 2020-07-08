@@ -40,26 +40,33 @@ module create_fem_mod
 
   contains
 
-  !>@brief Initialises the coordinate field (chi) and (optionally) the vertically
-  !>        shifted coordinate field.
-  !> @param[in] mesh_id         Identifier of the mesh
-  !> @param[in,out] chi         Coordinate field
-  !> @param[in] shifted_mesh_id Identifier of vertically shifted mesh with an extra level
-  !> @param[in,out] shifted_chi Spatial coordinates of vertically shifted mesh
-  subroutine init_fem( mesh_id, chi, shifted_mesh_id, shifted_chi )
+    !>@brief Initialises the coordinate field (chi) and (optionally) the vertically
+    !>        shifted coordinate field.
+    !> @param[in] mesh_id         Identifier of the mesh
+    !> @param[in,out] chi         Coordinate field
+    !> @param[in] shifted_mesh_id Identifier of vertically shifted mesh with an extra level
+    !> @param[in,out] shifted_chi Spatial coordinates of vertically shifted mesh
+    !> @param[in] double_level_mesh_id Identifier of double level mesh
+    !> @param[in,out] double_level_chi Spatial coordinates of double level mesh
+    subroutine init_fem( mesh_id, chi, shifted_mesh_id, shifted_chi, &
+                         double_level_mesh_id, double_level_chi )
 
     implicit none
 
     integer(i_def), intent(in)                  :: mesh_id
+    integer(i_def), intent(in), optional        :: shifted_mesh_id
+    integer(i_def), intent(in), optional        :: double_level_mesh_id
+
     ! Coordinate field
     type( field_type ), intent(inout)           :: chi(:)
-    integer(i_def), intent(in), optional        :: shifted_mesh_id
     type( field_type ), intent(inout), optional :: shifted_chi(:)
+    type( field_type ), intent(inout), optional :: double_level_chi(:)
 
     integer(i_native), parameter :: fs_list(5) = [W0, W1, W2, W3, Wtheta]
 
     type(function_space_type), pointer :: fs => null()
     type(function_space_type), pointer :: shifted_fs => null()
+    type(function_space_type), pointer :: double_level_fs => null()
     integer(i_native)                  :: fs_index
     integer(i_def)                     :: chi_space
     integer(i_def)                     :: coord
@@ -112,6 +119,22 @@ module create_fem_mod
 
       nullify( shifted_fs )
    end if
+
+   ! Create double level vertical mesh extrusion.
+   if (present(double_level_mesh_id)) then
+     call log_event( "FEM specifics: Making double level mesh spaces", LOG_LEVEL_INFO )
+     double_level_fs => function_space_collection%get_fs( double_level_mesh_id, &
+                                                          coordinate_order,     &
+                                                          chi_space)
+
+     do coord = 1, size(chi)
+       call double_level_chi(coord)%initialise(vector_space = double_level_fs)
+     end do
+
+     call assign_coordinate_field(double_level_chi, double_level_mesh_id)
+
+     nullify( double_level_fs )
+  end if
 
    ! === === === === === === === === === === === !
     ! Create Function space chains for Multigrid   !

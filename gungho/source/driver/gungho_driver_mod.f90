@@ -46,10 +46,13 @@ module gungho_driver_mod
   ! Coordinate field
   type(field_type), target :: chi(3)
   type(field_type), target :: shifted_chi(3)
+  type(field_type), target :: double_level_chi(3)
 
-  integer(i_def) :: mesh_id      = imdi
-  integer(i_def) :: twod_mesh_id = imdi
-  integer(i_def) :: shifted_mesh_id = imdi
+  integer(i_def) :: mesh_id              = imdi
+  integer(i_def) :: twod_mesh_id         = imdi
+  integer(i_def) :: shifted_mesh_id      = imdi
+  integer(i_def) :: double_level_mesh_id = imdi
+
   class(clock_type), allocatable :: clock
 
 contains
@@ -66,15 +69,17 @@ contains
 
 
     ! Initialise infrastructure and setup constants
-    call initialise_infrastructure( model_communicator, &
-                                    filename,           &
-                                    program_name,       &
-                                    clock,              &
-                                    mesh_id,            &
-                                    twod_mesh_id,       &
-                                    chi,                &
-                                    shifted_mesh_id,    &
-                                    shifted_chi )
+    call initialise_infrastructure( model_communicator,   &
+                                    filename,             &
+                                    program_name,         &
+                                    clock,                &
+                                    mesh_id,              &
+                                    twod_mesh_id,         &
+                                    chi,                  &
+                                    shifted_mesh_id,      &
+                                    shifted_chi,          &
+                                    double_level_mesh_id, &
+                                    double_level_chi      )
 
     ! Instantiate the fields stored in model_data
     call create_model_data( model_data,   &

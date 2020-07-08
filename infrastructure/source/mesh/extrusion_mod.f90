@@ -120,6 +120,26 @@ module extrusion_mod
     module procedure shifted_extrusion_constructor
   end interface shifted_extrusion_type
 
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Makes a double level extrusion from an existing extrusion. This is
+  !> an extrusion whose levels are both the levels of the original extrusion
+  !> and also those levels from the shifted mesh -- i.e. it has double the number
+  !> of layers.
+  !>
+  type, public, extends(extrusion_type) :: double_level_extrusion_type
+    private
+
+    class(extrusion_type), pointer :: base_extrusion
+
+  contains
+    private
+    procedure, public :: extrude => double_level_extrude
+  end type double_level_extrusion_type
+
+  interface double_level_extrusion_type
+    module procedure double_level_extrusion_constructor
+  end interface double_level_extrusion_type
+
 
 contains
 
@@ -313,6 +333,60 @@ contains
     eta(this%number_of_layers) = 1.0_r_def
 
   end subroutine shifted_extrude
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Creates a double_level_extrusion_type object.
+  !> @param[in] extrusion An existing extrusion_type object.
+  !> @return New double_level_extrusion_type object.
+  function double_level_extrusion_constructor( extrusion ) result(new)
+
+    implicit none
+
+    class(extrusion_type), target, intent(in) :: extrusion
+    type(double_level_extrusion_type)         :: new
+    integer(i_def)                            :: nlayers_dl
+
+    nlayers_dl = 2 * extrusion%number_of_layers
+
+    call new%extrusion_constructor( extrusion%atmosphere_bottom, &
+                                    extrusion%atmosphere_top,    &
+                                    nlayers_dl )
+
+    new%base_extrusion => extrusion
+
+  end function double_level_extrusion_constructor
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Finds the nondimensional heights for a double_level extrusion from
+  !>        an original extrusion. The levels are those of the original extrusion
+  !>        and the levels halfway between them, to create an extrusion with
+  !>        double the number of layers.
+  !>
+  !> @param[out] eta Nondimensional vertical coordinate.
+  !>
+  subroutine double_level_extrude( this, eta )
+
+    implicit none
+
+    class(double_level_extrusion_type), intent(in)  :: this
+    real(r_def),                        intent(out) :: eta(0:)
+
+    real(r_def)    :: eta_old(0:(this%number_of_layers)/2)
+    integer(i_def) :: k, nlayers_old
+
+    nlayers_old = (this%number_of_layers)/2
+
+    ! Obtain original levels and put them into eta_old
+    call this%base_extrusion%extrude( eta_old )
+
+    eta(0) = 0.0_r_def
+
+    do k = 1, nlayers_old
+      eta(2*k-1) = 0.5_r_def * (eta_old(k) + eta_old(k-1))
+      eta(2*k) = eta_old(k)
+    end do
+
+  end subroutine double_level_extrude
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Initialises the extrusion base class.

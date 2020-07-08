@@ -27,19 +27,20 @@ rehabilitate=.true.,
 /
 
 &formulation
-  transport_only       = .false.
-  rotating             = .false.
-  use_moisture         = .false.
-  shallow              = .false.
-  use_physics          = .false.
-  use_wavedynamics     = .false. 
-  dlayer_on            = .false.
-  dry_static_adjust    = .false.
-  exner_from_eos       = .false.
-  set_hydrostatic_init = .false.
-  init_exner_bt        = .false.
-  si_momentum_equation = .true.
-  vector_invariant     = .true.
+  transport_only        = .false.
+  rotating              = .false.
+  use_moisture          = .false.
+  moisture_conservation = .false.
+  shallow               = .false.
+  use_physics           = .false.
+  use_wavedynamics      = .false.
+  dlayer_on             = .false.
+  dry_static_adjust     = .false.
+  exner_from_eos        = .false.
+  set_hydrostatic_init  = .false.
+  init_exner_bt         = .false.
+  si_momentum_equation  = .true.
+  vector_invariant      = .true.
 /
 
 &multigrid

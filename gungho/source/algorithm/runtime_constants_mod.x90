@@ -78,6 +78,8 @@ module runtime_constants_mod
   use compute_mass_matrix_kernel_w2_mod,     only: compute_mass_matrix_kernel_w2_type
   use io_config_mod,                         only: subroutine_timers
   use timer_mod,                             only: timer
+  use mr_to_sh_mass_ints_kernel_mod,         only: mr_to_sh_mass_ints_kernel_type
+  use w3_to_sh_w3_ints_kernel_mod,           only: w3_to_sh_w3_ints_kernel_type
 
   implicit none
 
@@ -132,7 +134,9 @@ module runtime_constants_mod
   type(field_type), target                               :: latitude_W3, longitude_W3
 
   ! Shifted mesh features
-  type(field_type), target                               :: mm3_shifted_diag
+  type(field_type), target                               :: mm_w3_shifted_diag
+  type(field_type), target                               :: mm_w3_shifted_inv_diag
+  type(field_type), target                               :: mm_w2_shifted_diag
   type(operator_type), target                            :: mm_w0_shifted
   type(operator_type), target                            :: mm_w1_shifted
   type(operator_type), target                            :: mm_w2_shifted
@@ -150,6 +154,13 @@ module runtime_constants_mod
   type(operator_type), target                            :: broken_div_shifted
   type(field_type), target, dimension(:), allocatable    :: global_chi_shifted
   integer(i_def), target                                 :: global_shifted_mesh_id
+
+  ! Double level mesh features
+  integer(i_def), target                                 :: global_double_level_mesh_id
+  type(field_type), target, dimension(:), allocatable    :: global_chi_double_level
+  type(field_type), target                               :: dA_at_w2_double_layer
+  type(field_type), target, dimension(:), allocatable    :: mr_to_sh_mass_integrals
+  type(field_type), target, dimension(:), allocatable    :: w3_to_sh_w3_integrals
 
   ! Enumerated types
   integer(i_def), parameter, public :: w0_id          = 0_i_def
@@ -201,6 +212,11 @@ module runtime_constants_mod
   public :: get_dA_at_w2_shifted
   public :: get_div_shifted
   public :: get_shifted_mesh_id
+  public :: get_coordinates_double_layer
+  public :: get_dA_at_w2_double_layer
+  public :: get_double_level_mesh_id
+  public :: get_mr_to_sh_mass_integrals
+  public :: get_w3_to_sh_w3_integrals
 
 
   ! overload the interfaces for MG versions
@@ -231,8 +247,12 @@ contains
   !> @param[in] chi             chi field
   !> @param[in] shifted_mesh_id Mesh_id for vertically shifted field
   !> @param[in] shifted_chi     chi field for vertically shifted field
-  subroutine create_runtime_constants(mesh_id,twod_mesh_id, chi,   &
-                                      shifted_mesh_id, shifted_chi, &
+  !> @param[in] double_level_mesh_id Mesh_id for double level field
+  !> @param[in] double_level_chi     chi field for double level field
+  !> @param[in] surface_altitude     A 2D field describing the surface height
+  subroutine create_runtime_constants(mesh_id,twod_mesh_id, chi,              &
+                                      shifted_mesh_id, shifted_chi,           &
+                                      double_level_mesh_id, double_level_chi, &
                                       surface_altitude)
     implicit none
 
@@ -240,6 +260,8 @@ contains
     type(field_type), target,   intent(in) :: chi(:)
     integer(i_def), optional,   intent(in) :: shifted_mesh_id
     type(field_type), optional, intent(in) :: shifted_chi(:)
+    integer(i_def), optional,   intent(in) :: double_level_mesh_id
+    type(field_type), optional, intent(in) :: double_level_chi(:)
     type(field_type), optional, intent(in) :: surface_altitude
 
     type(function_space_type), pointer :: w0_fs     => null()
@@ -255,6 +277,8 @@ contains
     type(function_space_type), pointer :: w3_k0_2d_fs => null() ! lowest order w3 fs
     type(field_type)                   :: ones
     type(field_type)                   :: dx_at_w2
+    type(field_type)                   :: dummy_theta
+    type(field_type)                   :: dummy_w3_shifted
 
     ! Create shifted function space pointers
     type(function_space_type), pointer :: w0_shift_fs      => null()
@@ -400,13 +424,13 @@ contains
 
       if ( present(shifted_mesh_id) ) then
 
-        call temp_w2_field_shifted%initialise( vector_space =                      &
+        call temp_w2_field_shifted%initialise( vector_space =                    &
           function_space_collection%get_fs( shifted_mesh_id, element_order, W2 ) )
-        call cell_orientation_shifted%initialise( vector_space =                   &
+        call cell_orientation_shifted%initialise( vector_space =                 &
           function_space_collection%get_fs( shifted_mesh_id, element_order, W3 ) )
-        call invoke( setval_c(temp_w2_field_shifted,    0.0_r_def),             &
+        call invoke( setval_c(temp_w2_field_shifted,    0.0_r_def),              &
                      setval_c(cell_orientation_shifted, 0.0_r_def) )
-        call invoke_mpi_calc_cell_orientation( temp_w2_field_shifted,           &
+        call invoke_mpi_calc_cell_orientation( temp_w2_field_shifted,            &
                                                cell_orientation_shifted )
 
       end if
@@ -667,24 +691,85 @@ contains
                                                        shifted_chi, qr) )
       call invoke( invert_local_operator_kernel_type(mm_w3_inv_shifted, mm_w3_shifted) )
 
-      call mm3_shifted_diag%initialise( vector_space = w3_shift_fs )
-      call invoke( name = "Create shifted mass matrix diagonal fields",      &
-                   setval_c(mm3_shifted_diag, 0.0_r_def),                    &
+      call mm_w3_shifted_diag%initialise( vector_space = w3_shift_fs )
+      call mm_w3_shifted_inv_diag%initialise( vector_space = w3_shift_fs )
+      call mm_w2_shifted_diag%initialise( vector_space = w2_shift_fs )
+      call invoke( name = "Create shifted mass matrix diagonal fields", &
+                   setval_c(mm_w3_shifted_diag, 0.0_r_def),             &
+                   setval_c(mm_w3_shifted_inv_diag, 0.0_r_def),         &
+                   setval_c(mm_w2_shifted_diag, 0.0_r_def),             &
        ! Compute mass matrices
-                   mm_diagonal_kernel_type(mm3_shifted_diag, mm_w3_shifted) )
+                   mm_diagonal_kernel_type(mm_w3_shifted_diag, mm_w3_shifted),    &
+                   mm_diagonal_kernel_type(mm_w2_shifted_diag, mm_w2_shifted),    &
+                   mm_diagonal_kernel_type(mm_w3_shifted_inv_diag, mm_w3_inv_shifted) )
 
       !======== Create multiplicity for horizontally continuous fields ========!
 
       call nodal_multiplicity_w2_shifted%initialise( vector_space = w2_shift_fs )
-      call invoke( name = "create_shifted_multiplicity",             &
+      call invoke( name = "Create shifted multiplicity ",             &
                    multiplicity_kernel_type(nodal_multiplicity_w2_shifted) )
 
       !================ Create detj values at W2 dof locations ================!
 
       call detj_at_w2_shifted%initialise( vector_space = w2_shift_fs )
-      call invoke(setval_c(detj_at_w2_shifted,0.0_r_def),               &
-                  calc_detj_at_w2_kernel_type(detj_at_w2_shifted, shifted_chi),  &
+      call invoke(setval_c(detj_at_w2_shifted,0.0_r_def),                             &
+                  calc_detj_at_w2_kernel_type(detj_at_w2_shifted, shifted_chi),       &
                   inc_X_divideby_Y(detj_at_w2_shifted, nodal_multiplicity_w2_shifted) )
+
+      !======================= Get areas on shifted mesh ======================
+      call dA_at_w2_shifted%initialise( vector_space =                                   &
+                                   function_space_collection%get_fs( shifted_mesh_id,    &
+                                                                     element_order, W2 ) )
+
+      call invoke( setval_c(dA_at_w2_shifted, 0.0_r_def),                   &
+                   calc_dA_at_w2_kernel_type(dA_at_w2_shifted, shifted_chi) )
+
+
+      !============== Now create all double level mesh properties ==============!
+
+      if ( present(double_level_mesh_id) ) then
+        ! Make shifted mesh id globally available
+        global_double_level_mesh_id = double_level_mesh_id
+
+        allocate(global_chi_double_level(3))
+        do i = 1, 3
+          call double_level_chi(i)%copy_field(global_chi_double_level(i))
+        end do
+
+      !==================== Get areas on double layer mesh ====================!
+        call dA_at_w2_double_layer%initialise( vector_space = &
+             function_space_collection%get_fs( double_level_mesh_id, &
+                                               element_order, W2 )   )
+
+        call invoke( setval_c(dA_at_w2_double_layer, 0.0_r_def), &
+                     calc_dA_at_w2_kernel_type(dA_at_w2_double_layer, double_level_chi) )
+
+      !======== Create transform matrix stuff for wtheta to shifted W3 ========!
+        allocate(mr_to_sh_mass_integrals(4))
+        do i = 1, 4
+          call mr_to_sh_mass_integrals(i)%initialise( vector_space = w3_fs )
+          call invoke( setval_c(mr_to_sh_mass_integrals(i), 0.0_r_def) )
+        end do
+        call dummy_theta%initialise( vector_space = wtheta_fs )
+        call invoke( mr_to_sh_mass_ints_kernel_type( mr_to_sh_mass_integrals, &
+                                                     double_level_chi,        &
+                                                     dummy_theta,             &
+                                                     qr                       &
+                                                    ) )
+      !========== Create transform matrix stuff for W3 to shifted W3 ==========!
+        allocate(w3_to_sh_w3_integrals(2))
+        do i = 1, 2
+          call w3_to_sh_w3_integrals(i)%initialise( vector_space = w3_fs )
+          call invoke( setval_c(w3_to_sh_w3_integrals(i), 0.0_r_def) )
+        end do
+        call dummy_w3_shifted%initialise( vector_space = w3_shift_fs )
+        call invoke( w3_to_sh_w3_ints_kernel_type( w3_to_sh_w3_integrals,     &
+                                                   dummy_w3_shifted,          &
+                                                   double_level_chi,          &
+                                                   qr                         &
+                                                  ) )
+
+      end if
 
       nullify( w0_shift_fs )
       nullify( w1_shift_fs )
@@ -1012,7 +1097,11 @@ contains
       case (theta_space_id)
         mmd => mmtheta_diag
       case (w3_shift_id)
-        mmd => mm3_shifted_diag
+        mmd => mm_w3_shifted_diag
+      case (w3inv_shift_id)
+        mmd => mm_w3_shifted_inv_diag
+      case (w2_shift_id)
+        mmd => mm_w2_shifted_diag
       case default
         mmd => null()
         call log_event( "Mass matrix diagonal does not exist", LOG_LEVEL_ERROR)
@@ -1270,6 +1359,54 @@ contains
     our_mesh_id => global_shifted_mesh_id
   end function get_shifted_mesh_id
 
+
+  !> @brief Returns a pointer to the coordinate array on the double_level mesh
+  !> @return The coordinate field array
+  function get_coordinates_double_layer() result(coords_ptr)
+    implicit none
+    type(field_type), pointer :: coords_ptr(:)
+
+    coords_ptr => global_chi_double_level(:)
+  end function get_coordinates_double_layer
+
+  !> @brief Returns the double level dA values at W2 dof locations
+  !> @return The dA field on double level mesh
+  function get_dA_at_w2_double_layer() result(dA)
+    implicit none
+    type(field_type), pointer :: dA
+    dA => dA_at_w2_double_layer
+
+  end function get_dA_at_w2_double_layer
+
+  !> @brief Returns a pointer to the double level mesh id
+  !> @return The coordinate field array
+  function get_double_level_mesh_id() result(my_mesh_id)
+    implicit none
+    integer(i_def), pointer :: my_mesh_id
+
+    my_mesh_id => global_double_level_mesh_id
+  end function get_double_level_mesh_id
+
+  !> @brief Returns a pointer to the Wtheta to shifted W3 ints
+  !> @return The integrals for transforming a mixing ratio in Wtheta
+  !> to a density in shifted W3
+  function get_mr_to_sh_mass_integrals() result(ptr)
+    implicit none
+    type(field_type), pointer :: ptr(:)
+    ptr => mr_to_sh_mass_integrals
+
+  end function get_mr_to_sh_mass_integrals
+
+  !> @brief Returns a pointer to the W3 to shifted W3 ints
+  !> @return The integrals for transforming from W3 to shifted W3
+  function get_w3_to_sh_w3_integrals() result(ptr)
+    implicit none
+    type(field_type), pointer :: ptr(:)
+    ptr => w3_to_sh_w3_integrals
+
+  end function get_w3_to_sh_w3_integrals
+
+
   !> @brief Explicitly reclaim memory from module scope variables
   !
   subroutine final_runtime_constants()
@@ -1343,7 +1480,14 @@ contains
     call mm_wtheta_shifted%operator_final()
     call grad_shifted%operator_final()
     call curl_shifted%operator_final()
-    call mm3_shifted_diag%field_final()
+    call mm_w2_shifted_diag%field_final()
+    call mm_w3_shifted_diag%field_final()
+    call mm_w3_shifted_inv_diag%field_final()
+    call dA_at_w2_shifted%field_final()
+    if (allocated(global_chi_double_level)) deallocate(global_chi_double_level)
+    call dA_at_w2_double_layer%field_final()
+    if (allocated(mr_to_sh_mass_integrals)) deallocate(mr_to_sh_mass_integrals)
+    if (allocated(w3_to_sh_w3_integrals)) deallocate(w3_to_sh_w3_integrals)
 
 
   end subroutine final_runtime_constants

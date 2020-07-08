@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! (C) Crown copyright 2018 Met Office. All rights reserved.
+! (c) Crown copyright 2020 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
@@ -10,7 +10,7 @@
 !>        reconstruction routines used by the Method of Lines (MoL)
 !>        advection scheme
 
-module psykal_lite_mol_mod
+module psykal_lite_mol_shifted_mod
 
   use field_mod,                    only : field_type, field_proxy_type
   use constants_mod,                only : r_def, i_def, l_def
@@ -43,8 +43,8 @@ contains
 ! When PSyclone and LFRic support fields with multi-dimensional arrays
 ! these can be removed
 !-------------------------------------------------------------------------------
-subroutine psykal_lite_mol_flux_init(rho, order, h_stencil_size, &
-                                     nfaces_re_h, nfaces_re_v)
+subroutine psykal_lite_mol_shifted_flux_init(rho, order, h_stencil_size, &
+                                             nfaces_re_h, nfaces_re_v)
 
   implicit none
 
@@ -64,7 +64,7 @@ subroutine psykal_lite_mol_flux_init(rho, order, h_stencil_size, &
   ! Allocate horizontal coefficients
   allocate( flux_coeff_h(h_stencil_size, nfaces_re_h, undf_w3) )
 
-end subroutine psykal_lite_mol_flux_init
+end subroutine psykal_lite_mol_shifted_flux_init
 !-------------------------------------------------------------------------------
 ! This gives a PSy layer representation of the coefficient arrays to avoid
 ! copying the algorithm level representation of the data as a 2d array of field
@@ -73,8 +73,8 @@ end subroutine psykal_lite_mol_flux_init
 ! When PSyclone and LFRic support fields with multi-dimensional arrays
 ! these can be removed
 !-------------------------------------------------------------------------------
-subroutine psykal_lite_mol_adv_init(theta, adv_order, adv_h_stencil_size, &
-                                    nfaces_re_h, nfaces_re_v)
+subroutine psykal_lite_mol_shifted_adv_init(theta, adv_order, adv_h_stencil_size, &
+                                       nfaces_re_h, nfaces_re_v)
 
   implicit none
 
@@ -94,29 +94,29 @@ subroutine psykal_lite_mol_adv_init(theta, adv_order, adv_h_stencil_size, &
   ! Allocate horizontal coefficients
   allocate( adv_coeff_h(adv_h_stencil_size, nfaces_re_h, undf_wt) )
 
-end subroutine psykal_lite_mol_adv_init
+end subroutine psykal_lite_mol_shifted_adv_init
 
 !-------------------------------------------------------------------------------
 ! This deallocates the flux advection coefficients when they are no longer needed
 !-------------------------------------------------------------------------------
-subroutine psykal_lite_mol_flux_final()
+subroutine psykal_lite_mol_shifted_flux_final()
 
   implicit none
 
   deallocate( flux_coeff_h, flux_coeff_v )
 
-end subroutine psykal_lite_mol_flux_final
+end subroutine psykal_lite_mol_shifted_flux_final
 
 !-------------------------------------------------------------------------------
 ! This deallocates the advective advection coefficients when they are no longer needed
 !-------------------------------------------------------------------------------
-subroutine psykal_lite_mol_adv_final()
+subroutine psykal_lite_mol_shifted_adv_final()
 
   implicit none
 
   deallocate( adv_coeff_h, adv_coeff_v )
 
-end subroutine psykal_lite_mol_adv_final
+end subroutine psykal_lite_mol_shifted_adv_final
 
 !-------------------------------------------------------------------------------
 ! PSy layer call to apply the horizontal advection coefficients for flux form
@@ -131,7 +131,7 @@ end subroutine psykal_lite_mol_adv_final
 !       PSyclone will generate a getter to nfaces_re_h as well. PSyclone rules
 !       will need to account for both occurences.
 !-------------------------------------------------------------------------------
-subroutine invoke_poly2d_flux( flux, wind, density, coeff, order, stencil_size, nfaces_re_h )
+subroutine invoke_poly2d_shifted_flux( flux, wind, density, coeff, order, stencil_size, nfaces_re_h )
 
   use poly2d_flux_kernel_mod,          only: poly2d_flux_code
   use stencil_dofmap_mod,              only: stencil_dofmap_type, STENCIL_REGION
@@ -284,7 +284,7 @@ subroutine invoke_poly2d_flux( flux, wind, density, coeff, order, stencil_size, 
 
   deallocate( basis_w2, outward_normals_to_horizontal_faces )
 
-end subroutine invoke_poly2d_flux
+end subroutine invoke_poly2d_shifted_flux
 
 !-------------------------------------------------------------------------------
 ! PSy layer call to compute the horizontal advection coefficients for flux form
@@ -296,7 +296,7 @@ end subroutine invoke_poly2d_flux
 !    PSyclone) and one for face quadrature: Issue #195
 ! 4) Uses face quadrature: Issue #193
 !-------------------------------------------------------------------------------
-subroutine invoke_poly2d_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order, stencil_size, nfaces_re_h )
+subroutine invoke_poly2d_shifted_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order, stencil_size, nfaces_re_h )
 
   use poly2d_flux_coeffs_kernel_mod, only: poly2d_flux_coeffs_code
   use stencil_dofmap_mod,            only: stencil_dofmap_type, STENCIL_REGION
@@ -444,7 +444,7 @@ subroutine invoke_poly2d_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order, sten
 
   deallocate( basis_wx, face_basis_wx  )
 
-end subroutine invoke_poly2d_flux_coeffs
+end subroutine invoke_poly2d_shifted_flux_coeffs
 
 !-------------------------------------------------------------------------------
 ! PSy layer call to apply the horizontal advection coefficients for flux form
@@ -457,7 +457,7 @@ end subroutine invoke_poly2d_flux_coeffs
 !       PSyclone will generate a getter to nfaces_re_h as well. PSyclone rules
 !       will need to account for both occurences.
 !-------------------------------------------------------------------------------
-subroutine invoke_poly1d_flux( flux, wind, density, coeff, order, stencil_extent, nfaces_re_h )
+subroutine invoke_poly1d_shifted_flux( flux, wind, density, coeff, order, stencil_extent, nfaces_re_h )
 
   use poly1d_flux_kernel_mod,          only: poly1d_flux_code
   use stencil_dofmap_mod,              only: stencil_dofmap_type, STENCIL_CROSS
@@ -605,7 +605,7 @@ subroutine invoke_poly1d_flux( flux, wind, density, coeff, order, stencil_extent
 
   deallocate( basis_w2 )
 
-end subroutine invoke_poly1d_flux
+end subroutine invoke_poly1d_shifted_flux
 
 !-------------------------------------------------------------------------------
 ! PSy layer call to compute the horizontal advection coefficients for flux form
@@ -616,7 +616,7 @@ end subroutine invoke_poly1d_flux
 !    #195
 ! 3) Uses face quadrature: Issue #193
 !-------------------------------------------------------------------------------
-subroutine invoke_poly1d_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order, stencil_extent, nfaces_re_h )
+subroutine invoke_poly1d_shifted_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order, stencil_extent, nfaces_re_h )
 
   use poly1d_flux_coeffs_kernel_mod, only: poly1d_flux_coeffs_code
   use stencil_dofmap_mod,            only: stencil_dofmap_type, STENCIL_CROSS
@@ -756,7 +756,7 @@ subroutine invoke_poly1d_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order, sten
 
   deallocate( basis_wx, face_basis_wx )
 
-end subroutine invoke_poly1d_flux_coeffs
+end subroutine invoke_poly1d_shifted_flux_coeffs
 
 !-------------------------------------------------------------------------------
 ! PSy layer call to apply the vertical advection coefficients for flux form
@@ -769,7 +769,7 @@ end subroutine invoke_poly1d_flux_coeffs
 !       PSyclone will generate a getter to nfaces_re_v as well. PSyclone rules
 !       will need to account for both occurences.
 !-------------------------------------------------------------------------------
-subroutine invoke_poly1d_vert_flux( flux, wind, density, coeff, order, nfaces_re_v )
+subroutine invoke_poly1d_shifted_vert_flux( flux, wind, density, coeff, order, nfaces_re_v )
 
   use poly1d_vert_flux_kernel_mod,     only: poly1d_vert_flux_code
   use reference_element_mod,           only: reference_element_type
@@ -909,7 +909,7 @@ subroutine invoke_poly1d_vert_flux( flux, wind, density, coeff, order, nfaces_re
 
   deallocate( basis_w2 )
 
-end subroutine invoke_poly1d_vert_flux
+end subroutine invoke_poly1d_shifted_vert_flux
 
 !-------------------------------------------------------------------------------
 ! PSy layer call to compute the vertical advection coefficients for flux form
@@ -920,7 +920,7 @@ end subroutine invoke_poly1d_vert_flux
 !    #195
 ! 3) Uses face quadrature: Issue #193
 !-------------------------------------------------------------------------------
-subroutine invoke_poly1d_vert_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order, nfaces_re_v )
+subroutine invoke_poly1d_shifted_vert_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order, nfaces_re_v )
 
   use poly1d_vert_flux_coeffs_kernel_mod, only: poly1d_vert_flux_coeffs_code
 
@@ -1047,7 +1047,7 @@ subroutine invoke_poly1d_vert_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order,
 
   deallocate( basis_wx, face_basis_wx )
 
-end subroutine invoke_poly1d_vert_flux_coeffs
+end subroutine invoke_poly1d_shifted_vert_flux_coeffs
 
 !-------------------------------------------------------------------------------
 ! PSy layer call to apply the horizontal advection coefficients for advective
@@ -1060,7 +1060,7 @@ end subroutine invoke_poly1d_vert_flux_coeffs
 !       PSyclone will generate a getter to nfaces_re_h as well. PSyclone rules
 !       will need to account for both occurences.
 !-------------------------------------------------------------------------------
-subroutine invoke_poly1d_adv_recon( reconstruction, wind, tracer, coeff, order, stencil_extent, nfaces_re_h )
+subroutine invoke_poly1d_shifted_adv_recon( reconstruction, wind, tracer, coeff, order, stencil_extent, nfaces_re_h )
 
   use poly1d_adv_recon_kernel_mod,     only: poly1d_adv_recon_code
   use stencil_dofmap_mod,              only: stencil_dofmap_type, STENCIL_CROSS
@@ -1217,7 +1217,7 @@ subroutine invoke_poly1d_adv_recon( reconstruction, wind, tracer, coeff, order, 
 
   deallocate( basis_w2 )
 
-end subroutine invoke_poly1d_adv_recon
+end subroutine invoke_poly1d_shifted_adv_recon
 
 !-------------------------------------------------------------------------------
 ! PSy layer call to compute the horizontal advection coefficients for advective
@@ -1228,7 +1228,7 @@ end subroutine invoke_poly1d_adv_recon
 !    #195
 ! 3) Uses edge quadrature: Issue #193
 !-------------------------------------------------------------------------------
-subroutine invoke_poly1d_advective_coeffs( coeff, mdwt, chi, qr, qr_edge, order, stencil_extent, nfaces_re_h )
+subroutine invoke_poly1d_shifted_advective_coeffs( coeff, mdwt, chi, qr, qr_edge, order, stencil_extent, nfaces_re_h )
 
   use poly1d_advective_coeffs_kernel_mod, only: poly1d_advective_coeffs_code
   use stencil_dofmap_mod,                 only: stencil_dofmap_type, STENCIL_CROSS
@@ -1365,7 +1365,7 @@ subroutine invoke_poly1d_advective_coeffs( coeff, mdwt, chi, qr, qr_edge, order,
 
   deallocate( basis_wx, edge_basis_wx )
 
-end subroutine invoke_poly1d_advective_coeffs
+end subroutine invoke_poly1d_shifted_advective_coeffs
 
 !-------------------------------------------------------------------------------
 ! PSy layer call to apply the horizontal advection coefficients for advective
@@ -1380,7 +1380,7 @@ end subroutine invoke_poly1d_advective_coeffs
 !       PSyclone will generate a getter to nfaces_re_h as well. PSyclone rules
 !       will need to account for both occurences.
 !-------------------------------------------------------------------------------
-subroutine invoke_poly2d_adv_recon( reconstruction, wind, tracer, coeff, order, stencil_size, nfaces_re_h )
+subroutine invoke_poly2d_shifted_adv_recon( reconstruction, wind, tracer, coeff, order, stencil_size, nfaces_re_h )
 
   use poly2d_adv_recon_kernel_mod,     only: poly2d_adv_recon_code
   use stencil_dofmap_mod,              only: stencil_dofmap_type, STENCIL_REGION
@@ -1542,7 +1542,7 @@ subroutine invoke_poly2d_adv_recon( reconstruction, wind, tracer, coeff, order, 
 
   deallocate( basis_w2 )
 
-end subroutine invoke_poly2d_adv_recon
+end subroutine invoke_poly2d_shifted_adv_recon
 
 !-------------------------------------------------------------------------------
 ! PSy layer call to compute the horizontal advection coefficients for advective
@@ -1555,7 +1555,7 @@ end subroutine invoke_poly2d_adv_recon
 !    #195
 ! 4) Uses edge quadrature: Issue #193
 !-------------------------------------------------------------------------------
-subroutine invoke_poly2d_advective_coeffs( coeff, mdwt, chi, qr, qr_edge, order, stencil_size, nfaces_re_h )
+subroutine invoke_poly2d_shifted_advective_coeffs( coeff, mdwt, chi, qr, qr_edge, order, stencil_size, nfaces_re_h )
 
   use poly2d_advective_coeffs_kernel_mod, only: poly2d_advective_coeffs_code
   use stencil_dofmap_mod,                only: stencil_dofmap_type, STENCIL_REGION
@@ -1703,14 +1703,14 @@ subroutine invoke_poly2d_advective_coeffs( coeff, mdwt, chi, qr, qr_edge, order,
 
   deallocate( basis_wx, edge_basis_wx )
 
-end subroutine invoke_poly2d_advective_coeffs
+end subroutine invoke_poly2d_shifted_advective_coeffs
 
 !-------------------------------------------------------------------------------
 ! PSy layer call to apply the vertical advection coefficients for advective
 ! form advection. This can not currently be generated by PSyclone because
 ! 1) Uses a runtime specified 2D array of fields (coeff): Ticket #1104 & #1105
 !-------------------------------------------------------------------------------
-subroutine invoke_poly1d_vert_adv_coeffs( coeff, mdwt, chi, order, nfaces_re_v )
+subroutine invoke_poly1d_shifted_vert_adv_coeffs( coeff, mdwt, chi, order, nfaces_re_v )
 
   use poly1d_vert_adv_coeffs_kernel_mod, only: poly1d_vert_adv_coeffs_code
   implicit none
@@ -1813,7 +1813,7 @@ subroutine invoke_poly1d_vert_adv_coeffs( coeff, mdwt, chi, order, nfaces_re_v )
 
   deallocate( basis_wx )
 
-end subroutine invoke_poly1d_vert_adv_coeffs
+end subroutine invoke_poly1d_shifted_vert_adv_coeffs
 
 !-------------------------------------------------------------------------------
 ! PSy layer call to compute the vertical advection coefficients for advective
@@ -1823,7 +1823,7 @@ end subroutine invoke_poly1d_vert_adv_coeffs
 !    PSyclone) and one for face quadrature (not supported by PSyclone): Issue
 !    #195
 !-------------------------------------------------------------------------------
-subroutine invoke_poly1d_vert_adv( advective, wind, tracer, coeff, order, nfaces_re_v )
+subroutine invoke_poly1d_shifted_vert_adv( advective, wind, tracer, coeff, order, nfaces_re_v )
 
   use poly1d_vert_adv_kernel_mod, only: poly1d_vert_adv_code
 
@@ -1925,6 +1925,6 @@ subroutine invoke_poly1d_vert_adv( advective, wind, tracer, coeff, order, nfaces
   ! Set halos dirty/clean for fields modified in the above loop
   call adv_proxy%set_dirty()
 
-end subroutine invoke_poly1d_vert_adv
+end subroutine invoke_poly1d_shifted_vert_adv
 
-end module psykal_lite_mol_mod
+end module psykal_lite_mol_shifted_mod

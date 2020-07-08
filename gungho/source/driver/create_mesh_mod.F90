@@ -13,32 +13,34 @@ module create_mesh_mod
   use constants_mod,              only: i_def, str_def, l_def, r_def
   use extrusion_mod,              only: extrusion_type, uniform_extrusion_type
   use extrusion_config_mod,       only: domain_top
-  use finite_element_config_mod,  only: cellshape,          &
-                                        key_from_cellshape, &
-                                        cellshape_triangle, &
+  use finite_element_config_mod,  only: cellshape,                           &
+                                        key_from_cellshape,                  &
+                                        cellshape_triangle,                  &
                                         cellshape_quadrilateral
   use global_mesh_mod,            only: global_mesh_type
   use global_mesh_collection_mod, only: global_mesh_collection
-  use gungho_extrusion_mod,       only: create_extrusion, create_shifted_extrusion
+  use gungho_extrusion_mod,       only: create_extrusion,                    &
+                                        create_shifted_extrusion,            &
+                                        create_double_level_extrusion
   use create_multigrid_mesh_mod,  only: init_multigrid_mesh
-  use log_mod,                    only: log_event,         &
-                                        log_scratch_space, &
-                                        LOG_LEVEL_INFO,    &
+  use log_mod,                    only: log_event,                           &
+                                        log_scratch_space,                   &
+                                        LOG_LEVEL_INFO,                      &
                                         LOG_LEVEL_ERROR
   use mesh_collection_mod,        only: mesh_collection_type, mesh_collection
   use mesh_mod,                   only: mesh_type
   use multigrid_config_mod,       only: l_multigrid
   use ncdf_quad_mod,              only: ncdf_quad_type
-  use partition_mod,              only: partition_type,                 &
-                                        partitioner_interface,          &
-                                        partitioner_cubedsphere_serial, &
-                                        partitioner_cubedsphere,        &
+  use partition_mod,              only: partition_type,                      &
+                                        partitioner_interface,               &
+                                        partitioner_cubedsphere_serial,      &
+                                        partitioner_cubedsphere,             &
                                         partitioner_planar
-  use partitioning_config_mod,    only: panel_decomposition,        &
-                                        panel_xproc, panel_yproc,   &
-                                        PANEL_DECOMPOSITION_AUTO,   &
-                                        PANEL_DECOMPOSITION_ROW,    &
-                                        PANEL_DECOMPOSITION_COLUMN, &
+  use partitioning_config_mod,    only: panel_decomposition,                 &
+                                        panel_xproc, panel_yproc,            &
+                                        PANEL_DECOMPOSITION_AUTO,            &
+                                        PANEL_DECOMPOSITION_ROW,             &
+                                        PANEL_DECOMPOSITION_COLUMN,          &
                                         PANEL_DECOMPOSITION_CUSTOM
 
   use subgrid_config_mod,         only: dep_pt_stencil_extent, &
@@ -69,8 +71,10 @@ contains
 !> @param[out] prime_mesh_id    Mesh id of partitioned prime mesh
 !> @param[out] twod_mesh_id     Mesh id of the 2D (surface) mesh
 !> @param[out] shifted_mesh_id  Mesh id of vertically shifted mesh with an extra level
-subroutine init_mesh( local_rank, total_ranks, prime_mesh_id, &
-                      twod_mesh_id, shifted_mesh_id )
+!> @param[out] double_level_mesh_id  Mesh id of vertically double level mesh
+subroutine init_mesh( local_rank, total_ranks, prime_mesh_id, twod_mesh_id, &
+                      shifted_mesh_id, double_level_mesh_id )
+
 
   implicit none
 
@@ -79,6 +83,7 @@ subroutine init_mesh( local_rank, total_ranks, prime_mesh_id, &
   integer(i_def), intent(out) :: prime_mesh_id
   integer(i_def), intent(out) :: twod_mesh_id
   integer(i_def), intent(out), optional :: shifted_mesh_id
+  integer(i_def), intent(out), optional :: double_level_mesh_id
 
   ! Parameters
   integer(i_def), parameter :: max_factor_iters = 10000
@@ -88,6 +93,7 @@ subroutine init_mesh( local_rank, total_ranks, prime_mesh_id, &
   type(global_mesh_type),            pointer :: global_mesh_ptr => null()
   class(extrusion_type),         allocatable :: extrusion
   class(extrusion_type),         allocatable :: shifted_extrusion
+  class(extrusion_type),         allocatable :: double_level_extrusion
   type(partition_type)                       :: partition
   type(uniform_extrusion_type)               :: extrusion_sl
 
@@ -339,6 +345,18 @@ subroutine init_mesh( local_rank, total_ranks, prime_mesh_id, &
                                                     shifted_extrusion )
 
     deallocate(shifted_extrusion)
+  end if
+
+  if (present(double_level_mesh_id)) then
+    allocate(double_level_extrusion, source=create_double_level_extrusion(extrusion) )
+
+    call log_event( "Creating double level mesh", LOG_LEVEL_INFO )
+
+    double_level_mesh_id = mesh_collection%add_new_mesh( global_mesh_ptr,  &
+                                                         partition,        &
+                                                         double_level_extrusion )
+
+    deallocate(double_level_extrusion)
   end if
 
   deallocate(extrusion)

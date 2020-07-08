@@ -219,7 +219,8 @@ contains
                                   set_hydrostatic_init = .true.,            &
                                   init_exner_bt        = .true.,            &
                                   si_momentum_equation=.true.,              &
-                                  vector_invariant=.true.   )
+                                  vector_invariant=.true.,                  &
+                                  moisture_conservation=.false.   )
     nlayers=3
     cell=1
     call hydrostatic_exner_code( nlayers,                             &
@@ -273,7 +274,8 @@ contains
                                   set_hydrostatic_init = .true.,             &
                                   init_exner_bt        = .false.,            &
                                   si_momentum_equation=.true.,               &
-                                  vector_invariant=.true.   )
+                                  vector_invariant=.true.,                   &
+                                  moisture_conservation=.true.   )
     nlayers=3
     cell=1
     call hydrostatic_exner_code( nlayers,                             &

@@ -83,7 +83,8 @@ contains
                                    use_physics=.false.,          &
                                    use_wavedynamics=.false.,     &
                                    si_momentum_equation=.true.,  &
-                                   vector_invariant=.true. )
+                                   vector_invariant=.true.,      &
+                                   moisture_conservation=.false. )
 
   end subroutine setUp
 
