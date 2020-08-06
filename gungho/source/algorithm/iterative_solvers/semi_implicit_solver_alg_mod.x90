@@ -14,11 +14,16 @@ module semi_implicit_solver_alg_mod
                                                 LOG_LEVEL_ERROR,   &
                                                 LOG_LEVEL_TRACE
 
+  ! Config
+  use mixed_solver_config_mod,            only: split_w
 
   ! Derived Types
   use field_vector_mod,                   only: field_vector_type
+  use field_mod,                          only: field_type
   use derived_config_mod,                 only: bundle_size
-  use field_indices_mod,                  only: igh_p
+  use field_indices_mod,                  only: igh_p, igh_t, igh_d, &
+                                                igh_u, igh_w, igh_uv
+
 
   ! Algorithms
   use mixed_operator_alg_mod,             only: mixed_operator_type
@@ -41,6 +46,11 @@ module semi_implicit_solver_alg_mod
                                                 precondition_only_type,         &
                                                 jacobi_type
 
+  ! Kernels
+  use split_w2_field_kernel_mod,          only: split_w2_field_kernel_type
+  use combine_w2_field_kernel_mod,        only: combine_w2_field_kernel_type
+
+  ! IO
   use io_config_mod,                      only: subroutine_timers
   use timer_mod,                          only: timer
 
@@ -65,10 +75,10 @@ module semi_implicit_solver_alg_mod
   !> Absolute solver tolerance (pressure solver)
   real(kind=r_def), parameter :: pressure_solver_a_tol = 1.E-8
 
-  public :: semi_implicit_solver_alg_init
-  public :: semi_implicit_solver_alg_final
-  public :: semi_implicit_solver_alg_step
-
+  public  :: semi_implicit_solver_alg_init
+  public  :: semi_implicit_solver_alg_final
+  public  :: semi_implicit_solver_alg_step
+  private :: construct_solver_state
 contains
 !=============================================================================!
   !> @details Initialisation procedure for the semi-implicit solver
@@ -109,10 +119,15 @@ contains
                                              preconditioner_tridiagonal,                 &
                                              preconditioner_multigrid,                   &
                                              diagnostic_norm
+
     implicit none
 
     ! Prognostic fields
-    type( field_vector_type ), intent( inout ) :: state
+    type( field_type ), dimension(bundle_size), intent( in ) :: state
+
+    type( field_vector_type ) :: vector_state
+
+    call construct_solver_state(vector_state, state)
 
     ! *** Allocate polymorphic solver- and preconditioner objects ***
 
@@ -131,15 +146,14 @@ contains
                  source = pressure_preconditioner_type() )
     case(PRECONDITIONER_MULTIGRID)
        allocate( pressure_preconditioner, &
-                 source = multigrid_preconditioner_type(state%vector(igh_p)) )
+                 source = multigrid_preconditioner_type(state(igh_p)) )
     case default
        call log_event( "Unknown pressure preconditioner specified", &
                        LOG_LEVEL_ERROR)
     end select
 
     call log_event( "semi_implicit_solver_alg_inti:Setting up pressure solver", LOG_LEVEL_INFO )
-      pressure_operator = pressure_operator_type(state)
-
+      pressure_operator = pressure_operator_type(vector_state)
 
       ! Allocate pressure solver of correct type
     select case( helmholtz_method )
@@ -208,7 +222,7 @@ contains
     select case(si_preconditioner)
     case(SI_PRECONDITIONER_PRESSURE)
        allocate ( mixed_preconditioner, &
-                  source = mixed_schur_preconditioner_type(state, pressure_solver) )
+                  source = mixed_schur_preconditioner_type(vector_state, pressure_solver) )
     case(SI_PRECONDITIONER_NONE)
        allocate ( mixed_preconditioner, &
                   source = null_preconditioner_type() )
@@ -320,24 +334,168 @@ contains
 
   !> @details An algorithm for timestepping the semi-implicit equations
   !>
-  !> @param[inout] state Prognostic model state
-  !> @param[in]    rhs   Residuals
-  subroutine semi_implicit_solver_alg_step(state, rhs)
+  !> @param[inout] state               Prognostic model state
+  !> @param[in]    rhs                 Residuals
+  !> @param[in]    moist_dyn_gas_law   Gas law component of moist dynamics factors
+  !> @param[in]    mr                  Mixing ratio array
+  !> @param[in]    step                Timestep
+  !> @param[in]    rho_guess           Estimate for rho^n+1 used for moisture
+  !!                                   diagnostics
+  !> @param[in]    write_moisture_diag Flag to control output of moisture
+  !!                                   conservation diagnostics
+  subroutine semi_implicit_solver_alg_step(state, rhs, &
+                                           moist_dyn_gas_law, &
+                                           mr, step, rho_guess, &
+                                           write_moisture_diag)
 
+    use runtime_constants_mod,         only: get_normalisation, &
+                                             get_qr, &
+                                             get_coordinates, &
+                                             get_mass_matrix, &
+                                             theta_space_id, w2_id, w3inv_id
+    use mr_indices_mod,                only: nummr
+    use formulation_config_mod,        only: exner_from_eos
+    use project_pressure_kernel_mod,   only: project_pressure_kernel_type
+    use operator_mod,                  only: operator_type
+    use quadrature_xyoz_mod,           only: quadrature_xyoz_type
+    use moisture_conservation_alg_mod, only: moisture_conservation_alg
     implicit none
 
     ! Prognostic fields
-    type( field_vector_type ), intent( inout ) :: state, rhs
-    type( field_vector_type )                  :: inc
+    type( field_type ), dimension(bundle_size), intent( inout ) :: state
+    type( field_type ), dimension(bundle_size), intent( in )    :: rhs
+    type( field_type ),                         intent( in )    :: moist_dyn_gas_law
+    type( field_type ), dimension(nummr),       intent( in )    :: mr
+    type( field_type ),                         intent( in )    :: rho_guess
+    integer( i_def ),                           intent( in )    :: step
+    logical,                                    intent( in )    :: write_moisture_diag
+
+    type( field_vector_type ) :: inc
+
+    real( r_def ) :: si_err(bundle_size)
+
+    type( field_type ),    pointer :: t_normalisation => null(), &
+                                      u_normalisation => null()
+    type( field_type ),    pointer :: chi(:) => null()
+    type( operator_type ), pointer :: m3_inv => null()
+    type( quadrature_xyoz_type )   :: qr
+    type( field_vector_type ) :: vector_state, vector_rhs
 
     if ( subroutine_timers ) call timer('semi_implicit_solver_alg')
+
+    if ( write_moisture_diag ) then
+      ! Best guess for the prognostic fields state can be calculated as
+      ! state_best_guess = rhs_n - rhs_np1 + state + rhs_adv + rhs_phys
+      ! where fortunately all of the above except "state" is already in "rhs_np1"
+      call invoke(X_plus_Y(rho_guess, state(igh_d), rhs(igh_d)))
+      call moisture_conservation_alg( step, rho_guess, mr, 'Before solve' )
+    end if
+
+    ! Normalise theta & u residual
+    t_normalisation => get_normalisation(theta_space_id)
+    u_normalisation => get_normalisation(w2_id)
+    call invoke( inc_X_times_Y(rhs(igh_t), t_normalisation), &
+                 inc_X_times_Y(rhs(igh_u), u_normalisation) )
+
+    ! Write out si residuals
+    call invoke( name = "Compute SI residuals",               &
+                 X_innerproduct_X(si_err(igh_u), rhs(igh_u)), &
+                 X_innerproduct_X(si_err(igh_t), rhs(igh_t)), &
+                 X_innerproduct_X(si_err(igh_d), rhs(igh_d)), &
+                 X_innerproduct_X(si_err(igh_p), rhs(igh_p))  &
+               )
+    write( log_scratch_space, '(A,E16.8)' ) &
+         'Residual in momentum equation:  ',sqrt(si_err(igh_u))
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    write( log_scratch_space, '(A,E16.8)' ) &
+         'Residual in energy equation:    ',sqrt(si_err(igh_t))
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    write( log_scratch_space, '(A,E16.8)' ) &
+         'Residual in continuity equation:',sqrt(si_err(igh_d))
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    write( log_scratch_space, '(A,E16.8)' ) &
+         'Residual in equation of state:  ',sqrt(si_err(igh_p))
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+    ! Create field vectors out of field arrays
+    call construct_solver_state(vector_state, state)
+    call construct_solver_state(vector_rhs,   rhs)
+
+    ! Solve the semi-implicit operator
     call log_event( "Gungho: mixed solve:", LOG_LEVEL_INFO )
-    inc = state
+    inc = vector_state
     call inc%set_scalar(0.0_r_def)
-    call mixed_solver%apply(inc, rhs)
-    call state%axpy(1.0_r_def, inc)
+    call mixed_solver%apply(inc, vector_rhs)
+    call vector_state%axpy(1.0_r_def, inc)
+
+    ! Recreate field arrays out of field vectors
+    if ( split_w )then
+      call invoke( combine_w2_field_kernel_type( state( igh_u ),                &
+                                                 vector_state%vector( igh_uv ), &
+                                                 vector_state%vector( igh_w ) ) )
+    else
+      call vector_state%export_field( state( igh_u ), igh_u )
+    end if
+    call vector_state%export_field( state( igh_t ), igh_t )
+    call vector_state%export_field( state( igh_d ), igh_d )
+    call vector_state%export_field( state( igh_p ), igh_p )
+
+    if (exner_from_eos) then
+      m3_inv => get_mass_matrix(w3inv_id)
+      chi    => get_coordinates()
+      qr = get_qr()
+      call invoke( project_pressure_kernel_type( state(igh_p), state(igh_d), &
+                                                 state(igh_t),               &
+                                                 moist_dyn_gas_law, chi,     &
+                                                 m3_inv, qr ) )
+    end if
+    if ( write_moisture_diag )  &
+      call moisture_conservation_alg( step, state(igh_d), mr, 'After solve' )
+
+    nullify( t_normalisation, &
+             u_normalisation, &
+             m3_inv, chi )
+
     if ( subroutine_timers ) call timer('semi_implicit_solver_alg')
 
   end subroutine semi_implicit_solver_alg_step
 
+
+  !> @brief Construct a field vector state out of a field bundle, expanding to
+  !>        inlcude the split wind fields if necessary
+  !>@param[in,out] vector_state field vector to create
+  !>@param[in]     state field bundle to copy
+  subroutine construct_solver_state(vector_state, state)
+    use function_space_collection_mod, only: function_space_collection
+    use fs_continuity_mod,             only: W2v, W2h
+
+    implicit none
+
+    type(field_vector_type),                  intent(inout) :: vector_state
+    type(field_type), dimension(bundle_size), intent(in) :: state
+
+    type(field_type) :: uv, w
+    integer(i_def  ) :: p, mesh_id
+
+    if ( split_w )then
+      p       = state(igh_u)%get_element_order()
+      mesh_id = state(igh_u)%get_mesh_id()
+
+      call uv%initialise( function_space_collection%get_fs( mesh_id, p, W2h ) )
+      call w%initialise( function_space_collection%get_fs( mesh_id, p, W2v ) )
+      call invoke( setval_c( uv, 0.0_r_def ), &
+                   setval_c( w,  0.0_r_def ), &
+                   split_w2_field_kernel_type( uv, w, state(igh_u) ) )
+      vector_state = field_vector_type( bundle_size+1 )
+      call vector_state%import_field( uv, igh_uv )
+      call vector_state%import_field( w, igh_w )
+    else
+      vector_state = field_vector_type( bundle_size )
+      call vector_state%import_field( state(igh_u), igh_u )
+    end if
+    call vector_state%import_field( state(igh_t), igh_t )
+    call vector_state%import_field( state(igh_d), igh_d )
+    call vector_state%import_field( state(igh_p), igh_p )
+
+  end subroutine construct_solver_state
 end module semi_implicit_solver_alg_mod

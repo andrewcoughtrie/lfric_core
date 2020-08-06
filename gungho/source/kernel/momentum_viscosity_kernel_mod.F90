@@ -27,10 +27,10 @@ module momentum_viscosity_kernel_mod
   !>
   type, public, extends(kernel_type) :: momentum_viscosity_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                                &
-        arg_type(GH_FIELD,   GH_INC,  W2),                             &
-        arg_type(GH_FIELD,   GH_READ, W2, stencil_map=STENCIL(CROSS)), &
-        arg_type(GH_FIELD*3, GH_READ, ANY_SPACE_9)                     &
+    type(arg_type) :: meta_args(3) = (/                    &
+        arg_type(GH_FIELD,   GH_INC,  W2),                 &
+        arg_type(GH_FIELD,   GH_READ, W2, STENCIL(CROSS)), &
+        arg_type(GH_FIELD*3, GH_READ, ANY_SPACE_9)         &
         /)
     integer :: iterates_over = CELLS
   contains

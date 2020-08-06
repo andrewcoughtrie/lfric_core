@@ -37,10 +37,6 @@ module rk_alg_timestep_mod
                                        operators_fv
   use mixing_config_mod,         only: viscosity
 
-  ! PsyKAl-lite kernels
-  use psykal_lite_mod,                   only: invoke_tracer_viscosity, &
-                                               invoke_momentum_viscosity
-
   use field_bundle_mod,                  only: clone_bundle, &
                                                bundle_axpy,  &
                                                bundle_axpby, &
@@ -57,6 +53,8 @@ module rk_alg_timestep_mod
   use matrix_vector_kernel_mod,            only: matrix_vector_kernel_type
   use vorticity_advection_kernel_mod,      only: vorticity_advection_kernel_type
   use w2_vorticity_advection_kernel_mod,   only: w2_vorticity_advection_kernel_type
+  use tracer_viscosity_kernel_mod,         only: tracer_viscosity_kernel_type
+  use momentum_viscosity_kernel_mod,       only: momentum_viscosity_kernel_type
 
   ! Derived Types
   use field_mod,                         only: field_type
@@ -294,9 +292,9 @@ contains
     ! Apply viscosity
     if ( viscosity ) then
       call log_event( 'Applying Viscosity', LOG_LEVEL_INFO )
-      call invoke_tracer_viscosity(   inc(igh_t), state(igh_t), 1, chi)
-      call invoke_momentum_viscosity( inc(igh_u), state(igh_u), 1, chi)
-      call invoke( setval_c(inc(igh_d), 0.0_r_def) )
+      call invoke(tracer_viscosity_kernel_type(   inc(igh_t), state(igh_t), 1, chi), &
+                  momentum_viscosity_kernel_type( inc(igh_u), state(igh_u), 1, chi), &
+                  setval_c(inc(igh_d), 0.0_r_def) )
       call bundle_axpy(dt, inc, state, state, bundle_size)
     end if
 

@@ -1,0 +1,88 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Apply diffusion or mixing to model variables
+module mixing_alg_mod
+
+  implicit none
+
+  private
+
+  public :: mixing_alg
+contains
+
+  !> @details Diffuse prognostic fields using Smagorinsky coefficients or
+  !>          simple viscosity operator
+  !> @param[in,out] mr             mixing ratios
+  !> @param[in,out] theta          Potential temperature
+  !> @param[in,out] u              3D wind field
+  !> @param[in,out] visc_m         Smag diffusion coef for momentum
+  !> @param[in,out] visc_h         Smag diffusion coef for heat
+  !> @param[in]     chi            Coordinate array
+  !> @param[in]     height_wth     Height of wth space
+  !> @param[in]     height_w3      Height of w3 space
+  !> @param[in]     delta          Edge length on wtheta points
+  !> @param[in]     derived_fields Group of derived fields
+  !> @param[in]     rho            Density
+  !> @param[in]     step           model timestep index
+  !> @param[in]     dt             model timestep
+  subroutine mixing_alg(mr, theta, u, visc_m,                      &
+                        visc_h, chi, height_wth, height_w3, delta, &
+                        derived_fields, rho, step, dt)
+
+    use constants_mod,                 only: i_def,r_def
+    use log_mod,                       only: log_event,         &
+                                             LOG_LEVEL_INFO
+    use field_mod,                     only: field_type
+    use field_collection_mod,          only: field_collection_type
+    use mr_indices_mod,                only: nummr
+    use mixing_config_mod,             only: viscosity, smagorinsky
+    use smagorinsky_alg_mod,           only: smagorinsky_alg
+    use tracer_viscosity_kernel_mod,   only: tracer_viscosity_kernel_type
+    use momentum_viscosity_kernel_mod, only: momentum_viscosity_kernel_type
+
+    implicit none
+
+    ! Prognostic fields
+    type( field_type ), intent(inout) :: u, theta
+    type( field_type ), intent(inout) :: visc_m, visc_h
+    type( field_type ), intent(inout) :: mr ( nummr )
+
+    type( field_collection_type ), intent(in) :: derived_fields
+    type( field_type ), intent(in) :: rho
+
+    ! Coordinate fields
+    type( field_type ), intent(in) :: height_w3, height_wth, delta
+    type( field_type ), intent(in) :: chi(3)
+
+    ! Timestepping information
+    integer( i_def ),   intent(in) :: step
+    real( r_def ),      intent(in) :: dt
+
+    ! Increment fields
+    type( field_type ) :: du, dtheta
+
+    !--------------------------------------------------------------------
+    ! Apply horizontal Smagorinsky subgrid mixing
+    !--------------------------------------------------------------------
+    if ( smagorinsky ) call smagorinsky_alg(mr, theta, u, visc_m, visc_h,     &
+                                            chi, height_wth, height_w3,       &
+                                            delta, derived_fields, rho, step)
+    !--------------------------------------------------------------------
+    ! Apply viscosity
+    !--------------------------------------------------------------------
+    if ( viscosity ) then
+      call log_event( 'Applying Viscosity', LOG_LEVEL_INFO )
+      call dtheta%initialise( theta%get_function_space() )
+      call du%initialise( u%get_function_space() )
+      call invoke( tracer_viscosity_kernel_type( dtheta, theta, 1, chi ), &
+                   momentum_viscosity_kernel_type( du, u, 1, chi ),       &
+                   inc_X_plus_bY( theta, dt, dtheta ),                    &
+                   inc_X_plus_bY( u,     dt, du ) )
+    end if
+
+  end subroutine mixing_alg
+end module mixing_alg_mod

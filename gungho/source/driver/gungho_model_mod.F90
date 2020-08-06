@@ -40,8 +40,9 @@ module gungho_model_mod
                                          write_conservation_diag, &
                                          write_dump,              &
                                          write_minmax_tseries
-  use iter_timestep_alg_mod,      only : iter_alg_init, &
-                                         iter_alg_final
+  use semi_implicit_timestep_alg_mod, &
+                                  only : semi_implicit_alg_init, &
+                                         semi_implicit_alg_final
   use log_mod,                    only : log_event,          &
                                          log_set_level,      &
                                          log_scratch_space,  &
@@ -371,7 +372,7 @@ module gungho_model_mod
         case( method_semi_implicit )  ! Semi-Implicit
           ! Initialise and output initial conditions for first timestep
           call runge_kutta_init()
-          call iter_alg_init(mesh_id, u, rho, theta, exner, mr)
+          call semi_implicit_alg_init(mesh_id, u, rho, theta, exner, mr)
           if ( write_conservation_diag ) then
            call conservation_algorithm( clock%get_step(), &
                                         rho,              &
@@ -538,7 +539,7 @@ module gungho_model_mod
     call runge_kutta_final()
 
     if ( .not. transport_only ) then
-      if ( method == method_semi_implicit ) call iter_alg_final()
+      if ( method == method_semi_implicit ) call semi_implicit_alg_final()
       if ( method == method_rk )            call rk_alg_final()
     end if
 

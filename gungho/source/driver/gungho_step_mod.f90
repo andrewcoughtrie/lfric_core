@@ -30,7 +30,7 @@ module gungho_step_mod
                                              LOG_LEVEL_TRACE
   use minmax_tseries_mod,             only : minmax_tseries
   use mr_indices_mod,                 only : nummr
-  use iter_timestep_alg_mod,          only : iter_alg_step
+  use semi_implicit_timestep_alg_mod, only : semi_implicit_alg_step
   use moist_dyn_mod,                  only : num_moist_factors
   use moisture_conservation_alg_mod,  only : moisture_conservation_alg
   use moisture_fluxes_alg_mod,        only : moisture_fluxes_alg
@@ -141,13 +141,14 @@ module gungho_step_mod
     else  ! Not transport_only
       select case( method )
         case( method_semi_implicit )  ! Semi-Implicit
-          call iter_alg_step(u, rho, theta, exner, mr, moist_dyn,              &
-                             derived_fields, radiation_fields,                 &
-                             microphysics_fields, orography_fields,            &
-                             turbulence_fields, convection_fields,             &
-                             cloud_fields, surface_fields, soil_fields,        &
-                             snow_fields, aerosol_fields,                      &
-                             clock, twod_mesh_id)
+          call semi_implicit_alg_step(u, rho, theta, exner, mr, moist_dyn,     &
+                                      derived_fields, radiation_fields,        &
+                                      microphysics_fields, orography_fields,   &
+                                      turbulence_fields, convection_fields,    &
+                                      cloud_fields, surface_fields,            &
+                                      soil_fields, snow_fields,                &
+                                      aerosol_fields,                          &
+                                      clock, twod_mesh_id)
         case( method_rk )             ! RK
           call rk_alg_step(u, rho, theta, moist_dyn, exner)
       end select

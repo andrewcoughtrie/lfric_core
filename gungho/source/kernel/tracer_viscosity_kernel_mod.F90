@@ -27,10 +27,10 @@ module tracer_viscosity_kernel_mod
   !>
   type, public, extends(kernel_type) :: tracer_viscosity_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                        &
-        arg_type(GH_FIELD,   GH_WRITE,  Wtheta),               &
-        arg_type(GH_FIELD,   GH_READ, Wtheta, STENCIL(CROSS)), &
-        arg_type(GH_FIELD*3, GH_READ, ANY_SPACE_9)             &
+    type(arg_type) :: meta_args(3) = (/                         &
+        arg_type(GH_FIELD,   GH_WRITE, Wtheta),                 &
+        arg_type(GH_FIELD,   GH_READ,  Wtheta, STENCIL(CROSS)), &
+        arg_type(GH_FIELD*3, GH_READ,  ANY_SPACE_9)             &
         /)
     integer :: iterates_over = CELLS
   contains

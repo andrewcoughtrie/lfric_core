@@ -267,8 +267,9 @@ contains
   end subroutine final_si_operators
 
   !>@brief Subroutine to compute the si operators
-  !>@param[in] ref_state Bundle of reference states used to create linear operators
-  subroutine compute_si_operators(ref_state)
+  !>@param[in] state Bundle of states used to create linear operators
+  subroutine compute_si_operators(state)
+
     use quadrature_xyoz_mod,             only: quadrature_xyoz_type
     use quadrature_face_mod,                  only: quadrature_face_type
     use quadrature_rule_gaussian_mod,         only: quadrature_rule_gaussian_type
@@ -301,13 +302,15 @@ contains
     use mesh_mod,                        only: mesh_type
     use matrix_vector_kernel_mod,        only: matrix_vector_kernel_type
     use restrict_kernel_mod,             only: restrict_kernel_type
-    use formulation_config_mod,          only: dlayer_on
+    use formulation_config_mod,          only: dlayer_on,       &
+                                               dry_static_adjust
     use compute_p0_vert_precon_kernel_mod, &
                                          only: compute_p0_vert_precon_kernel_type
+    use sort_ref_kernel_mod,             only: sort_ref_kernel_type
 
     implicit none
 
-    type(field_type), target, intent(in)   :: ref_state(bundle_size) ! (u, theta, rho, exner)
+    type(field_type), intent(in)           :: state(bundle_size) ! (u, theta, rho, exner)
     type(field_type)                       :: theta, rho, exner, coarse_field
     type(quadrature_xyoz_type)             :: qr
     type(quadrature_face_type)             :: qrf
@@ -333,13 +336,16 @@ contains
     if ( subroutine_timers ) call timer('si_operators_alg:compute')
     call log_event( "Gungho: computing si_operators", LOG_LEVEL_INFO )
 
-    call ref_state(igh_p)%copy_field(exner)
-    call ref_state(igh_d)%copy_field(rho)
-    call ref_state(igh_t)%copy_field(theta)
+    w3_fs => state(igh_p)%get_function_space()
+    w2_fs => state(igh_u)%get_function_space()
+    wt_fs => state(igh_t)%get_function_space()
 
-    w3_fs => ref_state(igh_p)%get_function_space()
-    w2_fs => ref_state(igh_u)%get_function_space()
-    wt_fs => ref_state(igh_t)%get_function_space()
+    ! Create reference state
+    call state(igh_p)%copy_field(exner)
+    call state(igh_d)%copy_field(rho)
+    call state(igh_t)%copy_field(theta)
+    if (dry_static_adjust) &
+      call invoke( sort_ref_kernel_type(theta) )
 
     ! Set the function space chains to the finest levels.
     if (l_multigrid) then
@@ -349,7 +355,7 @@ contains
     end if
 
     ! quadrature rules set once outside MG loop
-    mesh => ref_state(igh_t)%get_mesh()
+    mesh => theta%get_mesh()
     reference_element => mesh%get_reference_element()
     qrf = quadrature_face_type(element_order+2, .true., .false., &
                                reference_element, quadrature_rule)

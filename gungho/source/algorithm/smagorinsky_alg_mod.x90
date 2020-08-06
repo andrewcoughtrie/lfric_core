@@ -24,8 +24,11 @@ module smagorinsky_alg_mod
   use log_mod,                   only: log_event,         &
                                        LOG_LEVEL_INFO
 
-  use io_config_mod,             only: subroutine_timers
+  use io_config_mod,             only: subroutine_timers, &
+                                       write_conservation_diag
   use timer_mod,                 only: timer
+  use moisture_conservation_alg_mod, &
+                                 only: moisture_conservation_alg
 
   implicit none
 
@@ -39,11 +42,9 @@ contains
   !> @details Either uses Smagorinsky diffusion coefficients calculated
   !>          in the UM boundary-layer scheme or those calculate locally
   !>          to diffuse quantities in the horizontal
-  !> @param[in,out] dtheta         Increment to theta
-  !> @param[in,out] du             Increment to wind field
   !> @param[in,out] mr             mixing ratios
-  !> @param[in]     theta          Potential temperature
-  !> @param[in]     u              3D wind field
+  !> @param[in,out] theta          Potential temperature
+  !> @param[in,out] u              3D wind field
   !> @param[in,out] visc_m         Smag diffusion coef for momentum
   !> @param[in,out] visc_h         Smag diffusion coef for heat
   !> @param[in]     chi            Coordinate array
@@ -51,22 +52,32 @@ contains
   !> @param[in]     height_w3      Height of w3 space
   !> @param[in]     delta          Edge length on wtheta points
   !> @param[in]     derived_fields Group of derived fields
-  subroutine smagorinsky_alg(dtheta, du, mr, theta, u, visc_m,         &
+  !> @param[in]     rho            Density
+  !> @param[in]     step           Model timestep
+  subroutine smagorinsky_alg(mr, theta, u, visc_m,         &
                              visc_h, chi, height_wth, height_w3, delta,&
-                             derived_fields)
+                             derived_fields, rho, step)
 
     implicit none
 
     ! Prognostic fields
-    type( field_type ), intent(in)               :: u, theta
-    type( field_type ), intent(inout)            :: du, dtheta, visc_m, visc_h
-    type( field_type ), intent(inout)            :: mr ( nummr )
+    type( field_type ), intent(inout) :: u, theta
+    type( field_type ), intent(inout) :: visc_m, visc_h
+    type( field_type ), intent(inout) :: mr ( nummr )
 
     type( field_collection_type ), intent(in) :: derived_fields
+
 
     ! Coordinate fields
     type( field_type ), intent( in )    :: height_w3, height_wth, delta
     type( field_type ), intent( in )    :: chi(3)
+
+    integer( i_def ),   intent(in) :: step
+    type( field_type ), intent(in) :: rho
+
+
+    ! Increments on state fields
+    type( field_type ) :: du, dtheta
 
     type( field_type ), pointer :: shear => null()
     type( field_type ) :: dmr_v, dmr_cl
@@ -75,6 +86,11 @@ contains
     integer(kind=i_def), parameter :: smag_stencil_depth = 1
 
     if ( subroutine_timers ) call timer("smagorinsky_alg")
+
+    call log_event( 'Applying Smagorinsky mixing', LOG_LEVEL_INFO )
+
+    call du%initialise( u%get_function_space() )
+    call dtheta%initialise( theta%get_function_space() )
 
     if ( boundary_layer == boundary_layer_um ) then
 
@@ -167,6 +183,13 @@ contains
       call invoke( inc_X_plus_bY( mr(imr_v), dt, dmr_v ),    &
                    inc_X_plus_bY( mr(imr_cl), dt, dmr_cl ) )
     end if
+
+    ! Apply increments from Smagorinsky mixing
+    call invoke( inc_X_plus_bY( theta, dt, dtheta ),      &
+                 inc_X_plus_bY( u,     dt, du ) )
+
+    if (write_conservation_diag .and. use_moisture) &
+      call moisture_conservation_alg( step, rho, mr, 'After mixing' )
 
     if ( subroutine_timers ) call timer("smagorinsky_alg")
 

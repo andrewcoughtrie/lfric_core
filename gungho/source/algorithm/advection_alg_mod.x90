@@ -74,6 +74,7 @@ module advection_alg_mod
 
   private
 
+  public  :: advection_control
   public  :: advection_alg
   public  :: advection_alg_init
   public  :: advection_alg_final
@@ -122,6 +123,136 @@ contains
     call advective_update_alg_final()
 
   end subroutine advection_alg_final
+
+  !=============================================================================!
+  !>@details Control routine for the advection of ll fields needed for the model
+  !> @param[in,out] rhs Advective terms
+  !> @param[in]     state_after_slow Current state of the model prognostics with
+  !>                slow physics forcings added
+  !> @param[in]     wind_n Wind field at timestep n
+  !> @param[in]     wind_np1 Latest estimate of wind field at timestep n+1
+  !> @param[in]     advected_wind predictor for the wind to be advected
+  !> @param[in]     mr_inc Increments to the moisture fields
+  !> @param[in]     mr_after_slow Current moisture fields with
+  !>                slow physics forcings added
+  !> @param[in]     t_step Timestep
+  !> @param[in]     outer Outer (advection) iteration number
+  !> @param[in]     moist_dyn Factors for moist dynamics
+  !> @param[in]     mr latest state of mixing ratios
+  !> @param[in]     cloud_fields Fields for cloud scheme
+  !> @param[in]     cloud_fields_after_slow Fields for cloud scheme with slow
+  !>                physics forcings added
+  !> @param[in]     rho_guess Estimate to new timestep density
+  subroutine advection_control(rhs, state_after_slow,                   &
+                               wind_n, wind_np1, advected_wind,         &
+                               mr_inc, mr_after_slow,                   &
+                               t_step, outer,                           &
+                               moist_dyn, mr,                           &
+                               cloud_fields, cloud_fields_after_slow,   &
+                               rho_guess )
+
+  use formulation_config_mod,         only: use_moisture, &
+                                            use_wavedynamics
+  use timestepping_config_mod,        only: dt, &
+                                            outer_iterations
+  use derived_config_mod,             only: bundle_size
+  use mr_indices_mod,                 only: nummr
+  use field_indices_mod,              only: igh_d
+  use io_config_mod,                  only: write_conservation_diag
+  use moist_dyn_mod,                  only: num_moist_factors
+  use moisture_conservation_alg_mod,  only: moisture_conservation_alg
+  use field_bundle_mod,               only: add_bundle, &
+                                            bundle_ax, &
+                                            copy_bundle
+  use enforce_lower_bound_kernel_mod, only: enforce_lower_bound_kernel_type
+  use moist_dyn_factors_kernel_mod,   only: moist_dyn_factors_kernel_type
+  use field_collection_mod,           only: field_collection_type
+  implicit none
+
+    type(field_type), dimension(bundle_size),       intent(inout) :: rhs, mr_inc, mr
+    type(field_type), dimension(num_moist_factors), intent(inout) :: moist_dyn
+    type(field_collection_type),                    intent(inout) :: cloud_fields
+    type(field_collection_type),                    intent(inout) :: cloud_fields_after_slow
+    type(field_type),                               intent(inout) :: rho_guess
+
+    type(field_type), dimension(bundle_size), intent(in) :: state_after_slow
+    type(field_type),                         intent(in) :: wind_n, wind_np1, advected_wind
+    type(field_type), dimension(bundle_size), intent(in) :: mr_after_slow
+
+    integer(i_def), intent(in) :: t_step, outer
+
+    logical          :: do_moisture_diagnostics
+    integer(i_def)   :: i_mr
+
+    if (use_wavedynamics) then
+      do_moisture_diagnostics = write_conservation_diag .and. &
+                                outer == outer_iterations .and. &
+                                use_moisture
+      if ( do_moisture_diagnostics ) then
+        call moisture_conservation_alg( t_step,                  &
+                                        state_after_slow(igh_d), &
+                                        mr_after_slow,           &
+                                        'Before transport' )
+      end if
+
+      ! Advect dynamics prognostics
+      call log_event("Advecting dynamics prognostic fields...", LOG_LEVEL_INFO)
+      call advection_alg(rhs, state_after_slow, wind_n, wind_np1, advected_wind )
+      call bundle_ax(dt, rhs, rhs, bundle_size)
+
+      if ( use_moisture )then
+        call log_event("Advecting moisture fields...", LOG_LEVEL_INFO)
+        ! Advect mr_after_slow values with latest advecting velocity
+        if ( moisture_conservation ) then
+          call conservative_mr_adv_alg(mr, mr_after_slow, wind_n, wind_np1, &
+                                       state_after_slow(igh_d), rho_guess)
+        else
+          call advection_mr_alg(mr_inc, mr_after_slow, wind_n, wind_np1)
+          ! Update latest value for mr
+          call add_bundle(mr_inc, mr_after_slow, mr, nummr)
+        end if
+
+        if (write_conservation_diag .and. outer == outer_iterations) then
+          if (.not. moisture_conservation ) then
+            ! Calculate guess of rho = state_after_slow + rhs_adv
+            call invoke(X_plus_Y(rho_guess, state_after_slow(igh_d), &
+                                 rhs(igh_d)))
+          end if
+          call moisture_conservation_alg( t_step, rho_guess, mr, &
+                                          'Before clipping' )
+        end if
+
+        ! Clip moisture mixing ratios to remove negative values
+        do i_mr = 1, nummr
+          call invoke( enforce_lower_bound_kernel_type (mr(i_mr), 0.0_r_def) )
+        end do
+        call invoke(moist_dyn_factors_kernel_type(moist_dyn, mr))
+
+        ! Call routine to advect some of the contents of cloud_fields.
+        ! If not using PC2, nothing will be advected.
+        ! If using PC2, some of these will be advected.
+        !   * Cloud-fractions-after-slow values (held on cloud_fields)
+        !     will get advected with advecting velocity.
+        !   * The advected cloud fields variables get updated during this call
+        call advection_generic_field_alg( cloud_fields,                   &
+                                          cloud_fields_after_slow,        &
+                                          wind_n, wind_np1 )
+
+      end if
+      if (do_moisture_diagnostics) then
+        ! Calculate guess of rho = state_after_slow + rhs_adv
+        if (.not. moisture_conservation ) &
+          call invoke(X_plus_Y(rho_guess, state_after_slow(igh_d), rhs(igh_d)))
+        call moisture_conservation_alg( t_step, rho_guess, mr, &
+                                        'After transport' )
+      end if
+      call log_event("Finished advecting prognostic fields...", LOG_LEVEL_INFO)
+    else
+      ! No advection without wavedynamics at present
+      if ( use_moisture ) call copy_bundle(mr_after_slow, mr, nummr)
+    end if
+
+  end subroutine advection_control
 
   !=============================================================================!
   !>@details A wrapper algorithm for computing the advection of the prognostic
