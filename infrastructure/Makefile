@@ -49,7 +49,7 @@ default: unit-tests integration-tests
 	$(Q)echo > /dev/null
 
 .PHONY: documentation doc docs
-documentation doc docs: document-uml document-api
+documentation doc docs: document-uml document-latex document-api
 	$(Q)echo > /dev/null
 
 ##############################################################################
@@ -83,6 +83,21 @@ document-uml: WORKING_DIR  := $(WORKING_DIR)/uml
 document-uml: uml-documentation
 	$(Q)echo > /dev/null
 
+.PHONY: document-latex
+document-latex: DOCUMENT_DIR  ?= $(PROJECT_DIR)/documents
+document-latex: SOURCE_DIR     = documentation
+document-latex: DOCUMENTS      = $(shell find $(SOURCE_DIR) -name '*.latex' -print)
+document-latex: WORKING_DIR   := $(WORKING_DIR)/latex
+document-latex: TEX_STUFF      = documentation/tex
+document-latex: COMMON_FIGURES = documentation/common-figures
+document-latex: ALWAYS
+	$(Q)$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/latex.mk \
+                                 SOURCE_DIR=$(SOURCE_DIR) \
+	                         WORKING_DIR=$(WORKING_DIR) \
+	                         DOCUMENT_DIR=$(DOCUMENT_DIR) \
+	                         TEX_STUFF=$(TEX_STUFF) \
+	                         COMMON_FIGURES=$(COMMON_FIGURES) \
+	                         DOCUMENTS="$(DOCUMENTS)"
 
 .PHONY: document-api
 document-api: PROJECT       = infrastructure
