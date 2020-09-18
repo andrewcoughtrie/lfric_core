@@ -23,6 +23,7 @@ module jules_physics_init_mod
                                      emis_sea_in => emis_sea,                  &
                                      emis_sice_in => emis_sice,                &
                                      therm_cond_sice, therm_cond_sice_snow,    &
+                                     therm_cond_sea,                           &
                                      iceformdrag_lupkes, stability_lupkes,     &
                                      sice_heatflux,                            &
                                      basal_melting, basal_melting_none,        &
@@ -44,7 +45,9 @@ module jules_physics_init_mod
                                      alb_snocov_max,                           &
                                      alb_leaf_nir, alb_leaf_vis,               &
                                      light_extinct, scat_coef_vis,             &
-                                     scat_coef_nir, z0hm_ratio_pft
+                                     scat_coef_nir, z0hm_ratio_pft,            &
+                                     use_variable_sst, heat_cap_sea,           &
+                                     evap_scale_sea
 
   ! UM modules used
   use jules_surface_types_mod, only : npft, nnvg
@@ -97,7 +100,7 @@ contains
          l_sice_heatflux, check_jules_sea_seaice, z0h_z0m_miz,              &
          ip_ss_coare_mq, a_chrn_coare, b_chrn_coare, u10_max_coare,         &
          l_10m_neut, alpham, dtice, l_iceformdrag_lupkes,                   &
-         l_stability_lupkes
+         l_stability_lupkes, l_use_dtstar_sea, hcap_sea, beta_evap
     use jules_snow_mod, only: cansnowpft, check_jules_snow, nsmax,          &
          a_snow_et, b_snow_et, c_snow_et, can_clump, dzsnow,                &
          frac_snow_subl_melt, i_snow_cond_parm, l_et_metamorph,             &
@@ -173,11 +176,12 @@ contains
     ! ----------------------------------------------------------------
     kappai        = real(therm_cond_sice, r_um)
     kappai_snow   = real(therm_cond_sice_snow, r_um)
-    kappa_seasurf = 0.5_r_um
+    kappa_seasurf = real(therm_cond_sea, r_um)
 
     a_chrn_coare         = 0.0016_r_um
     alpham               = real(alb_sice_melt, r_um)
     b_chrn_coare         = -0.0035_r_um
+    beta_evap            = real(evap_scale_sea, r_um)
     ! buddy_sea = 1 should be set here, but code for that doesn't exist yet
     dtice                = real(dt_ice_albedo, r_um)
     emis_sea             = real(emis_sea_in, r_um)
@@ -197,6 +201,8 @@ contains
     ! Code has not been included to support this being false as configurations
     ! should be moving to the new code
     l_tstar_sice_new     = .true.
+    l_use_dtstar_sea     = use_variable_sst
+    if (use_variable_sst) hcap_sea = real(heat_cap_sea, r_um)
     nice                 = n_sea_ice_tile
     nice_use             = n_sea_ice_tile
     seasalinityfactor    = 0.98_r_um

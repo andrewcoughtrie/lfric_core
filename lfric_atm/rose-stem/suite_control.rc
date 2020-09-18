@@ -320,4 +320,17 @@
                          }
      )',
   ],
+  'exoplanet': [
+    'run_with_restart_check("lfric_atm", "thai_ben1", 2,
+                            resolutions=[("C24",300.0)],
+                            env={"crun":1, "nrun":72,
+                            "directives":{"C24":{"mpi_parts":6,
+                                                 "threads":1,
+                                                 "wallclock":"00:12:00"},
+                                         },
+                            },
+			    plotstr="plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR"
+                           )',
+    'publish_commit'
+  ],
 } %}

@@ -177,6 +177,7 @@ module gungho_step_mod
       if(write_minmax_tseries) call minmax_tseries(u, 'u', mesh_id)
 
       call u%log_minmax(LOG_LEVEL_INFO, ' u')
+      call theta%log_minmax(LOG_LEVEL_INFO, 'theta')
 
     end if
 

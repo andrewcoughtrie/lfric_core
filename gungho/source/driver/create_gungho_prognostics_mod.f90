@@ -21,7 +21,6 @@ module create_gungho_prognostics_mod
                                              checkpoint_read_interface
   use field_collection_mod,           only : field_collection_type
   use finite_element_config_mod,      only : element_order
-  use formulation_config_mod,         only : use_moisture
   use fs_continuity_mod,              only : W0, W2, W3, Wtheta
   use function_space_collection_mod , only : function_space_collection
   use log_mod,                        only : log_event,         &
@@ -212,14 +211,12 @@ contains
     call prognostic_fields%add_reference_to_field(tmp_ptr)
     tmp_ptr => depository%get_field('exner')
     call prognostic_fields%add_reference_to_field(tmp_ptr)
-    ! The moisture mixing ratios are always created, but only add them
-    ! to the prognostics collection if they are active
-    if ( use_moisture )then
-      do imr = 1,nummr
-        tmp_ptr => mr(imr)
-        call prognostic_fields%add_reference_to_field( tmp_ptr )
-      end do
-    end if
+    ! The moisture mixing ratios always need checkpointing otherwise
+    ! they are uninitialised on a restart
+    do imr = 1,nummr
+      tmp_ptr => mr(imr)
+      call prognostic_fields%add_reference_to_field(tmp_ptr)
+    end do
 
     nullify( tmp_write_ptr, tmp_checkpoint_write_ptr, tmp_checkpoint_read_ptr )
 

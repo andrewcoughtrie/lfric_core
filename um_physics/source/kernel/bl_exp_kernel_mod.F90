@@ -27,6 +27,7 @@ module bl_exp_kernel_mod
                                      flux_bc_opt_specified_scalars
   use cloud_config_mod,       only : rh_crit_opt, rh_crit_opt_tke
   use mixing_config_mod,      only : smagorinsky
+  use surface_config_mod,     only : sea_surf_alg, sea_surf_alg_fixed_roughness
   use timestepping_config_mod, only: outer_iterations
 
   implicit none
@@ -818,7 +819,13 @@ contains
       flux_e(:,:)=fixed_flux_e
       flux_h(:,:)=fixed_flux_h
     end if
-    l_spec_z0=.false.
+    if ( sea_surf_alg == sea_surf_alg_fixed_roughness ) then
+      l_spec_z0 = .true.
+      z0m_scm = 0.01_r_um
+      z0h_scm = 0.001_r_um
+    else
+      l_spec_z0 = .false.
+    end if
 
     zeros=0.0_r_um
 
