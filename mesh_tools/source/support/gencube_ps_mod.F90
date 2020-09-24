@@ -1168,7 +1168,7 @@ subroutine stretch_mesh(self)
   class(gencube_ps_type), intent(inout)  :: self
 
   real(r_def) :: stretching ! Holding variable for stretch function
-  real(r_def) :: lat, lon
+  real(r_def) :: lat
 
   integer(i_def) :: nverts, vert
 

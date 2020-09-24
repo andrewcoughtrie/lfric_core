@@ -33,22 +33,10 @@ module combine_w2_field_kernel_mod
     procedure, nopass ::combine_w2_field_code
   end type
   !---------------------------------------------------------------------------
-  ! Constructors
-  !---------------------------------------------------------------------------
-  ! overload the default structure constructor for function space
-  interface combine_w2_field_kernel_type
-    module procedure combine_w2_field_kernel_constructor
-  end interface
-  !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
   public combine_w2_field_code
 contains
-type(combine_w2_field_kernel_type) &
-function combine_w2_field_kernel_constructor() result(self)
-  implicit none
-  return
-end function combine_w2_field_kernel_constructor
 !> @brief Kernel to sample a flux at nodal points: F = u*q
 !! @param[in] nlayers Number of layers
 !! @param[in] ndf_f Number of degrees of freedom per cell for w2

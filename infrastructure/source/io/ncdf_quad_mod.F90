@@ -1256,7 +1256,6 @@ subroutine read_mesh( self, mesh_name, mesh_class,                     &
   real(r_ncdf), allocatable :: node_coordinates_ncdf(:,:)
   real(r_ncdf), allocatable :: face_coordinates_ncdf(:,:)
 
-  real(i_def), allocatable :: mesh_map(:,:)
   integer(i_def) :: lower1,upper1,lower2,upper2
 
   character(str_def) :: lchar_px
@@ -1452,7 +1451,7 @@ subroutine read_map( self,             &
 
   character(*), parameter :: routine = 'read_map'
 
-  integer(i_native) :: source_id, dim_id, mesh_map_id
+  integer(i_native) :: mesh_map_id
   integer(i_native) :: source_cells_id
   integer(i_native) :: target_cells_per_source_cell_id
   integer(i_native) :: ierr

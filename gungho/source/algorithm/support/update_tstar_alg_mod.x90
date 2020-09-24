@@ -43,11 +43,11 @@ contains
 
     logical(kind=l_def) :: put_field
 
+#ifdef UM_PHYSICS
     ! Unpacked fields from collections
     type( field_type ), pointer :: tile_temperature => null()
     type( field_type ), pointer :: tstar => null()
 
-#ifdef UM_PHYSICS
     tile_temperature => surface_fields%get_field('tile_temperature')
     tstar => fd_fields%get_field('tstar')
 

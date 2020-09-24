@@ -307,7 +307,6 @@ contains
     use enforce_bc_kernel_mod,        only: enforce_bc_kernel_type
     use finite_element_config_mod,    only: element_order
     use helmholtz_solver_config_mod,  only: normalise
-    use function_space_collection_mod,only: function_space_collection
     use fs_continuity_mod,            only: W2, W2h, W2v
     use combine_w2_field_kernel_mod,  only: combine_w2_field_kernel_type
     use split_w2_field_kernel_mod,    only: split_w2_field_kernel_type
@@ -327,9 +326,7 @@ contains
                                       Hb_lumped_inv => null()
     type( field_type )             :: r_p, u_term
     real( kind=r_def ), parameter  :: minus_one = -1.0_r_def
-    type( field_type )             :: rhs_uvw, rhs_uv, rhs_w
-
-    integer( i_def )               :: p, mesh_id
+    type( field_type )             :: rhs_uvw
 
     call rhs_uvw%initialise( vector_space = self%rhs_u%get_function_space() )
     if ( split_w )then

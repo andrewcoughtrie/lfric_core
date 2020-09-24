@@ -139,7 +139,7 @@ subroutine mr_to_sh_mass_ints_code(                                      &
 
   ! Internal variables
   integer(kind=i_def)                                    :: df, k
-  integer(kind=i_def)                                    :: qp1, qp2, central_qp2
+  integer(kind=i_def)                                    :: qp1, qp2
   real(kind=r_def), dimension(ndf_chi_dl)                :: lower_chi_1_e, &
                                                             lower_chi_2_e, &
                                                             lower_chi_3_e, &

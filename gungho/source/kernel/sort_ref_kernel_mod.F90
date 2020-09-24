@@ -52,9 +52,6 @@ subroutine sort_ref_code(nlayers,                   &
                          ndf_wth, undf_wth, map_wth &
                          )
 
-  use log_mod,                       only: log_event,         &
-                                           log_scratch_space, &
-                                           LOG_LEVEL_INFO
   implicit none
 
   ! Arguments

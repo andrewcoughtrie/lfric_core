@@ -354,7 +354,6 @@ contains
 
 {%- if arrays %}{{'\n'}}
     integer(i_native) :: condition
-    integer(i_native) :: index
     integer(i_native) :: size
 {%- endif %}
 
@@ -363,15 +362,19 @@ contains
 {%-   if not parameter.is_immediate_size() %}
     {{parameter.fortran_type.declaration()}}, allocatable :: new_{{name}}(:)
 {%-   endif %}
+{%-   if parameter.is_arbitrary_size() %}
+    integer(i_native) :: index_{{name}}
+{%-   endif %}
 {%- endfor %}
+
 {{- '\n'}}
 {%-  for name in arrays %}
 {%-   set parameter = parameters[name] %}
 {%-   if parameter.is_arbitrary_size() %}
-    do index=ubound({{name}}, 1), 1, -1
-      if ({{name}}(index) /= {{parameter.content.get_missing_data_indicator()}}) exit
+    do index_{{name}}=ubound({{name}}, 1), 1, -1
+      if ({{name}}(index_{{name}}) /= {{parameter.content.get_missing_data_indicator()}}) exit
     end do
-    size = index
+    size = index_{{name}}
 {%-   endif %}
 {%-   if parameter.is_deferred_size() %}
     size = {{parameter.bounds}}

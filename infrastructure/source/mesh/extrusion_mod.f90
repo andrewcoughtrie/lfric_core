@@ -435,9 +435,6 @@ contains
     class(reference_element_type), &
                              intent(out), allocatable :: reference_element
 
-    type(reference_prism_type) :: reference_prism
-    type(reference_cube_type)  :: reference_cube
-
     select case (mesh%get_nverts_per_cell())
       case (3)
         allocate( reference_element, source=reference_prism_type() )

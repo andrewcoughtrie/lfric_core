@@ -125,7 +125,6 @@ subroutine init_mesh( local_rank, total_ranks, prime_mesh_id, twod_mesh_id, &
   logical(l_def) :: found_factors
 
   character(str_def)  :: domain_desc
-  character(str_def)  :: partition_desc
   type(ugrid_2d_type) :: ugrid_2d
 
   class(ugrid_file_type), allocatable :: file_handler

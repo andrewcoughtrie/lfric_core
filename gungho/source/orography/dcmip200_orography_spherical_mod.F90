@@ -140,7 +140,6 @@ contains
   subroutine dcmip200_coordinate_spherical(self, chi_1, chi_2, chisurf_arg)
 
     use constants_mod,     only : PI
-    use planet_config_mod, only : scaled_radius
 
     implicit none
 

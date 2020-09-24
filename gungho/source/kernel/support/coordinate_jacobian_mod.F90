@@ -54,8 +54,6 @@ contains
     real(kind=r_def), intent(out) :: jac(3,3,ngp_h,ngp_v)
     real(kind=r_def), intent(out) :: dj(ngp_h,ngp_v)
 
-    real(kind=r_def) :: dx, dy, dz
-
     integer(kind=i_def) :: i, j, df, dir
 
     jac(:,:,:,:) = 0.0_r_def
@@ -145,7 +143,6 @@ contains
 
     integer(kind=i_def) :: df, dir
 
-    real(kind=r_def) :: dx, dy, dz
 
     jac(:,:) = 0.0_r_def
     do df = 1,ndf

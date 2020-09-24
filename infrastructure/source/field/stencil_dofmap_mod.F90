@@ -271,9 +271,6 @@ end function get_local_size
 ! TODO - Ticket #2019 Design discussion on how stencil sizes are passed to
 !        kernels.
 function get_stencil_sizes(self) result(stencil_sizes)
-  use log_mod,                only: log_event, &
-                                    log_scratch_space, &
-                                    LOG_LEVEL_ERROR
   implicit none
   class(stencil_dofmap_type), target, intent(in) :: self
   integer(i_def), pointer                        :: stencil_sizes(:)

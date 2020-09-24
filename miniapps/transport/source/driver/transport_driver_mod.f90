@@ -123,7 +123,6 @@ contains
     character(len=*), parameter :: xios_ctx  = "transport"
 
     integer(i_def) :: total_ranks, local_rank
-    integer(i_def) :: timestep, ts_init, dtime
 
     integer(i_native) :: log_level
 

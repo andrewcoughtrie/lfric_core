@@ -82,9 +82,6 @@ subroutine compute_bottom_mass_from_flux_code(                            &
   real(kind=r_def), dimension(undf_2d),   intent(in)  :: flux
   real(kind=r_def), dimension(undf_w2),   intent(in)  :: area
 
-  ! Internal variables
-  integer(kind=i_def) :: df, k
-
   mass( map_2d(1) ) = flux( map_2d(1) ) * area( map_w2(B) ) * dt
 
 end subroutine compute_bottom_mass_from_flux_code

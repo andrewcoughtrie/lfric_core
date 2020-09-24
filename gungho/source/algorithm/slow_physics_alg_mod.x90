@@ -174,24 +174,28 @@ contains
     type( field_type ) :: dmr_mphys(nummr), dmv_methox
     type( field_type ) :: du_tot_spectral_gwd, dtheta_spectral_gwd
     type( field_type ) :: du_tot_orographic_drag, dtheta_orographic_drag
+#ifdef UM_PHYSICS
     type( field_type ) :: tile_lw_albedo
     type( field_type ) :: tile_sw_diffuse_albedo
     type( field_type ) :: tile_sw_direct_albedo
+#endif
 
     type( field_type ), pointer :: w2_rmultiplicity => null() ! 1/multiplicity of w2
 
+#ifdef UM_PHYSICS
     ! pointers to vector spaces
     type(function_space_type), pointer :: vector_space => null()
-
-    ! Temporary field to unpack from field collection
-    type( field_type ), pointer :: u_physics => null()
-    type( field_type ), pointer :: exner_in_wth => null()
-
     ! Each column of a higher-order discontinuous field will be used to
     ! represent multi-dimensional quantities. Set parameters for the order
     ! required:
     integer(i_def) :: alb_order = 4 ! Enough space for 125 spectral tiles
                                     ! (spectral bands * surface tiles)
+#endif
+
+    ! Temporary field to unpack from field collection
+    type( field_type ), pointer :: u_physics => null()
+    type( field_type ), pointer :: exner_in_wth => null()
+
     integer(i_def) :: i_mr
 
     !Flags to indicate completed actions
@@ -203,11 +207,11 @@ contains
     logical :: orographic_drag_done ! Flag to indicate that orographic drag has been calculated
     logical :: methox_done ! Flag to indicate methane oxidation has been calculated
 
+
     ! Fields required by PC2
     type( field_type ), pointer :: liquid_fraction => null()
     type( field_type ), pointer :: ice_fraction    => null()
     type( field_type ), pointer :: bulk_fraction   => null()
-    type( field_type ), pointer :: departure_exner_wth => null()
 
     ! Increments to fields as a response to PC2 processes
     ! N.B. For microphys:
@@ -220,7 +224,9 @@ contains
     type( field_type ) :: dqcl_pc2_rad
     type( field_type ) :: dcfl_pc2_rad
     type( field_type ) :: dbcf_pc2_rad
+#ifdef UM_PHYSICS
     ! N.B. For PC2 checks:
+    type( field_type ), pointer :: departure_exner_wth => null()
     type( field_type ) :: dtheta_pc2_checks
     type( field_type ) :: dqv_pc2_checks
     type( field_type ) :: dqcl_pc2_checks
@@ -231,6 +237,7 @@ contains
 
     ! Temporary, partially updated theta after some, but not all, PC2 processes
     type( field_type ) :: tmp_theta
+#endif
 
     if ( subroutine_timers ) call timer("slow_physics")
 

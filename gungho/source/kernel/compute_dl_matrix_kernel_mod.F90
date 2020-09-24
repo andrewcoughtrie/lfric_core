@@ -110,7 +110,7 @@ contains
     real(r_def), dimension(3,ndf_w2,nqp_h,nqp_v), intent(in) :: basis_w2
 
     ! Internal variables
-    integer(i_def) :: df, df2, dfc, last_hdf, k, ik
+    integer(i_def) :: df, df2, dfc, k, ik
     integer(i_def) :: qp1, qp2
 
     real(kind=r_def), dimension(ndf_chi)         :: chi1_e, chi2_e, chi3_e

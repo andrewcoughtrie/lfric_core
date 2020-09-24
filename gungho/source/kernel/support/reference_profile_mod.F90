@@ -61,8 +61,7 @@ real(kind=r_def),    intent(out)          :: exner_s, rho_s, theta_s
 
 real(kind=r_def), parameter :: exner_surf     = 1.0_r_def
 real(kind=r_def), parameter :: lapse_rate     = 0.0065_r_def
-real(kind=r_def)            :: nsq_over_g, z, u_s(3), lat, lon, r, t, p, &
-                               lon_surf, lat_surf, r_surf
+real(kind=r_def)            :: nsq_over_g, z, u_s(3), lat, lon, r, t, p
 
 if ( geometry == geometry_spherical ) then  ! SPHERICAL DOMAIN
   call xyz2llr(x(1),x(2),x(3),lon,lat,r)

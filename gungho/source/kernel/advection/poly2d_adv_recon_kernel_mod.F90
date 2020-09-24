@@ -137,7 +137,7 @@ subroutine poly2d_adv_recon_code( nlayers,              &
   real(kind=r_def), intent(in)  :: outward_normals_to_horizontal_faces(:,:)
 
   ! Internal variables
-  integer(kind=i_def)                      :: k, df, ij, p, face, stencil
+  integer(kind=i_def)                      :: k, df, ij, p
   real(kind=r_def)                         :: direction
   real(kind=r_def), dimension(nfaces_re_h) :: v_dot_n
   real(kind=r_def)                         :: polynomial_tracer

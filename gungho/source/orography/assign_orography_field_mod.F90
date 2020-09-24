@@ -565,9 +565,8 @@ end subroutine ancil_orography_spherical
 
   ! Internal variables
   integer(kind=i_def) :: k, df, dfchi, dfk
-  real(kind=r_def)    :: chi_3_r, eta
+  real(kind=r_def)    :: eta
   real(kind=r_def)    :: surface_height(ndf_chi), domain_depth
-  real(kind=r_def)    :: longitude, latitude, r
 
   domain_depth = domain_top - domain_surface
 

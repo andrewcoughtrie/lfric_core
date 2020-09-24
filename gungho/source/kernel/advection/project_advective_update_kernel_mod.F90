@@ -115,7 +115,7 @@ subroutine project_advective_update_code(nlayers,                               
   real(kind=r_def), dimension(ndf_wx) :: chi1_e, chi2_e, chi3_e
   real(kind=r_def), dimension(3,3)    :: jac
   real(kind=r_def)                    :: detj
-  real(kind=r_def), dimension(3)      :: advective_update, a3d, v
+  real(kind=r_def), dimension(3)      :: a3d, v
 
   do k = 0, nlayers-1
     do df = 1, ndf_wx

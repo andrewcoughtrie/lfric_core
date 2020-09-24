@@ -99,7 +99,6 @@ contains
         !Internal variables
         integer(kind=i_def)                 :: k, df, kp1
 
-        real(kind=r_def)                    :: exner_surf, dz
         real(kind=r_def)                    :: theta_at_dof, rho_at_dof, pressure_at_dof, &
                                                exner_at_dof, temperature_at_dof
         ! compute the pointwise mr profile

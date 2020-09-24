@@ -102,7 +102,7 @@ subroutine calc_departure_point_code( nlayers,                       &
   real(kind=r_def)     :: u_np1_local(1:departure_pt_stencil_length+1)
 
   integer              :: nCellEdges
-  integer              :: k, df, df1, df2, ii, jj
+  integer              :: k, df1, df2, ii, jj
   integer              :: stencil_order_out(1:departure_pt_stencil_length)
 
   real(kind=r_def)     :: unordered_u_n(1:4,1:departure_pt_stencil_length)

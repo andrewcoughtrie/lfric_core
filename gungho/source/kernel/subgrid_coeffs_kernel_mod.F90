@@ -90,7 +90,6 @@ subroutine subgrid_coeffs_code(                                               &
 
   use subgrid_rho_mod, only: second_order_coeffs
   use cosmic_flux_mod, only: stencil_ordering_and_orientation
-  use log_mod,         only: log_event, LOG_LEVEL_ERROR, LOG_LEVEL_INFO, log_scratch_space
 
   implicit none
 
@@ -108,7 +107,6 @@ subroutine subgrid_coeffs_code(                                               &
   real(kind=r_def), intent(inout)   :: a2(undf_w3)
   integer, intent(in)               :: direction
 
-  real(kind=r_def)               :: sigma1,sigma2
   real(kind=r_def)               :: coeffs(1:3)
   real(kind=r_def)               :: rho_local(1:stencil_length)
 

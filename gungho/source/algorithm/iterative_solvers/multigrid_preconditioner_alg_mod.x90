@@ -171,7 +171,6 @@ contains
     class(multigrid_preconditioner_type), intent(inout)    :: self
     integer(kind=i_def), intent(in) :: level
     logical, intent(in) :: initial_solution_is_zero
-    real(kind=r_def) :: fnorm
 
     ! Call smoother on coarsest level
     if (level == self%n_level) then
@@ -265,9 +264,6 @@ contains
 
     real(kind=r_def) :: const
     integer(kind=i_def) :: i, i_first
-
-    real(kind=r_def) :: alpha, beta, rz, rz_new, fnorm
-    type(field_type) :: p
 
     ! Construct temporary fields (we probably do not want to construct them
     ! in every smoother application in the future)

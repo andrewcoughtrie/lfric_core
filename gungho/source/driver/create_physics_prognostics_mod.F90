@@ -101,7 +101,9 @@ contains
     type(field_collection_type), intent(out) :: aerosol_fields
 
     ! pointers to vector spaces
+#ifdef UM_PHYSICS
     type(function_space_type), pointer :: vector_space => null()
+#endif
     type(function_space_type), pointer :: wtheta_space => null()
     type(function_space_type), pointer :: w3_space => null()
     type(function_space_type), pointer :: w2_space => null()
@@ -116,7 +118,9 @@ contains
 
     integer(i_def) :: theta_space
     logical(l_def) :: checkpoint_restart_flag
+#ifdef UM_PHYSICS
     logical(l_def) :: advection_flag
+#endif
 
     call log_event( 'Create physics prognostics', LOG_LEVEL_INFO )
 

@@ -109,7 +109,7 @@ function add_new_mesh( self,        &
   type(mesh_type) :: mesh
 
   integer(i_def) :: mesh_id
-  integer(i_def) :: n_meshes, i
+  integer(i_def) :: i
 
   character(str_def) :: name
 

@@ -71,7 +71,6 @@ subroutine vertical_trapezoidal_code(  nlayers,              &
 
   use biperiodic_deppts_mod,       only : calc_dep_point,           &
                                           calc_vertical_trapezoidal
-  use biperiodic_deppt_config_mod, only : method
   use biperiodic_deppt_config_mod, only : n_dep_pt_iterations
   use timestepping_config_mod,     only : dt
 
@@ -86,9 +85,9 @@ subroutine vertical_trapezoidal_code(  nlayers,              &
   real(kind=r_def), dimension(undf_w2), intent(in)      :: u_np1
   real(kind=r_def), dimension(undf_w2), intent(inout)   :: dep_pts_z
 
-  integer(kind=i_def) :: k, df
+  integer(kind=i_def) :: k
 
-  integer(kind=i_def) :: nCellEdges, ii
+  integer(kind=i_def) :: nCellEdges
   real(kind=r_def)    :: xArrival
   real(kind=r_def),allocatable :: u_n_local(:)
   real(kind=r_def),allocatable :: u_np1_local(:)

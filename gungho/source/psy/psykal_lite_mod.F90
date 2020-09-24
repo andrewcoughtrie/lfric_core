@@ -659,8 +659,6 @@ subroutine invoke_calc_deppts(  u_n,                  &
   integer                 :: ndf_w3
   integer                 :: undf_w3
   type(mesh_type), pointer :: mesh => null()
-  integer                  :: d
-  logical                  :: swap
 
   u_n_proxy    = u_n%get_proxy()
   u_np1_proxy  = u_np1%get_proxy()
@@ -997,8 +995,6 @@ end subroutine invoke_calc_deppts
 
     use extract_x_kernel_mod,        only : extract_x_code
     use extract_y_kernel_mod,        only : extract_y_code
-    use log_mod,                     only : log_event, log_scratch_space,     &
-                                            LOG_LEVEL_INFO
     use mesh_mod,                    only : mesh_type
 
     implicit none
@@ -1183,7 +1179,7 @@ end subroutine invoke_calc_deppts
 
     type(field_proxy_type) :: wind_x_in_proxy, wind_y_in_proxy
     type(field_proxy_type) :: wind_x_out_proxy, wind_y_out_proxy
-    type(field_proxy_type) :: chi_p(3), orientation_proxy
+    type(field_proxy_type) :: orientation_proxy
 
     integer                 :: cell, nlayers
     integer                 :: ndf_w2, ndf_w3

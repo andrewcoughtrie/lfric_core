@@ -440,10 +440,6 @@ subroutine init_function_space( self )
   integer(i_def) :: ncells_2d
   integer(i_def) :: ncells_2d_with_ghost
 
-  integer(i_def) :: rc
-  integer(i_def) :: idepth
-  integer(i_def) :: halo_start, halo_finish
-
   integer(i_def), allocatable :: dofmap(:,:)
 
   ncells_2d            = self%mesh % get_ncells_2d()

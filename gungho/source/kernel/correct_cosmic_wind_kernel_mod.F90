@@ -71,7 +71,6 @@ contains
 
 
     use coordinate_jacobian_mod, only: coordinate_jacobian
-    use log_mod,                 only: log_event, log_scratch_space, LOG_LEVEL_INFO
     use flux_direction_mod,      only: x_direction, y_direction
 
     implicit none
@@ -87,7 +86,7 @@ contains
     real(kind=r_def), dimension(undf_w2),       intent(inout) :: wind_out
 
     ! Internal variables
-    integer(kind=i_def)   :: df, k, local_dofs_x(1:2), local_dofs_y(1:2)
+    integer(kind=i_def)   :: k, local_dofs_x(1:2), local_dofs_y(1:2)
     integer(kind=i_def)   :: int_orientation
 
     int_orientation = int(orientation(map_w3(1)),i_def)

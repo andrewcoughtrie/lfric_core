@@ -70,7 +70,6 @@ contains
     integer(i_def), allocatable, intent(inout) :: stencil_cells(:)
     logical(l_def), optional, intent(in) :: region_stencil
 
-    integer(i_def), dimension(number_of_neighbours) :: direction_map_rotate
     integer(i_def) :: i, j, k
     integer(i_def) :: cell
     integer(i_def) :: new_cell

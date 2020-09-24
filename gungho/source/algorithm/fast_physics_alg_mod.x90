@@ -134,6 +134,7 @@ contains
     ! We create them here so as to not use memory outside of this algorithm
     type( field_type ) :: dtheta_bl
     type( field_type ) :: du_bl
+#ifdef UM_PHYSICS
     ! Surface fields passed from BL to Jules
     type( field_type ) :: snow_sublimation
     type( field_type ) :: surf_heat_flux
@@ -142,6 +143,7 @@ contains
     type( field_type ) :: total_snowmelt
 
     type( field_type), pointer :: dmv_conv => null()
+#endif
 
     logical :: boundary_layer_done ! Flag to indicate that boundary_layer has been calculated
 

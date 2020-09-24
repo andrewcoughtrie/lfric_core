@@ -33,22 +33,12 @@ module split_w2_field_kernel_mod
     procedure, nopass ::split_w2_field_code
   end type
   !---------------------------------------------------------------------------
-  ! Constructors
-  !---------------------------------------------------------------------------
-  ! overload the default structure constructor for function space
-  interface split_w2_field_kernel_type
-    module procedure split_w2_field_kernel_constructor
-  end interface
-  !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
   public split_w2_field_code
+
 contains
-type(split_w2_field_kernel_type) &
-function split_w2_field_kernel_constructor() result(self)
-  implicit none
-  return
-end function split_w2_field_kernel_constructor
+
 !> @brief Kernel to sample a flux at nodal points: F = u*q
 !! @param[in] nlayers Number of layers
 !! @param[in] ndf_f Number of degrees of freedom per cell for w2

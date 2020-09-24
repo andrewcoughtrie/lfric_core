@@ -200,8 +200,6 @@ contains
     class(um_L85_50t_35s_85km_extrusion_type), intent(in)  :: this
     real(r_def),                   intent(out) :: eta(0:)
 
-    integer(i_def) :: k
-
     if (this%get_number_of_layers() /= 85)then
       call log_event( "Extrusion L85_50t_35s_85km reqires 85 levels", log_level_error )
     end if
@@ -267,7 +265,6 @@ contains
     class(um_L70_50t_20s_80km_extrusion_type), intent(in)  :: this
     real(r_def),                   intent(out) :: eta(0:)
 
-    integer(i_def) :: k
 
     if (this%get_number_of_layers() /= 70)then
       call log_event( "Extrusion L70_50t_20s_80km reqires 70 levels", log_level_error )

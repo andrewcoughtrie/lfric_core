@@ -64,7 +64,6 @@ contains
 
     character(str_def), allocatable :: namelists(:)
     integer(i_native) :: unit = -1
-    integer(i_native) :: condition
 
     local_rank = get_comm_rank()
 
@@ -95,7 +94,6 @@ contains
     character(str_def), intent(inout), allocatable :: names(:)
 
     character(str_def), allocatable :: names_temp(:)
-    integer(i_native)  :: condition
     ! TODO: Buffer is large enough for a fair sized string and a filename.
     !       Ideally it should be dynamically sized for the length of the
     !       incoming data but I'm not sure how best to achieve that at the
@@ -289,7 +287,6 @@ contains
 
     character(str_def), allocatable :: namelists(:)
     integer(i_native) :: unit = -1
-    integer(i_native) :: condition
 
     local_rank = get_comm_rank()
 
@@ -320,7 +317,6 @@ contains
     character(str_def), intent(inout), allocatable :: names(:)
 
     character(str_def), allocatable :: names_temp(:)
-    integer(i_native)  :: condition
     ! TODO: Buffer is large enough for a fair sized string and a filename.
     !       Ideally it should be dynamically sized for the length of the
     !       incoming data but I'm not sure how best to achieve that at the

@@ -59,20 +59,7 @@ module mixed_operator_alg_mod
      final              :: destroy_mixed_operator
   end type mixed_operator_type
 
-  interface mixed_operator_type
-     module procedure mixed_operator_constructor
-  end interface
-
 contains
-  !> @brief Construct a <code>mixed_operator_type</code> object.
-  !>
-  !> @details Initialise the object by building the relevant operators
-  !>
-  function mixed_operator_constructor() result(self)
-    implicit none
-    type(mixed_operator_type) :: self
-
-  end function mixed_operator_constructor
 
   !> @brief Applies the mixed operator to the vector, \f$ y = M x \f$
   !>
@@ -131,7 +118,7 @@ contains
                                                 m2_diag => null()
     type(field_type)                         :: f_star, &
                                                 u_tmp, t_tmp, r_tmp, p_tmp, &
-                                                x_uvw, y_uvw, x_uv, y_uv, x_w, y_w
+                                                x_uvw, y_uvw
     real(r_def), parameter                   :: minus_one = -1.0_r_def
     real(kind=r_def)                         :: tau_r_dt, tau_u_dt, &
                                                 minus_tau_u_dt

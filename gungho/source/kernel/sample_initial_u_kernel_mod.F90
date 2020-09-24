@@ -76,7 +76,7 @@ subroutine sample_initial_u_code(nlayers,                   &
 
   ! Internal variables
   integer(i_def) :: k
-  real(r_def)    :: dx, dy, dz, dzdx, dzdy
+  real(r_def)    :: dx, dy, dz
 
   do k = 0, nlayers-1
     ! Assumes a linear DG coordinate field and constant horizontal wind: u=U0,v=V0.

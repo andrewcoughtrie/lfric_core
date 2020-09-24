@@ -25,7 +25,7 @@ FFLAGS_NO_OPTIMISATION    = -O0
 FFLAGS_SAFE_OPTIMISATION  = -Og
 FFLAGS_RISKY_OPTIMISATION = -Ofast
 FFLAGS_DEBUG              = -g
-FFLAGS_WARNINGS           = -Wall -Werror=conversion
+FFLAGS_WARNINGS           = -Wall -Werror=conversion -Werror=unused-variable
 FFLAGS_INIT               = -finit-integer=31173 -finit-real=snan \
                             -finit-logical=true -finit-character=85
 FFLAGS_RUNTIME            = -fcheck=all -ffpe-trap=invalid,zero,overflow,underflow

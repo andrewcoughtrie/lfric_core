@@ -1223,7 +1223,7 @@ contains
 
     ! temporary scalars
     real(kind=r_def) :: alpha, beta
-    real(kind=r_def) :: err, aerr, sc_err, init_err
+    real(kind=r_def) :: err, aerr, init_err
 
     ! iterators
     integer(kind=i_def) :: iv, ivj, iv_final, iter

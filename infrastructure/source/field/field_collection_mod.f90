@@ -186,10 +186,6 @@ subroutine add_field(self, field)
   class(field_collection_type), intent(inout) :: self
   class(pure_abstract_field_type), intent(in) :: field
 
-  ! Pointer to linked list - used for looping through the list
-  type(linked_list_item_type), pointer :: loop => null()
-  character(str_def) :: name_in_list
-
   ! Check field name is valid, if not then exit with error
   select type(infield => field)
     type is (field_type)
@@ -361,8 +357,6 @@ subroutine remove_field(self, field_name)
 
   class(field_collection_type), intent(inout) :: self
   character(*), intent(in) :: field_name
-
-  type(field_type), pointer :: field
 
   ! Pointer to linked list - used for looping through the list
   type(linked_list_item_type), pointer :: loop => null()

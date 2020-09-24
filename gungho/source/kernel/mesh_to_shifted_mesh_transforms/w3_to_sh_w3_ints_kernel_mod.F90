@@ -124,8 +124,8 @@ subroutine w3_to_sh_w3_ints_code( nlayers,        &
   real(kind=r_def), dimension(3, ndf_wchi_dl, nqp_h, nqp_v), intent(in) :: chi_diff_basis
 
   ! Internal variables
-  integer(kind=i_def)                          :: df, k, j
-  integer(kind=i_def)                          :: qp1, qp2, central_qp2
+  integer(kind=i_def)                          :: df, k
+  integer(kind=i_def)                          :: qp1, qp2
   real(kind=r_def)                             :: T_ip1_e, T_i_e
   real(kind=r_def), dimension(ndf_wchi_dl)     :: lower_chi_1_e, &
                                                   lower_chi_2_e, &

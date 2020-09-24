@@ -60,7 +60,6 @@ module gungho_setup_io_mod
     type(clock_type),       intent(in)  :: clock
 
     type(xios_file_type)            :: tmp_file
-    integer(i_def)                  :: tmp_freq
     character(len=str_max_filename) :: checkpoint_write_fname, &
                                        checkpoint_read_fname,  &
                                        dump_fname,             &

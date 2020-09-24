@@ -77,8 +77,7 @@ contains
 
         !> Internal Vars
 
-        real(kind = r_def) :: field_max = 0
-        integer(kind = i_def) :: df = 0, layer=0
+        integer(kind = i_def) :: df
         !> processing
         !> loop through all the unique degrees of freedom calculating the hex value from the rgb. No need to loop through
         !> each layer as the unique degrees of freedom will loop through them all whilst avoiding boundary duplicates.

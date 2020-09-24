@@ -1811,11 +1811,11 @@ contains
     implicit none
 
     integer(i_native) :: condition
-    integer(i_native) :: index
     integer(i_native) :: size
     integer(i_def), allocatable :: new_inlist(:)
     real(r_def), allocatable :: new_outlist(:)
     integer(i_def), allocatable :: new_unknown(:)
+    integer(i_native) :: index_unknown
 
     size = lsize
     allocate( new_inlist(size), stat=condition )
@@ -1835,10 +1835,10 @@ contains
     new_outlist(:size) = outlist(:size)
     call move_alloc( new_outlist, outlist )
     if (allocated(new_outlist)) deallocate( new_outlist)
-    do index=ubound(unknown, 1), 1, -1
-      if (unknown(index) /= imdi) exit
+    do index_unknown=ubound(unknown, 1), 1, -1
+      if (unknown(index_unknown) /= imdi) exit
     end do
-    size = index
+    size = index_unknown
     allocate( new_unknown(size), stat=condition )
     if (condition /= 0) then
       write(log_scratch_space, '(A)') 'Unable to allocate "unknown"'

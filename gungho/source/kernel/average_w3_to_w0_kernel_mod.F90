@@ -80,7 +80,7 @@ subroutine average_w3_to_w0_code(nlayers,                 &
   real(kind=r_def), dimension(undf_w0), intent(in)    :: weight_w0
 
   ! Internal variables
-  integer(kind=i_def) :: k, df
+  integer(kind=i_def) :: df
 
   ! Simple local average around each cell corner
   do df = 1, ndf_w0

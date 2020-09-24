@@ -256,7 +256,6 @@ contains
   subroutine stencil_ordering_and_orientation(stencil_length,orientation,direction,stencil_order_out)
 
     use flux_direction_mod,     only : x_direction, y_direction
-    use log_mod,                only : log_event, LOG_LEVEL_ERROR, log_scratch_space, LOG_LEVEL_INFO
 
     implicit none
 

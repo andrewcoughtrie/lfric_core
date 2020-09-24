@@ -123,7 +123,6 @@ subroutine initial_u_code(nlayers, &
   real(kind=r_def), dimension(ndf_chi)         :: chi_1_cell, chi_2_cell, chi_3_cell
   real(kind=r_def), dimension(3)               :: u_physical, u_spherical, xyz, llr
   real(kind=r_def)                             :: integrand
-  real(kind=r_def), dimension(3)               :: optionset3
 
 
   if ( geometry == geometry_spherical ) then
