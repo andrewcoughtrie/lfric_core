@@ -73,7 +73,15 @@
     'check_compilers("io_dev", "default", "full-debug",
                      resolution=("C12", 3.0))' ],
 'nightly': [
-    'null_task_graph()' ]
+    'validate_rose_meta_graph("io_dev",appName="io_dev")',
+    'run_application("io_dev", "default",
+                     resolutions=[("C384",3.0)],
+                     env={"crun":1, "nrun":1,
+                          "directives":{"default":{"mpi_parts":12,
+                                                   "threads":1,
+                                                   "xios_nodes":1,
+                                                   "wallclock":"01:00:00"}}},
+                     checkkgo=False, publish=True)', ]
  } %}
 
 ##############################################################################

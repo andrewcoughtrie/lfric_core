@@ -581,7 +581,6 @@
                                      compiler_setup[compiler],
                                      TARGET_RUN_SETUP,
                                      TARGET_REVEAL_SETUP )}}
-                     ulimit -s unlimited
                      """
 
         script = rose task-run --app-key=canned_test --command-key={{TARGET_RUN_METHOD}}
@@ -747,7 +746,7 @@
                                      compiler_setup[compiler],
                                      TARGET_RUN_SETUP,
                                      TARGET_REVEAL_SETUP )}}
-                     ulimit -s unlimited
+                        ulimit -s unlimited
 {%-                   for config, extra_meshes in support_meshes.items() %}
 {%-                     for mesh_name in extra_meshes %}
 {%-                       if mesh_name != '' %}

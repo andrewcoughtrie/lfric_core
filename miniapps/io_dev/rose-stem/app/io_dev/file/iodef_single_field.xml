@@ -4,7 +4,7 @@
   <!-- In this version we have ONE context  -->
   <context id = "io_dev">
 
-   <calendar type = "Gregorian" start_date = "2016-01-01 15:00:00" />
+    <calendar type = "Gregorian" start_date = "2016-01-01 15:00:00" />
 
    <axis_definition>
     <axis id="vert_axis_half_levels" name="half_levels"/>
@@ -136,7 +136,21 @@
 
       <!-- File definition for output diagnostic fields -->
       <file id="io_dev_diag" name="io_dev_diag" mode="write" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
-        <field_group group_ref="core_fields" />
+        <!--field_group group_ref="core_fields" /-->
+      </file>
+
+      <!-- File definitions for single-field output files -->
+      <file id="io_dev_W0_field" name="io_dev_W0_field" mode="write" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
+        <field field_ref="W0_field" />
+      </file>
+      <file id="io_dev_W2H_field" name="io_dev_W2H_field" mode="write" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
+        <field field_ref="W2H_field" />
+      </file>
+      <file id="io_dev_W3_field" name="io_dev_W3_field" mode="write" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
+        <field field_ref="W3_field" />
+      </file>
+      <file id="io_dev_W3_2D_field" name="io_dev_W3_2D_field" mode="write" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
+        <field field_ref="W3_2D_field" />
       </file>
 
     </file_definition>
