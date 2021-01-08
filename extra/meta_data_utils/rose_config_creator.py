@@ -111,6 +111,7 @@ def add_file_meta(meta_data: Dict[str, Section], rose_meta: str) -> str:
 
     rose_meta += f"""[output_stream]
 duplicate=true
+macro=add_section.AddField, add_section.AddStream
 
 [output_stream=name]
 type=character
@@ -120,6 +121,7 @@ type=character
 
 [output_stream:field]
 duplicate=true
+macro=add_section.AddField
 
 [output_stream:field=id]
 values={values}

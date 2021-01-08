@@ -5,10 +5,13 @@
 ##############################################################################
 """This module contains code for parsing LFRic meta source files
 It recursively looks in every folder for files ending in "meta_mod.f90".
-It then parses these files and creates a rose-meta.conf file and JSON file"""
+It then parses these files and creates a rose-meta.conf file and JSON file.
+It also creates a macro to add output streams and add diagnostic fields to
+output streams in a rose-app.conf file"""
 import argparse
 import logging
 import os
+import shutil
 
 from fortran_reader import FortranMetaDataReader
 from json_meta_data import write_json_meta
@@ -70,9 +73,10 @@ repository. If a specific folder is desired, specify it here.''')
     arg_parser.add_argument("-o", "--output", type=str,
                             help='''
 The location the generated meta data will be output to
-This tool will output a JSON representation of the generated meta data.
-It will also create a folder called 'meta' that will contain a conf file
-made using the generated meta data''')
+This tool will output a JSON representation of the generated meta data and a
+folder called 'meta'. This will contain a conf file made using the generated
+meta data as well as a macro for adding output streams and their fields to the
+configuration''')
     arg_parser.add_argument("-f", "--filename", type=str,
                             help='''
 The name of the conf file output by the generator. Defaults to rose-meta.conf
@@ -105,7 +109,24 @@ default location''')
     if args.filename:
         args_dict["metadata_file_name"] = args.filename
 
+    if args.support_types:
+        args_dict["support_types"] = args.support_types
+
     return args_dict
+
+
+def add_rose_macro(root_dir: str, rose_suite_dir: str) -> None:
+    """Copies add_section macro file into rose suite
+    This contains macros to add an output stream section to the rose-app.conf,
+    and to add a diagnostic field to an output stream
+    :param root_dir: The path to the root directory of the depository
+    :param rose_suite_dir: The path to the output Rose suite
+    """
+    LOGGER.info("Adding rose macro")
+    macro_source = root_dir + "/extra/meta_data_utils/macro/add_section.py"
+    macro_dest = rose_suite_dir + "/meta/lib/python/macros/add_section.py"
+    os.makedirs(os.path.dirname(macro_dest), exist_ok=True)
+    shutil.copy(macro_source, macro_dest)
 
 
 def run():
@@ -155,6 +176,7 @@ def run():
                     exist_ok=True)
 
         create_rose_meta(meta_data, suite_dir, metadata_file_name)
+        add_rose_macro(root_dir, suite_dir)
         write_json_meta(meta_data, suite_dir)
 
 

@@ -41,6 +41,7 @@ class Field:
         self.misc_meta_data = None
         self.item_name = None
         self.item_title = None
+        self.long_name = None
 
     @property
     def unique_id(self) -> str:
