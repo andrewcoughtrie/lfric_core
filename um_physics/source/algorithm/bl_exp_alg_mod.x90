@@ -7,6 +7,7 @@
 
 module bl_exp_alg_mod
 
+  use constants_mod,        only: i_def
   use field_mod,            only: field_type
   use field_collection_mod, only: field_collection_type
   use mr_indices_mod,       only: nummr, imr_v, imr_cl, imr_ci
@@ -110,6 +111,9 @@ contains
     type( field_type ), pointer :: dtrdz_tq_bl     => null()
     type( field_type ), pointer :: rdz_tq_bl       => null()
     type( field_type ), pointer :: rdz_uv_bl       => null()
+    type( field_type ), pointer :: fd_taux         => null()
+    type( field_type ), pointer :: fd_tauy         => null()
+    type( field_type ), pointer :: du_bl           => null()
 
     type( field_type ), pointer :: cos_zenith_angle  => null()
     type( field_type ), pointer :: sw_heating_rate   => null()
@@ -194,6 +198,7 @@ contains
 
     ! local variables
     type( field_type ) :: gross_prim_prod
+    integer(i_def), parameter :: stencil_depth = 1
 
     if ( subroutine_timers ) call timer('bl_exp_alg')
 
@@ -231,6 +236,9 @@ contains
     dtrdz_tq_bl     => turbulence_fields%get_field('dtrdz_tq_bl')
     rdz_tq_bl       => turbulence_fields%get_field('rdz_tq_bl')
     rdz_uv_bl       => turbulence_fields%get_field('rdz_uv_bl')
+    fd_taux         => turbulence_fields%get_field('fd_taux')
+    fd_tauy         => turbulence_fields%get_field('fd_tauy')
+    du_bl           => turbulence_fields%get_field('du_bl')
 
     ! Radiation fields
     cos_zenith_angle  => radiation_fields%get_field('cos_zenith_angle')
@@ -326,11 +334,13 @@ contains
 
     call invoke(bl_exp_kernel_type( theta, rho, wetrho_in_w3,                  &
                            wetrho_in_wth, exner, exner_in_wth,                 &
-                           u1_in_w3, u2_in_w3, w_physics,                      &
+                           u1_in_w3, stencil_depth, u2_in_w3, stencil_depth,   &
+                           w_physics,                                          &
                            mr_n(imr_v), mr_n(imr_cl), mr_n(imr_ci),            &
                            height_w3, height_wth, shear, delta, max_diff_smag, &
                            zh, z0msea, ntml, cumulus,                          &
-                           tile_fraction, leaf_area_index, canopy_height,      &
+                           tile_fraction, stencil_depth,                       &
+                           leaf_area_index, canopy_height,                     &
                            sd_orog, peak_to_trough_orog, silhouette_area_orog, &
                            soil_albedo, soil_roughness,                        &
                            soil_moist_wilt, soil_moist_crit, soil_moist_sat,   &
@@ -350,10 +360,11 @@ contains
                            lw_down_surf, sw_down_blue_surf, dd_mf_cb,          &
                            dtl_mphys, dmt_mphys,                               &
                            sw_heating_rate, lw_heating_rate, ozone,            &
-                           cf_bulk, rh_crit, visc_m, visc_h,                   &
+                           cf_bulk, rh_crit, visc_m, visc_h, du_bl,            &
                            rhokm_bl, rhokm_surf, rhokh_bl, ngstress_bl,        &
                            bq_bl, bt_bl, moist_flux_bl, heat_flux_bl,          &
                            dtrdz_uv_bl, dtrdz_tq_bl, rdz_tq_bl, rdz_uv_bl,     &
+                           fd_taux, fd_tauy,                                   &
                            alpha1_tile, ashtf_prime_tile, dtstar_tile,         &
                            fraca_tile, z0h_tile, z0m_tile, rhokh_tile,         &
                            chr1p5m_tile, resfs_tile, canhc_tile,               &

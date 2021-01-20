@@ -24,7 +24,8 @@ module um_physics_init_mod
                                         free_atm_mix, free_atm_mix_to_sharp,  &
                                         free_atm_mix_ntml_corrected,          &
                                         free_atm_mix_free_trop_layer,         &
-                                        new_kcloudtop, reduce_fa_mix,         &
+                                        new_kcloudtop, p_unstable,            &
+                                        reduce_fa_mix,                        &
                                         reduce_fa_mix_inv_and_cu_lcl,         &
                                         reduce_fa_mix_inv_only,               &
                                         relax_sc_over_cu_in=>relax_sc_over_cu,&
@@ -48,7 +49,8 @@ module um_physics_init_mod
   use convection_config_mod,     only : cv_scheme,                    &
                                         cv_scheme_gregory_rowntree,   &
                                         cv_scheme_lambert_lewis,      &
-                                        number_of_convection_substeps
+                                        number_of_convection_substeps,&
+                                        use_jules_flux
 
   use extrusion_config_mod,      only : domain_top, number_of_layers
 
@@ -168,7 +170,7 @@ contains
          llcs_cloud_precip, llcs_opt_all_rain, llcs_rhcrit, llcs_timescale,&
          check_run_convection, l_fcape, cape_ts_min, cape_ts_max,          &
          cpress_term, pr_melt_frz_opt, llcs_opt_crit_condens,              &
-         llcs_detrain_coef, l_prog_pert, md_pert_opt
+         llcs_detrain_coef, l_prog_pert, md_pert_opt, l_jules_flux
     use cv_param_mod, only: mtrig_ntmlplus2, md_pert_orig
     use cv_stash_flg_mod, only: set_convection_output_flags
     use cv_set_dependent_switches_mod, only: cv_set_dependent_switches
@@ -313,7 +315,7 @@ contains
       end select
 
       pstb = 2.0_r_um
-      puns = 0.5_r_um
+      puns = real(p_unstable, r_um)
 
       if (relax_sc_over_cu_in) then
         relax_sc_over_cu = on
@@ -364,6 +366,7 @@ contains
     iconv_congestus      = 0
     iconv_deep           = 1
     icvdiag              = 1
+    l_jules_flux         = use_jules_flux
     limit_pert_opt       = 2
     plume_water_load     = 0
     tv1_sd_opt           = 2

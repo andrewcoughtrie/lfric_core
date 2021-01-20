@@ -4,32 +4,39 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 !> @brief Interface to the explicit UM boundary layer scheme.
-!>
+!> @todo Doxygen comments are limited due to fparser bug - fix will be
+!>       available with PSyclone 2.0.0
 module bl_exp_kernel_mod
 
-  use argument_mod,           only : arg_type,                  &
-                                     GH_FIELD, GH_INTEGER,      &
-                                     GH_READ, GH_WRITE,         &
-                                     GH_READWRITE, CELLS,       &
-                                     ANY_DISCONTINUOUS_SPACE_1, &
-                                     ANY_DISCONTINUOUS_SPACE_2, &
-                                     ANY_DISCONTINUOUS_SPACE_3, &
-                                     ANY_DISCONTINUOUS_SPACE_4, &
-                                     ANY_DISCONTINUOUS_SPACE_5, &
-                                     ANY_DISCONTINUOUS_SPACE_6, &
-                                     ANY_DISCONTINUOUS_SPACE_7, &
-                                     ANY_DISCONTINUOUS_SPACE_8, &
-                                     ANY_DISCONTINUOUS_SPACE_9, &
-                                     ANY_DISCONTINUOUS_SPACE_10
+  use argument_mod,           only : arg_type,                   &
+                                     GH_FIELD, GH_INTEGER,       &
+                                     GH_READ, GH_WRITE, GH_INC,  &
+                                     GH_READWRITE, CELLS,        &
+                                     ANY_DISCONTINUOUS_SPACE_1,  &
+                                     ANY_DISCONTINUOUS_SPACE_2,  &
+                                     ANY_DISCONTINUOUS_SPACE_3,  &
+                                     ANY_DISCONTINUOUS_SPACE_4,  &
+                                     ANY_DISCONTINUOUS_SPACE_5,  &
+                                     ANY_DISCONTINUOUS_SPACE_6,  &
+                                     ANY_DISCONTINUOUS_SPACE_7,  &
+                                     ANY_DISCONTINUOUS_SPACE_8,  &
+                                     ANY_DISCONTINUOUS_SPACE_9,  &
+                                     ANY_DISCONTINUOUS_SPACE_10, &
+                                     STENCIL, CROSS
   use constants_mod,          only : i_def, i_um, r_def, r_um
-  use fs_continuity_mod,      only : W3, Wtheta
+  use fs_continuity_mod,      only : W3, Wtheta, W2
   use kernel_mod,             only : kernel_type
   use blayer_config_mod,      only : fixed_flux_e, fixed_flux_h, flux_bc_opt, &
                                      flux_bc_opt_specified_scalars
   use cloud_config_mod,       only : rh_crit_opt, rh_crit_opt_tke
-  use mixing_config_mod,      only : smagorinsky
+  use convection_config_mod,  only : use_jules_flux
+  use mixing_config_mod,      only : smagorinsky,                &
+                                     mixing_method => method,    &
+                                     method_3d_smag,             &
+                                     method_blending
   use surface_config_mod,     only : albedo_obs, sea_surf_alg, &
-                                     sea_surf_alg_fixed_roughness
+                                     sea_surf_alg_fixed_roughness, &
+                                     formdrag, formdrag_dist_drag
   use timestepping_config_mod, only: outer_iterations
 
   implicit none
@@ -43,15 +50,15 @@ module bl_exp_kernel_mod
   !>
   type, public, extends(kernel_type) :: bl_exp_kernel_type
     private
-    type(arg_type) :: meta_args(116) = (/                           &
+    type(arg_type) :: meta_args(119) = (/                           &
         arg_type(GH_FIELD, GH_READ,      WTHETA),                   &! theta_in_wth
         arg_type(GH_FIELD, GH_READ,      W3),                       &! rho_in_w3
         arg_type(GH_FIELD, GH_READ,      W3),                       &! wetrho_in_w3
         arg_type(GH_FIELD, GH_READ,      WTHETA),                   &! wetrho_in_wth
         arg_type(GH_FIELD, GH_READ,      W3),                       &! exner_in_w3
         arg_type(GH_FIELD, GH_READ,      WTHETA),                   &! exner_in_wth
-        arg_type(GH_FIELD, GH_READ,      W3),                       &! u1_in_w3
-        arg_type(GH_FIELD, GH_READ,      W3),                       &! u2_in_w3
+        arg_type(GH_FIELD, GH_READ,      W3, STENCIL(CROSS)),       &! u1_in_w3
+        arg_type(GH_FIELD, GH_READ,      W3, STENCIL(CROSS)),       &! u2_in_w3
         arg_type(GH_FIELD, GH_READ,      WTHETA),                   &! u3_in_wth
         arg_type(GH_FIELD, GH_READ,      WTHETA),                   &! m_v_n
         arg_type(GH_FIELD, GH_READ,      WTHETA),                   &! m_cl_n
@@ -65,7 +72,7 @@ module bl_exp_kernel_mod
         arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1),&! z0msea_2d
         arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! ntml_2d
         arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! cumulus_2d
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! tile_fraction
+        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_2, STENCIL(CROSS)),&! tile_fraction
         arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_3),&! leaf_area_index
         arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_3),&! canopy_height
         arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! sd_orog_2d
@@ -116,6 +123,7 @@ module bl_exp_kernel_mod
         arg_type(GH_FIELD, GH_READWRITE, WTHETA),                   &! rh_crit
         arg_type(GH_FIELD, GH_WRITE,     WTHETA),                   &! visc_m_blend
         arg_type(GH_FIELD, GH_WRITE,     WTHETA),                   &! visc_h_blend
+        arg_type(GH_FIELD, GH_INC,       W2),                       &! du_bl
         arg_type(GH_FIELD, GH_WRITE,     WTHETA),                   &! rhokm_bl
         arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_7),&! rhokm_surf
         arg_type(GH_FIELD, GH_WRITE,     W3),                       &! rhokh_bl
@@ -128,6 +136,8 @@ module bl_exp_kernel_mod
         arg_type(GH_FIELD, GH_WRITE,     WTHETA),                   &! dtrdz_tq_bl
         arg_type(GH_FIELD, GH_WRITE,     W3),                       &! rdz_tq_bl
         arg_type(GH_FIELD, GH_WRITE,     WTHETA),                   &! rdz_uv_bl
+        arg_type(GH_FIELD, GH_WRITE,     WTHETA),                   &! fd_taux
+        arg_type(GH_FIELD, GH_WRITE,     WTHETA),                   &! fd_tauy
         arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! alpha1_tile
         arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! ashtf_prime_tile
         arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! dtstar_tile
@@ -248,6 +258,7 @@ contains
   !> @param[in,out] rh_crit              Critical rel humidity
   !> @param[out]    visc_m_blend         Blended BL-Smag diffusion coefficient for momentum
   !> @param[out]    visc_h_blend         Blended BL-Smag diffusion coefficient for scalars
+  !> @param[in,out] du_bl                Wind increment from BL scheme
   !> @param[out]    rhokm_bl             Momentum eddy diffusivity on BL levels
   !> @param[out]    rhokm_surf           Momentum eddy diffusivity for coastal tiling
   !> @param[out]    rhokh_bl             Heat eddy diffusivity on BL levels
@@ -336,7 +347,9 @@ contains
                          exner_in_w3,                           &
                          exner_in_wth,                          &
                          u1_in_w3,                              &
+                         u1_w3_stencil_size, u1_w3_stencil,     &
                          u2_in_w3,                              &
+                         u2_w3_stencil_size, u2_w3_stencil,     &
                          u3_in_wth,                             &
                          m_v_n,                                 &
                          m_cl_n,                                &
@@ -351,6 +364,7 @@ contains
                          ntml_2d,                               &
                          cumulus_2d,                            &
                          tile_fraction,                         &
+                         tile_stencil_size, tile_stencil,       &
                          leaf_area_index,                       &
                          canopy_height,                         &
                          sd_orog_2d,                            &
@@ -401,6 +415,7 @@ contains
                          rh_crit,                               &
                          visc_m_blend,                          &
                          visc_h_blend,                          &
+                         du_bl,                                 &
                          rhokm_bl,                              &
                          rhokm_surf,                            &
                          rhokh_bl,                              &
@@ -413,6 +428,8 @@ contains
                          dtrdz_tq_bl,                           &
                          rdz_tq_bl,                             &
                          rdz_uv_bl,                             &
+                         fd_taux,                               &
+                         fd_tauy,                               &
                          alpha1_tile,                           &
                          ashtf_prime_tile,                      &
                          dtstar_tile,                           &
@@ -459,6 +476,7 @@ contains
                          ndf_sice, undf_sice, map_sice,         &
                          ndf_snow, undf_snow, map_snow,         &
                          ndf_soil, undf_soil, map_soil,         &
+                         ndf_w2, undf_w2, map_w2,               &
                          ndf_surf, undf_surf, map_surf,         &
                          ndf_smtile, undf_smtile, map_smtile,   &
                          ndf_bl, undf_bl, map_bl,               &
@@ -477,7 +495,7 @@ contains
          sea_pts, sice_pts, ssi_index, sea_index, sice_index, fssi_ij,       &
          sea_frac, sice_frac, sice_pts_ncat, sice_index_ncat, sice_frac_ncat,&
          rad_nband
-    use atm_fields_bounds_mod, only: tdims
+    use atm_fields_bounds_mod, only: tdims, pdims_s
     use atm_step_local, only: dim_cs1, dim_cs2, land_pts_trif, npft_trif,    &
          co2_dim_len, co2_dim_row
     use c_kappai, only: kappai, de
@@ -512,6 +530,7 @@ contains
     use sf_diags_mod, only: sf_diag, dealloc_sf_expl, dealloc_sf_imp
     use sparm_mod, only: sparm
     use tilepts_mod, only: tilepts
+    use tr_mix_mod, only: tr_mix
 
     implicit none
 
@@ -530,6 +549,8 @@ contains
     integer(kind=i_def), intent(in) :: map_pft(ndf_pft)
     integer(kind=i_def), intent(in) :: ndf_soil, undf_soil
     integer(kind=i_def), intent(in) :: map_soil(ndf_soil)
+    integer(kind=i_def), intent(in) :: ndf_w2, undf_w2
+    integer(kind=i_def), intent(in) :: map_w2(ndf_w2)
     integer(kind=i_def), intent(in) :: ndf_sice, undf_sice
     integer(kind=i_def), intent(in) :: map_sice(ndf_sice)
     integer(kind=i_def), intent(in) :: ndf_snow, undf_snow
@@ -543,7 +564,15 @@ contains
     integer(kind=i_def), intent(in) :: ndf_scal, undf_scal
     integer(kind=i_def), intent(in) :: map_scal(ndf_scal)
 
+    integer(kind=i_def), intent(in) :: u1_w3_stencil_size, u2_w3_stencil_size
+    integer(kind=i_def), dimension(ndf_w3,u1_w3_stencil_size), intent(in) :: u1_w3_stencil
+    integer(kind=i_def), dimension(ndf_w3,u2_w3_stencil_size), intent(in) :: u2_w3_stencil
+
+    integer(kind=i_def), intent(in) :: tile_stencil_size
+    integer(kind=i_def), dimension(ndf_tile,tile_stencil_size), intent(in) :: tile_stencil
+
     real(kind=r_def), dimension(undf_wth), intent(inout):: rh_crit
+    real(kind=r_def), dimension(undf_w2),  intent(inout):: du_bl
 
     real(kind=r_def), dimension(undf_wth), intent(inout):: visc_h_blend,       &
                                                            visc_m_blend,       &
@@ -551,7 +580,8 @@ contains
                                                            ngstress_bl,        &
                                                            bq_bl, bt_bl,       &
                                                            dtrdz_tq_bl,        &
-                                                           rdz_uv_bl
+                                                           rdz_uv_bl,          &
+                                                           fd_taux, fd_tauy
     real(kind=r_def), dimension(undf_w3),  intent(inout):: rhokh_bl,           &
                                                            moist_flux_bl,      &
                                                            heat_flux_bl,       &
@@ -673,23 +703,33 @@ contains
     integer(i_def) :: k, i, i_tile, i_sice, i_pft, n, i_snow, j
 
     ! local switches and scalars
-    integer(i_um) :: error_code
+    integer(i_um) :: error_code, weight1, weight2, weight3
     logical :: l_aero_classic, l_spec_z0, l_extra_call, l_jules_call,        &
          l_cape_opt
 
     ! profile fields from level 1 upwards
     real(r_um), dimension(row_length,rows,nlayers) ::                        &
-         p_rho_levels, rho_wet_rsq, rho_wet, rho_dry, z_rho, z_theta,        &
-         bulk_cloud_fraction, rho_wet_tq, exner_rho_levels, u_p, u_px,       &
-         v_p, v_px, zeros
+         rho_wet, rho_dry, z_rho, z_theta, bulk_cloud_fraction, rho_wet_tq,  &
+         u_p, v_p, zeros, rhcpt
+
+    real(r_um), dimension(0:row_length+1,0:rows+1,nlayers) :: rho_wet_rsq,   &
+         p_rho_levels, u_px, v_px, exner_rho_levels
 
     ! profile field on boundary layer levels
     real(r_um), dimension(row_length,rows,bl_levels) ::                      &
          fqw, ftl, rhokh, bq_gb, bt_gb, dtrdz_charney_grid,                  &
-         dtrdz_u, rdz_charney_grid, rhokm
+         dtrdz_u, rdz_charney_grid, rhokm_mix, w_mixed, w_flux
+
+    real(r_um), dimension(bl_levels) :: gamma
+
+    real(r_um), dimension(0:row_length+1,0:rows+1,bl_levels) :: rhokm,       &
+         tau_fd_x, tau_fd_y
 
     ! profile fields from level 2 upwards
-    real(r_um), dimension(row_length,rows,2:bl_levels) :: rdz_u, f_ngstress
+    real(r_um), dimension(row_length,rows,2:bl_levels) :: rdz_u
+
+    real(r_um), dimension(0:row_length+1,0:rows+1,2:bl_levels) :: f_ngstress,&
+         rhogamu, rhogamv
 
     ! profile fields from level 0 upwards
     real(r_um), dimension(row_length,rows,0:nlayers) ::                      &
@@ -704,16 +744,23 @@ contains
     real(r_um), dimension(row_length,rows) ::                                &
          p_star, lw_down, cos_zenith_angle, tstar, zh_prev, ddmfx,           &
          zlcl, zhpar, flux_e, flux_h, z0msea, photosynth_act_rad, tstar_sea, &
-         zh, dzh, rhokm_land, rhokm_ssi, tstar_land, tstar_ssi, dtstar_sea,  &
-         wstar, wthvs, ice_fract, tstar_sice, u_0_p, v_0_p, zlcl_uv,         &
-         qsat_lcl, delthvu, dtstar_sice, alpha1_sea, ashtf_prime_sea,        &
-         bl_type_1, bl_type_2, bl_type_3, bl_type_4, bl_type_5, bl_type_6,   &
-         bl_type_7, chr1p5m_sice, flandg, rhokh_sea, u_0_px, u_s, uw0,       &
-         v_0_px, vw0, z0hssi, z0mssi, zhnl, ti_sice
+         zh, dzh, tstar_land, tstar_ssi, dtstar_sea, wstar, wthvs, ice_fract,&
+         tstar_sice, u_0_p, v_0_p, zlcl_uv, qsat_lcl, delthvu, dtstar_sice,  &
+         alpha1_sea, ashtf_prime_sea, bl_type_1, bl_type_2, bl_type_3,       &
+         bl_type_4, bl_type_5, bl_type_6, bl_type_7, chr1p5m_sice, rhokh_sea,&
+         u_s, uw0, vw0, z0hssi, z0mssi, zhnl, ti_sice, zeroes, surf_dep_flux
+
+    real(r_um), dimension(0:row_length+1,0:rows+1) :: u_0_px, v_0_px, flandg,&
+         flandfac, fseafac, cdr10m, rhokm_land, rhokm_ssi
+
+    real(r_um), dimension(row_length,rows,3) :: t_frac, t_frac_dsc, we_lim,  &
+         we_lim_dsc, zrzi, zrzi_dsc
 
     ! single level integer fields
     integer(i_um), dimension(row_length,rows) :: ntml, ntpar, k_blend_tq,    &
-         k_blend_uv
+         kent, kent_dsc
+
+    integer(i_um), dimension(0:row_length+1,0:rows+1) :: k_blend_uv
 
     ! single level logical fields
     logical, dimension(row_length,rows) :: land_sea_mask, cumulus, l_shallow
@@ -767,13 +814,12 @@ contains
     integer(i_um), parameter :: nscmdpkgs=15
     logical,       parameter :: l_scmdiags(nscmdpkgs)=.false.
 
-    real(r_um), dimension(row_length,rows,nlayers) :: bl_w_var, rhcpt
+    real(r_um), dimension(row_length,rows,nlayers) :: bl_w_var
 
     real(r_um), dimension(row_length,rows,bl_levels) ::                      &
-         e_trb, tsq_trb, qsq_trb, cov_trb, tau_fd_x, tau_fd_y, dtrdz_v
+         e_trb, tsq_trb, qsq_trb, cov_trb, dtrdz_v
 
-    real(r_um), dimension(row_length,rows,2:bl_levels) ::                    &
-         rdz_v, rhogamu, rhogamv
+    real(r_um), dimension(row_length,rows,2:bl_levels) :: rdz_v
 
     real(r_um), dimension(row_length,rows,0:bl_levels-1) :: taux_p, tauy_p
 
@@ -782,17 +828,13 @@ contains
     real(r_um), dimension(row_length,rows) ::                                &
          z0h_scm, z0m_scm, soil_clay, soil_sand, dust_mrel1,                 &
          dust_mrel2, dust_mrel3, dust_mrel4, dust_mrel5, dust_mrel6,         &
-         zhpar_shcu, flandfac, fseafac, cdr10m, t1_sd, q1_sd, qcl_inv_top,   &
-         w_max, deep_flag, past_precip, past_conv_ht, ql_ad, cin_undilute,   &
-         cape_undilute, entrain_coef, ustar_in, g_ccp, h_ccp, fb_surf,       &
-         charnock_w, aresist, cu_over_orog, resist_b, rho_aresist, rib_gb,   &
-         shallowc, vshr, z0m_eff_gb, zhsc
+         zhpar_shcu, t1_sd, q1_sd, qcl_inv_top, w_max, deep_flag,            &
+         past_precip, past_conv_ht, ql_ad, cin_undilute, cape_undilute,      &
+         entrain_coef, ustar_in, g_ccp, h_ccp, fb_surf, charnock_w, aresist, &
+         cu_over_orog, resist_b, rho_aresist, rib_gb, shallowc, vshr,        &
+         z0m_eff_gb, zhsc
 
-    real(r_um), dimension(row_length,rows,3) :: t_frac, t_frac_dsc, we_lim,  &
-         we_lim_dsc, zrzi, zrzi_dsc
-
-    integer(i_um), dimension(row_length,rows) :: nlcl, conv_type, nbdsc,     &
-         ntdsc, kent, kent_dsc
+    integer(i_um), dimension(row_length,rows) :: nlcl, conv_type, nbdsc, ntdsc
 
     logical, dimension(row_length,rows) :: no_cumulus, l_congestus,          &
                                            l_congestus2, l_mid
@@ -827,7 +869,6 @@ contains
     ! other logicals
     l_aero_classic=.false.
     l_extra_call=.false.
-    l_jules_call=.false.
     ! surface forcing
     if ( flux_bc_opt == flux_bc_opt_specified_scalars ) then
       flux_e(:,:)=fixed_flux_e
@@ -843,6 +884,12 @@ contains
 
     zeros=0.0_r_um
 
+    ! Size this with stencil for use in UM routines called
+    pdims_s%i_start=0
+    pdims_s%i_end=row_length+1
+    pdims_s%j_start=0
+    pdims_s%j_end=rows+1
+
     !-----------------------------------------------------------------------
     ! Mapping of LFRic fields into UM variables
     !-----------------------------------------------------------------------
@@ -850,9 +897,18 @@ contains
     ! Land tile fractions
     flandg = 0.0_r_um
     do i = 1, n_land_tile
-      flandg = flandg + real(tile_fraction(map_tile(i)), r_um)
-      frac_surft(1, i) = real(tile_fraction(map_tile(i)), r_um)
+      flandg(1,1) = flandg(1,1) + real(tile_fraction(tile_stencil(i,1)), r_um)
+      flandg(0,1) = flandg(0,1) + real(tile_fraction(tile_stencil(i,2)), r_um)
+      flandg(1,0) = flandg(1,0) + real(tile_fraction(tile_stencil(i,3)), r_um)
+      flandg(2,1) = flandg(2,1) + real(tile_fraction(tile_stencil(i,4)), r_um)
+      flandg(1,2) = flandg(1,2) + real(tile_fraction(tile_stencil(i,5)), r_um)
+      frac_surft(1, i) = real(tile_fraction(tile_stencil(i,1)), r_um)
     end do
+    ! Set these to land to exclude them until full stencil is available
+    flandg(0,0) = 1.0_r_um
+    flandg(0,2) = 1.0_r_um
+    flandg(2,0) = 1.0_r_um
+    flandg(2,2) = 1.0_r_um
     fland(1) = flandg(1,1)
 
     ! Jules requires fractions with respect to the land area
@@ -875,8 +931,8 @@ contains
     ice_fract = 0.0_r_um
     do i = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
       i_sice = i_sice + 1
-      ice_fract = ice_fract + real(tile_fraction(map_tile(i)), r_um)
-      ice_fract_ncat(1, 1, i_sice) = real(tile_fraction(map_tile(i)), r_um)
+      ice_fract = ice_fract + real(tile_fraction(tile_stencil(i,1)), r_um)
+      ice_fract_ncat(1, 1, i_sice) = real(tile_fraction(tile_stencil(i,1)), r_um)
     end do
 
     ! Because Jules tests on flandg < 1, we need to ensure this is exactly
@@ -968,7 +1024,7 @@ contains
     tstar_ssi = (1.0_r_um - ice_fract) * tstar_sea + ice_fract * tstar_sice
 
     ! Grid-box mean surface temperature
-    tstar = flandg * tstar_land + (1.0_r_um - flandg) * tstar_ssi
+    tstar = flandg(1,1) * tstar_land + (1.0_r_um - flandg(1,1)) * tstar_ssi
 
     ! Sea-ice conductivity and bulk temperature
     ti_sice = 0.0_r_um
@@ -1129,9 +1185,17 @@ contains
       exner_rho_levels(1,1,k) = exner_in_w3(map_w3(1) + k-1)
       exner_theta_levels(1,1,k) = exner_in_wth(map_wth(1) + k)
       ! u wind on rho levels
-      u_p(1,1,k) = u1_in_w3(map_w3(1) + k-1)
+      u_px(1,1,k) = u1_in_w3(u1_w3_stencil(1,1) + k-1)
+      u_px(0,1,k) = u1_in_w3(u1_w3_stencil(1,2) + k-1)
+      u_px(1,0,k) = u1_in_w3(u1_w3_stencil(1,3) + k-1)
+      u_px(2,1,k) = u1_in_w3(u1_w3_stencil(1,4) + k-1)
+      u_px(1,2,k) = u1_in_w3(u1_w3_stencil(1,5) + k-1)
       ! v wind on rho levels
-      v_p(1,1,k) = u2_in_w3(map_w3(1) + k-1)
+      v_px(1,1,k) = u2_in_w3(u2_w3_stencil(1,1) + k-1)
+      v_px(0,1,k) = u2_in_w3(u2_w3_stencil(1,2) + k-1)
+      v_px(1,0,k) = u2_in_w3(u2_w3_stencil(1,3) + k-1)
+      v_px(2,1,k) = u2_in_w3(u2_w3_stencil(1,4) + k-1)
+      v_px(1,2,k) = u2_in_w3(u2_w3_stencil(1,5) + k-1)
       ! w wind on theta levels
       w(1,1,k) = u3_in_wth(map_wth(1) + k)
       ! height of rho levels from centre of planet
@@ -1164,10 +1228,10 @@ contains
     ! near surface potential temperature
     theta(1,1,0) = theta_in_wth(map_wth(1) + 0)
     ! wet density multiplied by planet radius squared on rho levs
-    rho_wet_rsq = rho_wet * r_rho_levels**2
-    ! extended halo u and v winds
-    u_px = u_p
-    v_px = v_p
+    rho_wet_rsq(1,1,:) = rho_wet(1,1,:) * r_rho_levels(1,1,:)**2
+    ! non-halo u and v winds
+    u_p(1,1,:) = u_px(1,1,:)
+    v_p(1,1,:) = v_px(1,1,:)
     ! surface currents
     u_0_px = 0.0
     v_0_px = 0.0
@@ -1212,6 +1276,86 @@ contains
     !-----------------------------------------------------------------------
     ! code below here should mimic the call from the UMs atmos_physics2
     !-----------------------------------------------------------------------
+
+    if (use_jules_flux) then
+      l_jules_call=.true.
+      call NI_bl_ctl (                                                         &
+    !     IN parameters for SISL scheme
+         outer_iterations, l_jules_call,                                       &
+    !     IN time stepping information
+         curr_year, curr_day_number, curr_hour, curr_minute, curr_second,      &
+    !     IN switches
+         L_aero_classic,                                                       &
+    !     IN data fields.
+         p_rho_levels, p_theta_levels, rho_wet_rsq,rho_wet,rho_dry, u_p, v_p,  &
+         u_px, v_px, u_0_px, v_0_px,                                           &
+         land_sea_mask, q, qcl, qcf, p_star, theta, exner_theta_levels, rad_hr,&
+         micro_tends, soil_layer_moisture, rho_wet_tq, z_rho, z_theta,         &
+    !     IN ancillary fields and fields needed to be kept from tstep to tstep
+         hcon_soilt, smvccl_soilt, smvcwt_soilt, smvcst_soilt,                 &
+         sthf_soilt, sthu_soilt, sil_orog_land_gb,                             &
+         ho2r2_orog_gb, sd_orog, ice_fract_ncat, k_sice_ncat,                  &
+         land_index, photosynth_act_rad,                                       &
+         soil_clay,soil_sand,dust_mrel1,dust_mrel2,                            &
+         dust_mrel3,dust_mrel4,dust_mrel5,dust_mrel6,                          &
+    !     IN additional variables for JULES
+         canopy_surft, catch_surft, catch_snow_surft, snow_surft,              &
+         z0_surft, z0h_bare_surft,                                             &
+         z0m_soil_gb, lw_down, sw_surft, tstar_surft, tsurf_elev_surft,        &
+         co2,                                                                  &
+         asteps_since_triffid,                                                 &
+         cs_pool_gb_um,frac_surft,canht_pft,lai_pft,fland,flandg,              &
+         albsoil_soilt, cos_zenith_angle,                                      &
+    !     IN: input from the wave model
+         charnock_w,                                                           &
+    !     IN everything not covered so far
+         t_soil_soilt, ti_sice,                                                &
+         ti_sice_ncat,tstar,zh_prev,ddmfx,bulk_cloud_fraction,zhpar,zlcl,      &
+    !     IN SCM namelist data
+         L_spec_z0, z0m_scm, z0h_scm, flux_e, flux_h, ustar_in,                &
+    !     SCM diagnostics and STASH
+         nSCMDpkgs, L_SCMDiags, BL_diag, sf_diag,                              &
+    !     INOUT data
+         gs_gb,z0msea,w,etadot,tstar_sea,tstar_sice_ncat,zh,dzh,               &
+         cumulus, ntml,ntpar,l_shallow,                                        &
+    !     INOUT additional variables for JULES
+         g_leaf_acc_pft,npp_acc_pft,resp_w_acc_pft,resp_s_acc_gb_um,           &
+    !     INOUT variables for TKE based turbulence schemes
+         e_trb, tsq_trb, qsq_trb, cov_trb, zhpar_shcu,                         &
+    !     INOUT variables from bdy_expl1 needed elsewhere
+         bq_gb, bt_gb, dtrdz_charney_grid,rdz_charney_grid,                    &
+         dtrdz_u, dtrdz_v, rdz_u, rdz_v, k_blend_tq, k_blend_uv,               &
+    !     INOUT variables from Jules needed elsewhere
+         flandfac,fseafac,rhokm_land,rhokm_ssi,cdr10m,                         &
+         fqw, ftl, rib_gb, vshr, z0m_eff_gb, r_b_dust,                         &
+         rho_aresist,aresist,resist_b, rhokm,rhokh,                            &
+    !     INOUT variables required in IMP_SOLVER
+         alpha1_sea, alpha1_sice, ashtf_prime_sea, ashtf_prime, u_s,           &
+    !     INOUT additional variables for JULES
+         ftl_surft,radnet_sice,rho_aresist_surft,                              &
+         aresist_surft, resist_b_surft, alpha1, ashtf_prime_surft,             &
+         fqw_surft, epot_surft,                                                &
+         fqw_ice,ftl_ice,fraca,resfs,resft,rhokh_surft,rhokh_sice,rhokh_sea,   &
+         z0hssi,z0h_surft,z0mssi,z0m_surft,chr1p5m,chr1p5m_sice,smc_soilt,     &
+         npp_gb, resp_s_gb_um, resp_s_tot_soilt,                               &
+         resp_w_pft, gc_surft, canhc_surft, wt_ext_surft, flake,               &
+         surft_index, surft_pts,                                               &
+         tile_frac, tstar_land, tstar_ssi, dtstar_surft,                       &
+         dtstar_sea, dtstar_sice, hcons_soilt, emis_surft, emis_soil,          &
+         t1_sd, q1_sd, fb_surf,                                                &
+    !     OUT variables for message passing
+         tau_fd_x, tau_fd_y, rhogamu, rhogamv, f_ngstress,                     &
+    !     OUT diagnostics (done after implicit solver)
+         zhnl, shallowc,cu_over_orog,bl_type_1,bl_type_2,bl_type_3,            &
+         bl_type_4,bl_type_5,bl_type_6, bl_type_7, bl_w_var,                   &
+    !     OUT variables required for mineral dust scheme
+         dust_flux,dust_emiss_frac, u_s_t_tile,u_s_t_dry_tile,                 &
+         u_s_std_surft, kent, we_lim, t_frac, zrzi,                            &
+         kent_dsc, we_lim_dsc, t_frac_dsc, zrzi_dsc, zhsc,                     &
+    !     OUT fields
+         nbdsc,ntdsc,wstar,wthvs,uw0,vw0,taux_p,tauy_p,rhcpt,zeros             &
+       )
+    end if
 
     ! Use  convection switches to decide the value of  L_cape_opt
     if (i_convection_vn == i_convection_vn_6a ) then
@@ -1267,6 +1411,7 @@ contains
           , Error_code                                                  &
             )
 
+    l_jules_call=.false.
     call NI_bl_ctl (                                                    &
     !     IN parameters for SISL scheme
          outer_iterations, l_jules_call,                                &
@@ -1345,9 +1490,63 @@ contains
         nbdsc,ntdsc,wstar,wthvs,uw0,vw0,taux_p,tauy_p,rhcpt,zeros       &
      )
 
+    if (mixing_method == method_3d_smag .or. &
+         mixing_method == method_blending) then
+
+      ! Interpolate rhokm from theta-levels to rho-levels, as is done for
+      ! rhokh in bdy_expl2.
+      ! NOTE: rhokm is defined on theta-levels with the k-indexing offset by
+      ! 1 compared to the rest of the UM (k=1 is the surface).
+
+      ! Bottom model-level is surface in both arrays, so no interp needed
+      ! (for rhokh_mix, this is done in the JULES routine sf_impl2_jls).
+      rhokm_mix(1,1,1) = rhokm(1,1,1)
+      do k = 2, bl_levels-1
+        weight1 = r_theta_levels(1,1,k) - r_theta_levels(1,1,k-1)
+        weight2 = r_theta_levels(1,1,k) - r_rho_levels(1,1,k)
+        weight3 = r_rho_levels(1,1,k)   - r_theta_levels(1,1,k-1)
+        rhokm_mix(1,1,k) = (weight3/weight1) * rhokm(1,1,k+1) &
+                         + (weight2/weight1) * rhokm(1,1,k)
+        ! Scale exchange coefficients by 1/dz factor, as is done for
+        ! rhokh_mix in bdy_impl4
+        ! (note this doesn't need to be done for the surface exchange coef)
+        rhokm_mix(1,1,k) = rhokm_mix(1,1,k) * rdz_charney_grid(1,1,k)
+      end do
+      k = bl_levels
+      weight1 = r_theta_levels(1,1,k) - r_theta_levels(1,1,k-1)
+      weight2 = r_theta_levels(1,1,k) - r_rho_levels(1,1,k)
+      ! Assume rhokm(BL_LEVELS+1) is zero
+      rhokm_mix(1,1,k) = (weight2/weight1) * rhokm(1,1,k)
+      ! Scale exchange coefficients by 1/dz factor, as is done for
+      ! rhokh_mix in bdy_impl4
+      rhokm_mix(1,1,k) = rhokm_mix(1,1,k) * rdz_charney_grid(1,1,k)
+
+      zeroes = 0.0_r_um
+      w_mixed(:,:,:) = w(:,:,1:bl_levels)
+      gamma = 1.0_r_um
+
+      call  tr_mix (                                              &
+           ! IN fields
+           bl_levels, gamma, rhokm_mix(:,:,2:), rhokm_mix(:,:,1), &
+           dtrdz_charney_grid, zeroes, zeroes,                    &
+           kent, we_lim, t_frac, zrzi,                            &
+           kent_dsc, we_lim_dsc, t_frac_dsc, zrzi_dsc,            &
+           zhnl, zhsc, z_rho,                                     &
+           ! INOUT / OUT fields
+           w_mixed, w_flux, surf_dep_flux                         &
+           )
+
+      do k = 1, bl_levels
+        du_bl(map_w2(5)+k) = w_mixed(1,1,k) - w(1,1,k)
+      end do
+
+    end if
+
     rhokm_surf(map_surf(1)) = rhokm_land(1,1)
     rhokm_surf(map_surf(2)) = rhokm_ssi(1,1)
     rhokm_surf(map_surf(3)) = flandg(1,1)
+    rhokm_surf(map_surf(4)) = flandfac(1,1)
+    rhokm_surf(map_surf(5)) = fseafac(1,1)
     do k=1,bl_levels
       rhokm_bl(map_wth(1) + k) = rhokm(1,1,k)
       rhokh_bl(map_w3(1) + k) = rhokh(1,1,k)
@@ -1359,6 +1558,12 @@ contains
       dtrdz_tq_bl(map_wth(1) + k) = dtrdz_charney_grid(1,1,k)
       rdz_tq_bl(map_w3(1) + k) = rdz_charney_grid(1,1,k)
     end do
+    if (formdrag == formdrag_dist_drag) then
+      do k=1,bl_levels
+        fd_taux(map_wth(1) + k) = tau_fd_x(1,1,k)
+        fd_tauy(map_wth(1) + k) = tau_fd_y(1,1,k)
+      end do
+    end if
     do k=2,bl_levels
       rdz_uv_bl(map_wth(1) + k) = rdz_u(1,1,k)
       ngstress_bl(map_wth(1) + k) = f_ngstress(1,1,k)
@@ -1513,6 +1718,12 @@ contains
 
     ! set this back to 1 before exit
     land_field = 1
+
+    ! Set back to SCM for use elsewhere
+    pdims_s%i_start=1
+    pdims_s%i_end=row_length
+    pdims_s%j_start=1
+    pdims_s%j_end=rows
 
   end subroutine bl_exp_code
 

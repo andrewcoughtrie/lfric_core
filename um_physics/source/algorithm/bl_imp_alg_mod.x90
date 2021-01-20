@@ -127,6 +127,8 @@ contains
     type( field_type ), pointer :: dtrdz_tq_bl => null()
     type( field_type ), pointer :: rdz_tq_bl => null()
     type( field_type ), pointer :: rdz_uv_bl => null()
+    type( field_type ), pointer :: fd_taux => null()
+    type( field_type ), pointer :: fd_tauy => null()
 
     type( field_type ), pointer :: cf_area  => null()
     type( field_type ), pointer :: cf_ice  => null()
@@ -178,7 +180,7 @@ contains
     type(function_space_type), pointer  :: tmp_space => null()
     procedure(write_interface), pointer :: write_diag_behaviour => null()
     type( field_type ) :: rhokm_w2, rhokm_surf_w2, ngstress_w2, dtrdz_w2, &
-                          rdz_w2, du_conv_w2, dw_conv
+                          rdz_w2, fd_tau_w2, du_conv_w2, dw_conv
 
     if ( subroutine_timers ) call timer("bl_imp_alg")
 
@@ -217,6 +219,8 @@ contains
     dtrdz_tq_bl => turbulence_fields%get_field('dtrdz_tq_bl')
     rdz_tq_bl => turbulence_fields%get_field('rdz_tq_bl')
     rdz_uv_bl => turbulence_fields%get_field('rdz_uv_bl')
+    fd_taux => turbulence_fields%get_field('fd_taux')
+    fd_tauy => turbulence_fields%get_field('fd_tauy')
 
     ! Unpack cloud fields
     cf_area => cloud_fields%get_field('area_fraction')
@@ -280,7 +284,6 @@ contains
 
     ! Set up the BL increments
     call theta%copy_field_properties(dtheta_bl)
-    call u_physics%copy_field_properties(du_bl)
 
     ! Map the convection wind increments into w2 space
     call theta%copy_field_properties(dw_conv)
@@ -297,19 +300,21 @@ contains
     call u_physics%copy_field_properties(ngstress_w2)
     call u_physics%copy_field_properties(dtrdz_w2)
     call u_physics%copy_field_properties(rdz_w2)
+    call u_physics%copy_field_properties(fd_tau_w2)
 
-    call invoke(setval_c(du_bl,         0.0_r_def), &
-                setval_c(rhokm_w2,      0.0_r_def), &
+    call invoke(setval_c(rhokm_w2,      0.0_r_def), &
                 setval_c(rhokm_surf_w2, 0.0_r_def), &
                 setval_c(ngstress_w2,   0.0_r_def), &
                 setval_c(dtrdz_w2,      0.0_r_def), &
                 setval_c(rdz_w2,        0.0_r_def), &
+                setval_c(fd_tau_w2,     0.0_r_def), &
 
                 ! Re-grid the required variables into w2
                 interp_bl_kernel_type(rhokm_bl, rhokm_surf, ngstress_bl,     &
                                       dtrdz_uv_bl, rdz_uv_bl,                &
+                                      fd_taux, fd_tauy,                      &
                                       rhokm_w2, rhokm_surf_w2, ngstress_w2,  &
-                                      dtrdz_w2, rdz_w2),                     &
+                                      dtrdz_w2, rdz_w2, fd_tau_w2),          &
 
                 ! Save vapour value for diagnostic increment
                 a_times_X(dmv_bl, -1.0_r_def, mr(imr_v)),                    &
@@ -335,7 +340,7 @@ contains
                            cf_area, cf_ice, cf_liq, cf_bulk, rh_crit,          &
                            rhokm_w2, rhokm_surf_w2, rhokh_bl, ngstress_w2,     &
                            bq_bl, bt_bl, moist_flux_bl, heat_flux_bl,          &
-                           dtrdz_w2, dtrdz_tq_bl, rdz_tq_bl, rdz_w2,           &
+                           dtrdz_w2, dtrdz_tq_bl, rdz_tq_bl, rdz_w2, fd_tau_w2,&
                            alpha1_tile, ashtf_prime_tile, dtstar_tile,         &
                            fraca_tile, z0h_tile, z0m_tile, rhokh_tile,         &
                            chr1p5m_tile, resfs_tile, canhc_tile,               &

@@ -37,7 +37,7 @@ module jules_physics_init_mod
                                      cor_mo_iter_lim_oblen,                    &
                                      cor_mo_iter_improved, srf_ex_cnv_gust,    &
                                      formdrag_in => formdrag, formdrag_none,   &
-                                     formdrag_eff_z0,                          &
+                                     formdrag_eff_z0, formdrag_dist_drag,      &
                                      fd_stability_dep, fd_stability_dep_none,  &
                                      fd_stability_dep_surf_ri,                 &
                                      alb_snocov_nvg, alb_snofree_nvg,          &
@@ -83,6 +83,7 @@ contains
 
     ! Jules modules containing things that need setting
     use allocate_jules_arrays_mod, only: allocate_jules_arrays
+    use bl_option_mod, only: on
     use c_kappai, only: kappai, kappai_snow, kappa_seasurf
     use c_z0h_z0m, only: z0h_z0m
     use jules_hydrology_mod, only: l_hydrology, check_jules_hydrology,      &
@@ -100,7 +101,8 @@ contains
          l_sice_heatflux, check_jules_sea_seaice, z0h_z0m_miz,              &
          ip_ss_coare_mq, a_chrn_coare, b_chrn_coare, u10_max_coare,         &
          l_10m_neut, alpham, dtice, l_iceformdrag_lupkes,                   &
-         l_stability_lupkes, l_use_dtstar_sea, hcap_sea, beta_evap
+         l_stability_lupkes, l_use_dtstar_sea, hcap_sea, beta_evap,         &
+         buddy_sea
     use jules_snow_mod, only: cansnowpft, check_jules_snow, nsmax,          &
          a_snow_et, b_snow_et, c_snow_et, can_clump, dzsnow,                &
          frac_snow_subl_melt, i_snow_cond_parm, l_et_metamorph,             &
@@ -117,7 +119,7 @@ contains
          diff_frac, fd_stab_dep, orog_drag_param, check_jules_surface,      &
          Improve_Initial_Guess, formdrag, beta_cnv_bl, fd_hill_option,      &
          i_modiscopt, l_land_ice_imp, no_drag, effective_z0,                &
-         capped_lowhill
+         capped_lowhill, explicit_stress
     use jules_vegetation_mod, only: can_rad_mod, ilayers, l_vegcan_soilfx,  &
          photo_model, photo_collatz, check_jules_vegetation
     use nvegparm, only:                                                     &
@@ -182,7 +184,7 @@ contains
     alpham               = real(alb_sice_melt, r_um)
     b_chrn_coare         = -0.0035_r_um
     beta_evap            = real(evap_scale_sea, r_um)
-    ! buddy_sea = 1 should be set here, but code for that doesn't exist yet
+    buddy_sea            = on
     dtice                = real(dt_ice_albedo, r_um)
     emis_sea             = real(emis_sea_in, r_um)
     emis_sice            = real(emis_sice_in, r_um)
@@ -307,6 +309,8 @@ contains
         formdrag = no_drag
       case(formdrag_eff_z0)
         formdrag = effective_z0
+      case(formdrag_dist_drag)
+        formdrag = explicit_stress
     end select
     i_modiscopt     = 1
     iscrntdiag      = ip_scrndecpl2

@@ -404,6 +404,10 @@ contains
       'dtrdz_tq_bl', wtheta_space, checkpoint_restart_flag )
     call add_physics_field( turbulence_fields, depository, prognostic_fields,  &
       'rdz_uv_bl', wtheta_space, checkpoint_restart_flag )
+    call add_physics_field( turbulence_fields, depository, prognostic_fields,  &
+      'fd_taux', wtheta_space, checkpoint_restart_flag )
+    call add_physics_field( turbulence_fields, depository, prognostic_fields,  &
+      'fd_tauy', wtheta_space, checkpoint_restart_flag )
 
     ! 3D fields on W3 (rho) levels
     call add_physics_field( turbulence_fields, depository, prognostic_fields,  &
@@ -416,6 +420,10 @@ contains
       'dtrdz_uv_bl',     w3_space, checkpoint_restart_flag )
     call add_physics_field( turbulence_fields, depository, prognostic_fields,  &
       'rdz_tq_bl',     w3_space, checkpoint_restart_flag )
+
+    ! W2 fields, don't need checkpointing
+    call add_physics_field( turbulence_fields, depository, prognostic_fields,  &
+      'du_bl', w2_space, checkpoint_restart_flag )
 
     !========================================================================
     ! Fields owned by the convection scheme

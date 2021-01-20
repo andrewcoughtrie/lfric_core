@@ -29,6 +29,7 @@ module bl_imp_kernel_mod
                                      lowest_level_gradient, &
                                      lowest_level_flux
   use planet_config_mod,      only : cp
+  use surface_config_mod,     only : formdrag, formdrag_dist_drag
 
   implicit none
 
@@ -41,7 +42,7 @@ module bl_imp_kernel_mod
   !>
   type, public, extends(kernel_type) :: bl_imp_kernel_type
     private
-    type(arg_type) :: meta_args(84) = (/                              &
+    type(arg_type) :: meta_args(85) = (/                              &
         arg_type(GH_INTEGER, GH_READ),                                &! outer
         arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! theta_in_wth
         arg_type(GH_FIELD,   GH_READ,      W3),                       &! wetrho_in_w3
@@ -105,6 +106,7 @@ module bl_imp_kernel_mod
         arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! dtrdz_tq_bl
         arg_type(GH_FIELD,   GH_READ,      W3),                       &! rdz_tq_bl
         arg_type(GH_FIELD,   GH_READ,      W2),                       &! rdz_w2
+        arg_type(GH_FIELD,   GH_READ,      W2),                       &! fd_tau_w2
         arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! alpha1_tile
         arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! ashtf_prime_tile
         arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! dtstar_tile
@@ -205,6 +207,7 @@ contains
   !> @param[in]     dtrdz_tq_bl          dt/(rho*r*r*dz) in wth
   !> @param[in]     rdz_tq_bl            1/dz in w3
   !> @param[in]     rdz_w2               1/dz mapped to cell faces
+  !> @param[in]     fd_tau_w2            Stress for form drag on cell faces
   !> @param[in]     alpha1_tile          dqsat/dT in surface layer on tiles
   !> @param[in]     ashtf_prime_tile     Heat flux coefficient on tiles
   !> @param[in]     dtstar_tile          Change in surface temperature on tiles
@@ -320,6 +323,7 @@ contains
                          dtrdz_tq_bl,                        &
                          rdz_tq_bl,                          &
                          rdz_w2,                             &
+                         fd_tau_w2,                          &
                          alpha1_tile,                        &
                          ashtf_prime_tile,                   &
                          dtstar_tile,                        &
@@ -461,7 +465,8 @@ contains
                                                            dtrdz_w2,          &
                                                            rdz_w2,            &
                                                            rhokm_surf_w2,     &
-                                                           du_conv_w2
+                                                           du_conv_w2,        &
+                                                           fd_tau_w2
 
     real(kind=r_def), dimension(undf_2d), intent(in) :: ntml_2d,              &
                                                         cumulus_2d, zh_2d,    &
@@ -524,7 +529,7 @@ contains
 
     ! local switches and scalars
     integer(i_um) :: error_code
-    logical :: l_calc_at_p
+    logical, parameter :: l_calc_at_p=.false.
 
     ! profile fields from level 1 upwards
     real(r_um), dimension(row_length,rows,nlayers) ::                        &
@@ -543,7 +548,7 @@ contains
 
     ! profile fields on u/v points and BL levels
     real(r_um), dimension(row_length,rows,bl_levels) :: taux, tauy,          &
-         dtrdz_u, dtrdz_v, rhokm_u, rhokm_v
+         dtrdz_u, dtrdz_v, rhokm_u, rhokm_v, taux_fd_u, tauy_fd_v
 
     ! profile fields from level 2 upwards
     real(r_um), dimension(row_length,rows,2:bl_levels) :: rdz_u, rdz_v,      &
@@ -565,7 +570,8 @@ contains
     ! single level real fields on u/v points
     real(r_um), dimension(row_length,rows) :: u_0, v_0, rhokm_u_land,        &
          rhokm_u_ssi, rhokm_v_land, rhokm_v_ssi, taux_land, tauy_land,       &
-         taux_ssi, tauy_ssi, flandg_u, flandg_v
+         taux_ssi, tauy_ssi, flandg_u, flandg_v, flandfac_u, flandfac_v,     &
+         fseafac_u, fseafac_v
 
     ! single level integer fields
     integer(i_um), dimension(row_length,rows) :: ntml, lcbase, k_blend_tq,   &
@@ -617,8 +623,6 @@ contains
 
     real(r_um), dimension(row_length,rows,nlayers) :: cca0
 
-    real(r_um), dimension(row_length,rows,bl_levels) :: taux_fd_u, tauy_fd_v
-
     real(r_um), dimension(row_length,rows,2:bl_levels) :: rhogamu_u, rhogamv_v
 
     real(r_um), dimension(row_length,rows,0:nlayers) ::                      &
@@ -639,9 +643,6 @@ contains
 
     real(r_um), dimension(row_length,rows,3) :: t_frac, t_frac_dsc, we_lim,  &
          we_lim_dsc, zrzi, zrzi_dsc
-
-    real(r_um), dimension(row_length,rows) :: flandfac_u, flandfac_v,        &
-         fseafac_u, fseafac_v
 
     integer(i_um), dimension(row_length,rows) :: ccb0, cct0, kent, kent_dsc
 
@@ -695,8 +696,8 @@ contains
     end if
 
 
-    ! Needed to stop crash in tr_mix - will ultimately need passing from
-    ! bl_exp_kernel to here, but science is currently unused
+    ! Needed to stop crash in tr_mix. The science using these values is done
+    ! in bl_exp_kernel in LFRic, but ni_imp_ctl in the UM.
     kent = 2
     kent_dsc = 2
 
@@ -974,9 +975,13 @@ contains
     rhokm_u_land(1,1) = rhokm_surf_w2(map_w2(1) + 1)
     rhokm_u_ssi(1,1) = rhokm_surf_w2(map_w2(1) + 2)
     flandg_u(1,1) = rhokm_surf_w2(map_w2(1) + 3)
+    flandfac_u(1,1) = rhokm_surf_w2(map_w2(1) + 4)
+    fseafac_u(1,1) = rhokm_surf_w2(map_w2(1) + 5)
     rhokm_v_land(1,1) = rhokm_surf_w2(map_w2(2) + 1)
     rhokm_v_ssi(1,1) = rhokm_surf_w2(map_w2(2) + 2)
     flandg_v(1,1) = rhokm_surf_w2(map_w2(2) + 3)
+    flandfac_v(1,1) = rhokm_surf_w2(map_w2(2) + 4)
+    fseafac_v(1,1) = rhokm_surf_w2(map_w2(2) + 5)
     do k = 1, bl_levels
       rhokm_u(1,1,k) = rhokm_w2(map_w2(1) + k)
       rhokm_v(1,1,k) = rhokm_w2(map_w2(2) + k)
@@ -990,6 +995,12 @@ contains
       dtrdz_charney_grid(1,1,k) = dtrdz_tq_bl(map_wth(1) + k)
       rdz_charney_grid(1,1,k) = rdz_tq_bl(map_w3(1) + k)
     end do
+    if (formdrag == formdrag_dist_drag) then
+      do k = 1, bl_levels
+        taux_fd_u(1,1,k) = fd_tau_w2(map_w2(1) + k)
+        tauy_fd_v(1,1,k) = fd_tau_w2(map_w2(2) + k)
+      end do
+    end if
     do k = 2, bl_levels
       rdz_u(1,1,k) = rdz_w2(map_w2(1) + k)
       rdz_v(1,1,k) = rdz_w2(map_w2(2) + k)
@@ -1063,7 +1074,6 @@ contains
     bl_type_6(1,1) = bl_types(map_bl(6))
     bl_type_7(1,1) = bl_types(map_bl(7))
 
-    l_calc_at_p = .FALSE.  ! Flag for calling this routine on p-grid
     call bdy_expl3 (                                                 &
          ! IN grid related variables
          bl_levels, l_calc_at_p,                                     &
@@ -1293,9 +1303,13 @@ contains
     rhokm_u_land(1,1) = rhokm_surf_w2(map_w2(3) + 1)
     rhokm_u_ssi(1,1) = rhokm_surf_w2(map_w2(3) + 2)
     flandg_u(1,1) = rhokm_surf_w2(map_w2(3) + 3)
+    flandfac_u(1,1) = rhokm_surf_w2(map_w2(3) + 4)
+    fseafac_u(1,1) = rhokm_surf_w2(map_w2(3) + 5)
     rhokm_v_land(1,1) = rhokm_surf_w2(map_w2(4) + 1)
     rhokm_v_ssi(1,1) = rhokm_surf_w2(map_w2(4) + 2)
     flandg_v(1,1) = rhokm_surf_w2(map_w2(4) + 3)
+    flandfac_v(1,1) = rhokm_surf_w2(map_w2(4) + 4)
+    fseafac_v(1,1) = rhokm_surf_w2(map_w2(4) + 5)
     do k = 1, bl_levels
       rhokm_u(1,1,k) = rhokm_w2(map_w2(3) + k)
       rhokm_v(1,1,k) = rhokm_w2(map_w2(4) + k)
@@ -1305,6 +1319,12 @@ contains
       dtrdz_u(1,1,k) = dtrdz_w2(map_w2(3) + k)
       dtrdz_v(1,1,k) = dtrdz_w2(map_w2(4) + k)
     end do
+    if (formdrag == formdrag_dist_drag) then
+      do k = 1, bl_levels
+        taux_fd_u(1,1,k) = fd_tau_w2(map_w2(3) + k)
+        tauy_fd_v(1,1,k) = fd_tau_w2(map_w2(4) + k)
+      end do
+    end if
     do k = 2, bl_levels
       rdz_u(1,1,k) = rdz_w2(map_w2(3) + k)
       rdz_v(1,1,k) = rdz_w2(map_w2(4) + k)
