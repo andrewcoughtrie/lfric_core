@@ -9,7 +9,7 @@
 !!          point based upon a specified analytic formula
 module analytic_wind_profiles_mod
 
-use constants_mod,            only: r_def, pi
+use constants_mod,            only: r_def, pi, EPS
 use initial_wind_config_mod,  only: profile_none,                      &
                                     profile_solid_body_rotation,       &
                                     profile_solid_body_rotation_alt,   &
@@ -26,7 +26,8 @@ use initial_wind_config_mod,  only: profile_none,                      &
                                     profile_NL_case_2,                 &
                                     profile_NL_case_3,                 &
                                     profile_NL_case_4,                 &
-                                    profile_hadley_like_dcmip
+                                    profile_hadley_like_dcmip,         &
+                                    profile_curl_free_reversible
 use planet_config_mod,        only: scaled_radius
 use log_mod,                  only: log_event,                         &
                                     log_scratch_space,                 &
@@ -46,6 +47,7 @@ private :: yz_NL_wind_case_1
 private :: hadley_like_dcmip
 private :: xy2longlat
 private :: yz2longlat
+private :: curl_free_reversible
 
 public :: analytic_wind
 
@@ -329,6 +331,42 @@ function yz_NL_wind_case_1(y,z,time) result(u)
 
 end function yz_NL_wind_case_1
 
+! Reversible time-varying flow in a vertical slice,
+! whose winds are the gradient of a scalar potential
+function curl_free_reversible(x,z,t) result(u)
+
+  use domain_size_config_mod, only : planar_domain_max_x
+  use extrusion_config_mod,   only : domain_top
+
+  implicit none
+  real(kind=r_def), intent(in)    :: x
+  real(kind=r_def), intent(in)    :: z
+  real(kind=r_def), intent(in)    :: t
+  real(kind=r_def), dimension(3)  :: u
+  real(kind=r_def)                :: domain_length, time_period
+
+  domain_length = 2.0_r_def * planar_domain_max_x
+  time_period = domain_length  ! Profile advected round once
+
+  ! This profile will only work if the domain height is big enough
+  if (domain_length > sqrt(2.0_r_def) * domain_top + EPS) then
+    call log_event('Curl-free reversible wind profile only ' // &
+                   'works when height >= length', LOG_LEVEL_ERROR)
+  end if
+
+  u(1) = (domain_length / time_period) * (1.0_r_def - 0.5_r_def               &
+          * (t / time_period - 0.5_r_def)                                     &
+          * sin(4.0_r_def * pi * (x / domain_length - t / time_period))       &
+          * cos(2.0_r_def * pi * z / domain_top))
+  u(2) = 0.0_r_def
+  u(3) = - 0.25_r_def * domain_length**2.0_r_def / (domain_top * time_period) &
+          * (t / time_period - 0.5_r_def)                                     &
+          * cos(4.0_r_def * pi * (x / domain_length - t / time_period))       &
+          * sin(2.0_r_def * pi * z / domain_top)
+
+end function curl_free_reversible
+
+
 !> @brief Compute an analytic wind field
 !> @param[in] chi Position in physical coordinates
 !> @param[in] time Time (timestep multiplied by dt)
@@ -432,6 +470,8 @@ function analytic_wind(chi, time, choice, num_options, option_arg) result(u)
       u = yz_NL_wind_case_1(chi(2),chi(3),time)
     case ( profile_hadley_like_dcmip )
       u = hadley_like_dcmip(chi(2),chi(3),time)
+    case ( profile_curl_free_reversible )
+      u = curl_free_reversible(chi(1), chi(3), time)
 
     case default
       write( log_scratch_space, '(A)' )  'Invalid velocity profile choice, stopping'

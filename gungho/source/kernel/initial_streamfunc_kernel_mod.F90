@@ -10,7 +10,7 @@ module initial_streamfunc_kernel_mod
 
 use argument_mod,              only : arg_type, func_type,        &
                                       GH_FIELD, GH_INC, GH_READ,  &
-                                      ANY_SPACE_9,                &
+                                      ANY_SPACE_9, GH_REAL,       &
                                       GH_BASIS, GH_DIFF_BASIS,    &
                                       CELLS, GH_QUADRATURE_XYoZ,  &
                                       ANY_DISCONTINUOUS_SPACE_3
@@ -29,10 +29,11 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: initial_streamfunc_kernel_type
   private
-  type(arg_type) :: meta_args(3) = (/                                  &
+  type(arg_type) :: meta_args(4) = (/                                  &
        arg_type(GH_FIELD,   GH_INC,  W1),                              &
        arg_type(GH_FIELD*3, GH_READ, ANY_SPACE_9),                     &
-       arg_type(GH_FIELD,   GH_READ, ANY_DISCONTINUOUS_SPACE_3)        &
+       arg_type(GH_FIELD,   GH_READ, ANY_DISCONTINUOUS_SPACE_3),       &
+       arg_type(GH_REAL,    GH_READ)                                   &
        /)
   type(func_type) :: meta_funcs(2) = (/                                &
        func_type(W1,          GH_BASIS),                               &
@@ -61,6 +62,7 @@ contains
 !! @param[in] chi_sph_2 2nd coordinate in spherical Wchi
 !! @param[in] chi_sph_3 3rd coordinate in spherical Wchi
 !! @param[in] panel_id A field giving the ID for mesh panels.
+!! @param[in] time  The time to be passed to the analytic stream function
 !! @param[in] ndf Number of degrees of freedom per cell
 !! @param[in] undf Total number of degrees of freedom
 !! @param[in] map Dofmap for the cell at the base of the column for W1
@@ -83,6 +85,7 @@ subroutine initial_streamfunc_code(nlayers,                         &
                                    rhs,                             &
                                    chi_sph_1, chi_sph_2, chi_sph_3, &
                                    panel_id,                        &
+                                   time,                            &
                                    ndf, undf, map, basis,           &
                                    ndf_chi_sph, undf_chi_sph,       &
                                    map_chi_sph, chi_sph_basis,      &
@@ -126,6 +129,7 @@ subroutine initial_streamfunc_code(nlayers,                         &
 
   real(kind=r_def), dimension(nqp_h), intent(in) ::  wqp_h
   real(kind=r_def), dimension(nqp_v), intent(in) ::  wqp_v
+  real(kind=r_def),                   intent(in) ::  time
 
   ! Internal variables
   integer(kind=i_def)                          :: df, k, qp1, qp2, ipanel
@@ -189,10 +193,10 @@ subroutine initial_streamfunc_code(nlayers,                         &
                            'with your spherical coordinate system',           &
                            LOG_LEVEL_ERROR)
           end if
-          psi_spherical = analytic_streamfunction(llr, profile, 3, option3)
+          psi_spherical = analytic_streamfunction(llr, profile, 3, option3, time)
           psi_physical = sphere2cart_vector(psi_spherical,llr)
         else
-          psi_physical = analytic_streamfunction(coords, profile, 2, option2)
+          psi_physical = analytic_streamfunction(coords, profile, 2, option2, time)
         end if
 
         do df = 1, ndf

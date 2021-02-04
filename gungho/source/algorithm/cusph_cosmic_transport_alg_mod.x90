@@ -14,7 +14,7 @@ module cusph_cosmic_transport_alg_mod
   use function_space_mod,                only: function_space_type
   use function_space_collection_mod,     only: function_space_collection
   use finite_element_config_mod,         only: element_order
-  use fs_continuity_mod,                 only: W2, W3
+  use fs_continuity_mod,                 only: W1, W2, W3
   use log_mod,                           only: log_event,         &
                                                log_scratch_space, &
                                                LOG_LEVEL_INFO,    &
@@ -26,15 +26,22 @@ module cusph_cosmic_transport_alg_mod
   use cusph_split_transport_alg_mod,     only: cusph_split_transport_alg
   use cusph_fv_density_update_alg_mod,   only: cusph_fv_density_update_alg
   use flux_direction_mod,                only: x_direction, y_direction
+  use initial_streamfunc_kernel_mod,     only: initial_streamfunc_kernel_type
   use initial_u_kernel_mod,              only: initial_u_kernel_type
   use enforce_bc_kernel_mod,             only: enforce_bc_kernel_type
   use quadrature_xyoz_mod,               only: quadrature_xyoz_type
   use quadrature_rule_gaussian_mod,      only: quadrature_rule_gaussian_type
   use timestepping_config_mod,           only: dt
   use mass_matrix_solver_alg_mod,        only: mass_matrix_solver_alg
-  use initial_wind_config_mod,           only: profile,                    &
-                                               profile_sbr_streamfunction, &
-                                               profile_dcmip301_streamfunction
+  use strong_curl_kernel_mod,            only: strong_curl_kernel_type
+  use base_mesh_config_mod,              only: geometry, geometry_spherical
+  use initial_wind_config_mod,           only: profile,                         &
+                                               profile_sbr_streamfunction,      &
+                                               profile_dcmip301_streamfunction, &
+                                               profile_div_free_reversible,     &
+                                               profile_eternal_fountain,        &
+                                               profile_rotational
+
   implicit none
 
   private
@@ -62,6 +69,7 @@ contains
     type(field_type), intent(inout) :: u
     integer(i_def),   intent(in)    :: timestep
 
+    type(function_space_type), pointer    :: w1_fs   => null()
     type(function_space_type), pointer    :: w2_fs   => null()
     type(function_space_type), pointer    :: w3_fs   => null()
     type( quadrature_xyoz_type )          :: qr
@@ -71,7 +79,9 @@ contains
     type( field_type ), pointer           :: chi_sph(:) => null()
     type( field_type ), pointer           :: panel_id => null()
     real(r_def)                           :: time
+    type(field_type)                      :: psi, r_psi
 
+    w1_fs   => function_space_collection%get_fs( mesh_id, element_order, W1 )
     w2_fs   => function_space_collection%get_fs( mesh_id, element_order, W2 )
     w3_fs   => function_space_collection%get_fs( mesh_id, element_order, W3 )
 
@@ -86,13 +96,35 @@ contains
 
     time = dt*real(timestep,r_def)
 
-    if ( profile /= profile_sbr_streamfunction .and.  &
-         profile /= profile_dcmip301_streamfunction ) then
-      ! Recompute the (time varying) wind if not using streamfunction
-      ! formulation. Streamfunction formulation does not currently
-      ! support time varying wind so we do not recompute it if that is
-      ! the choosen setup
-      call invoke( name = "Initialise U",                     &
+    if ( profile == profile_sbr_streamfunction .or.  &
+         profile == profile_dcmip301_streamfunction .or. &
+         profile == profile_eternal_fountain .or. &
+         profile == profile_div_free_reversible .or. &
+         profile == profile_rotational ) then
+
+      call log_event( "COSMIC: Initialising winds from stream function", LOG_LEVEL_INFO )
+      call psi%initialise( vector_space = w1_fs )
+      call r_psi%initialise( vector_space =  w1_fs )
+      call invoke( name = "initialise_streamfunction", &
+                   setval_c(psi, 0.0_r_def),           &
+                   setval_c(r_psi, 0.0_r_def),         &
+                   initial_streamfunc_kernel_type(r_psi, chi_sph, panel_id, &
+                                                  time, qr) )
+      ! We do not want to force zero stream function at boundaries
+      call mass_matrix_solver_alg(psi, r_psi, bc_flag=.false.)
+      call invoke( name = "get_u_from_curl_of_psi", &
+                   strong_curl_kernel_type(u, psi) )
+      ! Prevent any flux out from the domain
+      ! However for spherical domains this could prevent the resulting
+      ! wind from being divergence-free, so only do this for Cartesian domains
+      if (geometry /= geometry_spherical) then
+        call invoke( name = "apply_bcs_to_u", &
+                     enforce_bc_kernel_type( u ) )
+      end if
+
+    else
+      call log_event( "COSMIC: Initialising winds", LOG_LEVEL_INFO )
+      call invoke( name = "initialise_u",                     &
                    setval_c(u,   0.0_r_def),                  &
                    setval_c(r_u, 0.0_r_def),                  &
                    initial_u_kernel_type(r_u, chi_sph, panel_id, time, qr), &

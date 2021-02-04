@@ -38,7 +38,13 @@ use idealised_config_mod,       only : test_cold_bubble_x,           &
                                        test_snow,                    &
                                        test_shallow_conv,            &
                                        test_cos_phi,                 &
-                                       test_cosine_bubble
+                                       test_cosine_bubble,           &
+                                       test_div_free_reversible,     &
+                                       test_eternal_fountain,        &
+                                       test_curl_free_reversible,    &
+                                       test_rotational,              &
+                                       test_translational,           &
+                                       test_vertical_cylinder
 use initial_density_config_mod, only : r1, x1, y1, z1, r2, x2, y2, z2, &
                                        tracer_max, tracer_background
 use base_mesh_config_mod,       only : geometry, &
@@ -234,8 +240,14 @@ contains
     case (test_vortex_field)
       pressure = vortex_field(lat,long,radius,time)
 
-    case( test_yz_cosine_hill, &
-          test_hadley_like_dcmip )
+    case( test_yz_cosine_hill,       &
+          test_hadley_like_dcmip,    &
+          test_eternal_fountain,     &
+          test_curl_free_reversible, &
+          test_div_free_reversible,  &
+          test_rotational,           &
+          test_translational,        &
+          test_vertical_cylinder )
       ! This case is for transport of tracers and density only so it is not
       ! calculated here.
 

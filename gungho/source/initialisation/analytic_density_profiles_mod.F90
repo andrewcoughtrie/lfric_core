@@ -38,7 +38,13 @@ use idealised_config_mod,       only : test_cold_bubble_x,           &
                                        test_const_lapse_rate,        &
                                        test_shallow_conv,            &
                                        test_cos_phi,                 &
-                                       test_cosine_bubble
+                                       test_cosine_bubble,           &
+                                       test_eternal_fountain,        &
+                                       test_div_free_reversible,     &
+                                       test_curl_free_reversible,    &
+                                       test_rotational,              &
+                                       test_translational,           &
+                                       test_vertical_cylinder
 use initial_density_config_mod, only : r1, x1, y1, z1, r2, x2, y2, z2,         &
                                        tracer_max, tracer_background
 use base_mesh_config_mod,       only : geometry, &
@@ -47,6 +53,8 @@ use planet_config_mod,          only : p_zero, Rd, kappa, scaled_radius
 use reference_profile_mod,      only : reference_profile
 use analytic_temperature_profiles_mod, only: analytic_temperature
 use deep_baroclinic_wave_mod,   only : deep_baroclinic_wave
+use domain_size_config_mod,     only : planar_domain_max_x
+use extrusion_config_mod,       only : domain_top
 
 implicit none
 
@@ -171,6 +179,9 @@ function analytic_density(chi, choice, time) result(density)
   real(kind=r_def)             :: pressure, temperature
   real(kind=r_def)             :: t0
   real(kind=r_def)             :: u, v, w
+  real(kind=r_def)             :: bubble_dist, bubble_zc
+  real(kind=r_def)             :: bubble_radius, bubble_width, bubble_height
+  real(kind=r_def)             :: slot_width, slot_length
 
   integer                      :: id
 
@@ -313,6 +324,61 @@ function analytic_density(chi, choice, time) result(density)
     l1 = sqrt( ((chi(1) - x1)/r1)**2 + ((chi(3) - y1)/r2)**2 )
     if ( l1 < 1.0_r_def ) then
       density = tracer_background + tracer_max*cos(0.5_r_def*l1*PI)**2
+    else
+      density = tracer_background
+    end if
+
+  case( test_eternal_fountain )
+    bubble_width = 0.4_r_def * planar_domain_max_x
+    bubble_height = 0.1_r_def * domain_top
+
+    if ( ( (chi(1) + bubble_width / 2.0_r_def) &
+            * (bubble_width / 2.0_r_def - chi(1)) > 0.0_r_def ) &
+      .and. ( chi(3) * (bubble_height - chi(3)) > 0.0_r_def ) ) then
+      density = tracer_max
+    else
+      density = tracer_background
+    end if
+
+  case ( test_rotational, test_curl_free_reversible, &
+         test_translational, test_div_free_reversible )
+    bubble_zc = domain_top / 4.0_r_def
+    bubble_width = planar_domain_max_x / 5.0_r_def
+    bubble_height = domain_top / 10.0_r_def
+    bubble_radius = bubble_height / 2.0_r_def
+
+    ! Elliptical distance from centre of bubble
+    bubble_dist = bubble_radius &
+      * sqrt( ((chi(1) - XC) / (bubble_width / 2.0_r_def) ) ** 2.0_r_def &
+            + ((chi(3) - bubble_zc) / (bubble_height / 2.0_r_def)) ** 2.0_r_def)
+
+    density = tracer_background + (tracer_max - tracer_background) &
+                * exp(-(bubble_dist / bubble_radius)**2.0_r_def)
+
+  case( test_vertical_cylinder )
+    bubble_zc = domain_top / 4.0_r_def
+    bubble_width = planar_domain_max_x / 2.0_r_def
+    bubble_height = domain_top / 4.0_r_def
+    bubble_radius = bubble_height / 2.0_r_def
+
+    ! Elliptical distance from centre of bubble
+    bubble_dist = bubble_radius &
+      * sqrt( ((chi(1) - XC) / (bubble_width / 2.0_r_def) ) ** 2.0_r_def &
+            + ((chi(3) - bubble_zc) / (bubble_height / 2.0_r_def)) ** 2.0_r_def)
+
+    slot_width = bubble_width / 12.0_r_def
+    slot_length = 17.0_r_def * bubble_height / 24.0_r_def
+
+    if ( bubble_dist < bubble_radius ) then
+      if ( abs(chi(1) - XC) > slot_width / 2.0_r_def ) then
+        density = tracer_max
+      else
+        if ( chi(3) < (bubble_zc + bubble_height / 2.0_r_def - slot_length) ) then
+          density = tracer_max
+        else
+          density = tracer_background
+        end if
+      end if
     else
       density = tracer_background
     end if

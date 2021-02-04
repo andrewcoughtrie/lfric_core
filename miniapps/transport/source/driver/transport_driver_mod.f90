@@ -12,7 +12,7 @@ module transport_driver_mod
   use checksum_alg_mod,               only: checksum_alg
   use clock_mod,                      only: clock_type
   use configuration_mod,              only: final_configuration
-  use constants_mod,                  only: i_def, r_def, i_native
+  use constants_mod,                  only: i_def, r_def, l_def, i_native
   use convert_to_upper_mod,           only: convert_to_upper
   use create_fem_mod,                 only: init_fem
   use create_mesh_mod,                only: init_mesh
@@ -88,6 +88,17 @@ module transport_driver_mod
                                             runge_kutta_final
   use split_mol_cosmic_alg_mod,       only: split_transport_rho_step
   use diagnostic_alg_mod,             only: l2norm_diff_2fields
+  use initial_wind_config_mod,        only: profile,                      &
+                                            profile_curl_free_reversible, &
+                                            profile_div_free_reversible,  &
+                                            profile_xy_NL_case_1,         &
+                                            profile_yz_NL_case_1,         &
+                                            profile_NL_case_1,            &
+                                            profile_NL_case_2,            &
+                                            profile_NL_case_3,            &
+                                            profile_NL_case_4,            &
+                                            profile_hadley_like_dcmip
+
 
   implicit none
 
@@ -313,6 +324,7 @@ contains
     type(field_type)    :: density_t0
     type(field_type)    :: theta_t0
     real(r_def)         :: err_rho, err_theta
+    logical(l_def)      :: time_varying_wind
 
 
     call density_t0%initialise( vector_space = density%get_function_space() )
@@ -336,6 +348,24 @@ contains
       call log_event( log_scratch_space, LOG_LEVEL_WARNING )
     end if
 
+    ! Determine if wind is time-varying or not
+    if ((profile == profile_xy_NL_case_1)         .or. &
+        (profile == profile_yz_NL_case_1)         .or. &
+        (profile == profile_NL_case_1)            .or. &
+        (profile == profile_NL_case_2)            .or. &
+        (profile == profile_NL_case_3)            .or. &
+        (profile == profile_NL_case_4)            .or. &
+        (profile == profile_hadley_like_dcmip)    .or. &
+        (profile == profile_div_free_reversible)  .or. &
+        (profile == profile_curl_free_reversible)) then
+        time_varying_wind = .true.
+      else
+        time_varying_wind = .false.
+      end if
+
+    ! Initialise winds before first time step
+    call set_winds( wind_n, mesh_id, clock%get_step() )
+
     !--------------------------------------------------------------------------
     ! Model step
     !--------------------------------------------------------------------------
@@ -354,8 +384,10 @@ contains
         call xios_update_calendar( clock%get_step() )
       end if
 
-      ! Update the wind each timestep.
-      call set_winds( wind_n, mesh_id, clock%get_step() )
+      ! Only update the wind for time varying prescribed profiles
+      if (time_varying_wind) then
+        call set_winds( wind_n, mesh_id, clock%get_step() )
+      end if
 
       if (scheme /= scheme_method_of_lines    .or. &
           rho_splitting /= rho_splitting_none .or. &

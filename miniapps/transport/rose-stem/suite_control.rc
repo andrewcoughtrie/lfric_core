@@ -43,7 +43,13 @@
                                                       'divergence_cosmic',
                                                       'northpole_cosine_hill',
                                                       'corner_cosine_hill',
-                                                      'equator_cosine_hill'] } %}
+                                                      'equator_cosine_hill',
+                                                      'cylinder_slice',
+                                                      'div_free_reversible',
+                                                      'eternal_fountain',
+                                                      'curl_free_reversible',
+                                                      'rotational_slice',
+                                                      'translational_slice'] } %}
 
 {%- set canned_configurations = ['transport'] %}
 
@@ -77,7 +83,7 @@
                      resolutions=[("C48",300.0)],
                      env={"crun":1, "nrun":288,
                           "directives":{"default":{"mpi_parts":12,"threads":1,"wallclock":"00:40:00"} } },
-                     plotstr="slices.py ' + appDiagStemName + ' $NODAL_DATA_DIR density:theta T000000:T000072:T000144:T000216:T000288 45 -1000 -1000 $PLOT_DIR" )',   
+                     plotstr="slices.py ' + appDiagStemName + ' $NODAL_DATA_DIR density:theta T000000:T000072:T000144:T000216:T000288 45 -1000 -1000 $PLOT_DIR" )',
     'run_application("transport", "hadley_like_dcmip_cosmic",
                      resolutions=[("C48",300.0)],
                      env={"crun":1, "nrun":288,
@@ -107,6 +113,8 @@
 
 %include inc/cosmic.rc
 {%- do groups.update(cosmic_groups) %}
+%include inc/vertical_slice.rc
+{%- do groups.update(vertical_slice_groups) %}
 
 {%- if RUN_NAMES is defined %}
 {%-   if 'nightly_precision_tests' in RUN_NAMES %}

@@ -26,6 +26,12 @@ module rk_transport_mod
   use function_space_mod,                only: function_space_type
   use function_space_collection_mod,     only: function_space_collection
   use io_config_mod,                     only: subroutine_timers
+  use initial_streamfunc_kernel_mod,     only: initial_streamfunc_kernel_type
+  use initial_u_kernel_mod,              only: initial_u_kernel_type
+  use initial_wind_config_mod,           only: profile,                     &
+                                               profile_div_free_reversible, &
+                                               profile_curl_free_reversible
+
   use log_mod,                           only: log_event,           &
                                                log_scratch_space,   &
                                                LOG_LEVEL_INFO
@@ -34,6 +40,10 @@ module rk_transport_mod
   use operator_mod,                      only: operator_type
   use quadrature_xyoz_mod,               only: quadrature_xyoz_type
   use quadrature_rule_gaussian_mod,      only: quadrature_rule_gaussian_type
+  use runtime_constants_mod,             only: get_coordinates, &
+                                               get_panel_id,    &
+                                               get_qr
+  use strong_curl_kernel_mod,            only: strong_curl_kernel_type
   use timer_mod,                         only: timer
   use timestepping_config_mod,           only: dt
 
@@ -85,16 +95,24 @@ contains
   !> @param[in,out] rho      Density like tracer
   !> @param[in,out] theta    Temperature like tracer
   !> @param[in,out] mr       Bundle of moisture variables as tracers
-  subroutine rk_transport_step( wind, rho, theta, mr )
+  subroutine rk_transport_step( timestep, wind, rho, theta, mr )
     use field_bundle_mod, only: clone_bundle, add_bundle, copy_bundle
 
     implicit none
 
     ! Prognostic fields
-    type( field_type ), intent( inout )           :: wind, rho, theta
-    type( field_type ), intent( inout ), optional :: mr(nummr)
-    type( field_type ), allocatable               :: state(:), rhs_adv(:)
-    type( field_type ), allocatable               :: mr_inc(:), mr_out(:)
+    type(field_type),    intent(inout)           :: wind, rho, theta
+    type(field_type),    intent(inout), optional :: mr(nummr)
+    integer(kind=i_def), intent(in)              :: timestep
+
+    ! Internal variables
+    type(field_type), allocatable                :: state(:), rhs_adv(:)
+    type(field_type), allocatable                :: mr_inc(:), mr_out(:)
+    type(field_type)                             :: r_psi, psi, r_u
+    type(field_type), pointer                    :: chi_sph(:) => null()
+    type(field_type), pointer                    :: panel_id => null()
+    type(quadrature_xyoz_type)                   :: qr
+    real(kind=r_def)                             :: time
 
     if ( subroutine_timers ) call timer('rk_transport_alg')
 
@@ -121,6 +139,40 @@ contains
       allocate(mr_out(nummr))
       call clone_bundle(mr, mr_inc, nummr)
       call clone_bundle(mr, mr_out, nummr)
+    end if
+
+    ! Create right hand sides for time-varying advecting winds
+    call psi%initialise( vector_space =                                              &
+              function_space_collection%get_fs(wind%get_mesh_id(), element_order, W1))
+    call r_psi%initialise( vector_space =                                            &
+              function_space_collection%get_fs(wind%get_mesh_id(), element_order, W1))
+    call r_u%initialise( vector_space = wind%get_function_space() )
+
+    qr = get_qr()
+    chi_sph => get_coordinates()
+    panel_id => get_panel_id()
+
+    ! If the wind is time-varying, update it here
+    if ( profile == profile_div_free_reversible ) then
+      time = (real(timestep, r_def) - 0.5_r_def) * dt
+      call log_event( "Gungho: Updating winds from stream function", LOG_LEVEL_INFO )
+      call invoke( name="set_streamfunction",                       &
+                   setval_c(psi, 0.0_r_def),                        &
+                   setval_c(r_psi, 0.0_r_def),                      &
+                   initial_streamfunc_kernel_type(r_psi, chi_sph,   &
+                                                  panel_id, time, qr) )
+      call mass_matrix_solver_alg(psi, r_psi, bc_flag=.false.)
+      call invoke( strong_curl_kernel_type(wind, psi) )
+    elseif ( profile == profile_curl_free_reversible ) then
+        time = (real(timestep, r_def) - 0.5_r_def) * dt
+        call log_event( "Gungho: Updating winds by sampling", LOG_LEVEL_INFO )
+        call invoke( name="set_wind_by_sampling",                   &
+                     setval_c( wind, 0.0_r_def ),                   &
+                     setval_c( r_u, 0.0_r_def ),                    &
+                     initial_u_kernel_type( r_u, chi_sph, panel_id, &
+                                            time, qr ),             &
+                     enforce_bc_kernel_type( r_u ) )
+        call mass_matrix_solver_alg(wind, r_u)
     end if
 
     ! Do advection of fields

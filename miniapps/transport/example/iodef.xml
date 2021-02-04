@@ -3,7 +3,7 @@
 
   <context id = "transport">
 
-   <calendar type = "Gregorian" start_date = "2016-01-01 15:00:00" />
+   <calendar type = "Gregorian" start_date = "2016-01-01 15:00:00" time_origin = "2016-01-01 15:00:00" />
 
    <axis_definition>
     <axis id="vert_axis_half_levels" name="half_levels"/>
@@ -13,13 +13,18 @@
    <domain_definition>
       <domain id="node" name="Mesh2d_node" nvertex="1"/>
       <domain id="face" name="Mesh2d_face" nvertex="4"/>
-            <domain id="edge" name="Mesh2d_edge" nvertex="2"/>
+      <domain id="edge" name="Mesh2d_edge" nvertex="2"/>
       <domain id="checkpoint_W0" name="checkpoint_W0" nvertex="1"/>
       <domain id="checkpoint_W1" name="checkpoint_W1" nvertex="1"/>
       <domain id="checkpoint_W2" name="checkpoint_W2" nvertex="1"/>
       <domain id="checkpoint_W3" name="checkpoint_W3" nvertex="1"/>
       <domain id="checkpoint_Wtheta" name="checkpoint_Wtheta" nvertex="1"/>
       <domain id="checkpoint_W3_2D" name="checkpoint_W3_2D" nvertex="1"/>
+      <domain id="checkpoint_pft" name="checkpoint_pft" nvertex="1"/>
+      <domain id="checkpoint_tile" name="checkpoint_tile" nvertex="1"/>
+      <domain id="checkpoint_sice" name="checkpoint_sice" nvertex="1"/>
+      <domain id="checkpoint_soil" name="checkpoint_soil" nvertex="1"/>
+      <domain id="checkpoint_snow" name="checkpoint_snow" nvertex="1"/>
  </domain_definition>
 
 
@@ -47,6 +52,7 @@
      <!-- Checkpoint group -->
      <field_group id="checkpoint_fields" freq_op="1ts" operation="once"  enabled=".FALSE." >
        <field id="checkpoint_density" name="density" long_name="air_density" standard_name="air_density" unit="kg m-3" domain_ref="checkpoint_W3" />
+       <field id="checkpoint_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" domain_ref="checkpoint_Wtheta" />
        <field id="checkpoint_wind" name="wind" long_name="wind" unit="m s-1" domain_ref="checkpoint_W2" />
        <field id="checkpoint_wind_divergence" name="wind_divergence" long_name="wind_divergence" standard_name="wind_divergence" unit="kg m-3" domain_ref="checkpoint_W3" />
      </field_group>
@@ -57,6 +63,7 @@
        <field id="wind2" name="wind2" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
        <field id="wind3" name="wind3" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
        <field id="density" name="density" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
+       <field id="theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
        <field id="wind_divergence" name="wind_divergence" long_name="wind_divergence" standard_name="wind_divergence" unit="kg m-3" grid_ref="half_level_face_grid" />
      </field_group>
 
@@ -66,6 +73,7 @@
        <field id="init_wind2" name="wind2" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
        <field id="init_wind3" name="wind3" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
        <field id="init_density" name="density" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
+       <field id="init_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
        <field id="init_wind_divergence" name="wind_divergence" long_name="wind_divergence" standard_name="wind_divergence" unit="kg m-3" grid_ref="half_level_face_grid" />
      </field_group>
 
@@ -81,6 +89,7 @@
       <!-- File definition for checkpoint write -->
       <file id="lfric_checkpoint_write" name="lfric_checkpoint" convention="CF" enabled=".FALSE.">
         <field field_ref="checkpoint_density"/>
+        <field field_ref="checkpoint_theta"/>
         <field field_ref="checkpoint_wind"/>
         <field field_ref="checkpoint_wind_divergence"/>
       </file>
@@ -88,6 +97,7 @@
        <!-- file definition for checkpoint read -->
       <file id="lfric_checkpoint_read" name="lfric_checkpoint" mode="read" output_freq="1ts" cyclic="true" enabled=".FALSE.">
        <field id="restart_density" name="density" long_name="air_density" standard_name="air_density" unit="kg m-3" operation="instant" domain_ref="checkpoint_W3" />
+       <field id="restart_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" operation="instant" domain_ref="checkpoint_Wtheta" />
        <field id="restart_wind" name="wind" long_name="wind" unit="m s-1" operation="instant" domain_ref="checkpoint_W2" />
        <field id="restart_wind_divergence" name="wind_divergence" long_name="wind_divergence" standard_name="wind_divergence" unit="kg m-3" operation="instant" domain_ref="checkpoint_W3" />
       </file>
@@ -97,6 +107,7 @@
         <field field_ref="wind2"/>
         <field field_ref="wind3"/>
         <field field_ref="density"/>
+        <field field_ref="theta"/>
         <field field_ref="wind_divergence"/>
       </file>
 
@@ -105,6 +116,7 @@
         <field field_ref="init_wind2"/>
         <field field_ref="init_wind3"/>
         <field field_ref="init_density"/>
+        <field field_ref="init_theta"/>
         <field field_ref="init_wind_divergence"/>
       </file>
 

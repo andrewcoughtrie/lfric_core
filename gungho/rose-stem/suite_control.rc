@@ -72,7 +72,9 @@
 {%- set application_configurations = { 'gungho' : [ 'runge-kutta', 'semi-implicit',
                                                     'transport-rk', 'transport-rk-bip',
                                                     'biperiodic_p0_gw', 'biperiodic_p1_gw',
-                                                    'biperiodic_p0_gw_fem',
+                                                    'biperiodic_p0_gw_fem', 'cylinder_slice', 'div_free_reversible',
+                                                    'eternal_fountain', 'curl_free_reversible', 'rotational_slice',
+                                                    'spherical_transport', 'translational_slice',
                                                     'agnesi_orog_cartesian', 'agnesi_orog_cartesian_long',
                                                     'dcmip301', 'robert', 'robert10m', 'robert5m', 'dcmip200',
                                                     'dcmip200_realorog', 'dcmip200_realorog_mg', 'dcmip200_realorog_mgprecon',
@@ -575,6 +577,8 @@
 {%- do groups.update(csar_groups) %}
 %include inc/cartesian.rc
 {%- do groups.update(cartesian_groups) %}
+%include inc/vertical_slice.rc
+{%- do groups.update(vertical_slice_groups) %}
 %include inc/orography.rc
 {%- do groups.update(orography_groups) %}
 
