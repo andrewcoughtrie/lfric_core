@@ -6,7 +6,7 @@
 !>@brief Prepares the glomap aerosol fields
 module init_aerosol_fields_alg_mod
 
-  use constants_mod,                   only: r_def
+  use constants_mod,                   only: r_def, i_def
 
   ! Derived Types
   use field_mod,                       only: field_type
@@ -14,8 +14,17 @@ module init_aerosol_fields_alg_mod
 
   implicit none
 
+  logical :: l_sulphuric
+  logical :: l_radaer
+  integer(i_def) :: n_aer_mode
+  integer(i_def) :: mode_dimen
+  integer(i_def) :: sw_band_mode
+  integer(i_def) :: lw_band_mode
+
   private
-  public :: init_aerosol_fields_alg
+  public :: init_aerosol_fields_alg, &
+    l_sulphuric, &
+    l_radaer, n_aer_mode, mode_dimen, sw_band_mode, lw_band_mode
 
 contains
 
@@ -27,6 +36,8 @@ contains
   !>          aerosol parametrization is not used.
   !> @param[in,out] aerosol_fields   aerosol related fields
   subroutine init_aerosol_fields_alg(aerosol_fields)
+
+    use socrates_init_mod, only: n_sw_band, n_lw_band
 
     implicit none
 
@@ -106,6 +117,16 @@ contains
                  setval_c(ait_ins_oc,        7.0e-13_r_def), &
                  ! Set for use if aerosol climatologies are switched off
                  setval_c(cloud_drop_no_conc,  1.0e8_r_def) )
+
+    ! Initialisation of RADAER fields
+    l_radaer = .false. ! To be configured in #1866
+    n_aer_mode = 0_i_def
+    mode_dimen = max(n_aer_mode, 1_i_def)
+    sw_band_mode = max(n_aer_mode * n_sw_band, 1_i_def)
+    lw_band_mode = max(n_aer_mode * n_lw_band, 1_i_def)
+
+    ! Initialisation of CLASSIC aerosol fields
+    l_sulphuric = .false. ! To be configured in #2506
 
   end subroutine init_aerosol_fields_alg
 

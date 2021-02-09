@@ -12,14 +12,18 @@ use constants_mod, only: r_def, i_def
 implicit none
 
 integer(i_def) :: n_sw_band, n_lw_band
+integer(i_def), allocatable :: sw_n_band_exclude(:), sw_index_exclude(:, :)
+integer(i_def), allocatable :: lw_n_band_exclude(:), lw_index_exclude(:, :)
 real(r_def), allocatable :: sw_wavelength_short(:), sw_wavelength_long(:)
 real(r_def), allocatable :: lw_wavelength_short(:), lw_wavelength_long(:)
 real(r_def), allocatable :: sw_weight_blue(:)
 
 private
 public :: socrates_init, &
-  n_sw_band, sw_wavelength_short, sw_wavelength_long, sw_weight_blue, &
-  n_lw_band, lw_wavelength_short, lw_wavelength_long
+  n_sw_band, sw_n_band_exclude, sw_index_exclude, &
+  sw_wavelength_short, sw_wavelength_long, sw_weight_blue, &
+  n_lw_band, lw_n_band_exclude, lw_index_exclude, &
+  lw_wavelength_short, lw_wavelength_long
 
 contains
 
@@ -56,6 +60,8 @@ subroutine socrates_init()
   call get_spectrum(                        &
     spectrum_name    = 'sw',                &
     n_band           = n_sw_band,           &
+    n_band_exclude   = sw_n_band_exclude,   &
+    index_exclude    = sw_index_exclude,    &
     wavelength_short = sw_wavelength_short, &
     wavelength_long  = sw_wavelength_long,  &
     weight_blue      = sw_weight_blue )
@@ -79,6 +85,8 @@ subroutine socrates_init()
   call get_spectrum(                        &
     spectrum_name    = 'lw',                &
     n_band           = n_lw_band,           &
+    n_band_exclude   = lw_n_band_exclude,   &
+    index_exclude    = lw_index_exclude,    &
     wavelength_short = lw_wavelength_short, &
     wavelength_long  = lw_wavelength_long )
 

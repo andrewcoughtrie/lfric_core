@@ -37,7 +37,7 @@ module slow_physics_alg_mod
   use mr_indices_mod,            only: nummr, imr_v, imr_cl, imr_ci
   use enforce_lower_bound_kernel_mod, only: enforce_lower_bound_kernel_type
   use moisture_conservation_alg_mod,  only: moisture_conservation_alg
-  use fs_continuity_mod,         only: W3
+  use fs_continuity_mod,         only: W3, Wtheta
   use field_bundle_mod,          only: add_bundle
   use formulation_config_mod,    only: use_moisture
   use io_config_mod,             only: subroutine_timers,                    &
@@ -62,6 +62,7 @@ module slow_physics_alg_mod
   use radiation_config_mod,      only: l_planet_grey_surface
   use ancil_info,                only: rad_nband
   use jules_control_init_mod,    only: sw_band_tile, lw_band_tile, n_land_tile
+  use init_aerosol_fields_alg_mod, only: sw_band_mode, lw_band_mode, mode_dimen
 #endif
 
   implicit none
@@ -97,6 +98,7 @@ contains
   !> @param[in]     delta                  Edge length on wtheta points
   !> @param[in]     max_diff_smag          Maximum diffusion coef allowed
   !> @param[in]     clock                  Model time
+  !> @param[in]     mesh_id                Identifier given to current mesh
   !> @param[in]     twod_mesh_id           Identifier given to current 2d mesh
   subroutine slow_physics(du, dtheta, mr, visc_m, visc_h,                       &
                           theta, rho, exner, mr_n, derived_fields,              &
@@ -105,7 +107,7 @@ contains
                           convection_fields, cloud_fields, surface_fields,      &
                           soil_fields, snow_fields, aerosol_fields, dA,         &
                           height_w3, height_wth, chi_xyz, delta, max_diff_smag, &
-                          clock, twod_mesh_id )
+                          clock, mesh_id, twod_mesh_id )
 
     implicit none
 
@@ -136,6 +138,7 @@ contains
     type( field_type ), intent( in )    :: dA, height_w3, height_wth
     type( field_type ), intent( in )    :: chi_xyz(3)
 
+    integer, intent(in) :: mesh_id
     integer, intent(in) :: twod_mesh_id
     class(clock_type), intent(in) :: clock
 
@@ -151,6 +154,9 @@ contains
     type( field_type ) :: dqv_pc2_rad, dqcl_pc2_rad
     type( field_type ) :: dcfl_pc2_rad, dbcf_pc2_rad
 #ifdef UM_PHYSICS
+    type( field_type ) :: aer_mix_ratio
+    type( field_type ) :: aer_sw_absorption, aer_sw_scattering, aer_sw_asymmetry
+    type( field_type ) :: aer_lw_absorption, aer_lw_scattering, aer_lw_asymmetry
     type( field_type ) :: tile_lw_albedo
     type( field_type ) :: tile_sw_diffuse_albedo, tile_sw_direct_albedo
     type( field_type ) :: albedo_obs_scaling
@@ -220,6 +226,16 @@ contains
     !--------------------------------------------------------------------
     ! Glomap mode aerosol climatologies
     !--------------------------------------------------------------------
+    vector_space=>function_space_collection%get_fs(mesh_id,0,Wtheta,mode_dimen)
+    call aer_mix_ratio%initialise(vector_space)
+    vector_space=>function_space_collection%get_fs(mesh_id,0,Wtheta,sw_band_mode)
+    call aer_sw_absorption%initialise(vector_space)
+    call aer_sw_scattering%initialise(vector_space)
+    call aer_sw_asymmetry%initialise(vector_space)
+    vector_space=>function_space_collection%get_fs(mesh_id,0,Wtheta,lw_band_mode)
+    call aer_lw_absorption%initialise(vector_space)
+    call aer_lw_scattering%initialise(vector_space)
+    call aer_lw_asymmetry%initialise(vector_space)
     if ( ( aerosol == aerosol_um ) .and.                                  &
          ( microphysics == microphysics_um .or.                           &
            radiation == radiation_socrates ) ) then
@@ -267,22 +283,15 @@ contains
                           albedo_obs_scaling, height_w3, height_wth)
       end if
 
-      call radiation_alg( dtheta_rad,             &
-                          theta,                  &
-                          exner,                  &
-                          mr_n,                   &
-                          derived_fields,         &
-                          radiation_fields,       &
-                          cloud_fields,           &
-                          convection_fields,      &
-                          aerosol_fields,         &
-                          surface_fields,         &
-                          height_w3,              &
-                          height_wth,             &
-                          clock%get_step(),       &
-                          tile_sw_direct_albedo,  &
-                          tile_sw_diffuse_albedo, &
-                          tile_lw_albedo )
+      call radiation_alg( dtheta_rad, theta, exner, mr_n,                    &
+                          derived_fields, radiation_fields, cloud_fields,    &
+                          convection_fields, aerosol_fields, surface_fields, &
+                          height_w3, height_wth, clock%get_step(),           &
+                          tile_sw_direct_albedo, tile_sw_diffuse_albedo,     &
+                          tile_lw_albedo, aer_mix_ratio,                     &
+                          aer_sw_absorption, aer_lw_absorption,              &
+                          aer_sw_scattering, aer_lw_scattering,              &
+                          aer_sw_asymmetry,  aer_lw_asymmetry )
       radiation_done=.true. ! Collect this increment later on
 
       if (scheme == scheme_pc2) then

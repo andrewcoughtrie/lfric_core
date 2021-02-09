@@ -13,7 +13,9 @@ use argument_mod,      only : arg_type,                  &
                               GH_READWRITE, CELLS,       &
                               ANY_DISCONTINUOUS_SPACE_1, &
                               ANY_DISCONTINUOUS_SPACE_2, &
-                              ANY_DISCONTINUOUS_SPACE_3
+                              ANY_DISCONTINUOUS_SPACE_3, &
+                              ANY_DISCONTINUOUS_SPACE_4, &
+                              ANY_DISCONTINUOUS_SPACE_5
 use fs_continuity_mod, only:  W3, Wtheta
 use constants_mod,     only : r_def, i_def
 use kernel_mod,        only : kernel_type
@@ -32,7 +34,7 @@ public :: lw_code
 ! Contains the metadata needed by the PSy layer.
 type, extends(kernel_type) :: lw_kernel_type
   private
-  type(arg_type) :: meta_args(32) = (/                             &
+  type(arg_type) :: meta_args(37) = (/                             &
     arg_type(GH_FIELD,   GH_WRITE,     Wtheta),                    & ! lw_heating_rate
     arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1), & ! lw_down_surf
     arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2), & ! lw_up_tile
@@ -62,6 +64,11 @@ type, extends(kernel_type) :: lw_kernel_type
     arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_2), & ! tile_fraction
     arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_2), & ! tile_temperature
     arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_3), & ! tile_lw_albedo
+    arg_type(GH_FIELD,   GH_READ,      Wtheta),                    & ! sulphuric
+    arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_4), & ! aer_mix_ratio
+    arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_5), & ! aer_lw_absorption
+    arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_5), & ! aer_lw_scattering
+    arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_5), & ! aer_lw_asymmetry
     arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! latitude
     arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! longitude
     arg_type(GH_INTEGER, GH_READ                                )  & ! timestep
@@ -106,6 +113,11 @@ contains
 ! @param[in]     tile_fraction           Surface tile fractions
 ! @param[in]     tile_temperature        Surface tile temperature
 ! @param[in]     tile_lw_albedo          LW tile albedos
+! @param[in]     sulphuric               Sulphuric acid aerosol
+! @param[in]     aer_mix_ratio           MODE aerosol mixing ratios
+! @param[in]     aer_lw_absorption       MODE aerosol LW absorption
+! @param[in]     aer_lw_scattering       MODE aerosol LW scattering
+! @param[in]     aer_lw_asymmetry        MODE aerosol LW asymmetry
 ! @param[in]     latitude                Latitude field
 ! @param[in]     longitude               Longitude field
 ! @param[in]     timestep                Timestep number
@@ -124,6 +136,12 @@ contains
 ! @param[in]     ndf_rtile               No. of DOFs per cell for rtile space
 ! @param[in]     undf_rtile              No. unique of DOFs for rtile space
 ! @param[in]     map_rtile               Dofmap for rtile space column base cell
+! @param[in]     ndf_mode                No. of DOFs per cell for mode space
+! @param[in]     undf_mode               No. unique of DOFs for mode space
+! @param[in]     map_mode                Dofmap for mode space column base cell
+! @param[in]     ndf_rmode               No. of DOFs per cell for rmode space
+! @param[in]     undf_rmode              No. unique of DOFs for rmode space
+! @param[in]     map_rmode               Dofmap for rmode space column base cell
 subroutine lw_code(nlayers,                          &
                    lw_heating_rate,                  &
                    lw_down_surf,                     &
@@ -153,13 +171,20 @@ subroutine lw_code(nlayers,                          &
                    tile_fraction,                    &
                    tile_temperature,                 &
                    tile_lw_albedo,                   &
+                   sulphuric,                        &
+                   aer_mix_ratio,                    &
+                   aer_lw_absorption,                &
+                   aer_lw_scattering,                &
+                   aer_lw_asymmetry,                 &
                    latitude, longitude,              &
                    timestep,                         &
                    ndf_wth, undf_wth, map_wth,       &
                    ndf_2d, undf_2d, map_2d,          &
                    ndf_tile, undf_tile, map_tile,    &
                    ndf_w3, undf_w3, map_w3,          &
-                   ndf_rtile, undf_rtile, map_rtile)
+                   ndf_rtile, undf_rtile, map_rtile, &
+                   ndf_mode, undf_mode, map_mode,    &
+                   ndf_rmode, undf_rmode, map_rmode)
 
   use well_mixed_gases_config_mod, only:         &
     co2_mix_ratio, n2o_mix_ratio, ch4_mix_ratio, &
@@ -171,8 +196,9 @@ subroutine lw_code(nlayers,                          &
     cloud_horizontal_rsd, cloud_vertical_decorr
   use set_thermodynamic_mod, only: set_thermodynamic
   use set_cloud_field_mod, only: set_cloud_field
-  use jules_control_init_mod, only: n_surf_tile, first_sea_tile
-  use socrates_init_mod, only: n_lw_band
+  use jules_control_init_mod, only: n_surf_tile, lw_band_tile, first_sea_tile
+  use init_aerosol_fields_alg_mod, only: l_radaer, l_sulphuric, &
+    n_aer_mode, mode_dimen, lw_band_mode
   use socrates_runes, only: runes, ip_source_thermal
   use socrates_bones, only: bones
 
@@ -181,15 +207,17 @@ subroutine lw_code(nlayers,                          &
   ! Arguments
   integer(i_def), intent(in) :: nlayers, timestep
   integer(i_def), intent(in) :: ndf_wth, ndf_w3, ndf_2d
-  integer(i_def), intent(in) :: ndf_tile, ndf_rtile
+  integer(i_def), intent(in) :: ndf_tile, ndf_rtile, ndf_mode, ndf_rmode
   integer(i_def), intent(in) :: undf_wth, undf_w3, undf_2d
-  integer(i_def), intent(in) :: undf_tile, undf_rtile
+  integer(i_def), intent(in) :: undf_tile, undf_rtile, undf_mode, undf_rmode
 
   integer(i_def), dimension(ndf_wth),   intent(in) :: map_wth
   integer(i_def), dimension(ndf_w3),    intent(in) :: map_w3
   integer(i_def), dimension(ndf_2d),    intent(in) :: map_2d
   integer(i_def), dimension(ndf_tile),  intent(in) :: map_tile
   integer(i_def), dimension(ndf_rtile), intent(in) :: map_rtile
+  integer(i_def), dimension(ndf_mode),  intent(in) :: map_mode
+  integer(i_def), dimension(ndf_rmode), intent(in) :: map_rmode
 
   real(r_def), dimension(undf_wth),  intent(out) :: lw_heating_rate
   real(r_def), dimension(undf_2d),   intent(out) :: lw_down_surf
@@ -210,6 +238,10 @@ subroutine lw_code(nlayers,                          &
   real(r_def), dimension(undf_tile),  intent(in) :: tile_fraction
   real(r_def), dimension(undf_tile),  intent(in) :: tile_temperature
   real(r_def), dimension(undf_rtile), intent(in) :: tile_lw_albedo
+  real(r_def), dimension(undf_wth),   intent(in) :: sulphuric
+  real(r_def), dimension(undf_mode),  intent(in) :: aer_mix_ratio
+  real(r_def), dimension(undf_rmode), intent(in) :: &
+    aer_lw_absorption, aer_lw_scattering, aer_lw_asymmetry
   real(r_def), dimension(undf_2d),    intent(in) :: latitude, longitude
 
   ! Local variables for the kernel
@@ -217,8 +249,8 @@ subroutine lw_code(nlayers,                          &
   integer(i_def) :: i_cloud_representation, i_overlap, i_inhom, i_drop_re
   integer(i_def) :: rand_seed(n_profile)
   integer(i_def) :: k, n_cloud_layer
-  integer(i_def) :: df_rtile, i_tile, i_band
-  integer(i_def) :: wth_1, wth_nlayers
+  integer(i_def) :: i_tile, rtile_1, rtile_ntile, rtile_last
+  integer(i_def) :: wth_1, wth_nlayers, mode_1, mode_last, rmode_1, rmode_last
   real(r_def), dimension(nlayers) :: layer_heat_capacity
     ! Heat capacity for each layer
   real(r_def), dimension(nlayers) :: p_layer, t_layer
@@ -234,31 +266,25 @@ subroutine lw_code(nlayers,                          &
   real(r_def), dimension(0:nlayers) :: lw_down, lw_up
 
   ! Tiled surface fields
-  real(r_def) :: frac_tile(n_profile, n_surf_tile)
-  real(r_def) :: t_tile(n_profile, n_surf_tile)
-  real(r_def) :: albedo_diff_tile(n_profile, n_surf_tile, n_lw_band)
-  real(r_def) :: flux_up_tile_rts(n_surf_tile)
-  real(r_def) :: flux_up_tile(n_surf_tile)
+  real(r_def), dimension(n_surf_tile) :: frac_tile, t_tile, &
+    flux_up_tile_rts, flux_up_tile
 
 
-  ! Set wth indexing
+  ! Set indexing
   wth_1 = map_wth(1)+1
   wth_nlayers = map_wth(1)+nlayers
+  rtile_1 = map_rtile(1)
+  rtile_ntile = map_rtile(1)+n_surf_tile-1
+  rtile_last = map_rtile(1)+lw_band_tile-1
+  mode_1 = map_mode(1)+1
+  mode_last = map_mode(1)+(nlayers+1)*mode_dimen-1
+  rmode_1 = map_rmode(1)+1
+  rmode_last = map_rmode(1)+(nlayers+1)*lw_band_mode-1
 
   ! Tile fractions & temperatures
   do i_tile = 1, n_surf_tile
-    frac_tile(1, i_tile) = tile_fraction(map_tile(i_tile))
-    t_tile(1, i_tile) = tile_temperature(map_tile(i_tile))
-  end do
-
-  ! Tile albedos
-  df_rtile = 0
-  do i_band = 1, n_lw_band
-    do i_tile = 1, n_surf_tile
-      df_rtile = df_rtile + 1
-      albedo_diff_tile(1, i_tile, i_band) &
-        = tile_lw_albedo(map_rtile(1)+df_rtile-1)
-    end do
+    frac_tile(i_tile) = tile_fraction(map_tile(i_tile))
+    t_tile(i_tile) = tile_temperature(map_tile(i_tile))
   end do
 
   if (mod(timestep-1_i_def, n_radstep) == 0) then
@@ -310,14 +336,14 @@ subroutine lw_code(nlayers,                          &
       cfc113_mix_ratio        = cfc113_mix_ratio,                              &
       hcfc22_mix_ratio        = hcfc22_mix_ratio,                              &
       hfc134a_mix_ratio       = hfc134a_mix_ratio,                             &
-      t_ground                = t_tile(1, first_sea_tile),                     &
+      t_ground                = t_tile(first_sea_tile),                        &
       l_grey_albedo           = l_planet_grey_surface,                         &
       grey_albedo             = 1.0_r_def - planet_emissivity,                 &
       l_tile                  = .not.l_planet_grey_surface,                    &
       n_tile                  = n_surf_tile,                                   &
-      frac_tile               = frac_tile,                                     &
-      t_tile                  = t_tile,                                        &
-      albedo_diff_tile        = albedo_diff_tile,                              &
+      frac_tile_1d            = frac_tile,                                     &
+      t_tile_1d               = t_tile,                                        &
+      albedo_diff_tile_1d     = tile_lw_albedo(rtile_1:rtile_last),            &
       cloud_frac_1d           = cloud_frac,                                    &
       liq_frac_1d             = liquid_fraction(wth_1:wth_nlayers),            &
       ice_frac_1d             = ice_fraction(wth_1:wth_nlayers),               &
@@ -346,6 +372,15 @@ subroutine lw_code(nlayers,                          &
       i_st_ice                = i_cloud_ice_type_lw,                           &
       i_cnv_water             = i_cloud_liq_type_lw,                           &
       i_cnv_ice               = i_cloud_ice_type_lw,                           &
+      l_sulphuric             = l_sulphuric,                                   &
+      sulphuric_1d            = sulphuric(wth_1:wth_nlayers),                  &
+      l_aerosol_mode          = l_radaer,                                      &
+      n_aer_mode              = n_aer_mode,                                    &
+      n_aer_layer             = nlayers+1,                                     &
+      aer_mix_ratio_1d        = aer_mix_ratio(mode_1:mode_last),               &
+      aer_absorption_1d       = aer_lw_absorption(rmode_1:rmode_last),         &
+      aer_scattering_1d       = aer_lw_scattering(rmode_1:rmode_last),         &
+      aer_asymmetry_1d        = aer_lw_asymmetry(rmode_1:rmode_last),          &
       l_invert                = .true.,                                        &
       total_cloud_cover       = cloud_cover_rts(map_2d(1):map_2d(1)),          &
       total_cloud_fraction_1d = cloud_fraction_rts(wth_1:wth_nlayers),         &
@@ -386,8 +421,8 @@ subroutine lw_code(nlayers,                          &
     call bones(n_profile, nlayers,                                             &
       n_tile                 = n_surf_tile,                                    &
       l_grey_emis_correction = .true.,                                         &
-      grey_albedo_tile       = albedo_diff_tile(:, :, 1),                      &
-      t_tile                 = t_tile,                                         &
+      grey_albedo_tile_1d    = tile_lw_albedo(rtile_1:rtile_ntile),            &
+      t_tile_1d              = t_tile,                                         &
       heating_rate_1d_rts    = lw_heating_rate_rts(wth_1:wth_nlayers),         &
       flux_down_surf_rts     = lw_down_surf_rts(map_2d(1):map_2d(1)),          &
       heating_rate_1d_mts    = lw_heating_rate(wth_1:wth_nlayers),             &

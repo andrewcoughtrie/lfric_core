@@ -24,7 +24,7 @@ module create_physics_prognostics_mod
                                              LOG_LEVEL_INFO,         &
                                              LOG_LEVEL_ERROR
   use pure_abstract_field_mod,        only : pure_abstract_field_type
-  use radiation_config_mod,           only : n_radstep
+  use radiation_config_mod,           only : n_radstep, l_trans_zen_correction
   use aerosol_config_mod,             only : c_aerosol,                        &
                                              c_aerosol_glomap_mode_climatology
   use section_choice_config_mod,      only : cloud, cloud_um,                  &
@@ -269,6 +269,9 @@ contains
     call add_physics_field( radiation_fields, depository, prognostic_fields,   &
       'sw_direct_surf_rts', twod_space, checkpoint_restart_flag, twod=.true. )
     call add_physics_field( radiation_fields, depository, prognostic_fields,   &
+      'sw_direct_toa_rts', twod_space,                                         &
+      checkpoint_restart_flag .and. l_trans_zen_correction, twod=.true. )
+    call add_physics_field( radiation_fields, depository, prognostic_fields,   &
       'sw_down_blue_surf_rts', twod_space, checkpoint_restart_flag, twod=.true.)
     call add_physics_field( radiation_fields, depository, prognostic_fields,   &
       'sw_direct_blue_surf_rts', twod_space, checkpoint_restart_flag,          &
@@ -294,7 +297,6 @@ contains
       'lw_heating_rate_rts', wtheta_space, checkpoint_restart_flag )
 
     ! Fields on surface tiles
-    checkpoint_restart_flag = .false. ! #1920 needed for this to work
     call add_physics_field( radiation_fields, depository, prognostic_fields,   &
       'lw_up_tile_rts', tile_space, checkpoint_restart_flag, twod=.true. )
     call add_physics_field( radiation_fields, depository, prognostic_fields,   &
@@ -796,12 +798,16 @@ contains
       'ait_ins_oc', wtheta_space, checkpoint_restart_flag )
 
     !========================================================================
-    ! Here we create CDNC (and later RADAER) fields
+    ! Aerosol fields that do not require checkpoint restart
     !========================================================================
-    ! No checkpoint restart for these fields
     checkpoint_restart_flag = .false.
+
+    ! Cloud Droplet Number Concentration (CDNC)
     call add_physics_field( aerosol_fields, depository, prognostic_fields,     &
       'cloud_drop_no_conc', wtheta_space, checkpoint_restart_flag )
+    ! Sulphuric Acid aerosol MMR
+    call add_physics_field( aerosol_fields, depository, prognostic_fields,     &
+      'sulphuric', wtheta_space, checkpoint_restart_flag )
 #endif
 
   end subroutine create_physics_prognostics

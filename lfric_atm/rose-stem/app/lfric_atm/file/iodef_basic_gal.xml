@@ -137,8 +137,12 @@
 	<field id="checkpoint_lw_down_surf_rts" name="lw_down_surf_rts" long_name="surface_downward_longwave_flux" unit="W m-2" domain_ref="checkpoint_W3_2D" />
 	<field id="checkpoint_sw_down_surf_rts" name="sw_down_surf_rts" long_name="surface_downward_shortwave_flux" unit="W m-2" domain_ref="checkpoint_W3_2D" />
 	<field id="checkpoint_sw_direct_surf_rts" name="sw_direct_surf_rts" long_name="surface_direct_shortwave_flux" unit="W m-2" domain_ref="checkpoint_W3_2D" />
+	<field id="checkpoint_sw_direct_toa_rts" name="sw_direct_toa_rts" long_name="toa_direct_shortwave_flux" unit="W m-2" domain_ref="checkpoint_W3_2D" />
 	<field id="checkpoint_sw_down_blue_surf_rts" name="sw_down_blue_surf_rts" long_name="surface_downward_0-690nm_flux" unit="W m-2" domain_ref="checkpoint_W3_2D" />
 	<field id="checkpoint_sw_direct_blue_surf_rts" name="sw_direct_blue_surf_rts" long_name="surface_direct_0-690nm_flux" unit="W m-2" domain_ref="checkpoint_W3_2D" />
+        <field id="checkpoint_lw_up_tile_rts" name="lw_up_tile_rts" long_name="surface_upward_longwave_flux_on_tiles" unit="W m-2" domain_ref="checkpoint_tile" />
+        <field id="checkpoint_sw_up_tile_rts" name="sw_up_tile_rts" long_name="surface_upward_shortwave_flux_on_tiles" unit="W m-2" domain_ref="checkpoint_tile" />
+        <field id="checkpoint_sw_up_blue_tile_rts" name="sw_up_blue_tile_rts" long_name="surface_upward_0-690nm_flux_on_tiles" unit="W m-2" domain_ref="checkpoint_tile" />
 	<field id="checkpoint_sw_heating_rate_rts" name="sw_heating_rate_rts" long_name="shortwave_heating_rate" unit="K s-1" domain_ref="checkpoint_Wtheta" />
 	<field id="checkpoint_lw_heating_rate_rts" name="lw_heating_rate_rts" long_name="longwave_heating_rate" unit="K s-1" domain_ref="checkpoint_Wtheta" />
 	<field id="checkpoint_cos_zenith_angle_rts" name="cos_zenith_angle_rts" long_name="cosine_of_the_solar_zenith_angle" unit="1" domain_ref="checkpoint_W3_2D" />
@@ -376,6 +380,7 @@
 	<field id="lw_down_surf_rts" name="lw_down_surf_rts" long_name="surface_downward_longwave_flux_radiative_timestep" unit="W m-2" domain_ref="face" />
 	<field id="sw_down_surf_rts" name="sw_down_surf_rts" long_name="surface_downward_shortwave_flux_radiative_timestep" unit="W m-2" domain_ref="face" />
 	<field id="sw_direct_surf_rts" name="sw_direct_surf_rts" long_name="surface_direct_shortwave_flux_radiative_timestep" unit="W m-2" domain_ref="face" />
+	<field id="sw_direct_toa_rts" name="sw_direct_toa_rts" long_name="toa_direct_shortwave_flux_radiative_timestep" unit="W m-2" domain_ref="face" />
 	<field id="sw_down_blue_surf_rts" name="sw_down_blue_surf_rts" long_name="surface_downward_0-690nm_flux_radiative_timestep" unit="W m-2" domain_ref="face" />
 	<field id="sw_direct_blue_surf_rts" name="sw_direct_blue_surf_rts" long_name="surface_direct_0-690nm_flux_radiative_timestep" unit="W m-2" domain_ref="face" />
 	<field id="sw_heating_rate_rts" name="sw_heating_rate_rts" long_name="shortwave_heating_rate_radiative_timestep" unit="K s-1" grid_ref="full_level_face_grid" />
@@ -502,8 +507,12 @@
 	<field id="restart_lw_down_surf_rts" name="lw_down_surf_rts" long_name="surface_downward_longwave_flux" unit="W m-2" operation="instant" domain_ref="checkpoint_W3_2D" />
 	<field id="restart_sw_down_surf_rts" name="sw_down_surf_rts" long_name="surface_downward_shortwave_flux" unit="W m-2" operation="instant" domain_ref="checkpoint_W3_2D" />
 	<field id="restart_sw_direct_surf_rts" name="sw_direct_surf_rts" long_name="surface_direct_shortwave_flux" unit="W m-2" operation="instant" domain_ref="checkpoint_W3_2D" />
+	<field id="restart_sw_direct_toa_rts" name="sw_direct_toa_rts" long_name="toa_direct_shortwave_flux" unit="W m-2" operation="instant" domain_ref="checkpoint_W3_2D" />
 	<field id="restart_sw_down_blue_surf_rts" name="sw_down_blue_surf_rts" long_name="surface_downward_0-690nm_flux" unit="W m-2" operation="instant" domain_ref="checkpoint_W3_2D" />
 	<field id="restart_sw_direct_blue_surf_rts" name="sw_direct_blue_surf_rts" long_name="surface_direct_0-690nm_flux" unit="W m-2" operation="instant" domain_ref="checkpoint_W3_2D" />
+        <field id="restart_lw_up_tile_rts" name="lw_up_tile_rts" long_name="surface_upward_longwave_flux_on_tiles" unit="W m-2" operation="instant" domain_ref="checkpoint_tile" />
+        <field id="restart_sw_up_tile_rts" name="sw_up_tile_rts" long_name="surface_upward_shortwave_flux_on_tiles" unit="W m-2" operation="instant" domain_ref="checkpoint_tile" />
+        <field id="restart_sw_up_blue_tile_rts" name="sw_up_blue_tile_rts" long_name="surface_upward_0-690nm_flux_on_tiles" unit="W m-2" operation="instant" domain_ref="checkpoint_tile" />
 	<field id="restart_sw_heating_rate_rts" name="sw_heating_rate_rts" long_name="shortwave_heating_rate" unit="K s-1" operation="instant" domain_ref="checkpoint_Wtheta" />
 	<field id="restart_lw_heating_rate_rts" name="lw_heating_rate_rts" long_name="longwave_heating_rate" unit="K s-1" operation="instant" domain_ref="checkpoint_Wtheta" />
 	<field id="restart_cos_zenith_angle_rts" name="cos_zenith_angle_rts" long_name="cosine_of_the_solar_zenith_angle" unit="1" operation="instant" domain_ref="checkpoint_W3_2D" />

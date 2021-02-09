@@ -272,6 +272,7 @@ contains
   !> @param[in,out] aerosol_fields         Fields for aerosol scheme
   !> @param[in,out] lbc_fields             Fields for lateral boundaries
   !> @param[in]     clock                  Model time
+  !> @param[in]     mesh_id                Identifier given to current mesh
   !> @param[in]     twod_mesh_id           Identifier given to current 2d mesh
   subroutine semi_implicit_alg_step(u, rho, theta, exner, mr, moist_dyn,       &
                                     derived_fields, radiation_fields,          &
@@ -279,7 +280,7 @@ contains
                                     turbulence_fields, convection_fields,      &
                                     cloud_fields, surface_fields, soil_fields, &
                                     snow_fields, aerosol_fields, lbc_fields,   &
-                                    clock, twod_mesh_id)
+                                    clock, mesh_id, twod_mesh_id)
 
     implicit none
 
@@ -303,6 +304,7 @@ contains
 
     class(clock_type), intent(in) :: clock
 
+    integer, intent(in) :: mesh_id
     integer, intent(in) :: twod_mesh_id
 
     ! Quadrature object
@@ -408,7 +410,7 @@ contains
                         turbulence_fields, convection_fields, cloud_fields,    &
                         surface_fields, soil_fields, snow_fields,              &
                         aerosol_fields, dA, height_w3, height_wth, chi_xyz,    &
-                        delta, max_diff_smag, clock, twod_mesh_id )
+                        delta, max_diff_smag, clock, mesh_id, twod_mesh_id )
       call invoke(name="update_from_slow_physics",                             &
                   inc_X_plus_Y(state_after_slow(igh_t), dtheta),               &
                   inc_X_plus_Y(state_after_slow(igh_u), du)                    &

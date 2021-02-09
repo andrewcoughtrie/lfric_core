@@ -154,7 +154,7 @@ module gungho_step_mod
                                       cloud_fields, surface_fields,            &
                                       soil_fields, snow_fields,                &
                                       aerosol_fields, lbc_fields,              &
-                                      clock, twod_mesh_id)
+                                      clock, mesh_id, twod_mesh_id)
         case( method_rk )             ! RK
           call rk_alg_step(u, rho, theta, moist_dyn, exner)
       end select
