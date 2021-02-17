@@ -68,10 +68,10 @@ contains
 
     call f_collection%generate_and_add_fieldspec( "foo", "field_group_id", &
                                        1_i_def, W3, 0_i_def, &
-                                       0_i_def, 0_i_def, WRITE_FIELD_FACE )
+                                       0_i_def, 0_i_def, WRITE_FIELD_FACE, .false. )
     call f_collection%generate_and_add_fieldspec("bar", "field_group_id", &
                                        1_i_def, W3, 0_i_def, &
-                                       0_i_def, 0_i_def, WRITE_FIELD_FACE)
+                                       0_i_def, 0_i_def, WRITE_FIELD_FACE, .false. )
 
     returned_fieldspec => f_collection%get_fieldspec("absent")
     @assertNotAssociated(returned_fieldspec)
@@ -102,10 +102,10 @@ contains
     ! Add two fieldspecs to the collection
     call f_collection%generate_and_add_fieldspec("fieldspec1", "field_group_name", &
                                        1_i_def, W3, 0_i_def, &
-                                       0_i_def, 0_i_def, WRITE_FIELD_FACE)
+                                       0_i_def, 0_i_def, WRITE_FIELD_FACE, .false.)
     call f_collection%generate_and_add_fieldspec("fieldspec2", "field_group_name", &
                                        1_i_def, W3, 0_i_def, &
-                                       0_i_def, 0_i_def, WRITE_FIELD_FACE)
+                                       0_i_def, 0_i_def, WRITE_FIELD_FACE, .false.)
 
     iterator = f_collection%get_iterator()
 

@@ -60,13 +60,14 @@ contains
         type(fieldspec_type) :: test_fieldspec1
 
         test_fieldspec1 = fieldspec_type( "foo", & ! unique_id
-                                          "field_group_id", &
+                                          "field_group_id", & ! field_group_id
                                           11, & ! mesh_id
                                           W3, & ! function_space
                                           2, & ! order
                                           1, & ! field_kind
                                           integer_type, & ! field_type
-                                          WRITE_FIELD_FACE &  ! io_driver
+                                          WRITE_FIELD_FACE, & ! io_driver
+                                          .true. & ! checksum
                                         )
 
         @assertEqual("foo",test_fieldspec1%get_unique_id())
@@ -76,6 +77,8 @@ contains
         @assertEqual(W3,test_fieldspec1%get_order())
         @assertEqual(1,test_fieldspec1%get_kind())
         @assertEqual(1,test_fieldspec1%get_type())
+        @assertEqual(WRITE_FIELD_FACE,test_fieldspec1%get_io_driver())
+        @assertEqual(.true.,test_fieldspec1%get_checksum())
 
     end subroutine test_assignment
 

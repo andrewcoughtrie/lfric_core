@@ -25,7 +25,7 @@
 
 module fieldspec_xml_parser_mod
 
-  use constants_mod,             only: i_def, str_def
+  use constants_mod,             only: i_def, str_def, l_def
   use field_type_enum_mod,       only: field_type_from_name
   use fieldspec_collection_mod,  only: fieldspec_collection_type
   use fieldspec_factory_mod,     only: fieldspec_factory_type
@@ -225,6 +225,7 @@ contains
     character(len = *), intent(in) :: text
     integer(i_def)                 :: int_from_char
     character(str_def)             :: trimmed_char
+    logical(l_def)                 :: checksum
 
     if (in_field .and. in_field_variable) then
 
@@ -254,6 +255,10 @@ contains
         case ("io_driver")
           call rts(text, trimmed_char)
           call fieldspec_factory%set_io_driver( io_driver_from_name(trimmed_char))
+
+        case ("checksum")
+          call rts(text, checksum)
+          call fieldspec_factory%set_checksum(checksum)
       end select
 
     end if

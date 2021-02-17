@@ -11,7 +11,7 @@
 
 module fieldspec_mod
 
-  use constants_mod,        only: i_def, str_def
+  use constants_mod,        only: i_def, str_def, l_def
   use linked_list_data_mod, only: linked_list_data_type
 
   implicit none
@@ -32,6 +32,7 @@ module fieldspec_mod
     integer(i_def)     :: field_kind
     integer(i_def)     :: field_type
     integer(i_def)     :: io_driver
+    logical(l_def)     :: checksum
 
   contains
 
@@ -59,6 +60,9 @@ module fieldspec_mod
     !> Getter to return the io_driver
      procedure, public :: get_io_driver
 
+    !> Getter to return checksum
+     procedure, public :: get_checksum
+
   end type fieldspec_type
 
   interface fieldspec_type
@@ -77,12 +81,15 @@ contains
   !> @param [in] order The order of the field
   !> @param [in] field_kind The kind of the field
   !> @param [in] field_type The type of the field
+  !> @param [in] io_driver The name of the io_driver used to write this field
+  !> @param [in] checksum Logical showing if a checksum should be written for &
+  !>                      this field
   !> @return self the fieldspec object
   !>
   function fieldspec_constructor( unique_id, field_group_id, &
                                   mesh_id, function_space, &
                                   order, field_kind, &
-                                  field_type, io_driver ) &
+                                  field_type, io_driver, checksum ) &
                                  result(self)
 
     use log_mod,         only : log_event, &
@@ -97,6 +104,7 @@ contains
     integer(i_def),             intent(in)    :: field_kind
     integer(i_def),             intent(in)    :: field_type
     integer(i_def),             intent(in)    :: io_driver
+    logical(l_def),             intent(in)    :: checksum
 
     type(fieldspec_type), target :: self
 
@@ -108,6 +116,7 @@ contains
     self%field_kind     = field_kind
     self%field_type     = field_type
     self%io_driver      = io_driver
+    self%checksum       = checksum
 
   end function fieldspec_constructor
 
@@ -224,6 +233,20 @@ contains
     io_driver = self%io_driver
 
   end function get_io_driver
+
+  !> Getter for checksum
+  !> @param[in]  self  fieldspec_type
+  !> @return checksum
+  function get_checksum(self) result(checksum)
+
+    implicit none
+
+    class(fieldspec_type), intent(in) :: self
+    logical(l_def) :: checksum
+
+    checksum = self%checksum
+
+  end function get_checksum
 
 
 end module fieldspec_mod

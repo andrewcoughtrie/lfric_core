@@ -54,7 +54,7 @@
 </field_group>
 <field_group enabled=".TRUE." freq_op="1ts" id="another_science_section__another_field_group" operation="instant">
 <field grid_ref="half_level_face_grid" id="another_science_section__low_type_cloud_area_fraction" standard_name="low_type_cloud_area_fraction" unit="1">
-<variable name="checksum" type="bool">False</variable>
+<variable name="checksum" type="bool">false</variable>
 <variable name="element_order" type="int">0</variable>
 <variable name="field_type" type="string">REAL_TYPE</variable>
 <variable name="function_space" type="string">W3</variable>
@@ -64,7 +64,7 @@
 </field_group>
 <field_group enabled=".TRUE." freq_op="1ts" id="example_science_section__example_fields" operation="instant">
 <field grid_ref="half_level_face_grid" id="example_science_section__air_potential_temperature" standard_name="air_potential_temperature" unit="K">
-<variable name="checksum" type="bool">True</variable>
+<variable name="checksum" type="bool">true</variable>
 <variable name="element_order" type="int">0</variable>
 <variable name="field_type" type="string">REAL_TYPE</variable>
 <variable name="function_space" type="string">Wtheta</variable>
@@ -74,7 +74,7 @@
 </field_group>
 <field_group enabled=".TRUE." freq_op="1ts" id="example_science_section__more_example_fields" operation="instant">
 <field grid_ref="half_level_face_grid" id="example_science_section__air_temperature_over_tiles" standard_name="air_temperature" unit="K">
-<variable name="checksum" type="bool">False</variable>
+<variable name="checksum" type="bool">false</variable>
 <variable name="element_order" type="int">0</variable>
 <variable name="field_type" type="string">REAL_TYPE</variable>
 <variable name="function_space" type="string">Wtheta</variable>
@@ -82,7 +82,7 @@
 <variable name="mesh_id" type="int">1</variable>
 </field>
 <field grid_ref="half_level_face_grid" id="example_science_section__surface_altitude" standard_name="surface_altitude" unit="m">
-<variable name="checksum" type="bool">False</variable>
+<variable name="checksum" type="bool">false</variable>
 <variable name="element_order" type="int">0</variable>
 <variable name="field_type" type="string">REAL_TYPE</variable>
 <variable name="function_space" type="string">Wtheta</variable>

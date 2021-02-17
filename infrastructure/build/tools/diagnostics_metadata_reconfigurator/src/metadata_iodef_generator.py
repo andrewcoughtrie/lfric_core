@@ -174,6 +174,9 @@ class MetadataIodefGenerator:
         for variable_name, entity_attr in sorted(FIELD_NODE_VARIABLES.items()):
             attribute_value = getattr(field, entity_attr, None)
             if attribute_value is not None:
+                # FoX requires booleans to be lowercase when parsing them
+                if type(attribute_value) == bool:
+                    attribute_value = str(attribute_value).lower()
                 ElementTree.SubElement(
                         field_node,
                         'variable',

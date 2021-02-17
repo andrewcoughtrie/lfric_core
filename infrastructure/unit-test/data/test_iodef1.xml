@@ -54,6 +54,7 @@
                         WRITE_FIELD_FACE<!--Relates to a param linked to the driver io method--></variable>
                     <variable name="field_kind" type="int">0</variable>
                     <variable name="field_type" type="string">REAL</variable>
+                    <variable name="checksum" type="bool">true</variable>
                 </field>
                 <!-- Dry Rho after timestep (STASH sec 0, item 389) -->
                 <field id="rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3"
@@ -66,6 +67,7 @@
                     </variable>
                     <variable name="field_kind" type="int">1</variable>
                     <variable name="field_type" type="string">INTEGER</variable>
+                    <variable name="checksum" type="bool">true</variable>
                 </field>
                 <!-- U component of wind after timestep (STASH sec 0, item 2) -->
                 <field id="u1" name="u1" long_name="eastward_wind" standard_name="eastward_wind" unit="m s-1"
@@ -78,6 +80,7 @@
                     </variable>
                     <variable name="field_kind" type="int">2</variable>
                     <variable name="field_type" type="string">INTEGER</variable>
+                    <variable name="checksum" type="bool">true</variable>
                 </field>
             </field_group>
             <field_group enabled=".TRUE." freq_op="1ts" id="test_fields" operation="instant">
@@ -88,6 +91,7 @@
                     <variable name="element_order" type="int">2</variable>
                     <variable name="field_kind" type="int">3</variable>
                     <variable name="field_type" type="string">REAL</variable>
+                    <variable name="checksum" type="bool">false</variable>
                 </field>
 
                 <field id="net_sw_rad" long_name="shortwave_radiation" name="sw_rad" unit="Wm-2" grid_ref="full_level_face_grid">
@@ -96,6 +100,7 @@
                     <variable name="element_order" type="int">4</variable>
                     <variable name="field_kind" type="int">4</variable>
                     <variable name="field_type" type="string">REAL</variable>
+                    <variable name="checksum" type="bool">false</variable>
                 </field>
                 <field grid_ref="full_level_face_grid" id="alpha" long_name="air_potential_temperature" name="alpha"
                        standard_name="air_potential_temperature" unit="K">
@@ -104,6 +109,7 @@
                     <variable name="element_order" type="int">1</variable>
                     <variable name="field_kind" type="int">5</variable>
                     <variable name="field_type" type="string">REAL</variable>
+                    <variable name="checksum" type="bool">false</variable>
                 </field>
             </field_group>
         </field_definition>

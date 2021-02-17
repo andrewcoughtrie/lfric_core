@@ -11,7 +11,7 @@
 
 module fieldspec_factory_mod
 
-  use constants_mod,        only: i_def, str_def
+  use constants_mod,        only: i_def, str_def, l_def
   use fieldspec_mod,        only: fieldspec_type
   use io_driver_enum_mod,   only: WRITE_FIELD_FACE
 
@@ -35,6 +35,7 @@ module fieldspec_factory_mod
     integer(i_def)     :: field_kind
     integer(i_def)     :: field_type
     integer(i_def)     :: io_driver
+    logical(l_def)     :: checksum
   contains
 
     !> clear field properties
@@ -66,6 +67,9 @@ module fieldspec_factory_mod
 
     !> setter to return the io_driver
     procedure, public :: set_io_driver
+
+    !> setter to return checksum
+    procedure, public :: set_checksum
 
   end type fieldspec_factory_type
 
@@ -107,6 +111,7 @@ contains
     self%field_kind     = 0_i_def
     self%field_type     = 0_i_def
     self%io_driver      = WRITE_FIELD_FACE  ! default to write_field_face
+    self%checksum       = .false.
 
     return
   end subroutine initialise
@@ -128,7 +133,8 @@ contains
                                     self%order, &
                                     self%field_kind, &
                                     self%field_type, &
-                                    self%io_driver )
+                                    self%io_driver, &
+                                    self%checksum )
   end function finalise
 
 
@@ -243,6 +249,20 @@ contains
 
     return
   end subroutine set_io_driver
+
+  !> Setter for checksum
+  !> @param[in] checksum
+  subroutine set_checksum( self, checksum )
+
+    implicit none
+
+    class(fieldspec_factory_type),    intent(inout)    :: self
+    logical(l_def),                   intent(in)       :: checksum
+
+    self%checksum = checksum
+
+    return
+  end subroutine set_checksum
 
 
 end module fieldspec_factory_mod

@@ -136,6 +136,9 @@ contains
     integer, dimension(no_of_fields) :: test_io_drivers = [WRITE_FIELD_FACE, WRITE_FIELD_FACE, &
                                                            WRITE_FIELD_FACE, WRITE_FIELD_FACE, &
                                                            WRITE_FIELD_FACE, WRITE_FIELD_FACE]
+    logical, dimension(no_of_fields) :: test_checksums = [.true., .true., &
+                                                          .true., .false., &
+                                                          .false., .false.]
 
     f_collection => fieldspec_collection_type()
 
@@ -152,6 +155,7 @@ contains
       @assertEqual(test_field_kinds(field_index), current_fieldspec%get_kind())
       @assertEqual(test_field_types(field_index), current_fieldspec%get_type())
       @assertEqual(test_io_drivers(field_index), current_fieldspec%get_io_driver())
+      @assertEqual(test_checksums(field_index), current_fieldspec%get_checksum())
     end do
 
     call f_collection%clear()
