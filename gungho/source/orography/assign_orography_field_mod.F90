@@ -322,6 +322,9 @@ contains
         end do
       end do
 
+      ! Ensure halo is clean
+      call sfc_alt_proxy%halo_exchange(depth=sfc_alt_proxy%max_halo_depth())
+
       ! Call column procedure
       do cell = 1,chi_proxy(1)%vspace%get_ncell()
 

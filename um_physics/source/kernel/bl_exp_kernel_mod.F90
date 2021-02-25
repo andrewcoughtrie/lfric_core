@@ -495,6 +495,7 @@ contains
     use atm_fields_bounds_mod, only: tdims, pdims_s, pdims_l
     use atm_step_local, only: dim_cs1, dim_cs2, land_pts_trif, npft_trif,    &
          co2_dim_len, co2_dim_row
+    use c_elevate, only: surf_hgt_surft 
     use c_kappai, only: kappai, de
     use cv_run_mod, only: i_convection_vn, i_convection_vn_6a,               &
                           cldbase_opt_dp, cldbase_opt_md
@@ -879,6 +880,10 @@ contains
     else
       l_spec_z0 = .false.
     end if
+    
+    ! surf_hgt_surft needs to be initialised in this kernel so it has the
+    ! correct value for this grid-point when used within Jules
+    surf_hgt_surft = 0.0_r_um 
 
     zeros=0.0_r_um
 
