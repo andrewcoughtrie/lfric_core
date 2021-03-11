@@ -870,7 +870,7 @@
             RESTART_STOP  = $(echo $[$RESTART_NO*$RESTART_NTS + $RESTART_NTS])
             RESTART_READ  = $(if [[ $RESTART ]]; then echo ".true."; else echo ".false."; fi)
             RESTART_WRITE = $(if [ $CRUN_LENGTH -gt $CYLC_TASK_CYCLE_POINT ]; then echo ".true."; else echo ".false."; fi)
-            RESOLUTION    = {{res_value}}
+            RESOLUTION    = {{res_value|replace("_MG","")}}
 
         [[[directives]]]
 {%-                   for DIRECTIVE in run_batcher %}

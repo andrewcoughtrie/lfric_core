@@ -344,8 +344,13 @@ contains
     ! If winds are being spunup overwrite the local copy of the winds
     ! with the driver level representation
     !--------------------------------------------------------------------
-    if (spinup_winds .and. clock%is_spinning_up()) &
-      call invoke( setval_X(state(igh_u), u ) )
+    if (clock%is_spinning_up()) then
+       if (spinup_winds) then
+         call invoke( setval_X(state(igh_u), u ) )
+       else
+         call invoke( set_any_dof_kernel_type(state(igh_u), T, 0.0_r_def) )
+       end if
+    end if
 
     !--------------------------------------------------------------------
     ! If off-centring is being spun up then modify the alpha value

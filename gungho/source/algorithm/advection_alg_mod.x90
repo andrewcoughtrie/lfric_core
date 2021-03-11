@@ -70,7 +70,8 @@ module advection_alg_mod
                                             theta_splitting_vh,             &
                                             theta_splitting_hv,             &
                                             theta_splitting_strang,         &
-                                            cfl_control_stab
+                                            cfl_control_stab,               &
+                                            use_density_predictor
   use formulation_config_mod,         only: moisture_conservation,          &
                                             si_momentum_equation,           &
                                             transport_only,                 &
@@ -416,7 +417,8 @@ contains
      call advect_field(advection(igh_d), state(igh_d), advecting_wind, &
                       scheme, wind_n, wind_np1, advect_density=.true., &
                       timestep=dt, si_advective_terms=.false.,         &
-                      shifted=.false., density_predictor=.true.,       &
+                      shifted=.false.,                                 &
+                      density_predictor=use_density_predictor,         &
                       logspace=.false.)
     else
       ! Reconstruct the advection increment from the mass flux
@@ -430,11 +432,11 @@ contains
      div       => get_div()
      do sub_step_count = 1, n_substeps
        call field%copy_field(field_old)
-       call advect_field(mass_flux_i, field, advecting_wind,  &
-          scheme, wind_n, wind_np1, advect_density=.true.,    &
-          timestep=dt_substep, si_advective_terms=.false.,    &
-          shifted=.false., density_predictor=.true.,          &
-          logspace=log_rho                                    &
+       call advect_field(mass_flux_i, field, advecting_wind,        &
+          scheme, wind_n, wind_np1, advect_density=.true.,          &
+          timestep=dt_substep, si_advective_terms=.false.,          &
+          shifted=.false., density_predictor=use_density_predictor, &
+          logspace=log_rho                                          &
           )
        call invoke( setval_c(r_rho, 0.0_r_def),                         &
                     matrix_vector_kernel_type(r_rho, mass_flux_i, div), &
@@ -454,7 +456,8 @@ contains
     call advect_field(advection(igh_d), state(igh_d), advecting_wind,  &
                       scheme, wind_n, wind_np1, advect_density=.true., &
                       timestep=dt, si_advective_terms=.false.,         &
-                      shifted=.false., density_predictor=.true.,       &
+                      shifted=.false.,                                 &
+                      density_predictor=use_density_predictor,         &
                       logspace=.false. )
   end if
 
@@ -1068,7 +1071,7 @@ end subroutine advection_alg
        ! Advect predictor for the density: rho*divergence_factor with
        ! divergence_factor = [1-beta*dt*div(u)]
       ! This helps improve long timestep stability
-          minus_beta_dt = -beta*timestep
+          minus_beta_dt = -beta*dt  ! Note this is dt, not the substep timestep
           call divergence_factor%initialise( field%get_function_space() )
           call invoke( name = "compute_density_predictor",                     &
                        dg_matrix_vector_kernel_type(divergence_factor, wind_n, &

@@ -75,7 +75,7 @@ subroutine set_any_dof_code(nlayers,                &
   ! Internal variables
   integer(kind=i_def) :: k
 
-  do k = 0, nlayers
+  do k = 0, nlayers-1
 
      field(map(dof_to_update) + k ) = value
 

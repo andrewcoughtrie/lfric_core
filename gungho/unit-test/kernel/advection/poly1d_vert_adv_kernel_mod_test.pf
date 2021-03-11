@@ -66,8 +66,9 @@ contains
                                  theta_vertical_scheme = theta_vertical_scheme_sl, &
                                  slice_order = slice_order_cubic,                  &
                                  vertical_sl_order = vertical_sl_order_cubic,      &
-                                 upwind_direction_from_w_at_wtheta = .true., &
-                                 log_rho=.true., &
+                                 upwind_direction_from_w_at_wtheta = .true.,       &
+                                 use_density_predictor = .false.,                  &
+                                 log_rho=.true.,   &
                                  log_theta=.false. &
                                  )
 

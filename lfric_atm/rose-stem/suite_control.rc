@@ -30,7 +30,8 @@
 {%- set rdef_default    = "64" %}
 {%- set mesh_rdef       = "64" %}
 {%- set mesh_build      = "fast-debug" %}
-{%- set MAXRUNAHEAD     = 2 %}
+{# basic-gal demo runs may require up to 36 for RUNAHEAD                  #}
+{%- set MAXRUNAHEAD     = 36 %}
 
 {#========================================================================#}
 {# MPI partitions & Panel decomposition                                   #}
@@ -168,15 +169,6 @@
                                                    "panel_decomp":' + row + ',
                                                    "use_xios":"False" } } },
                      plotstr="robert_plot.py ' + appDiagStemName + ' $NODAL_DATA_DIR 50 4 theta:m_v:u1_in_w3:u2_in_w3:u3_in_w3 T000000:T000100:T000200 $PLOT_DIR")',
-    'run_with_restart_check("lfric_atm", "aquaplanet_short", 2,
-                            resolutions=[("C12",1800.0)],
-                            env={"crun":1, "nrun":2,
-                            "directives":{"C12":{"mpi_parts":6,
-                                                 "threads":1,
-                                                 "wallclock":"00:10:00"},
-                                         },
-                            }
-                           )',
     'run_application("lfric_atm", "aquaplanet",
                      resolutions=[("C12",1800.0)],
                      env={"crun":2, "nrun":12,
@@ -197,9 +189,9 @@
                          },
                      plotstr="plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR"
                      )',
-   'run_application("lfric_atm", "aquaplanet_coriolis",
+    'run_application("lfric_atm", "basic_gal7",
                      resolutions=[("C12",1800.0)],
-                     env={"crun":2, "nrun":12,
+                     env={"crun":2, "nrun":72,
                           "directives":{"C12":{"mpi_parts":6,
                                                "threads":1,
                                                "wallclock":"00:12:00"},
@@ -212,20 +204,10 @@
                             env={"crun":1, "nrun":2,
                             "directives":{"C12":{"mpi_parts":6,
                                                  "threads":1,
-                                                 "wallclock":"00:10:00"},
+                                                 "wallclock":"00:12:00"},
                                          },
                             }
                            )',
-    'run_application("lfric_atm", "basic_gal7",
-                     resolutions=[("C12",1800.0)],
-                     env={"crun":2, "nrun":72,
-                          "directives":{"C12":{"mpi_parts":6,
-                                               "threads":1,
-                                               "wallclock":"00:12:00"},
-                                       },
-                         },
-                     plotstr="plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR"
-                     )',
     'check_compilers("lfric_atm", "scm_bl_pc2_mphys_rad", "fast-debug",
                      resolution=("BiP4x4-10000x10000",600.0))',
     'canned_test("lfric_atm")'
@@ -235,22 +217,12 @@
                      resolutions=[("BiP4x4-10000x10000",600.0)],
 		     env={"crun":1, "nrun":48},
                      plotstr="plot_scm.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR")',
-    'run_application("lfric_atm", "aquaplanet",
-                     resolutions=[("C12",1800.0)],
-                     env={"crun":2, "nrun":12,
-                          "directives":{"C12":{"mpi_parts":6,
-                                               "threads":1,
-                                               "wallclock":"00:12:00"},
-                                       },
-                         },
-                     plotstr="plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR"
-                     )',
     'run_application("lfric_atm", "basic_gal7",
-                     resolutions=[("C12",1800.0)],
-                     env={"crun":2, "nrun":72,
-                          "directives":{"C12":{"mpi_parts":6,
+                     resolutions=[("C48",1800.0)],
+                     env={"crun":1, "nrun":36,
+                          "directives":{"C48":{"mpi_parts":24,
                                                "threads":1,
-                                               "wallclock":"00:12:00"},
+                                               "wallclock":"00:20:00"},
                                        },
                          },
                      plotstr="plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR"
@@ -302,8 +274,7 @@
     'run_application("lfric_atm", "aquaplanet_profile",
                      configuration_suffix="6nodes",
                      checkkgo=False,
-                     resolutions=[("C192",150.0)],
-                     support_meshes=["C96","C48","C24"],
+                     resolutions=[("C192_MG",150.0)],
      env={"crun":1, "nrun":96,
                           "directives":{"default":{"mpi_parts":216,
                                                    "threads":1,
@@ -315,8 +286,7 @@
     'run_application("lfric_atm", "aquaplanet_profile",
                      configuration_suffix="12nodes",
                      checkkgo=False,
-                     resolutions=[("C192",150.0)],
-                     support_meshes=["C96","C48","C24"],
+                     resolutions=[("C192_MG",150.0)],
      env={"crun":1, "nrun":96,
                           "directives":{"default":{"mpi_parts":432,
                                                    "panel_decomp":' + custom + ',
@@ -330,8 +300,7 @@
     'run_application("lfric_atm", "aquaplanet_profile",
                      configuration_suffix="24nodes",
                      checkkgo=False,
-                     resolutions=[("C192",150.0)],
-                     support_meshes=["C96","C48","C24"],
+                     resolutions=[("C192_MG",150.0)],
      env={"crun":1, "nrun":96,
                           "directives":{"default":{"mpi_parts":864,
                                                    "threads":1,
@@ -353,4 +322,33 @@
 			    plotstr="plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR"
                            )',
     'publish_commit'
-  ] } %}
+  ],
+  'basic-gal-demo': [
+    'run_application("lfric_atm", "basic_gal7",
+                     resolutions=[("C48",  1800.)],
+                     env={"crun":24, "nrun":720,
+                          "directives":{
+                                        "C48":{"mpi_parts":216,
+                                               "threads":1,
+                                               "use_xios":"True",
+                                               "xios_nodes":1,
+                                               "mpi_parts_xios":36,
+                                               "wallclock":"1:50:00"},
+					       },
+                         },
+                     plotstr="plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR"
+                     )',
+    'run_application("lfric_atm", "basic_gal7_c192",
+                     resolutions=[("C192", 720.0)],
+                     env={"crun":10, "nrun":60,
+                          "directives":{
+                                        "C192":{"mpi_parts":864,
+                                               "threads":1,
+                                               "use_xios":"True",
+                                               "wallclock":"1:50:00"},
+					       },
+                         },
+                     plotstr="plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR"
+                     )',
+  ],
+} %}
