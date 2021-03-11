@@ -58,7 +58,7 @@ contains
 
         type(colours__diagnostics__meta_type) :: self
 
-        self%hex = field_meta_data_type(&
+        self%hex = field_meta_data_type( &
             unique_id = "colours__hex", &
             long_name = "", &
             units = "1", &
@@ -71,7 +71,7 @@ contains
             time_step = STANDARD_TIMESTEP, &
             recommended_interpolation = BILINEAR, &
             packing = 0, &
-            vertical_dimension = model_height_dimension(&
+            vertical_dimension = model_height_dimension( &
                     bottom = BOTTOM_ATMOSPHERIC_LEVEL, &
                     top = TOP_ATMOSPHERIC_LEVEL), &
             standard_name = "hex")

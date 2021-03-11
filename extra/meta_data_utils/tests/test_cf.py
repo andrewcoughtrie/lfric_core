@@ -36,8 +36,10 @@ def test_json_loaded():
     freezing sea water, rather than by other processes such as calving of
     land ice to form icebergs."""
     # only really care about basic string matching so remove weirdness
-    assert re.sub("[\x00-\x20]+", " ", expected_description) \
-           == re.sub("[\x00-\x20]+", " ", sea_ice.description)
+    assert re.sub("[\x00-\x20]+",
+                  " ",
+                  expected_description) == re.sub(
+        "[\x00-\x20]+", " ", sea_ice.description)
     assert "sic" == sea_ice.amip_id
     assert "91" == sea_ice.grib_id
 

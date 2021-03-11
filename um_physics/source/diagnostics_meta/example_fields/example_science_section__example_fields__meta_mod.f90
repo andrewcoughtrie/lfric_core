@@ -185,8 +185,11 @@ contains
       time_step = STANDARD_TIMESTEP, &
       recommended_interpolation = BILINEAR, &
       packing = 0, &
-      vertical_dimension = fixed_height_dimension(&
+      vertical_dimension = fixed_height_dimension( &
                                       level_definition = REAL([0.0], r_def)), &
+      non_spatial_dimension = [non_spatial_dimension_type( &
+              dimension_name = "test_axis_non_spatial_dimension", &
+              axis_definition = [real(r_def) :: 1,2,3,4,5,6,7,8,9])], &
       standard_name = "surface_altitude",&
       synonyms = [ &
             field_synonym_type(AMIP, "orog"),&
@@ -211,8 +214,20 @@ contains
       time_step = STANDARD_TIMESTEP, &
       recommended_interpolation = BILINEAR, &
       packing = 0, &
-      vertical_dimension = fixed_height_dimension(level_definition = REAL([1.5], r_def)), &
-      standard_name = "air_temperature",&
+      vertical_dimension = fixed_height_dimension( &
+              level_definition = real([1.5], r_def)), &
+      non_spatial_dimension = [non_spatial_dimension_type( &
+              dimension_name = "Tiles", &
+              label_definition = [character(str_short) :: 'Broadleaf Tree', &
+                                                          'Needle Leaf Tree', &
+                                                          'C3 Grass', &
+                                                          'C4 Grass', &
+                                                          'Shrub', &
+                                                          'Urban', &
+                                                          'Water', &
+                                                          'Soil', &
+                                                          'Ice'])], &
+      standard_name = "air_temperature", &
       synonyms = [ &
             field_synonym_type(STASH, "3328")&
             ])
@@ -230,7 +245,8 @@ contains
       time_step = STANDARD_TIMESTEP, &
       recommended_interpolation = BILINEAR, &
       packing = 0, &
-      vertical_dimension = fixed_height_dimension(level_definition = REAL([111.0, 1949.0], r_def)), &
+      vertical_dimension = fixed_height_dimension( &
+              level_definition = REAL([111.0, 1949.0], r_def)), &
       standard_name = "low_type_cloud_area_fraction",&
       synonyms = [ &
             field_synonym_type(STASH, "9203")&

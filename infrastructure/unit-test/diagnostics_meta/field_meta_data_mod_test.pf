@@ -1,10 +1,10 @@
 !-----------------------------------------------------------------------------
-! (c) Crown copyright 2018 Met Office. All rights reserved.
+! (c) Crown copyright 2020 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
-!> check the example meta_mod file are valid fortran and call meta_mod properly
+!> Check the example meta_mod file are valid fortran and call meta_mod properly
 !>
 !-------------------------------------------------------------------------------
 module field_meta_data_mod_test
@@ -106,8 +106,8 @@ contains
       vertical_dimension = model_height_dimension(TOP_ATMOSPHERIC_LEVEL, &
                                                   BOTTOM_ATMOSPHERIC_LEVEL), &
       non_spatial_dimension = [non_spatial_dimension_type(&
-              name="test_axis_non_spatial_dimension", &
-              axis_definition=[real(r_def) ::1,2,3,4,5,6,7,8,9])], &
+              dimension_name="test_axis_non_spatial_dimension", &
+              axis_definition=[real(r_def) :: 1,2,3,4,5,6,7,8,9])], &
 
       standard_name = "eastward_wind", &
       misc_meta_data = [misc_meta_data_type("test_name_1","test_value_1"), &
@@ -126,8 +126,10 @@ contains
       time_step = TEST_TIMESTEP_1, &
       recommended_interpolation = TEST_TRILINEAR, &
       packing = 0, &
-      vertical_dimension = fixed_height_dimension(level_definition = REAL([1.5], r_def)), &
-      non_spatial_dimension = [non_spatial_dimension_type(name="Tiles", &
+      vertical_dimension = fixed_height_dimension( &
+              level_definition = real([1.5], r_def)), &
+      non_spatial_dimension = [non_spatial_dimension_type(&
+              dimension_name="Tiles", &
               label_definition=[character(str_short) ::'Broadleaf Tree', &
                                                        'Needle Leaf Tree', &
                                                        'C3 Grass', &

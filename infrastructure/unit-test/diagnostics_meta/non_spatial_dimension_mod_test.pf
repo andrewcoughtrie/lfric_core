@@ -1,17 +1,17 @@
 !-----------------------------------------------------------------------------
-! (c) Crown copyright 2018 Met Office. All rights reserved.
+! (c) Crown copyright 2020 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
-!> check the example meta_mod file are valid fortran and call meta_mod properly
+!> Check the example meta_mod file are valid fortran and call meta_mod properly
 !>
 !-------------------------------------------------------------------------------
 module non_spatial_dimension_mod_test
 
   ! Global use statements go here
 
-  use constants_mod, only : str_def, str_short, i_def, r_single, real_type
+  use constants_mod, only : str_def, str_short, r_def
 
   use pFUnit_Mod
 
@@ -85,21 +85,20 @@ contains
     character(str_def), dimension(:), allocatable :: label
 
     !> Instantiate example objects
-    non_spatial_dimension = non_spatial_dimension_type(name="Test")
+    non_spatial_dimension = non_spatial_dimension_type(dimension_name="Test")
 
-    non_spatial_dimension_axis = non_spatial_dimension_type(name="Test_Axis", &
-            axis_definition=[1.0, 2.0, 3.0])
+    non_spatial_dimension_axis = non_spatial_dimension_type(dimension_name="Test_Axis", &
+            axis_definition=(real([1.0, 2.0 ,3.0], r_def)))
 
-    non_spatial_dimension_label = non_spatial_dimension_type(name="Test_Label",&
+    non_spatial_dimension_label = non_spatial_dimension_type(dimension_name="Test_Label",&
             label_definition=[character(str_short) ::'Alpha', 'Bravo', 'Charlie'])
 
     !> Testing objects
-    @assertEqual("Test", non_spatial_dimension%get_name())
+    @assertEqual("Test", non_spatial_dimension%get_dimension_name())
+    @assertEqual(REAL([1.0, 2.0 ,3.0], r_def), non_spatial_dimension_axis%get_axis_definition())
+    @assertEqual("Test_Axis", non_spatial_dimension_axis%get_dimension_name())
 
-    @assertEqual([1.0, 2.0 ,3.0], non_spatial_dimension_axis%get_axis_definition())
-    @assertEqual("Test_Axis", non_spatial_dimension_axis%get_name())
-
-    @assertEqual("Test_Label", non_spatial_dimension_label%get_name())
+    @assertEqual("Test_Label", non_spatial_dimension_label%get_dimension_name())
     label = non_spatial_dimension_label%get_label_definition()
     @assertEqual("Alpha", label(1))
     @assertEqual("Bravo", label(2))

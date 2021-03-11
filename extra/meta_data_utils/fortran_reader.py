@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 ##############################################################################
 # (c) Crown copyright 2020 Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
@@ -19,8 +20,8 @@ from fparser.two.Fortran2003 import Array_Constructor, Assignment_Stmt, \
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import FparserException, walk
 
-from dimension_parser import parse_vertical_dimension_info, \
-    translate_vertical_dimension
+from dimension_parser import translate_vertical_dimension, \
+    parse_non_spatial_dimension
 from entities import Field, Group, Section
 from field_validator import validate_field
 
@@ -45,7 +46,6 @@ class FortranMetaDataReader:
                                 "levels_enum_mod.f90")
         self.meta_mod_files = None
         self.find_fortran_files()
-        self.get_vertical_dimension_definition()
 
     def find_fortran_files(self):
         """Recursively looks for fortran files ending with "__meta_mod.f90"
@@ -64,13 +64,6 @@ class FortranMetaDataReader:
             self.LOGGER.debug("Found meta date file at: " + file)
 
         self.LOGGER.info("Found %i meta data files", len(self.meta_mod_files))
-
-    def get_vertical_dimension_definition(self):
-        """Looks for functions that create vertical dimension objects and reads
-        the hard coded values"""
-        self.vertical_dimension_definition = \
-            parse_vertical_dimension_info(
-                    self.__root_dir + self.meta_types_path, self.levels)
 
     def read_fortran_files(self) -> Tuple[Dict, bool]:
         """Takes a list of file names (meta_mod.f90 files)
@@ -163,10 +156,17 @@ class FortranMetaDataReader:
 
         # For every instance argument in object creation
         for parameter in walk(definition, Structure_Constructor_2):
+
             key = parameter.children[0].string
 
-            # This ignore's args used in vertical dimension creation
-            key_blacklist = ["top", "bottom"]
+            # This ignores arguments that are used to create attributes, such
+            # as the arguments in vertical dimension and non_spatial_dimension
+            # creation
+            key_blacklist = ["top",
+                             "bottom",
+                             "label_definition",
+                             "axis_definition",
+                             "dimension_name"]
             if key in key_blacklist:
                 continue
 
@@ -190,26 +190,34 @@ class FortranMetaDataReader:
                 elif isinstance(parameter.children[1],
                                 (Part_Ref, Structure_Constructor)):
                     field.add_value(key, translate_vertical_dimension(
-                            self.vertical_dimension_definition,
                             parameter.children[1].string))
 
                 # For statements with arrays in them (misc_meta_data /
-                # synonyms)
+                # synonyms, non_spatial_dimensions)
                 elif isinstance(parameter.children[1], Array_Constructor):
-                    for array in walk(parameter.children,
-                                      types=Section_Subscript_List):
-                        if isinstance(array.children[0],
-                                      Char_Literal_Constant):
-                            # children0.string = "'foo'"
-                            inner_key = array.children[0].string[1:-1]
-                        else:
-                            # children0.string = "foo"
-                            inner_key = array.children[0].string
+                    if parameter.children[0].string == "non_spatial_dimension":
 
-                        field.add_value(
-                                key,
-                                (inner_key, array.children[1].string[1:-1])
-                                )
+                        for array in walk(parameter.children,
+                                          types=Section_Subscript_List):
+                            key, value = parse_non_spatial_dimension(array)
+                            field.add_value("non_spatial_dimension",
+                                            {key: value})
+
+                    else:
+                        for array in walk(parameter.children,
+                                          types=Section_Subscript_List):
+                            if isinstance(array.children[0],
+                                          Char_Literal_Constant):
+                                # children0.string = "'foo'"
+                                inner_key = array.children[0].string[1:-1]
+                            else:
+                                # children0.string = "foo"
+                                inner_key = array.children[0].string
+
+                            field.add_value(
+                                    key,
+                                    (inner_key, array.children[1].string[1:-1])
+                                    )
 
                 else:
 
@@ -218,12 +226,13 @@ class FortranMetaDataReader:
             except Exception as error:
                 if field.unique_id:
                     self.LOGGER.warning(
-                            "Key: %s on field: %s in file: %s is invalid: %s",
-                            key,
-                            field.unique_id, file_name, error)
+                            "Attribute: %s on field: %s in file: "
+                            "%s is invalid: %s",
+                            key, field.unique_id, file_name, error)
                 else:
                     self.LOGGER.warning("Key: %s in file: %s is invalid: %s ",
                                         key, file_name, error)
+                valid_field = False
 
         return field, valid_field
 

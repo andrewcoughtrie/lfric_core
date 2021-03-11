@@ -84,8 +84,8 @@ contains
       time_step = STANDARD_TIMESTEP, &
       recommended_interpolation = BILINEAR, &
       packing = 0, &
-      vertical_dimension = model_height_dimension(BOTTOM_ATMOSPHERIC_LEVEL, &
-                                                  TOP_ATMOSPHERIC_LEVEL), &
+      vertical_dimension = model_height_dimension(bottom = BOTTOM_ATMOSPHERIC_LEVEL, &
+                                                  top = TOP_ATMOSPHERIC_LEVEL), &
       standard_name = "eastward_wind", &
       synonyms = [ &
             field_synonym_type(STASH, "2"),& !> literally this stash code or approx - let the user know
@@ -113,8 +113,8 @@ contains
       time_step = STANDARD_TIMESTEP, &
       recommended_interpolation = BILINEAR, &
       packing = 0, &
-      vertical_dimension = model_height_dimension(BOTTOM_ATMOSPHERIC_LEVEL, &
-                                                  TOP_WET_LEVEL))
+      vertical_dimension = model_height_dimension(bottom = BOTTOM_ATMOSPHERIC_LEVEL, &
+                                                  top = TOP_WET_LEVEL))
 
     !> This field uses a different function space
     self%air_potential_temperature = field_meta_data_type(&
@@ -129,8 +129,8 @@ contains
       time_step = STANDARD_TIMESTEP, &
       recommended_interpolation = BILINEAR, &
       packing = 0, &
-      vertical_dimension = model_height_dimension(BOTTOM_ATMOSPHERIC_LEVEL, &
-                                                  TOP_ATMOSPHERIC_LEVEL), &
+      vertical_dimension = model_height_dimension(bottom = BOTTOM_ATMOSPHERIC_LEVEL, &
+                                                  top = TOP_ATMOSPHERIC_LEVEL), &
       standard_name = "air_potential_temperature",&
       synonyms = [ &
             field_synonym_type(AMIP, "theta"),&
@@ -155,8 +155,8 @@ contains
       time_step = STANDARD_TIMESTEP, &
       recommended_interpolation = BILINEAR, &
       packing = 0, &
-      vertical_dimension = model_depth_dimension(BOTTOM_SOIL_LEVEL, &
-                                                 TOP_SOIL_LEVEL), &
+      vertical_dimension = model_depth_dimension(bottom = BOTTOM_SOIL_LEVEL, &
+                                                 top = TOP_SOIL_LEVEL), &
       standard_name = "mass_content_of_water_in_soil_layer",&
       synonyms = [ &
             field_synonym_type(CF, "mass_content_of_water_in_soil_layer"),&

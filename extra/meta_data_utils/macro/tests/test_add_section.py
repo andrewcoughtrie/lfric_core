@@ -1,3 +1,4 @@
+#!/usr/bin/env python2
 ##############################################################################
 # (c) Crown copyright 2020 Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
@@ -6,17 +7,15 @@
 """
 This module tests the macros found in add_section.py
 
-Note - Rose is written using Python 2. These tests can be run from a terminal
-by navigating into the macro directory and using:
+Note - Rose is written using Python 2 and needs to be on your pythonpath.
+These tests can then be run from a terminal by navigating into the macro
+directory and using:
 
 python2 -m unittest tests.test_add_section
 """
 import os
-import sys
 import unittest
 
-# Add Rose library to path
-sys.path.append("/home/h03/fcm/rose/lib/python/")
 from add_section import AddField, AddStream
 from rose.config import ConfigNode, load
 
@@ -29,6 +28,7 @@ ADD_STREAM_EMPTY_CONF = "/add-stream-empty-rose-app.conf"
 
 
 class TestAddSection(unittest.TestCase):
+    """Tests for add_section Rose macros"""
     def test_add_field_empty_stream(self):
         """Test a field is correctly added to an empty output stream"""
         old_conf = load(TEST_DIR + INPUT_CONF)

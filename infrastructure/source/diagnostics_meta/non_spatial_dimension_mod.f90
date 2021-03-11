@@ -27,13 +27,13 @@ module non_spatial_dimension_mod
   !> Defines the configurable non_spatial dimension
   type, public :: non_spatial_dimension_type
 
-    character(str_def)                              :: name
+    character(str_def)                              :: dimension_name
     character(str_short), dimension(:), allocatable :: label_definition
     real     (r_def),     dimension(:), allocatable :: axis_definition
 
   contains
 
-    procedure, public :: get_name
+    procedure, public :: get_dimension_name
     procedure, public :: get_axis_definition
     procedure, public :: get_label_definition
 
@@ -47,19 +47,19 @@ module non_spatial_dimension_mod
 
   !> Construct a <code>non_spatial_dimension_type</code> object.
   !> @brief The constructor for a non_spatial_dimension_type object
-  !> @param [in] name The name of the non-spatial dimension
+  !> @param [in] dimension_name The name of the non-spatial dimension
   !> @return self the non_spatial_dimension object
-  function non_spatial_dimension_type_constructor(name, axis_definition, label_definition) result(self)
+  function non_spatial_dimension_type_constructor(dimension_name, axis_definition, label_definition) result(self)
 
     implicit none
 
-    character(*),                                 intent(in) :: name
+    character(*),                                 intent(in) :: dimension_name
     real     (r_def),     dimension(:), optional, intent(in) :: axis_definition
     character(str_short), dimension(:), optional, intent(in) :: label_definition
 
     type(non_spatial_dimension_type) :: self
 
-    self%name = name
+    self%dimension_name = dimension_name
 
     if(present(axis_definition) .and. present(label_definition))then
       call log_event( "A non_spatial_dimension_type cannot have an &
@@ -77,20 +77,20 @@ module non_spatial_dimension_mod
   end function non_spatial_dimension_type_constructor
 
 
-  !> Getter for name
+  !> Getter for dimension_name
   !> @param[in]  self non_spatial_dimension_type
-  !> @return axis_definition
-  function get_name(self) result(name)
+  !> @return dimension name
+  function get_dimension_name(self) result(dimension_name)
 
     implicit none
 
     class(non_spatial_dimension_type), intent(in) :: self
 
-    character(str_def)                            :: name
+    character(str_def)                            :: dimension_name
 
-    name = self%name
+    dimension_name = self%dimension_name
 
-  end function get_name
+  end function get_dimension_name
 
 
   !> Getter for axis_definition

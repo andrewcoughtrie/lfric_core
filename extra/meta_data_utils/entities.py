@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 ##############################################################################
 # (c) Crown copyright 2020 Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
@@ -41,10 +42,11 @@ class Field:
         self.recommended_interpolation = None
         self.packing = None
         self.vertical_dimension = None
+        self.non_spatial_dimension = None
         self.standard_name = None
         self.level_definition = None
         self.misc_meta_data = {}
-        self.synonyms = {}
+        self.synonyms: Dict[StandardSynonyms, List[str]] = {}
         self.item_name = None
         self.item_title = None
         self.long_name = None

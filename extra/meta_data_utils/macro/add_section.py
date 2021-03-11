@@ -43,14 +43,16 @@ class AddStream(rose.macro.MacroBase):
 
         while not added:
             section_name = "output_stream({})".format(output_stream)
-            subsection_name = "output_stream({}):field(1)".\
-                format(output_stream)
+            subsection_name = \
+                "output_stream({}):field(1)".format(output_stream)
 
             if config.get([section_name]) is None:
                 config.set([section_name])
-                self.add_report(section_name, None, None,
-                                "Added output_stream({})".
-                                format(output_stream))
+                self.add_report(section_name,
+                                None,
+                                None,
+                                "Added output_stream({})".format(
+                                    output_stream))
                 config.set([subsection_name])
                 self.add_report(subsection_name, None, None,
                                 "Added field(1) to output_stream({})".format(

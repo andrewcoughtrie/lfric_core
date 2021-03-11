@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 ##############################################################################
 # (c) Crown copyright 2020 Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
@@ -9,8 +10,6 @@ import logging
 import os
 from textwrap import wrap
 from typing import Dict
-
-from entities import Section
 
 LOGGER = logging.getLogger("lfric_meta_data_parser")
 
