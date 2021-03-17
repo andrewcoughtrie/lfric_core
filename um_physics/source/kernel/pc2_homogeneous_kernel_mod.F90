@@ -197,7 +197,7 @@ subroutine pc2_homogeneous_code( nlayers,                    &
     end do
 
     ! Call to pc2_homog_plus_turb routine.
-    CALL pc2_homog_plus_turb(pressure,           & ! Pressure related fields
+    call pc2_homog_plus_turb(pressure,           & ! Pressure related fields
                              model_levels,       & ! levels in the vertical
                              dt,                 & ! Timestep
                                                    ! Fields that get updated:

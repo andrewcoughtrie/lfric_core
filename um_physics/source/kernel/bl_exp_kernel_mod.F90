@@ -488,14 +488,9 @@ contains
     !---------------------------------------
     ! UM modules containing switches or global constants
     !---------------------------------------
-    use ancil_info, only: l_soil_point, ssi_pts,                             &
-         sea_pts, sice_pts, ssi_index, sea_index, sice_index, fssi_ij,       &
-         sea_frac, sice_frac, sice_pts_ncat, sice_index_ncat, sice_frac_ncat,&
-         rad_nband
+    use ancil_info, only: ssi_pts, sea_pts, sice_pts, sice_pts_ncat, rad_nband
     use atm_fields_bounds_mod, only: tdims, pdims_s, pdims_l
-    use atm_step_local, only: dim_cs1, dim_cs2, land_pts_trif, npft_trif,    &
-         co2_dim_len, co2_dim_row
-    use c_elevate, only: surf_hgt_surft 
+    use atm_step_local, only: dim_cs1, dim_cs2, co2_dim_len, co2_dim_row
     use c_kappai, only: kappai, de
     use cv_run_mod, only: i_convection_vn, i_convection_vn_6a,               &
                           cldbase_opt_dp, cldbase_opt_md
@@ -511,13 +506,8 @@ contains
 
     ! spatially varying fields used from modules
     use fluxes, only: sw_sea, sw_sicat
-    use jules_mod, only: albobs_scaling_surft
-    use jules_internal, only: unload_backgrnd_pft
     use level_heights_mod, only: r_theta_levels, r_rho_levels
     use ozone_vars, only: o3_gb
-    use prognostics, only: snowdepth_surft, nsnow_surft, ds_surft, sice_surft, &
-         sliq_surft, tsnow_surft
-    use p_s_parms, only: bexp_soilt, sathh_soilt
     use turb_diff_ctl_mod, only: visc_m, visc_h, max_diff, delta_smag
 
     ! subroutines used
@@ -529,6 +519,13 @@ contains
     use sparm_mod, only: sparm
     use tilepts_mod, only: tilepts
     use tr_mix_mod, only: tr_mix
+
+    !---------------------------------------
+    ! JULES modules
+    !---------------------------------------
+    use jules_fields_mod, only : crop_vars, psparms, ainfo, trif_vars,         &
+                                 aerotype, urban_param, progs, trifctltype,    &
+                                 coast, jules_vars
 
     implicit none
 
@@ -742,7 +739,8 @@ contains
     ! single level real fields
     real(r_um), dimension(row_length,rows) ::                                &
          p_star, lw_down, cos_zenith_angle, tstar, zh_prev, ddmfx,           &
-         zlcl, zhpar, flux_e, flux_h, z0msea, photosynth_act_rad, tstar_sea, &
+         zlcl, zhpar, flux_e, flux_h, z0msea, photosynth_act_rad,            &
+         z0m_sice_fmd, z0m_sice_skin, tstar_sea,                             &
          zh, dzh, tstar_land, tstar_ssi, dtstar_sea, wstar, wthvs, ice_fract,&
          tstar_sice, u_0_p, v_0_p, zlcl_uv, qsat_lcl, delthvu,               &
          alpha1_sea, ashtf_prime_sea, bl_type_1, bl_type_2, bl_type_3,       &
@@ -813,7 +811,7 @@ contains
     integer(i_um), parameter :: nscmdpkgs=15
     logical,       parameter :: l_scmdiags(nscmdpkgs)=.false.
 
-    real(r_um), dimension(row_length,rows,nlayers) :: bl_w_var
+    real(r_um), dimension(row_length,rows,nlayers) :: bl_w_var, tnuc_new
 
     real(r_um), dimension(row_length,rows,bl_levels) ::                      &
          e_trb, tsq_trb, qsq_trb, cov_trb, dtrdz_v
@@ -829,9 +827,9 @@ contains
          dust_mrel2, dust_mrel3, dust_mrel4, dust_mrel5, dust_mrel6,         &
          zhpar_shcu, t1_sd, q1_sd, qcl_inv_top, w_max, deep_flag,            &
          past_precip, past_conv_ht, ql_ad, cin_undilute, cape_undilute,      &
-         entrain_coef, ustar_in, g_ccp, h_ccp, fb_surf, charnock_w, aresist, &
-         cu_over_orog, resist_b, rho_aresist, rib_gb, shallowc, vshr,        &
-         z0m_eff_gb, zhsc
+         entrain_coef, ustar_in, g_ccp, h_ccp,  ccp_strength, fb_surf,       &
+         charnock_w, aresist, cu_over_orog, resist_b, rho_aresist, rib_gb,   &
+         shallowc, vshr, z0m_eff_gb, zhsc, tnuc_nlcl
 
     integer(i_um), dimension(row_length,rows) :: nlcl, conv_type, nbdsc, ntdsc
 
@@ -855,9 +853,7 @@ contains
     real(r_um), dimension(land_field,ntiles,ndivh) :: u_s_t_dry_tile,        &
          u_s_t_tile
 
-    real(r_um), dimension(land_field,npft) :: resp_w_pft
-
-    real(r_um), dimension(land_pts_trif,npft_trif) :: g_leaf_acc_pft,        &
+    real(r_um), dimension(land_field,npft) :: resp_w_pft, g_leaf_acc_pft,    &
          npp_acc_pft, resp_w_acc_pft
 
     !-----------------------------------------------------------------------
@@ -880,10 +876,10 @@ contains
     else
       l_spec_z0 = .false.
     end if
-    
+
     ! surf_hgt_surft needs to be initialised in this kernel so it has the
     ! correct value for this grid-point when used within Jules
-    surf_hgt_surft = 0.0_r_um 
+    jules_vars%surf_hgt_surft = 0.0_r_um
 
     zeros=0.0_r_um
 
@@ -934,7 +930,7 @@ contains
     end if
 
     ! Set type_pts and type_index
-    call tilepts(land_field, frac_surft, surft_pts, surft_index)
+    call tilepts(land_field, frac_surft, surft_pts, surft_index,ainfo%l_lice_point)
 
     ! Sea-ice fraction
     i_sice = 0
@@ -963,44 +959,44 @@ contains
     ! combined sea and sea-ice index
     ssi_pts = 1
     if (flandg(1, 1) < 1.0_r_um) then
-      ssi_index = 1
+      ainfo%ssi_index = 1
     else
-      ssi_index = 0
+      ainfo%ssi_index = 0
     end if
-    fssi_ij = 1.0_r_um - flandg(1, 1)
+    ainfo%fssi_ij = 1.0_r_um - flandg(1, 1)
 
     ! individual sea and sea-ice indices
-    if (ssi_index(1) > 0) then
+    ! first set defaults
+    sice_pts = 0
+    ainfo%sice_index = 0
+    ainfo%sice_frac = 0.0_r_um
+    sea_pts = 0
+    ainfo%sea_index = 0
+    ainfo%sea_frac = 0.0_r_um
+    ! then calculate based on state
+    if (ainfo%ssi_index(1) > 0) then
       if (ice_fract(1, 1) > 0.0_r_um) then
         sice_pts = 1
-        sice_index = 1
-        sice_frac = ice_fract(1, 1)
-      else
-        sice_pts = 0
-        sice_index = 0
-        sice_frac = 0.0_r_um
+        ainfo%sice_index = 1
+        ainfo%sice_frac = ice_fract(1, 1)
       end if
       if (ice_fract(1, 1) < 1.0_r_um) then
         sea_pts = 1
-        sea_index = 1
-        sea_frac = 1.0_r_um - sice_frac
-      else
-        sea_pts = 0
-        sea_index = 0
-        sea_frac = 0.0_r_um
+        ainfo%sea_index = 1
+        ainfo%sea_frac = 1.0_r_um - ainfo%sice_frac
       end if
     end if
 
     ! multi-category sea-ice index
     do n = 1, nice_use
-      if (ssi_index(1) > 0 .and. ice_fract_ncat(1, 1, n) > 0.0_r_um) then
+      if (ainfo%ssi_index(1) > 0 .and. ice_fract_ncat(1, 1, n) > 0.0_r_um) then
         sice_pts_ncat(n) = 1
-        sice_index_ncat(1, n) = 1
-        sice_frac_ncat(1, n) = ice_fract_ncat(1, 1, n)
+        ainfo%sice_index_ncat(1, n) = 1
+        ainfo%sice_frac_ncat(1, n) = ice_fract_ncat(1, 1, n)
       else
         sice_pts_ncat(n) = 0
-        sice_index_ncat(1, n) = 0
-        sice_frac_ncat(1, n) = 0.0_r_um
+        ainfo%sice_index_ncat(1, n) = 0
+        ainfo%sice_frac_ncat(1, n) = 0.0_r_um
       end if
     end do
 
@@ -1020,6 +1016,7 @@ contains
     ! Sea-ice temperatures
     i_sice = 0
     tstar_sice = 0.0_r_um
+    tstar_sice_ncat = 0.0_r_um
     if (ice_fract(1, 1) > 0.0_r_um) then
       do i = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
         i_sice = i_sice + 1
@@ -1058,7 +1055,8 @@ contains
     z0m_soil_gb = real(soil_roughness(map_2d(1)), r_um)
     call sparm(land_field, n_land_tile, surft_pts, surft_index,         &
                frac_surft, canht_pft, lai_pft, z0m_soil_gb,             &
-               catch_snow_surft, catch_surft, z0_surft, z0h_bare_surft)
+               catch_snow_surft, catch_surft, z0_surft, z0h_bare_surft, &
+               urban_param%ztm_gb)
 
     ! Snow-free soil albedo
     albsoil_soilt = real(soil_albedo(map_2d(1)), r_um)
@@ -1071,9 +1069,9 @@ contains
       ! Volumetric soil moisture at saturation (smvcst_soilt)
       smvcst_soilt(1, i) = real(soil_moist_sat(map_2d(1)), r_um)
       ! Saturated soil water suction (sathh_soilt)
-      sathh_soilt(1, 1, i) = real(soil_suction_sat(map_2d(1)), r_um)
+      psparms%sathh_soilt(1, 1, i) = real(soil_suction_sat(map_2d(1)), r_um)
       ! Clapp and Hornberger b coefficient (bexp_soilt)
-      bexp_soilt(1, 1, i) = real(clapp_horn_b(map_2d(1)), r_um)
+      psparms%bexp_soilt(1, 1, i) = real(clapp_horn_b(map_2d(1)), r_um)
       ! Soil temperature (t_soil_soilt)
       t_soil_soilt(1, i) = real(soil_temperature(map_soil(1)+i-1), r_um)
       ! Soil moisture content (kg m-2, soil_layer_moisture)
@@ -1092,9 +1090,9 @@ contains
 
     ! Soil ancils dependant on smvcst_soilt (soil moisture saturation limit)
     if ( smvcst_soilt(1,1) > 0.0_r_um ) then
-      l_soil_point = .true.
+      ainfo%l_soil_point = .true.
     else
-      l_soil_point = .false.
+      ainfo%l_soil_point = .false.
     end if
 
     ! Scaling factors needed for use in surface exchange code
@@ -1102,7 +1100,7 @@ contains
       i_tile = 0
       do n = 1, rad_nband
         do i = 1, n_land_tile
-          albobs_scaling_surft(1,i,n) = &
+          jules_vars%albobs_scaling_surft(1,i,n) = &
                albedo_obs_scaling(map_scal(1)+i_tile)
           ! Counting from 0 so increment index here
           i_tile = i_tile + 1
@@ -1162,13 +1160,13 @@ contains
     i_snow = 0
     do i = 1, n_land_tile
       snow_surft(1, i) = real(tile_snow_mass(map_tile(1)+i-1), r_um)
-      nsnow_surft(1, i) = int(n_snow_layers(map_tile(1)+i-1), i_um)
-      snowdepth_surft(1, i) = real(snow_depth(map_tile(1)+i-1), r_um)
+      progs%nsnow_surft(1, i) = int(n_snow_layers(map_tile(1)+i-1), i_um)
+      progs%snowdepth_surft(1, i) = real(snow_depth(map_tile(1)+i-1), r_um)
       do j = 1, nsmax
-        ds_surft(1, i, j) = real(snow_layer_thickness(map_snow(1)+i_snow), r_um)
-        sice_surft(1, i, j) = real(snow_layer_ice_mass(map_snow(1)+i_snow), r_um)
-        sliq_surft(1, i, j) = real(snow_layer_liq_mass(map_snow(1)+i_snow), r_um)
-        tsnow_surft(1, i, j) = real(snow_layer_temp(map_snow(1)+i_snow), r_um)
+        progs%ds_surft(1, i, j) = real(snow_layer_thickness(map_snow(1)+i_snow), r_um)
+        progs%sice_surft(1, i, j) = real(snow_layer_ice_mass(map_snow(1)+i_snow), r_um)
+        progs%sliq_surft(1, i, j) = real(snow_layer_liq_mass(map_snow(1)+i_snow), r_um)
+        progs%tsnow_surft(1, i, j) = real(snow_layer_temp(map_snow(1)+i_snow), r_um)
         ! Counting from 0 so increment here
         i_snow = i_snow + 1
       end do
@@ -1306,7 +1304,7 @@ contains
          hcon_soilt, smvccl_soilt, smvcwt_soilt, smvcst_soilt,                 &
          sthf_soilt, sthu_soilt, sil_orog_land_gb,                             &
          ho2r2_orog_gb, sd_orog, ice_fract_ncat, k_sice_ncat,                  &
-         land_index, photosynth_act_rad,                                       &
+         land_index, photosynth_act_rad, z0m_sice_fmd, z0m_sice_skin,          &
          soil_clay,soil_sand,dust_mrel1,dust_mrel2,                            &
          dust_mrel3,dust_mrel4,dust_mrel5,dust_mrel6,                          &
     !     IN additional variables for JULES
@@ -1331,6 +1329,9 @@ contains
          cumulus, ntml,ntpar,l_shallow,                                        &
     !     INOUT additional variables for JULES
          g_leaf_acc_pft,npp_acc_pft,resp_w_acc_pft,resp_s_acc_gb_um,           &
+    !     JULES TYPES (IN OUT)
+         crop_vars, psparms, ainfo, trif_vars, aerotype, urban_param,          &
+         progs, trifctltype, coast, jules_vars,                                &
     !     INOUT variables for TKE based turbulence schemes
          e_trb, tsq_trb, qsq_trb, cov_trb, zhpar_shcu,                         &
     !     INOUT variables from bdy_expl1 needed elsewhere
@@ -1407,7 +1408,7 @@ contains
           , tstar, land_sea_mask, flandg, ice_fract                     &
           , w, w_max, deep_flag, past_precip, past_conv_ht              &
           , conv_prog_precip                                            &
-          , g_ccp, h_ccp                                                &
+          , g_ccp, h_ccp, ccp_strength                                  &
     !     IN surface fluxes
           , fb_surf, u_s                                                &
     !     SCM Diagnostics (dummy values in full UM)
@@ -1420,7 +1421,7 @@ contains
           , CIN_undilute,CAPE_undilute, wstar, wthvs                    &
           , entrain_coef, qsat_lcl                                      &
           , Error_code                                                  &
-            )
+          , tnuc_new, tnuc_nlcl  )
 
     l_jules_call=.false.
     call NI_bl_ctl (                                                    &
@@ -1431,16 +1432,18 @@ contains
     !     IN switches
          L_aero_classic,                                                &
     !     IN data fields.
-         p_rho_levels, p_theta_levels, rho_wet_rsq,rho_wet,rho_dry, u_p, v_p,&
+         p_rho_levels, p_theta_levels, rho_wet_rsq,rho_wet,rho_dry, u_p,&
+         v_p,                                                           &
          u_px, v_px, u_0_px, v_0_px,                                    &
-         land_sea_mask, q, qcl, qcf, p_star, theta, exner_theta_levels, rad_hr,&
+         land_sea_mask, q, qcl, qcf, p_star, theta, exner_theta_levels, &
+         rad_hr,                                                        &
          micro_tends, soil_layer_moisture, rho_wet_tq, z_rho, z_theta,  &
     !     IN ancillary fields and fields needed to be kept from tstep to tstep
          hcon_soilt, smvccl_soilt, smvcwt_soilt, smvcst_soilt,          &
          sthf_soilt, sthu_soilt, sil_orog_land_gb,                      &
     !-------------------------------------------------------------------------
          ho2r2_orog_gb, sd_orog, ice_fract_ncat, k_sice_ncat,           &
-         land_index, photosynth_act_rad,                                &
+         land_index, photosynth_act_rad, z0m_sice_fmd, z0m_sice_skin,   &
          soil_clay,soil_sand,dust_mrel1,dust_mrel2,                     &
          dust_mrel3,dust_mrel4,dust_mrel5,dust_mrel6,                   &
     !     IN additional variables for JULES
@@ -1465,6 +1468,9 @@ contains
          cumulus, ntml,ntpar,l_shallow,                                 &
     !     INOUT additional variables for JULES
          g_leaf_acc_pft,npp_acc_pft,resp_w_acc_pft,resp_s_acc_gb_um,    &
+    !     JULES TYPES (IN OUT)
+         crop_vars, psparms, ainfo, trif_vars, aerotype, urban_param,   &
+         progs, trifctltype, coast, jules_vars,                         &
     !     INOUT variables for TKE based turbulence schemes
          e_trb, tsq_trb, qsq_trb, cov_trb, zhpar_shcu,                  &
       ! INOUT variables from bdy_expl1 needed elsewhere
@@ -1650,7 +1656,7 @@ contains
 
     do n = 1, npft
       ! Unloading rate of snow from plant functional types
-      snow_unload_rate(map_pft(1)+n-1) = real(unload_backgrnd_pft(1, n), r_def)
+      snow_unload_rate(map_pft(1)+n-1) = real(jules_vars%unload_backgrnd_pft(1, n), r_def)
     end do
 
     do i = 1, n_land_tile

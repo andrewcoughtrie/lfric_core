@@ -378,9 +378,7 @@ contains
     !---------------------------------------
     ! UM modules containing switches or global constants
     !---------------------------------------
-    use ancil_info, only: ssi_pts,                                          &
-         sea_pts, sice_pts, ssi_index, sea_index, sice_index, fssi_ij,      &
-         sea_frac, sice_frac, sice_pts_ncat, sice_index_ncat, sice_frac_ncat
+    use ancil_info, only: ssi_pts, sea_pts, sice_pts, sice_pts_ncat
     use atm_fields_bounds_mod, only: udims, vdims, udims_s, vdims_s,        &
          pdims
     use atm_step_local, only: dim_cs1, dim_cs2
@@ -400,8 +398,6 @@ contains
     ! spatially varying fields used from modules
     use fluxes, only: sw_sicat
     use level_heights_mod, only: r_theta_levels, r_rho_levels
-    use prognostics, only: nsnow_surft
-    use jules_mod, only: snowdep_surft
 
     ! subroutines used
     use bdy_expl3_mod, only: bdy_expl3
@@ -410,6 +406,12 @@ contains
                             alloc_sf_expl
     use ni_imp_ctl_mod, only: ni_imp_ctl
     use tilepts_mod, only: tilepts
+
+    !---------------------------------------
+    ! JULES modules
+    !---------------------------------------
+    use jules_fields_mod, only : crop_vars, ainfo, aerotype, progs, coast, &
+      jules_vars
 
     implicit none
 
@@ -735,7 +737,7 @@ contains
     end if
 
     ! Set type_pts and type_index
-    call tilepts(land_field, frac_surft, surft_pts, surft_index)
+    call tilepts(land_field, frac_surft, surft_pts, surft_index,ainfo%l_lice_point)
 
     ! Sea-ice fraction
     i_sice = 0
@@ -764,44 +766,44 @@ contains
     ! combined sea and sea-ice index
     ssi_pts = 1
     if (flandg(1, 1) < 1.0_r_um) then
-      ssi_index = 1
+      ainfo%ssi_index = 1
     else
-      ssi_index = 0
+      ainfo%ssi_index = 0
     end if
-    fssi_ij = 1.0_r_um - flandg(1, 1)
+    ainfo%fssi_ij = 1.0_r_um - flandg(1, 1)
 
     ! individual sea and sea-ice indices
-    if (ssi_index(1) > 0) then
+    ! first set defaults
+    sice_pts = 0
+    ainfo%sice_index = 0
+    ainfo%sice_frac = 0.0_r_um
+    sea_pts = 0
+    ainfo%sea_index = 0
+    ainfo%sea_frac = 0.0_r_um
+    ! then calculate based on state
+    if (ainfo%ssi_index(1) > 0) then
       if (ice_fract(1, 1) > 0.0_r_um) then
         sice_pts = 1
-        sice_index = 1
-        sice_frac = ice_fract(1, 1)
-      else
-        sice_pts = 0
-        sice_index = 0
-        sice_frac = 0.0_r_um
+        ainfo%sice_index = 1
+        ainfo%sice_frac = ice_fract(1, 1)
       end if
       if (ice_fract(1, 1) < 1.0_r_um) then
         sea_pts = 1
-        sea_index = 1
-        sea_frac = 1.0_r_um - sice_frac
-      else
-        sea_pts = 0
-        sea_index = 0
-        sea_frac = 0.0_r_um
+        ainfo%sea_index = 1
+        ainfo%sea_frac = 1.0_r_um - ainfo%sice_frac
       end if
     end if
 
     ! multi-category sea-ice index
     do n = 1, nice_use
-      if (ssi_index(1) > 0 .and. ice_fract_ncat(1, 1, n) > 0.0_r_um) then
+      if (ainfo%ssi_index(1) > 0 .and. ice_fract_ncat(1, 1, n) > 0.0_r_um) then
         sice_pts_ncat(n) = 1
-        sice_index_ncat(1, n) = 1
-        sice_frac_ncat(1, n) = ice_fract_ncat(1, 1, n)
+        ainfo%sice_index_ncat(1, n) = 1
+        ainfo%sice_frac_ncat(1, n) = ice_fract_ncat(1, 1, n)
       else
         sice_pts_ncat(n) = 0
-        sice_index_ncat(1, n) = 0
-        sice_frac_ncat(1, n) = 0.0_r_um
+        ainfo%sice_index_ncat(1, n) = 0
+        ainfo%sice_frac_ncat(1, n) = 0.0_r_um
       end if
     end do
 
@@ -898,15 +900,15 @@ contains
       ! Lying snow mass on land tiles
       snow_surft(1, i) = real(tile_snow_mass(map_tile(1)+i-1), r_um)
       ! Number of snow layers on tiles (nsnow_surft)
-      nsnow_surft(1, i) = int(n_snow_layers(map_tile(1)+i-1), i_um)
+      progs%nsnow_surft(1, i) = int(n_snow_layers(map_tile(1)+i-1), i_um)
       ! Equivalent snowdepth for surface calculations.
       ! code copied from jules_land_sf_explicit
       ! 4 is a magic number inherited from Jules, meaning radiative canopy
       ! with heat capacity and snow beneath
       if ( (can_model == 4) .and. cansnowtile(i) .and. l_snowdep_surf) then
-        snowdep_surft(1, i) = snow_surft(1, i) / rho_snow_const
+        jules_vars%snowdep_surft(1, i) = snow_surft(1, i) / rho_snow_const
       else
-        snowdep_surft(1, i) = real(snow_depth(map_tile(1)+i-1), r_um)
+        jules_vars%snowdep_surft(1, i) = real(snow_depth(map_tile(1)+i-1), r_um)
       end if
     end do
 
@@ -1206,6 +1208,8 @@ contains
           , tstar_surft, fqw_surft, epot_surft, ftl_surft               &
           , radnet_sice,olr,tstar_sice_ncat,tstar_ssi                   &
           , tstar_sea,taux_land,taux_ssi,tauy_land,tauy_ssi,Error_code  &
+    ! JULES TYPES (IN OUT)
+          , crop_vars, ainfo, aerotype, progs, coast, jules_vars        &
     ! OUT fields
           , surf_ht_flux_land, zlcl_mix                                 &
           , theta_star_surf, qv_star_surf                               &
@@ -1471,6 +1475,8 @@ contains
           , tstar_surft, fqw_surft, epot_surft, ftl_surft               &
           , radnet_sice,olr,tstar_sice_ncat,tstar_ssi                   &
           , tstar_sea,taux_land,taux_ssi,tauy_land,tauy_ssi,Error_code  &
+    ! JULES TYPES (IN OUT)
+          , crop_vars, ainfo, aerotype, progs, coast, jules_vars        &
     ! OUT fields
           , surf_ht_flux_land, zlcl_mix                                 &
           , theta_star_surf, qv_star_surf                               &

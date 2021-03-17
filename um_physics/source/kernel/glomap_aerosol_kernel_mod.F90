@@ -250,7 +250,7 @@ subroutine glomap_aerosol_code( nlayers,                                       &
   !-----------------------------------------------------------------------
 
   ! output fields (drydp & nd) are required to calculate CDNC
-  CALL glomap_clim_drydp_nd_out( nd_nuc_sol_um, nuc_sol_su_um, nuc_sol_oc_um,  &
+  call glomap_clim_drydp_nd_out( nd_nuc_sol_um, nuc_sol_su_um, nuc_sol_oc_um,  &
                                  nd_ait_sol_um, ait_sol_su_um, ait_sol_bc_um,  &
                                  ait_sol_oc_um,                                &
                                  nd_acc_sol_um, acc_sol_su_um, acc_sol_bc_um,  &
@@ -263,7 +263,7 @@ subroutine glomap_aerosol_code( nlayers,                                       &
                                  drydp, nd )
 
   ! obtain CDNC field (cdnc_1d)
-  CALL ukca_cdnc_jones(nlayers,act_radius,drydp,nd,ccn_1d,cdnc_1d)
+  call ukca_cdnc_jones(nlayers,act_radius,drydp,nd,ccn_1d,cdnc_1d)
 
   ! set zeroth level first (to the same as the first level)
   ! this appears in diagnostic field but should not be used in model evolution

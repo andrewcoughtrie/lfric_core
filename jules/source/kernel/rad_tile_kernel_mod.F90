@@ -176,16 +176,13 @@ subroutine rad_tile_code(nlayers,                                &
   use nvegparm, only: emis_nvg
   use pftparm, only: emis_pft
   use jules_sea_seaice_mod, only: nice, nice_use, emis_sea, emis_sice
-  use ancil_info, only: sea_pts, sea_index, ssi_index, sice_pts_ncat,       &
-                        sice_index_ncat, sice_frac_ncat, rad_nband,         &
-                        l_lice_point
+  use jules_fields_mod, only: psparms, ainfo, urban_param, progs, coast, &
+    jules_vars
+  use ancil_info, only: sea_pts, sice_pts_ncat, rad_nband
+
   use tilepts_mod, only: tilepts
   use sparm_mod, only: sparm
   use surf_couple_radiation_mod, only: surf_couple_radiation
-
-  ! Horizontally varying information used from modules in Jules
-  use jules_mod, only: albobs_scaling_surft
-  use prognostics, only: snowdepth_surft, rho_snow_grnd_surft
 
   implicit none
 
@@ -248,27 +245,15 @@ subroutine rad_tile_code(nlayers,                                &
 
   ! Inputs to surf_couple_radiation
   real(r_um), dimension(row_length, rows) :: &
-    tstar_sea, ws_10m_sea, chloro, ice_fract, cos_zen_rts, flandg, &
-    soot
+    tstar_sea, ws_10m_sea, chloro, flandg
   real(r_um), dimension(row_length, rows, nice_use) :: &
-    ice_fract_cat, ice_thick_cat, tstar_sice_cat, snow_sice_cat
-  real(r_um), dimension(row_length, rows, nice) :: &
-    pond_frac_cat, pond_depth_cat
+    ice_fract_cat
   real(r_um), dimension(land_field) :: &
-    albobs_sw, albobs_vis, albobs_nir, albsoil, sd_orog_land, z0m_soil
-  real(r_um), dimension(land_field, ntype) :: &
-    frac_tile
+    z0m_soil
   real(r_um), dimension(land_field, ntiles) :: &
-    z0_tile, rgrain, snow_tile, tstar_tile, &
-    z0h_bare_tile, catch_snow_tile, catch_tile
-  real(r_um), dimension(land_field, npft) :: &
-    lai, canht
-  integer, dimension(land_field) :: &
-    land_index
+    snow_surft, z0h_bare_tile, catch_snow_tile, catch_tile
   integer, dimension(ntype) :: &
     type_pts
-  integer, dimension(land_field, ntype) :: &
-    type_index
 
   ! Outputs from surf_couple_radiation
   real(r_um), dimension(row_length, rows, 4) :: &
@@ -289,31 +274,33 @@ subroutine rad_tile_code(nlayers,                                &
   flandg = 0.0_r_um
   do i = 1, n_land_tile
     flandg = flandg + real(tile_fraction(map_tile(1)+i-1), r_um)
-    frac_tile(1, i) = real(tile_fraction(map_tile(1)+i-1), r_um)
+    ainfo%frac_surft(1, i) = real(tile_fraction(map_tile(1)+i-1), r_um)
   end do
 
   ! Jules requires fractions with respect to the land area
   if (flandg(1, 1) > 0.0_r_um) then
     land_field = 1
-    land_index = 1
-    frac_tile(1, 1:n_land_tile) = frac_tile(1, 1:n_land_tile) / flandg(1, 1)
+    ainfo%land_index = 1
+    ainfo%frac_surft(1, 1:n_land_tile) = ainfo%frac_surft(1, 1:n_land_tile) / &
+                                         flandg(1, 1)
   else
     land_field = 0
-    land_index = 0
+    ainfo%land_index = 0
   end if
 
   if (tile_fraction(map_tile(1)+ice-1) > 0.0_r_def) then
-    l_lice_point = .true.
+    ainfo%l_lice_point = .true.
   else
-    l_lice_point = .false.
+    ainfo%l_lice_point = .false.
   end if
 
   ! Set type_pts and type_index
-  call tilepts(land_field, frac_tile, type_pts, type_index)
+  call tilepts(land_field, ainfo%frac_surft, type_pts, ainfo%surft_index,     &
+               ainfo%l_lice_point)
 
   ! Land tile temperatures
   do i = 1, n_land_tile
-    tstar_tile(1, i) = real(tile_temperature(map_tile(1)+i-1), r_um)
+    progs%tstar_surft(1, i) = real(tile_temperature(map_tile(1)+i-1), r_um)
   end do
 
   ! Sea temperature
@@ -323,15 +310,15 @@ subroutine rad_tile_code(nlayers,                                &
   i_sice = 0
   do i = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
     i_sice = i_sice + 1
-    tstar_sice_cat(1, 1, i_sice) = real(tile_temperature(map_tile(1)+i-1), r_um)
+    coast%tstar_sice_sicat(1, 1, i_sice) = real(tile_temperature(map_tile(1)+i-1), r_um)
   end do
 
   ! Sea-ice fraction
   i_sice = 0
-  ice_fract = 0.0_r_um
+  ainfo%ice_fract_ij = 0.0_r_um
   do i = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
     i_sice = i_sice + 1
-    ice_fract = ice_fract + real(tile_fraction(map_tile(1)+i-1), r_um)
+    ainfo%ice_fract_ij = ainfo%ice_fract_ij + real(tile_fraction(map_tile(1)+i-1), r_um)
     ice_fract_cat(1, 1, i_sice) = real(tile_fraction(map_tile(1)+i-1), r_um)
   end do
 
@@ -339,74 +326,78 @@ subroutine rad_tile_code(nlayers,                                &
   ! 1 when no sea or sea-ice is present
   if (flandg(1,1) < 1.0_r_um .and. &
        tile_fraction(map_tile(1)+first_sea_tile-1) == 0.0_r_def .and. &
-       ice_fract(1,1) == 0.0_r_um) then
+       ainfo%ice_fract_ij(1,1) == 0.0_r_um) then
     flandg(1,1) = 1.0_r_um
   end if
 
   ! Jules requires sea-ice fractions with respect to the sea area
-  if (ice_fract(1, 1) > 0.0_r_um) then
-    ice_fract(1, 1) = ice_fract(1, 1) / (1.0_r_um - flandg(1, 1))
+  if (ainfo%ice_fract_ij(1, 1) > 0.0_r_um) then
+    ainfo%ice_fract_ij(1, 1) = ainfo%ice_fract_ij(1, 1) / (1.0_r_um - flandg(1, 1))
     ice_fract_cat(1, 1, 1:n_sea_ice_tile) &
       = ice_fract_cat(1, 1, 1:n_sea_ice_tile) / (1.0_r_um - flandg(1, 1))
   end if
 
   ! Combined sea and sea-ice index
   if (flandg(1, 1) < 1.0_r_um) then
-    ssi_index = 1
+    ainfo%ssi_index = 1
   else
-    ssi_index = 0
+    ainfo%ssi_index = 0
   end if
 
   ! Individual sea and sea-ice indices
-  if (ssi_index(1) > 0) then
-    if (ice_fract(1, 1) < 1.0_r_um) then
+  ! first set defaults
+  sea_pts = 0
+  ainfo%sea_index = 0
+  ! Then adjust based on state
+  if (ainfo%ssi_index(1) > 0) then
+    if (ainfo%ice_fract_ij(1, 1) < 1.0_r_um) then
       sea_pts = 1
-      sea_index = 1
-    else
-      sea_pts = 0
-      sea_index = 0
+      ainfo%sea_index = 1
     end if
   end if
 
   ! Multi-category sea-ice index
   do n = 1, nice_use
-    if (ssi_index(1) > 0 .and. ice_fract_cat(1, 1, n) > 0.0_r_um) then
+    if (ainfo%ssi_index(1) > 0 .and. ice_fract_cat(1, 1, n) > 0.0_r_um) then
       sice_pts_ncat(n) = 1
-      sice_index_ncat(1, n) = 1
-      sice_frac_ncat(1, n) = ice_fract_cat(1, 1, n)
+      ainfo%sice_index_ncat(1, n) = 1
+      ainfo%sice_frac_ncat(1, n) = ice_fract_cat(1, 1, n)
     else
       sice_pts_ncat(n) = 0
-      sice_index_ncat(1, n) = 0
-      sice_frac_ncat(1, n) = 0.0_r_um
+      ainfo%sice_index_ncat(1, n) = 0
+      ainfo%sice_frac_ncat(1, n) = 0.0_r_um
     end if
   end do
 
   do n = 1, n_sea_ice_tile
     ! Sea-ice thickness
-    ice_thick_cat(1,1,n) = real(sea_ice_thickness(map_sice(1)+n-1),r_um)
+    progs%di_ncat_sicat(1,1,n) = real(sea_ice_thickness(map_sice(1)+n-1),r_um)
   end do
 
   do n = 1, npft
     ! Leaf area index
-    lai(1, n) = real(leaf_area_index(map_pft(1)+n-1), r_um)
+    progs%lai_pft(1, n) = real(leaf_area_index(map_pft(1)+n-1), r_um)
     ! Canopy height
-    canht(1, n) = real(canopy_height(map_pft(1)+n-1), r_um)
+    progs%canht_pft(1, n) = real(canopy_height(map_pft(1)+n-1), r_um)
   end do
 
-  ! Roughness length (z0_tile)
+  ! Roughness length (z0_surft)
   z0m_soil = real(soil_roughness(map_2d(1)), r_um)
-  call sparm(land_field, n_land_tile, type_pts, type_index, &
-             frac_tile, canht, lai, z0m_soil, &
-             catch_snow_tile, catch_tile, z0_tile, z0h_bare_tile)
+  call sparm(land_field, n_land_tile, type_pts, ainfo%surft_index, &
+             ainfo%frac_surft, progs%canht_pft, progs%lai_pft, z0m_soil, &
+             catch_snow_tile, catch_tile, psparms%z0_surft, z0h_bare_tile, &
+             urban_param%ztm_gb)
 
   ! Snow-free soil albedo
-  albsoil = real(soil_albedo(map_2d(1)), r_um)
+  psparms%albsoil_soilt = real(soil_albedo(map_2d(1)), r_um)
 
   ! Cosine of the solar zenith angle
-  cos_zen_rts = real(cos_zenith_angle(map_2d(1)), r_um)
+  psparms%cosz_ij = real(cos_zenith_angle(map_2d(1)), r_um)
 
-  ! Standard deviation of orography
-  sd_orog_land = real(sd_orog(map_2d(1)), r_um)
+  ! Standard deviation of orography - note that the variables names here
+  ! appear to mismatch; this mirrors what is done in the UM; it's possible
+  ! that the variable is misnamed in JULES
+  jules_vars%ho2r2_orog_gb = real(sd_orog(map_2d(1)), r_um)
 
   ! 10m wind speed over the sea
   ws_10m_sea = sqrt(u1_in_w3(map_w3(1))**2 + u2_in_w3(map_w3(1))**2) &
@@ -417,28 +408,28 @@ subroutine rad_tile_code(nlayers,                                &
   chloro = real(chloro_sea(map_2d(1)), r_um)
 
   ! Observed albedo
-  albobs_vis = real(albedo_obs_vis(map_2d(1)), r_um)
-  albobs_nir = real(albedo_obs_nir(map_2d(1)), r_um)
+  psparms%albobs_vis_gb = real(albedo_obs_vis(map_2d(1)), r_um)
+  psparms%albobs_nir_gb = real(albedo_obs_nir(map_2d(1)), r_um)
 
   ! Lying snow mass on land tiles
   do i = 1, n_land_tile
-    snow_tile(1, i) = real(tile_snow_mass(map_tile(1)+i-1), r_um)
-    rgrain(1, i) = real(tile_snow_rgrain(map_tile(1)+i-1), r_um)
-    snowdepth_surft(1, i) = real(snow_depth(map_tile(1)+i-1), r_um)
-    rho_snow_grnd_surft(1, i) = real(snowpack_density(map_tile(1)+i-1), r_um)
+    snow_surft(1, i) = real(tile_snow_mass(map_tile(1)+i-1), r_um)
+    progs%rgrain_surft(1, i) = real(tile_snow_rgrain(map_tile(1)+i-1), r_um)
+    progs%snowdepth_surft(1, i) = real(snow_depth(map_tile(1)+i-1), r_um)
+    progs%rho_snow_grnd_surft(1, i) = real(snowpack_density(map_tile(1)+i-1), r_um)
   end do
 
   ! Lying snow mass on sea ice categories
   i_sice = 0
   do i = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
     i_sice = i_sice + 1
-    snow_sice_cat(1, 1, i_sice) = real(tile_snow_mass(map_tile(1)+i-1), r_um)
+    progs%snow_mass_sea_sicat(1, 1, i_sice) = real(tile_snow_mass(map_tile(1)+i-1), r_um)
   end do
 
   ! Snow soot content
-  soot = real(snow_soot(map_2d(1)), r_um)
+  progs%soot_ij = real(snow_soot(map_2d(1)), r_um)
 
-  CALL surf_couple_radiation(                                   &
+  call surf_couple_radiation(                                   &
   ! Fluxes INTENT(IN)
     tstar_sea,                                                  &
   ! Misc INTENT(IN)
@@ -449,22 +440,16 @@ subroutine rad_tile_code(nlayers,                                &
     sea_ice_albedo,                                             &
   ! Fluxes INTENT(OUT)
     alb_tile, land_albedo,                                      &
-  ! UM-only args: INTENT(IN)
-    pond_frac_cat, pond_depth_cat,                              &
   ! (ancil_info mod)
-    ntiles, land_field, land_index, type_pts, type_index,       &
-    row_length, rows, ice_fract, frac_tile,                     &
-  ! (p_s_parms mod)
-    cos_zen_rts, albobs_sw, albobs_vis, albobs_nir,             &
-    z0_tile, albsoil,                                           &
+    ntiles, land_field, type_pts, row_length, rows,             &
   ! (coastal mod)
-    flandg, tstar_sice_cat,                                     &
+    flandg,                                      &
   ! (prognostics mod)
-    snow_sice_cat, ice_thick_cat,                               &
-    lai, canht, rgrain,                                         &
-    snow_tile, soot, tstar_tile, sd_orog_land,                  &
+    snow_surft, &
   ! UM-only args: INTENT(OUT)
-    albobs_sc, open_sea_albedo)
+    albobs_sc, open_sea_albedo,                                 &
+  ! JULES types
+    psparms, ainfo, urban_param, progs, coast, jules_vars)
 
   df_rtile = 0
   do i_band = 1, n_sw_band
@@ -579,7 +564,7 @@ subroutine rad_tile_code(nlayers,                                &
     do i_band = 1, rad_nband
       do i_tile = 1, n_land_tile
         albedo_obs_scaling(map_scal(1)+df_rtile) = &
-             albobs_scaling_surft(1,i_tile,i_band)
+             jules_vars%albobs_scaling_surft(1,i_tile,i_band)
         ! Counting from 0 so increment index here
         df_rtile = df_rtile + 1
       end do

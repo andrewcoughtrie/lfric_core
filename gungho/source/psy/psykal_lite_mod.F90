@@ -1584,10 +1584,10 @@ end subroutine invoke_calc_deppts
     subroutine invoke_helmholtz_operator_kernel_type(helmholtz_operator, hb_lumped_inv, stencil_depth, u_normalisation, div_star, &
                                                      t_normalisation, ptheta2v, compound_div, m3_exner_star, p3theta, m3_inv, &
                                                      w2_mask)
-      USE helmholtz_operator_kernel_mod, ONLY: helmholtz_operator_code
-      USE mesh_mod, ONLY: mesh_type
-      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS
-      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type
+      USE helmholtz_operator_kernel_mod, only: helmholtz_operator_code
+      USE mesh_mod, only: mesh_type
+      USE stencil_dofmap_mod, only: STENCIL_CROSS
+      USE stencil_dofmap_mod, only: stencil_dofmap_type
 
       IMPLICIT NONE
 
@@ -1669,13 +1669,13 @@ end subroutine invoke_calc_deppts
       ! Call kernels and communication routines
       !
       IF (hb_lumped_inv_proxy%is_dirty(depth=1)) THEN
-        CALL hb_lumped_inv_proxy%halo_exchange(depth=1)
+        call hb_lumped_inv_proxy%halo_exchange(depth=1)
       END IF
       IF (u_normalisation_proxy%is_dirty(depth=1)) THEN
-        CALL u_normalisation_proxy%halo_exchange(depth=1)
+        call u_normalisation_proxy%halo_exchange(depth=1)
       END IF
       IF (w2_mask_proxy%is_dirty(depth=1)) THEN
-        CALL w2_mask_proxy%halo_exchange(depth=1)
+        call w2_mask_proxy%halo_exchange(depth=1)
       END IF
       !
       ! Create cell stencil of the correct size
@@ -1692,7 +1692,7 @@ end subroutine invoke_calc_deppts
         do i = 1,4
           cell_stencil(i+1) = mesh%get_cell_next(i, cell)
         end do
-        CALL helmholtz_operator_code(stencil_size,                     &
+        call helmholtz_operator_code(stencil_size,                     &
                                      cell_stencil, nlayers,            &
                                      helmholtz_operator_proxy(1)%data, &
                                      helmholtz_operator_proxy(2)%data, &
@@ -1730,15 +1730,15 @@ end subroutine invoke_calc_deppts
       ! Set halos dirty/clean for fields modified in the above loop
       !
       !$omp master
-      CALL helmholtz_operator_proxy(1)%set_dirty()
-      CALL helmholtz_operator_proxy(2)%set_dirty()
-      CALL helmholtz_operator_proxy(3)%set_dirty()
-      CALL helmholtz_operator_proxy(4)%set_dirty()
-      CALL helmholtz_operator_proxy(5)%set_dirty()
-      CALL helmholtz_operator_proxy(6)%set_dirty()
-      CALL helmholtz_operator_proxy(7)%set_dirty()
-      CALL helmholtz_operator_proxy(8)%set_dirty()
-      CALL helmholtz_operator_proxy(9)%set_dirty()
+      call helmholtz_operator_proxy(1)%set_dirty()
+      call helmholtz_operator_proxy(2)%set_dirty()
+      call helmholtz_operator_proxy(3)%set_dirty()
+      call helmholtz_operator_proxy(4)%set_dirty()
+      call helmholtz_operator_proxy(5)%set_dirty()
+      call helmholtz_operator_proxy(6)%set_dirty()
+      call helmholtz_operator_proxy(7)%set_dirty()
+      call helmholtz_operator_proxy(8)%set_dirty()
+      call helmholtz_operator_proxy(9)%set_dirty()
       !$omp end master
       !
       !$omp end parallel

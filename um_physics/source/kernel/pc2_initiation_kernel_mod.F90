@@ -310,7 +310,7 @@ subroutine pc2_initiation_code( nlayers,                           &
     cfl_incr = 0.0_r_um
     cff_incr = 0.0_r_um
 
-    CALL pc2_initiation_ctl(                               &
+    call pc2_initiation_ctl(                               &
                             ! Dimensions of Rh crit array
                             rhc_row_length,                &
                             rhc_rows,                      &

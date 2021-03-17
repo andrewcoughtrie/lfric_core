@@ -50,20 +50,21 @@ contains
   subroutine jules_control_init()
 
     ! UM/Jules modules containing things that need setting
-    use ancil_info, only: jules_dim_cs1 => dim_cs1, land_pts, nsurft, &
-      jules_land_pts_trif => land_pts_trif, jules_npft_trif => npft_trif
-    use atm_fields_bounds_mod, only: tdims
-    use atm_step_local, only: land_pts_trif, npft_trif, co2_dim_len, co2_dim_row, &
+    use ancil_info, only: jules_dim_cs1 => dim_cs1, land_pts, nsurft
+    use atm_fields_bounds_mod, only: tdims, udims, vdims
+    use atm_step_local, only: co2_dim_len, co2_dim_row, &
         dim_cs1
     use dyn_coriolis_mod, only: f3_at_u
     use jules_soil_mod, only: jules_sm_levels => sm_levels
     use jules_surface_types_mod, only: nnpft, npft, nnvg, ntype, brd_leaf, &
          ndl_leaf, c3_grass, c4_grass, shrub, urban, lake, soil, ice
     use jules_vegetation_mod, only: l_triffid
-    use lsm_switch_mod, only: init_lsm_um
+    use jules_model_environment_mod, only: lsm_id, jules
     use nlsizes_namelist_mod, only: land_field, ntiles, sm_levels
     use rad_input_mod, only: co2_mmr
-    use theta_field_sizes, only: t_i_length, t_j_length
+    use theta_field_sizes, only: t_i_length, t_j_length, &
+                                 u_i_length, u_j_length, &
+                                 v_i_length, v_j_length
 
     implicit none
 
@@ -110,6 +111,10 @@ contains
     ! are needed. They will be kept in the module from here onward.
     t_i_length = tdims%i_end - tdims%i_start + 1
     t_j_length = tdims%j_end - tdims%j_start + 1
+    u_i_length = udims%i_end - udims%i_start + 1
+    u_j_length = udims%j_end - udims%j_start + 1
+    v_i_length = vdims%i_end - vdims%i_start + 1
+    v_j_length = vdims%j_end - vdims%j_start + 1
 
     ! ----------------------------------------------------------------
     ! More model dimensions, this time from atm_step_local
@@ -118,18 +123,12 @@ contains
     ! the variables correctly based on the use or not of triffid here
     ! so that hopefully it works when it is implemented.
     if (l_triffid) then
-      land_pts_trif = land_field
-      npft_trif     = npft
       dim_cs1       = 4
     else
-      land_pts_trif = 1
-      npft_trif     = 1
       dim_cs1       = 1
     end if
 
     ! Now pass into JULES module variables
-    jules_land_pts_trif = land_pts_trif
-    jules_npft_trif = npft_trif
     jules_dim_cs1 = dim_cs1
 
     ! Dimensions of co2 array - set to 1 to match kernel size, but may change
@@ -163,9 +162,8 @@ contains
     ! CO2 value needed by Jules - contained in rad_input_mod
     co2_mmr = real(co2_mix_ratio, r_um)
 
-    ! Initialise Jules to know that its being called from a parent model
-    ! (i.e. not standalone)
-    call init_lsm_um()
+    ! Initialise LSM to be JULES (other options do exist; CABLE, RIVER-EXE)
+    lsm_id = jules
 
     ! The following 2D array is used direct from modules throughout the
     ! UM/Jules code

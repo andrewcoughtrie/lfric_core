@@ -8,7 +8,7 @@
 module mphys_kernel_mod
 
 use argument_mod, only: arg_type,                           &
-                        GH_FIELD, GH_READ, GH_WRITE, CELLS, & 
+                        GH_FIELD, GH_READ, GH_WRITE, CELLS, &
                         ANY_DISCONTINUOUS_SPACE_1,          &
                         ANY_DISCONTINUOUS_SPACE_2
 use fs_continuity_mod, only: WTHETA, W3
@@ -153,7 +153,9 @@ subroutine mphys_code( nlayers,                     &
     use nlsizes_namelist_mod,       only: row_length, rows, model_levels,      &
                                           land_field
 
-    use mphys_inputs_mod,           only: l_mcr_qcf2, l_mcr_qrain, l_mcr_qgraup
+    use mphys_inputs_mod,           only: l_mcr_qcf2, l_mcr_qrain,             &
+                                          l_mcr_qgraup, l_mcr_precfrac,        &
+                                          l_subgrid_graupel_frac
     use mphys_constants_mod,        only: mprog_min
 
     use cloud_inputs_mod,           only: i_cld_vn, rhcrit
@@ -227,7 +229,7 @@ subroutine mphys_code( nlayers,                     &
          n_drop_pot, n_drop_3d, so4_accu_work, so4_diss_work,                  &
          aged_bmass_work, cloud_bmass_work, aged_ocff_work, cloud_ocff_work,   &
          nitr_acc_work, nitr_diss_work, aerosol_work, biogenic, rho_r2,        &
-         dry_rho, ukca_cdnc_array
+         dry_rho, ukca_cdnc_array, tnuc_new
 
     real(r_um), dimension(row_length,rows,model_levels, 1) :: arcl
 
@@ -237,7 +239,7 @@ subroutine mphys_code( nlayers,                     &
                                               snow_depth, land_frac, hmteff, zb
 
     real(r_um), dimension(:,:,:), allocatable :: qrain_work, qcf2_work,        &
-                                                 qgraup_work
+                                                 qgraup_work, precfrac_work
 
     real(r_um), dimension(model_levels) :: rhcpt
 
@@ -309,7 +311,6 @@ subroutine mphys_code( nlayers,                     &
     aerosol_work(:,:,:)     = 0.0_r_um
 
     flash_pot(:,:,:) = 0.0_r_um
-
     land_sea_mask(1,1) = .false.
 
     l_cosp_lsp = .false.
@@ -407,6 +408,52 @@ subroutine mphys_code( nlayers,                     &
       qgraup_work(1,1,1) = 0.0_r_um
     end if
 
+    if ( l_mcr_precfrac ) then
+      ! Prognostic precipitation fraction...
+
+      allocate (precfrac_work (row_length, rows, model_levels) )
+
+      ! Prognostic precip fraction not yet included in lfric.
+      ! For now, just initialise it to 1 if any precip-mass is present,
+      ! 0 otherwise.  It will evolve freely during the loop over microphysics
+      ! sub-steps inside ls_ppn, but will get reset to 0 or 1 each
+      ! model timestep.
+      if ( l_mcr_qgraup .and. l_subgrid_graupel_frac ) then
+        ! If using graupel and including it within the precip fraction
+        do k = 1, model_levels
+          do j = 1, rows
+            do i = 1, row_length
+              if ( qrain_work(i,j,k)+qgraup_work(i,j,k) > mprog_min ) then
+                precfrac_work(i,j,k) = 1.0_r_um
+              else
+                precfrac_work(i,j,k) = 0.0_r_um
+              end if
+            end do ! i
+          end do   ! j
+        end do     ! k
+      else  ! ( l_mcr_qgraup .and. l_subgrid_graupel_frac )
+        ! Otherwise, precfrac is just the rain fraction
+        do k = 1, model_levels
+          do j = 1, rows
+            do i = 1, row_length
+              if ( qrain_work(i,j,k) > mprog_min ) then
+                precfrac_work(i,j,k) = 1.0_r_um
+              else
+                precfrac_work(i,j,k) = 0.0_r_um
+              end if
+            end do ! i
+          end do   ! j
+        end do     ! k
+      end if  ! ( l_mcr_qgraup .and. l_subgrid_graupel_frac )
+
+    else  ! ( l_mcr_precfrac )
+      ! Prognostic precipitation fraction switched off; minimal allocation
+
+      allocate(precfrac_work(1,1,1))
+      precfrac_work(1,1,1) = 0.0_r_um
+
+    end if  ! ( l_mcr_precfrac )
+
     if ( cld_fsd_hill ) then
       ! Parameters from fractional standard deviation (FSD) parametrization
       ! There are 3 parameters used in the empirical fit, each stored as a different
@@ -474,10 +521,10 @@ subroutine mphys_code( nlayers,                     &
 
 
     ! CALL to ls_ppn
-    CALL ls_ppn(                                                               &
+    call ls_ppn(                                                               &
                 p_theta_levels,                                                &
                 land_sea_mask, deltaz,                                         &
-                cf_work, cfl_work, cff_work,                                   &
+                cf_work, cfl_work, cff_work, precfrac_work,                    &
                 rhcpt,                                                         &
                 lspice_dim1,lspice_dim2,lspice_dim3,                           &
                 rho_r2, dry_rho, q_work, qcf_work, qcl_work, t_work,           &
@@ -502,7 +549,7 @@ subroutine mphys_code( nlayers,                     &
                 rhodz_dry, rhodz_moist,                                        &
                 ls_rainfrac, land_points, land_index,                          &
                 l_cosp_lsp,                                                    &
-                hmteff, zb )
+                hmteff, zb, tnuc_new)
 
     ! CALL to mphys_turb_gen_mixed_phase would be here if l_subgrid_qcl_mp
     !      is True. This requires the PC2 scheme, so isn't added for now.
@@ -578,6 +625,7 @@ end if
   ls_rain_2d(map_2d(1))  = ls_rain(1,1)
   ls_snow_2d(map_2d(1))  = ls_snow(1,1)
 
+  deallocate( precfrac_work )
   deallocate( qgraup_work )
   deallocate( qrain_work  )
   deallocate( qcf2_work   )

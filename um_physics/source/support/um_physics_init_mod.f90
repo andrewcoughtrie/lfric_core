@@ -201,7 +201,8 @@ contains
     use science_fixes_mod, only:  i_fix_mphys_drop_settle, second_fix,      &
          l_pc2_homog_turb_q_neg, l_fix_ccb_cct, l_fix_conv_precip_evap,     &
          l_fix_dyndiag, l_fix_pc2_cnv_mix_phase, l_fix_riming,              &
-         l_fix_tidy_rainfracs, l_fix_zh
+         l_fix_tidy_rainfracs, l_fix_zh, l_fix_incloud_qcf,                 &
+         l_fix_mcr_frac_ice
     use tuning_segments_mod, only: bl_segment_size, precip_segment_size, &
          ussp_seg_size, gw_seg_size
     use turb_diff_ctl_mod, only: visc_m, visc_h, max_diff, delta_smag,   &
@@ -519,8 +520,8 @@ contains
       end select
       ice_fraction_method = min_liq_overlap
       ice_width           = real(ice_width_in, r_um)
-      ! l_add_cca_to_mcica is unused in LFRic, its functionality 
-      ! ... being replaced by the cloud_representation option in 
+      ! l_add_cca_to_mcica is unused in LFRic, its functionality
+      ! ... being replaced by the cloud_representation option in
       ! ... the radiation namelist (T=combined, F=liquid_and_ice).
       ! l_od_cld_filter=.true. should be here - only for diagnostics
       ! ...tau_thresh=0.01 should be set here if so
@@ -687,6 +688,8 @@ contains
     l_fix_riming            = .true.
     l_fix_tidy_rainfracs    = .true.
     l_fix_zh                = .true.
+    l_fix_incloud_qcf       = .true.
+    l_fix_mcr_frac_ice      = .true.
 
     ! ----------------------------------------------------------------
     ! Segment sizes for UM physics - contained in tuning_segments_mod

@@ -111,8 +111,8 @@ subroutine cld_code(nlayers,      &
     ! Other modules containing stuff passed to CLD
     use nlsizes_namelist_mod, only: row_length, rows, bl_levels, model_levels
     use planet_constants_mod, only: p_zero, kappa, cp
-    use water_constants_mod, ONLY: lc
-    use ls_arcld_mod, ONLY: ls_arcld
+    use water_constants_mod, only: lc
+    use ls_arcld_mod, only: ls_arcld
 
     implicit none
 
@@ -216,7 +216,7 @@ subroutine cld_code(nlayers,      &
     p_rho_minus_one(1,1,nlayers) = 0.0_r_def
 
 
-    CALL ls_arcld( p_theta_levels, rhcpt, p_rho_minus_one,            &
+    call ls_arcld( p_theta_levels, rhcpt, p_rho_minus_one,            &
                  rhc_row_length, rhc_rows, bl_levels,                 &
                  levels_per_level, large_levels,                      &
                  fv_cos_theta_latitude,                               &
