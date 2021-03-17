@@ -15,8 +15,10 @@ module advective_update_alg_mod
                                             get_inverse_lumped_mass_matrix, &
                                             wt_id
   use field_mod,                      only: field_type
-  use finite_element_config_mod,      only: element_order, &
-                                            nqp_exact
+  use finite_element_config_mod,      only: element_order,          &
+                                            nqp_exact,              &
+                                            spherical_coord_system, &
+                                            spherical_coord_system_xyz
   use function_space_mod,             only: function_space_type
   use psykal_lite_mol_mod,            only: psykal_lite_mol_adv_init,       &
                                             psykal_lite_mol_adv_final,      &
@@ -109,7 +111,7 @@ contains
     type(mesh_type),               pointer :: mesh => null()
     integer(i_def)                         :: edge_quad_order
     integer(i_def)                         :: nqp_xy, nqp_z, nqp_xyz
-    real(r_def)                            :: chi3_min, chi3_max
+    real(r_def)                            :: transform_radius, chi3_max
 
     if ( operators == operators_fv ) then
       ! This setup is only needed for FV methods
@@ -157,9 +159,17 @@ contains
 
         chi_sph => get_coordinates()
         panel_id => get_panel_id()
-        ! Compute the smallest surface height of chi(3)
-        ! (this is only needed for abh coordinates
-        call chi_sph(3)%field_minmax(chi3_min, chi3_max)
+
+        if ( spherical_coord_system == spherical_coord_system_xyz ) then
+          transform_radius = 0.0_r_def
+        else
+          ! Compute the smallest surface height of chi(3)
+          ! (this is only needed for spherically-based coordinates
+          ! Transform radius is minimum height + 1
+          call chi_sph(3)%field_minmax(transform_radius, chi3_max)
+          transform_radius = 1.0_r_def + abs(transform_radius)
+        end if
+
         nqp_xyz = fv_advective_order+1
         if ( oned_reconstruction ) then
           edge_quad_order = 1
@@ -188,12 +198,12 @@ contains
           call invoke_poly1d_advective_coeffs( adv_coeffs, md_wt, chi_sph, panel_id, &
                                                qr, qre, fv_advective_order,          &
                                                advective_stencil_extent, nfaces_re_h,&
-                                               chi3_min )
+                                               transform_radius )
         else
           call invoke_poly2d_advective_coeffs( adv_coeffs, md_wt, chi_sph, panel_id, &
                                                qr, qre, fv_advective_order,          &
                                                advective2d_stencil_size,             &
-                                               nfaces_re_h, chi3_min )
+                                               nfaces_re_h, transform_radius )
         end if
         ! Vertical advective coeffs
         call log_event( "Gungho: computing vertical advective coeffs", LOG_LEVEL_INFO )

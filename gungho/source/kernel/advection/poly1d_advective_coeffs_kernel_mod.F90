@@ -93,7 +93,10 @@ contains
 !>@param[in] smap_pid Stencil dofmap for the panel_id space
 !>@param[in] order Polynomial order for flux computations
 !>@param[in] nfaces_h Number of horizontal neighbours
-!>@param[in] chi3_min Global minimum of chi3 field
+!>@param[in] transform_radius A radius used for transforming to spherically-based
+!!                            coords. For Cartesian coordinates this is zero, but
+!!                            for spherical coordinates it is the global minimum
+!!                            of the height field plus 1.
 !>@param[in] nqp_h Number of horizontal quadrature points
 !>@param[in] nqp_v Number of vertical quadrature points
 !>@param[in] wqp_h Weights of horizontal quadrature points
@@ -122,7 +125,7 @@ subroutine poly1d_advective_coeffs_code(nlayers,                   &
                                         smap_pid,                  &
                                         order,                     &
                                         nfaces_h,                  &
-                                        chi3_min,                  &
+                                        transform_radius,          &
                                         nqp_h, nqp_v, wqp_h, wqp_v,&
                                         n_edges, nqp_e, wqp_e )
 
@@ -131,9 +134,7 @@ subroutine poly1d_advective_coeffs_code(nlayers,                   &
   use base_mesh_config_mod,      only: geometry, &
                                        geometry_spherical
   use poly_helper_functions_mod, only: local_distance_1d
-  use finite_element_config_mod, only: spherical_coord_system,     &
-                                       spherical_coord_system_abh
-  use coord_transform_mod,       only: alphabetar2xyz
+  use chi_transform_mod,         only: chir2xyz
 
   implicit none
 
@@ -163,7 +164,7 @@ subroutine poly1d_advective_coeffs_code(nlayers,                   &
   real(kind=r_def), dimension(nqp_v),         intent(in) ::  wqp_v
   real(kind=r_def), dimension(nqp_e,n_edges), intent(in) ::  wqp_e
 
-  real(kind=r_def), intent(in) :: chi3_min
+  real(kind=r_def), intent(in) :: transform_radius
 
   ! Local variables
   logical(kind=l_def) :: spherical
@@ -173,13 +174,13 @@ subroutine poly1d_advective_coeffs_code(nlayers,                   &
   integer(kind=i_def),           dimension(order+1,nfaces_h) :: map1d
   integer(kind=i_def),           dimension(0:nlayers)        :: kx, vert_face, qv
   real(kind=r_def)                                           :: xx, fn
-  real(kind=r_def),              dimension(3)                :: x0, x1, xq, xn1, abr, r0
+  real(kind=r_def),              dimension(3)                :: x0, x1, xq, xn1, chi_sph, r0
   real(kind=r_def), allocatable, dimension(:,:)              :: int_monomial, inv_int_monomial
   real(kind=r_def),              dimension(order+1)          :: beta, delta, monomial
   real(kind=r_def),              dimension(order+1)          :: area
 
-  ! Ensure r0 + r is positive
-  r0 = (/ 0.0_r_def, 0.0_r_def, 1.0_r_def + abs(chi3_min) /)
+  ! Radius correction for transforming to (X,Y,Z) coordinates
+  r0 = (/ 0.0_r_def, 0.0_r_def, transform_radius /)
 
   if ( geometry == geometry_spherical ) then
     spherical = .true.
@@ -246,13 +247,12 @@ subroutine poly1d_advective_coeffs_code(nlayers,                   &
       ijk = smap_wx(df, 1) + kx(k)
       x0(:) = x0(:) + (/ chi1(ijk), chi2(ijk), chi3(ijk) /)*basis_wx(1,df,qf0,qv(k))
     end do
-    if ( spherical_coord_system == spherical_coord_system_abh ) then
-      ! Convert x0 to XYZ coordinate system
-      ipanel = int(panel_id(smap_pid(1,1)), i_def)
-      abr = x0 + r0
-      call alphabetar2xyz(abr(1), abr(2), abr(3), &
-                          ipanel, x0(1), x0(2), x0(3))
-    end if
+
+    ! Convert x0 to XYZ coordinate system
+    ipanel = int(panel_id(smap_pid(1,1)), i_def)
+    chi_sph = x0 + r0
+    call chir2xyz(chi_sph(1), chi_sph(2), chi_sph(3), &
+                  ipanel, x0(1), x0(2), x0(3))
 
     ! Compute the coefficients of each cell in the stencil for
     ! each edge when this is the upwind cell
@@ -267,13 +267,12 @@ subroutine poly1d_advective_coeffs_code(nlayers,                   &
         ijk = smap_wx(df, edge+1) + kx(k)
         x1(:) = x1(:) + (/ chi1(ijk), chi2(ijk), chi3(ijk) /)*basis_wx(1,df,qf0,qv(k))
       end do
-      if ( spherical_coord_system == spherical_coord_system_abh ) then
-        ! Convert x1 to XYZ coordinate system
-        ipanel = int(panel_id(smap_pid(1,edge+1)), i_def)
-        abr = x1 + r0
-        call alphabetar2xyz(abr(1), abr(2), abr(3), &
-                            ipanel, x1(1), x1(2), x1(3))
-      end if
+
+      ! Convert x1 to XYZ coordinate system
+      ipanel = int(panel_id(smap_pid(1,edge+1)), i_def)
+      chi_sph = x1 + r0
+      call chir2xyz(chi_sph(1), chi_sph(2), chi_sph(3), &
+                    ipanel, x1(1), x1(2), x1(3))
 
       ! Unit normal to plane containing points 0 and 1
       ! cross_product is zero if x0(3) = x1(3) = 0, which occurs for the first level in
@@ -297,13 +296,13 @@ subroutine poly1d_advective_coeffs_code(nlayers,                   &
             ijk = smap_wx(df, map1d(stencil,edge)) + kx(k)
             xq(:) = xq(:) + (/ chi1(ijk), chi2(ijk), chi3(ijk) /)*basis_wx(1,df,qp,qv(k))
           end do
-          if ( spherical_coord_system == spherical_coord_system_abh ) then
-            ! Convert xq to XYZ coordinate system
-            ipanel = int(panel_id(smap_pid(1, map1d(stencil,edge))), i_def)
-            abr = xq + r0
-            call alphabetar2xyz(abr(1), abr(2), abr(3), &
-                                ipanel, xq(1), xq(2), xq(3))
-          end if
+
+          ! Convert xq to XYZ coordinate system
+          ipanel = int(panel_id(smap_pid(1, map1d(stencil,edge))), i_def)
+          chi_sph = xq + r0
+          call chir2xyz(chi_sph(1), chi_sph(2), chi_sph(3), &
+                        ipanel, xq(1), xq(2), xq(3))
+
           xq(3) = ispherical*xq(3) + (1_i_def-ispherical)*x0(3)
           ! Second: Compute the local coordinate of each quadrature point from the
           !         physical coordinate
@@ -333,13 +332,13 @@ subroutine poly1d_advective_coeffs_code(nlayers,                   &
           ijk = smap_wx(df, 1) + kx(k)
           xq(:) = xq(:) + (/ chi1(ijk), chi2(ijk), chi3(ijk) /)*edge_basis_wx(1,df,qp,edge+vert_face(k))
         end do
-        if ( spherical_coord_system == spherical_coord_system_abh ) then
-          ! Convert xq to XYZ coordinate system
-          ipanel = int(panel_id(smap_pid(1,1)), i_def)
-          abr = xq + r0
-          call alphabetar2xyz(abr(1), abr(2), abr(3), &
-                              ipanel, xq(1), xq(2), xq(3))
-        end if
+
+        ! Convert xq to XYZ coordinate system
+        ipanel = int(panel_id(smap_pid(1,1)), i_def)
+        chi_sph = xq + r0
+        call chir2xyz(chi_sph(1), chi_sph(2), chi_sph(3), &
+                      ipanel, xq(1), xq(2), xq(3))
+
         ! Obtain local coordinates of gauss points on this edge
         xx = local_distance_1d(x0, xq, xn1, spherical)
 

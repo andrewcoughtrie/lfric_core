@@ -94,12 +94,8 @@ subroutine set_rho_code(nlayers, rho,                           &
 
   use matrix_invert_mod,             only : matrix_invert
   use coordinate_jacobian_mod,       only : coordinate_jacobian
-  use coord_transform_mod,           only : alphabetar2xyz
+  use chi_transform_mod,             only : chi2xyz
   use analytic_density_profiles_mod, only : analytic_density
-  use finite_element_config_mod,     only : spherical_coord_system, &
-                                            spherical_coord_system_abh, &
-                                            spherical_coord_system_xyz
-  use planet_config_mod,             only : scaled_radius
 
   ! needs to compute the integral of rho_df * P
   ! P_analytic over a single column
@@ -157,7 +153,6 @@ subroutine set_rho_code(nlayers, rho,                           &
       rhs_e(df1) = 0.0_r_def
       do qp2 = 1, nqp_v
         do qp1 = 1, nqp_h
-          ! Need (X,Y,Z) coordinate
           coords(:) = 0.0_r_def
           do df2 = 1, ndf_chi_sph
             coords(1) = coords(1) + chi_sph_1_e(df2)*chi_sph_basis(1,df2,qp1,qp2)
@@ -165,18 +160,9 @@ subroutine set_rho_code(nlayers, rho,                           &
             coords(3) = coords(3) + chi_sph_3_e(df2)*chi_sph_basis(1,df2,qp1,qp2)
           end do
 
-          if ( spherical_coord_system == spherical_coord_system_xyz ) then
-            ! coords is already the (X,Y,Z) coordinates
-            xyz(:) = coords(:)
-          else if( spherical_coord_system == spherical_coord_system_abh ) then
-            ! Get (X,Y,Z) coordinates
-            call alphabetar2xyz(coords(1), coords(2), coords(3)+scaled_radius, &
-                                ipanel, xyz(1), xyz(2), xyz(3))
-          else
-            call log_event('set_rho_kernel is not implemented ' //  &
-                           'with your spherical coordinate system', &
-                           LOG_LEVEL_ERROR)
-          end if
+          ! Need (X,Y,Z) coordinate
+          call chi2xyz(coords(1), coords(2), coords(3), &
+                       ipanel, xyz(1), xyz(2), xyz(3))
 
           rho_ref = analytic_density(xyz, test, time)
 

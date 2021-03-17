@@ -18,7 +18,6 @@ use constants_mod,             only : r_def, i_def, PI
 use fs_continuity_mod,         only : W1
 use kernel_mod,                only : kernel_type
 use initial_wind_config_mod,   only : profile, sbr_angle_lat, sbr_angle_lon, u0, v0
-use log_mod,                   only : log_event, LOG_LEVEL_ERROR
 
 implicit none
 
@@ -97,15 +96,10 @@ subroutine initial_streamfunc_code(nlayers,                         &
   use analytic_streamfunction_profiles_mod, only: analytic_streamfunction
   use base_mesh_config_mod,                 only: geometry, &
                                                   geometry_spherical
+  use chi_transform_mod,                    only: chi2llr
   use coordinate_jacobian_mod,              only: coordinate_jacobian, &
                                                   coordinate_jacobian_inverse
-  use coord_transform_mod,                  only: sphere2cart_vector,         &
-                                                  xyz2llr,                    &
-                                                  alphabetar2llr
-  use finite_element_config_mod,            only: spherical_coord_system,     &
-                                                  spherical_coord_system_xyz, &
-                                                  spherical_coord_system_abh
-  use planet_config_mod,                    only: scaled_radius
+  use coord_transform_mod,                  only: sphere2cart_vector
 
   implicit none
 
@@ -180,22 +174,13 @@ subroutine initial_streamfunc_code(nlayers,                         &
 
         if ( geometry == geometry_spherical ) then
           ! Need (lon,lat,r) coordinates
-          if ( spherical_coord_system == spherical_coord_system_xyz ) then
-            ! coords is (X,Y,Z) coordinates
-            call xyz2llr(coords(1), coords(2), coords(3), llr(1), llr(2), llr(3))
-          else if( spherical_coord_system == spherical_coord_system_abh ) then
-            ! coords is (alpha,beta,h)
-            llr(3) = coords(3) + scaled_radius
-            call alphabetar2llr(coords(1), coords(2), llr(3), &
-                                ipanel, llr(1), llr(2))
-          else
-            call log_event('initial_streamfunc_kernel is not implemented ' // &
-                           'with your spherical coordinate system',           &
-                           LOG_LEVEL_ERROR)
-          end if
+          call chi2llr(coords(1), coords(2), coords(3), &
+                       ipanel, llr(1), llr(2), llr(3))
+
           psi_spherical = analytic_streamfunction(llr, profile, 3, option3, time)
           psi_physical = sphere2cart_vector(psi_spherical,llr)
         else
+          ! Coords must already be (X,Y,Z)
           psi_physical = analytic_streamfunction(coords, profile, 2, option2, time)
         end if
 

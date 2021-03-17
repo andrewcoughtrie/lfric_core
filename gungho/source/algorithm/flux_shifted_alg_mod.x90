@@ -15,8 +15,10 @@ module flux_shifted_alg_mod
                                             get_mass_matrix_diagonal, &
                                             w2_shift_id, w3_shift_id
   use field_mod,                      only: field_type
-  use finite_element_config_mod,      only: element_order, &
-                                            nqp_exact
+  use finite_element_config_mod,      only: element_order,          &
+                                            nqp_exact,              &
+                                            spherical_coord_system, &
+                                            spherical_coord_system_xyz
   use function_space_mod,             only: function_space_type
   use operator_mod,                   only: operator_type
   use psykal_lite_mol_shifted_mod,    only: psykal_lite_mol_shifted_flux_init,      &
@@ -94,7 +96,7 @@ contains
     type(mesh_type),               pointer :: mesh => null()
     integer(i_def)                         :: face_quad_order
     integer(i_def)                         :: nqp_xy, nqp_z, nqp_xyz
-    real(r_def)                            :: chi3_min, chi3_max
+    real(r_def)                            :: transform_radius, chi3_max
 
     if ( operators == operators_fv ) then
       ! This setup is only needed for FV methods
@@ -139,9 +141,17 @@ contains
 
         chi_sph => get_coordinates_shifted()
         panel_id => get_panel_id()
-        ! Compute the smallest surface height of chi(3)
-        ! (this is only needed for abh coordinates
-        call chi_sph(3)%field_minmax(chi3_min, chi3_max)
+
+        if ( spherical_coord_system == spherical_coord_system_xyz ) then
+          transform_radius = 0.0_r_def
+        else
+          ! Compute the smallest surface height of chi(3)
+          ! (this is only needed for spherically-based coordinates
+          ! Transform radius is minimum height + 1
+          call chi_sph(3)%field_minmax(transform_radius, chi3_max)
+          transform_radius = 1.0_r_def + abs(transform_radius)
+        end if
+
         nqp_xyz = fv_flux_order+1
         qr = quadrature_xyoz_type(nqp_xyz, gaussian_quadrature)
         if ( oned_reconstruction ) then
@@ -166,11 +176,13 @@ contains
         if ( oned_reconstruction ) then
           call invoke_poly1d_shifted_flux_coeffs( flux_coeffs, md_w3, chi_sph, panel_id, &
                                                   qr, qrf, fv_flux_order,                &
-                                                  flux_stencil_extent, nfaces_re_h, chi3_min )
+                                                  flux_stencil_extent, nfaces_re_h,      &
+                                                  transform_radius )
         else
           call invoke_poly2d_shifted_flux_coeffs( flux_coeffs, md_w3, chi_sph, panel_id, &
                                                   qr, qrf, fv_flux_order,                &
-                                                  flux2d_stencil_size, nfaces_re_h, chi3_min )
+                                                  flux2d_stencil_size, nfaces_re_h,      &
+                                                  transform_radius )
         end if
         call log_event( "Gungho: computing vertical flux coeffs", LOG_LEVEL_INFO )
         ! Vertical flux coeffs

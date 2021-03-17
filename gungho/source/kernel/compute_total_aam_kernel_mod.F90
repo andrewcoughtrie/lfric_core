@@ -23,7 +23,6 @@ module compute_total_aam_kernel_mod
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W2, W3
   use kernel_mod,        only : kernel_type
-  use log_mod,           only : log_event, LOG_LEVEL_ERROR
   use planet_config_mod, only : scaled_omega, scaled_radius
 
   implicit none
@@ -105,14 +104,9 @@ subroutine compute_total_aam_code(                                              
                                  )
 
   use coordinate_jacobian_mod,   only: coordinate_jacobian
-  use coord_transform_mod,       only: xyz2llr,            &
-                                       cart2sphere_vector, &
-                                       alphabetar2llr,     &
-                                       alphabetar2xyz
+  use chi_transform_mod,         only: chi2llr, chi2xyz
+  use coord_transform_mod,       only: cart2sphere_vector
   use cross_product_mod,         only: cross_product
-  use finite_element_config_mod, only: spherical_coord_system, &
-                                       spherical_coord_system_abh, &
-                                       spherical_coord_system_xyz
 
   implicit none
 
@@ -188,23 +182,11 @@ subroutine compute_total_aam_code(                                              
           coords(3) = coords(3) + chi_3_sph_e(df)*chi_sph_basis(1,df,qp1,qp2)
         end do
 
-        if ( spherical_coord_system == spherical_coord_system_xyz ) then
-          x_vec(:) = coords(:)
-          ! compute latitude, longitude and radius values
-          call xyz2llr(x_vec(1),x_vec(2),x_vec(3),llr_vec(1),llr_vec(2),llr_vec(3))
-        else if ( spherical_coord_system == spherical_coord_system_abh ) then
-          ! Pos_vec values are (alpha,beta,h)
-          coords(3) = coords(3) + scaled_radius
-          llr_vec(3) = coords(3)
-          call alphabetar2xyz(coords(1), coords(2), coords(3), &
-                              ipanel, x_vec(1), x_vec(2), x_vec(3))
-          call alphabetar2llr(coords(1), coords(2), coords(3), &
-                              ipanel, llr_vec(1), llr_vec(2))
-        else
-          call log_event('compute_total_aam_kernel is not implemented ' // &
-                         'with your spherical coordinate system',          &
-                         LOG_LEVEL_ERROR)
-        end if
+        ! Obtain (X,Y,Z) and (lon,lat,r) coords
+        call chi2xyz(coords(1), coords(2), coords(3),  &
+                     ipanel, x_vec(1), x_vec(2), x_vec(3))
+        call chi2llr(coords(1), coords(2), coords(3),  &
+                     ipanel, llr_vec(1), llr_vec(2), llr_vec(3))
 
         ! get position vector with spherical components
         r_vec(:) = cart2sphere_vector(x_vec, x_vec)

@@ -98,7 +98,10 @@ contains
 !>@param[in] cells_in_stencil Number of cells in the stencil to use for the
 !!                            reconstruction in this column (may be smaller than
 !!                            stencil_size_w3)
-!>@param[in] chi3_min Global minimum of chi3 array
+!>@param[in] transform_radius A radius used for transforming to spherically-based
+!!                            coords. For Cartesian coordinates this is zero, but
+!!                            for spherical coordinates it is the global minimum
+!!                            of the height field plus 1.
 !>@param[in] nqp_h Number of horizontal quadrature points
 !>@param[in] nqp_v Number of vertical quadrature points
 !>@param[in] wqp_h Weights of horizontal quadrature points
@@ -127,7 +130,7 @@ subroutine poly2d_flux_coeffs_code(nlayers,                    &
                                    order,                      &
                                    nfaces_h,                   &
                                    cells_in_stencil,           &
-                                   chi3_min,                   &
+                                   transform_radius,           &
                                    nqp_h, nqp_v, wqp_h, wqp_v, &
                                    nfaces_qr, nqp_f, wqp_f )
 
@@ -138,9 +141,7 @@ subroutine poly2d_flux_coeffs_code(nlayers,                    &
                                        geometry_spherical
   use poly_helper_functions_mod, only: buildadvcoeff, &
                                        local_distance_2d
-  use finite_element_config_mod, only: spherical_coord_system,     &
-                                       spherical_coord_system_abh
-  use coord_transform_mod,       only: alphabetar2xyz
+  use chi_transform_mod,         only: chir2xyz
   implicit none
 
   ! Arguments
@@ -168,7 +169,7 @@ subroutine poly2d_flux_coeffs_code(nlayers,                    &
   real(kind=r_def), dimension(nqp_v),           intent(in) ::  wqp_v
   real(kind=r_def), dimension(nqp_f,nfaces_qr), intent(in) ::  wqp_f
 
-  real(kind=r_def), intent(in) :: chi3_min
+  real(kind=r_def), intent(in) :: transform_radius
 
   ! Local variables
   logical(kind=l_def) :: spherical
@@ -178,12 +179,12 @@ subroutine poly2d_flux_coeffs_code(nlayers,                    &
 
   real(kind=r_def)                              :: fn, poly
   real(kind=r_def),              dimension(2)   :: xx
-  real(kind=r_def),              dimension(3)   :: x0, x1, xq, xn1, abr, r0
+  real(kind=r_def),              dimension(3)   :: x0, x1, xq, xn1, chi_sph, r0
   real(kind=r_def), allocatable, dimension(:,:) :: int_monomial
   real(kind=r_def),              dimension(stencil_size_w3) :: area
 
-  ! Ensure that r0 + r is positive
-  r0 = (/ 0.0_r_def, 0.0_r_def, 1.0_r_def + abs(chi3_min) /)
+  ! Radius correction for transforming to (X,Y,Z) coordinates
+  r0 = (/ 0.0_r_def, 0.0_r_def, transform_radius /)
 
   if ( geometry == geometry_spherical ) then
     spherical = .true.
@@ -230,17 +231,15 @@ subroutine poly2d_flux_coeffs_code(nlayers,                    &
       x1(:) = x1(:) + (/ chi1(ijk), chi2(ijk), chi3(ijk) /)*basis_wx(1,df,qh0,qv0)
     end do
 
-    if ( spherical_coord_system == spherical_coord_system_abh ) then
-      ! Convert x0 & x1 to XYZ coordinate system
-      ipanel = int(panel_id(smap_pid(1,1)), i_def)
-      abr = x0 + r0
-      call alphabetar2xyz(abr(1), abr(2), abr(3), &
-                          ipanel, x0(1), x0(2), x0(3))
-      ipanel = int(panel_id(smap_pid(1,2)), i_def)
-      abr = x1 + r0
-      call alphabetar2xyz(abr(1), abr(2), abr(3), &
-                          ipanel, x1(1), x1(2), x1(3))
-    end if
+    ! Convert x0 & x1 to XYZ coordinate system
+    ipanel = int(panel_id(smap_pid(1,1)), i_def)
+    chi_sph = x0 + r0
+    call chir2xyz(chi_sph(1), chi_sph(2), chi_sph(3), &
+                  ipanel, x0(1), x0(2), x0(3))
+    ipanel = int(panel_id(smap_pid(1,2)), i_def)
+    chi_sph = x1 + r0
+    call chir2xyz(chi_sph(1), chi_sph(2), chi_sph(3), &
+                  ipanel, x1(1), x1(2), x1(3))
 
     x1(3) = ispherical*x1(3) + (1_i_def - ispherical)*x0(3)
     ! Unit normal to plane containing points 0 and 1
@@ -259,13 +258,12 @@ subroutine poly2d_flux_coeffs_code(nlayers,                    &
           ijk = smap_wx( df, stencil) + k
           xq(:) = xq(:) + (/ chi1(ijk), chi2(ijk), chi3(ijk) /)*basis_wx(1,df,qp,qv0)
         end do
-        if ( spherical_coord_system == spherical_coord_system_abh ) then
-          ! Convert xq to XYZ coordinate system
-          ipanel = int(panel_id(smap_pid(1,stencil)), i_def)
-          abr = xq + r0
-          call alphabetar2xyz(abr(1), abr(2), abr(3), &
-                              ipanel, xq(1), xq(2), xq(3))
-        end if
+
+        ! Convert xq to XYZ coordinate system
+        ipanel = int(panel_id(smap_pid(1,stencil)), i_def)
+        chi_sph = xq + r0
+        call chir2xyz(chi_sph(1), chi_sph(2), chi_sph(3), &
+                      ipanel, xq(1), xq(2), xq(3))
 
         ! Second: Compute the local coordinate of each quadrature point from the
         !         physical coordinate
@@ -306,13 +304,12 @@ subroutine poly2d_flux_coeffs_code(nlayers,                    &
           ijk = smap_wx( df, 1) + k
           xq(:) = xq(:) + (/ chi1(ijk), chi2(ijk), chi3(ijk) /)*face_basis_wx(1,df,qp,face)
         end do
-        if ( spherical_coord_system == spherical_coord_system_abh ) then
-          ! Convert xq to XYZ coordinate system
-          ipanel = int(panel_id(smap_pid(1,1)), i_def)
-          abr = xq + r0
-          call alphabetar2xyz(abr(1), abr(2), abr(3), &
-                              ipanel, xq(1), xq(2), xq(3))
-        end if
+
+        ! Convert xq to XYZ coordinate system
+        ipanel = int(panel_id(smap_pid(1,1)), i_def)
+        chi_sph = xq + r0
+        call chir2xyz(chi_sph(1), chi_sph(2), chi_sph(3), &
+                      ipanel, xq(1), xq(2), xq(3))
 
         xx = local_distance_2d(x0, xq, xn1, spherical)
 

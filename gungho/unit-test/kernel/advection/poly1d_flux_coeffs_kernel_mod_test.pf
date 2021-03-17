@@ -31,10 +31,12 @@ contains
     use feign_config_mod,          only: feign_base_mesh_config, &
                                          feign_domain_size_config, &
                                          feign_finite_element_config
-    use base_mesh_config_mod,     only: geometry_planar, &
-                                        partitioner_planar
+    use base_mesh_config_mod,      only: geometry_planar, &
+                                         partitioner_planar
     use finite_element_config_mod, only: spherical_coord_system_xyz, &
                                          cellshape_quadrilateral
+    use chi_transform_mod,         only: init_chi_transforms
+
     implicit none
     class(poly1d_flux_coeffs_test_type), intent(inout) :: this
     ! Initialise YAXT
@@ -59,6 +61,8 @@ contains
                                        vorticity_in_w1 = .true., &
                                        spherical_coord_order = 1, &
                                        spherical_coord_system = spherical_coord_system_xyz)
+    call init_chi_transforms()
+
   end subroutine setUp
 
 
@@ -222,8 +226,16 @@ contains
 
   subroutine tearDown( this )
 
+    use configuration_mod,   only: final_configuration
+    use chi_transform_mod,   only: final_chi_transforms
+
     implicit none
+
     class(poly1d_flux_coeffs_test_type), intent(inout) :: this
+
+    call final_configuration()
+    call final_chi_transforms()
+
     ! Finalise YAXT
     call xt_finalize()
     ! Clear the stored MPI communicator

@@ -11,6 +11,8 @@
 
 module create_fem_mod
 
+  use chi_transform_mod,              only : init_chi_transforms, &
+                                             final_chi_transforms
   use constants_mod,                  only : i_def, i_native, l_def
   use base_mesh_config_mod,           only : geometry, geometry_planar
   use finite_element_config_mod,      only : element_order, coordinate_order, &
@@ -130,6 +132,10 @@ module create_fem_mod
 
     ! Create model coordinate field
     ! =========================================
+
+    ! Initialise coordinate transformations
+    call init_chi_transforms()
+
     if ( coordinate_order == 0 ) then
       chi_xyz_space = W0
       call log_event( "FEM specifics: Computing W0 xyz coordinate fields", LOG_LEVEL_INFO )
@@ -281,6 +287,8 @@ module create_fem_mod
       call function_space_collection%clear()
       deallocate(function_space_collection)
     end if
+
+    call final_chi_transforms()
 
   end subroutine final_fem
 

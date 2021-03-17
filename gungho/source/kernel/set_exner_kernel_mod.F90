@@ -91,12 +91,8 @@ subroutine set_exner_code(nlayers,                                    &
 
   use matrix_invert_mod,              only: matrix_invert
   use coordinate_jacobian_mod,        only: coordinate_jacobian
-  use coord_transform_mod,            only: alphabetar2xyz
+  use chi_transform_mod,              only: chi2xyz
   use analytic_pressure_profiles_mod, only: analytic_pressure
-  use finite_element_config_mod,      only: spherical_coord_system, &
-                                            spherical_coord_system_abh, &
-                                            spherical_coord_system_xyz
-  use planet_config_mod,              only: scaled_radius
 
   ! Needs to compute the integral of exner_df * P
   ! P_analytic over a single column
@@ -160,18 +156,9 @@ subroutine set_exner_code(nlayers,                                    &
             coords(3) = coords(3) + chi_sph_3_e(df2)*chi_sph_basis(1,df2,qp1,qp2)
           end do
 
-          if ( spherical_coord_system == spherical_coord_system_xyz ) then
-            ! coords is already the (X,Y,Z) coordinates
-            xyz(:) = coords(:)
-          else if( spherical_coord_system == spherical_coord_system_abh ) then
-            ! Get (X,Y,Z) coordinates
-            call alphabetar2xyz(coords(1), coords(2), coords(3)+scaled_radius, &
-                                ipanel, xyz(1), xyz(2), xyz(3))
-          else
-            call log_event('set_exner_kernel is not implemented ' // &
-                           'with your spherical coordinate system',  &
-                           LOG_LEVEL_ERROR)
-          end if
+          ! Get (X,Y,Z) coordinates
+          call chi2xyz(coords(1), coords(2), coords(3), &
+                       ipanel, xyz(1), xyz(2), xyz(3))
 
           exner_ref = analytic_pressure(xyz, test, time)
 

@@ -98,13 +98,9 @@ contains
   use analytic_wind_profiles_mod, only : analytic_wind
   use base_mesh_config_mod,       only : geometry, &
                                          geometry_spherical
+  use chi_transform_mod,          only : chi2llr
   use coordinate_jacobian_mod,    only : coordinate_jacobian
-  use coord_transform_mod,        only : sphere2cart_vector, &
-                                         xyz2llr, alphabetar2llr
-  use finite_element_config_mod,  only : spherical_coord_system, &
-                                         spherical_coord_system_xyz, &
-                                         spherical_coord_system_abh
-  use planet_config_mod,          only : scaled_radius
+  use coord_transform_mod,        only : sphere2cart_vector
 
   implicit none
 
@@ -193,18 +189,8 @@ contains
         if ( geometry == geometry_spherical ) then
 
           ! Need to obtain longitude, latitude and radius from position vector
-          if ( spherical_coord_system == spherical_coord_system_xyz ) then
-            ! Pos_vec is (X,Y,Z)
-            call xyz2llr(coords(1), coords(2), coords(3), llr(1), llr(2), llr(3))
-          else if ( spherical_coord_system == spherical_coord_system_abh ) then
-            ! Pos_vec is (alpha, beta, h)
-            llr(3) = coords(3) + scaled_radius
-            call alphabetar2llr(coords(1), coords(2), llr(3), ipanel, llr(1), llr(2))
-          else
-            call log_event('initial_u_kernel is not implemented ' // &
-                           'with your spherical coordinate system',  &
-                           LOG_LEVEL_ERROR)
-          end if
+          call chi2llr(coords(1), coords(2), coords(3), &
+                       ipanel, llr(1), llr(2), llr(3))
 
           ! Obtain (lon,lat,r) components of u and then transform to (X,Y,Z) components
           u_spherical = analytic_wind(llr, time, profile, n_options, opt_args)

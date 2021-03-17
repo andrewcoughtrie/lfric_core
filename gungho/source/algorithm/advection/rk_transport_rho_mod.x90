@@ -18,7 +18,9 @@ module rk_transport_rho_mod
                                                LOG_LEVEL_ERROR
   use fs_continuity_mod,                 only: W1, W3
   ! Configuration options
-  use finite_element_config_mod,         only: element_order
+  use finite_element_config_mod,         only: element_order,          &
+                                               spherical_coord_system, &
+                                               spherical_coord_system_xyz
   use timestepping_config_mod,           only: dt
   use runge_kutta_init_mod,              only: num_rk_stage, ak
   use fem_constants_mod,                 only: get_mass_matrix,                &
@@ -118,7 +120,7 @@ contains
     type(mesh_type),               pointer :: mesh => null()
     integer(i_def)                         :: face_quad_order
     integer(i_def)                         :: nqp_xy, nqp_z, nqp_xyz
-    real(r_def)                            :: chi3_min, chi3_max
+    real(r_def)                            :: transform_radius, chi3_max
 
     nfaces_h = nfaces_re_h
     nfaces_v = nfaces_re_v
@@ -140,9 +142,17 @@ contains
 
         chi_sph => get_coordinates()
         panel_id => get_panel_id()
-        ! Compute the smallest surface height of chi(3)
-        ! (this is only needed for abh coordinates
-        call chi_sph(3)%field_minmax(chi3_min, chi3_max)
+
+        if ( spherical_coord_system == spherical_coord_system_xyz ) then
+          transform_radius = 0.0_r_def
+        else
+          ! Compute the smallest surface height of chi(3)
+          ! (this is only needed for spherically-based coordinates
+          ! Transform radius is minimum height + 1
+          call chi_sph(3)%field_minmax(transform_radius, chi3_max)
+          transform_radius = 1.0_r_def + abs(transform_radius)
+        end if
+
         nqp_xyz = fv_flux_order+1
         qr = quadrature_xyoz_type(nqp_xyz, gaussian_quadrature)
         if ( oned_reconstruction ) then
@@ -162,12 +172,12 @@ contains
           call invoke_poly1d_flux_coeffs( flux_coeffs, md_w3, chi_sph,      &
                                           panel_id, qr, qrf, fv_flux_order, &
                                           flux_stencil_extent, nfaces_h,    &
-                                          chi3_min )
+                                          transform_radius )
         else
           call invoke_poly2d_flux_coeffs( flux_coeffs, md_w3, chi_sph,      &
                                           panel_id, qr, qrf, fv_flux_order, &
                                           flux2d_stencil_size, nfaces_h,    &
-                                          chi3_min )
+                                          transform_radius )
         end if
         call log_event( "Gungho: computing vertical flux coeffs", LOG_LEVEL_INFO )
 

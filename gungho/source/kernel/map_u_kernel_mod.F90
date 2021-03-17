@@ -107,13 +107,9 @@ subroutine map_u_code(nlayers,                                   &
 
   use base_mesh_config_mod,       only : geometry, &
                                          geometry_spherical
-  use finite_element_config_mod,  only : spherical_coord_system,     &
-                                         spherical_coord_system_xyz, &
-                                         spherical_coord_system_abh
-  use planet_config_mod,          only : scaled_radius
+  use chi_transform_mod,          only : chi2llr
   use coordinate_jacobian_mod,    only : coordinate_jacobian
-  use coord_transform_mod,        only : sphere2cart_vector, xyz2llr, alphabetar2llr
-  use log_mod,                    only : log_event, LOG_LEVEL_ERROR
+  use coord_transform_mod,        only : sphere2cart_vector
 
   implicit none
 
@@ -187,19 +183,8 @@ subroutine map_u_code(nlayers,                                   &
             coords(3) = coords(3) + chi_sph_3_cell(df)*chi_sph_basis(1,df,qp1,qp2)
           end do
 
-          if ( spherical_coord_system == spherical_coord_system_xyz ) then
-            call xyz2llr(coords(1), coords(2), coords(3), llr(1), llr(2), llr(3))
-          else if ( spherical_coord_system == spherical_coord_system_abh ) then
-            ! coords has (alpha,beta,h) values.
-            ! Get radial coordinate by adding scaled_radius
-            llr(3) = scaled_radius + coords(3)
-            ! Convert from (alpha,beta,h) coordinates to (lon,lat,r) coordinates
-            call alphabetar2llr(coords(1), coords(2), llr(3), ipanel, llr(1), llr(2))
-          else
-            call log_event('map_u_kernel is not implemented ' //    &
-                           'with your spherical coordinate system', &
-                           LOG_LEVEL_ERROR)
-          end if
+          call chi2llr(coords(1), coords(2), coords(3), &
+                       ipanel, llr(1), llr(2), llr(3))
 
           u_spherical(1) = u_lon(map_w3(1)+k)*basis_w3(1,1,qp1,qp2)
           u_spherical(2) = u_lat(map_w3(1)+k)*basis_w3(1,1,qp1,qp2)

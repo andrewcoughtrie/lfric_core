@@ -63,6 +63,7 @@ contains
 
     use base_mesh_config_mod,      only : geometry_planar, &
                                           partitioner_planar
+    use chi_transform_mod,         only : init_chi_transforms
     use finite_element_config_mod, only : cellshape_quadrilateral, &
                                           spherical_coord_system_xyz
     use feign_config_mod,          only : feign_finite_element_config,      &
@@ -113,18 +114,22 @@ contains
                               rd=rd, cp=cp, p_zero=p_zero,                 &
                               scaling_factor=scaling )
 
+    call init_chi_transforms()
+
   end subroutine setUp
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
     use configuration_mod,        only: final_configuration
+    use chi_transform_mod,        only: final_chi_transforms
 
     implicit none
 
     class(set_rho_kernel_test_type), intent(inout) :: this
 
     call final_configuration()
+    call final_chi_transforms()
 
     ! Finalise YAXT
     call xt_finalize()

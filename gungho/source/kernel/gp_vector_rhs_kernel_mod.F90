@@ -16,17 +16,13 @@ module gp_vector_rhs_kernel_mod
                                         ANY_DISCONTINUOUS_SPACE_3
   use base_mesh_config_mod,      only : geometry,                   &
                                         geometry_spherical
+  use chi_transform_mod,         only : chi2xyz
   use constants_mod,             only : r_def, i_def
   use coordinate_jacobian_mod,   only : coordinate_jacobian,        &
                                         coordinate_jacobian_inverse
-  use coord_transform_mod,       only : cart2sphere_vector, alphabetar2xyz
-  use finite_element_config_mod, only : spherical_coord_system,     &
-                                        spherical_coord_system_xyz, &
-                                        spherical_coord_system_abh
+  use coord_transform_mod,       only : cart2sphere_vector
   use fs_continuity_mod,         only : W0, W2
   use kernel_mod,                only : kernel_type
-  use log_mod,                   only : log_event, LOG_LEVEL_ERROR
-  use planet_config_mod,         only : scaled_radius
 
   implicit none
 
@@ -213,18 +209,9 @@ subroutine gp_vector_rhs_code(nlayers,                           &
               coords(3) = coords(3) + chi_sph_3_cell(df2)*chi_sph_basis(1,df2,qp1,qp2)
             end do
 
-            if ( spherical_coord_system == spherical_coord_system_xyz ) then
-              ! coords is already the (X,Y,Z) coordinates
-              x_at_quad(:) = coords(:)
-            else if( spherical_coord_system == spherical_coord_system_abh ) then
-              ! Get (X,Y,Z) coordinates
-              call alphabetar2xyz(coords(1), coords(2), coords(3)+scaled_radius, &
-                                  ipanel, x_at_quad(1), x_at_quad(2), x_at_quad(3))
-            else
-              call log_event('gp_vector_rhs_kernel is not implemented ' // &
-                             'with your spherical coordinate system',      &
-                             LOG_LEVEL_ERROR)
-            end if
+            ! Obtain (X,Y,Z) coordinates for converting components of u
+            call chi2xyz(coords(1), coords(2), coords(3), ipanel, &
+                         x_at_quad(1), x_at_quad(2), x_at_quad(3))
 
             u_physical(:) = cart2sphere_vector(x_at_quad, u_at_quad)
           else
