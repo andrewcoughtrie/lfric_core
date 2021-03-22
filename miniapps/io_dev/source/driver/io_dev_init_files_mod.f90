@@ -9,28 +9,28 @@
 module io_dev_init_files_mod
 
   ! Infrastructure
-  use clock_mod,                     only: clock_type
-  use constants_mod,                 only: i_def, str_def, str_max_filename
-  use lfric_xios_file_mod,           only: xios_file_type
-  use linked_list_mod,               only: linked_list_type, &
-                                           linked_list_item_type
+  use clock_mod,                 only: clock_type
+  use constants_mod,             only: i_def, str_def, str_max_filename
+  use lfric_xios_file_mod,       only: xios_file_type
+  use linked_list_mod,           only: linked_list_type, &
+                                       linked_list_item_type
 
   ! Configuration
-  use files_config_mod,              only: diag_stem_name,            &
-                                           checkpoint_stem_name,      &
-                                           start_dump_filename,       &
-                                           start_dump_directory,      &
-                                           time_varying_input_path
-  use initialization_config_mod,     only: init_option,               &
-                                           init_option_fd_start_dump, &
-                                           ancil_option,              &
-                                           ancil_option_basic_gal
-  use io_config_mod,                 only: diagnostic_frequency,      &
-                                           checkpoint_write,          &
-                                           checkpoint_read,           &
-                                           write_diag, write_dump
-  use time_config_mod,               only: timestep_start,            &
-                                           timestep_end
+  use files_config_mod,          only: diag_stem_name,            &
+                                       checkpoint_stem_name,      &
+                                       start_dump_filename,       &
+                                       start_dump_directory,      &
+                                       time_varying_input_path
+  use initialization_config_mod, only: init_option,               &
+                                       init_option_fd_start_dump, &
+                                       ancil_option,              &
+                                       ancil_option_basic_gal
+  use io_config_mod,             only: diagnostic_frequency,      &
+                                       checkpoint_write,          &
+                                       checkpoint_read,           &
+                                       write_diag, write_dump
+  use time_config_mod,           only: timestep_start,            &
+                                       timestep_end
 
   implicit none
 
@@ -43,8 +43,8 @@ module io_dev_init_files_mod
 
     implicit none
 
-    type(linked_list_type), intent(out) :: files_list
-    type(clock_type),       intent(in)  :: clock
+    type(linked_list_type), intent(inout) :: files_list
+    class(clock_type),      intent(in)    :: clock
 
     type(xios_file_type)            :: tmp_file
     character(len=str_max_filename) :: checkpoint_write_fname, &

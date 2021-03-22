@@ -1,8 +1,0 @@
-@startuml
-
-!include look.iuml
-!include time_axis_mod.iuml
-
-linked_list_data_mod::linked_list_data_type ^-- time_axis_mod::time_axis_type
-
-@enduml

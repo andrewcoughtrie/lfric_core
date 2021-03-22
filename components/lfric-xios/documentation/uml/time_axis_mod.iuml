@@ -19,3 +19,5 @@ class lfric_xios_time_axis_mod::time_axis_type {
   +update_fields()
   +populate_model_fields(<<in>>model_fields: field_collection_type)
  }
+
+linked_list_data_mod::linked_list_data_type ^-- lfric_xios_time_axis_mod::time_axis_type

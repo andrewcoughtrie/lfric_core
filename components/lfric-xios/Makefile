@@ -75,7 +75,8 @@ document-api: api-documentation
 .PHONY: unit-tests
 unit-tests: export ADDITIONAL_EXTRACTION = "$(ROOT_DIR)/infrastructure/source"
 unit-tests: export BIN_DIR ?= $(PROJECT_DIR)/test
-unit-tests: export EXTERNAL_STATIC_LIBRARIES += pfunit
+unit-tests: export CXX_LINK = TRUE
+unit-tests: export EXTERNAL_STATIC_LIBRARIES += pfunit xios
 unit-tests: export FFLAG_GROUPS = DEBUG NO_OPTIMISATION INIT UNIT_WARNINGS
 unit-tests: export META_FILE_DIR = rose-meta/lfric-xios/HEAD
 unit-tests: export PROGRAMS = lfric_xios_unit_tests

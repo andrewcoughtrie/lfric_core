@@ -81,7 +81,7 @@
             -S = /bin/bash
         [[[job]]]
             batch system = pbs
-            execution time limit = PT12M
+            execution time limit = PT20M
 
 {% for tasks in [1, 2, 6] %}
     [[METO_XC40_{{tasks}}_TASKS]]

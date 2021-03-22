@@ -23,13 +23,16 @@ module skeleton_driver_mod
   use field_mod,                  only : field_type
   use global_mesh_collection_mod, only : global_mesh_collection, &
                                          global_mesh_collection_type
-  use init_clock_mod,             only : initialise_clock
   use init_skeleton_mod,          only : init_skeleton
   use lfric_xios_io_mod,          only : initialise_xios
   use io_config_mod,              only : write_diag, &
                                          use_xios_io
+  use io_context_mod,             only : io_context_type
+  use lfric_xios_clock_mod,       only : lfric_xios_clock_type
+  use lfric_xios_context_mod,     only : lfric_xios_context_type
   use local_mesh_collection_mod,  only : local_mesh_collection, &
                                          local_mesh_collection_type
+  use linked_list_mod,            only : linked_list_type
   use log_mod,                    only : log_event,          &
                                          log_set_level,      &
                                          log_scratch_space,  &
@@ -44,8 +47,13 @@ module skeleton_driver_mod
   use mpi_mod,                    only : store_comm,    &
                                          get_comm_size, &
                                          get_comm_rank
+  use simple_io_mod,              only : initialise_simple_io
+  use simple_io_context_mod,      only : simple_io_context_type
   use skeleton_mod,               only : load_configuration, program_name
   use skeleton_alg_mod,           only : skeleton_alg
+  use time_config_mod,            only : timestep_start, timestep_end
+  use timestepping_config_mod,    only : dt, &
+                                         spinup_period
   use xios,                       only : xios_context_finalize, &
                                          xios_update_calendar
   use yaxt,                       only : xt_initialize, xt_finalize
@@ -55,9 +63,7 @@ module skeleton_driver_mod
   private
   public initialise, run, finalise
 
-  character(len=*), public, parameter   :: xios_ctx  = program_name
-
-  class(clock_type), allocatable :: clock
+  class(io_context_type), allocatable :: io_context
 
   ! Prognostic fields
   type( field_type ) :: field_1
@@ -90,8 +96,7 @@ contains
     character(:),      intent(in), allocatable :: filename
     integer(i_native), intent(in)              :: model_communicator
 
-    integer(i_def)     :: total_ranks, local_rank
-
+    integer(i_def)    :: total_ranks, local_rank
     integer(i_native) :: log_level
 
     !Store the MPI communicator for later use
@@ -135,8 +140,6 @@ contains
 
     call set_derived_config( .true. )
 
-    call initialise_clock( clock )
-
     !-------------------------------------------------------------------------
     ! Model init
     !-------------------------------------------------------------------------
@@ -170,17 +173,22 @@ contains
     ! XIOS domain and context
 
     if ( use_xios_io ) then
-      call initialise_xios( xios_ctx,           &
+      call initialise_xios( io_context,         &
+                            program_name,       &
                             model_communicator, &
-                            clock,              &
                             mesh_id,            &
                             twod_mesh_id,       &
-                            chi_xyz )
-
-      ! Make sure XIOS calendar is set to timestep 1 as it starts there
-      ! not timestep 0.
-      call xios_update_calendar(1)
-
+                            chi_xyz,            &
+                            timestep_start,     &
+                            timestep_end,       &
+                            spinup_period,      &
+                            dt )
+    else
+      call initialise_simple_io( io_context,     &
+                                 timestep_start, &
+                                 timestep_end,   &
+                                 spinup_period,  &
+                                 dt )
     end if
 
     ! Create and initialise prognostic fields
@@ -195,8 +203,10 @@ contains
 
     implicit none
 
-    logical :: running
+    class(clock_type), pointer :: clock
+    logical                    :: running
 
+    clock => io_context%get_clock()
     running = clock%tick()
 
     ! Call an algorithm

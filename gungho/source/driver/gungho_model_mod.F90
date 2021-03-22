@@ -4,7 +4,8 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 !> @brief Handles initialisation and finalisation of infrastructure, constants
-! and the gungho model simulations
+!>        and the gungho model simulations.
+!>
 module gungho_model_mod
 
   use assign_orography_field_mod, only : assign_orography_field
@@ -31,19 +32,23 @@ module gungho_model_mod
                                          global_mesh_collection_type
   use gungho_mod,                 only : load_configuration
   use gungho_model_data_mod,      only : model_data_type
+  use gungho_setup_io_mod,        only : init_gungho_files
   use init_altitude_mod,          only : init_altitude
-  use init_clock_mod,             only : initialise_clock
   use init_altitude_mod,          only : init_altitude
-  use lfric_xios_io_mod,          only : initialise_xios
   use io_config_mod,              only : subroutine_timers,       &
                                          subroutine_counters,     &
                                          use_xios_io,             &
                                          write_conservation_diag, &
                                          write_dump,              &
                                          write_minmax_tseries
-  use semi_implicit_timestep_alg_mod, &
-                                  only : semi_implicit_alg_init, &
-                                         semi_implicit_alg_final
+  use io_context_mod,             only : io_context_type
+  use lfric_xios_clock_mod,       only : lfric_xios_clock_type
+  use lfric_xios_context_mod,     only : lfric_xios_context_type
+  use lfric_xios_io_mod,          only : initialise_xios, &
+                                         populate_filelist_if
+  use lfric_xios_write_mod,       only : write_state, &
+                                         write_field_single_face
+  use linked_list_mod,            only : linked_list_type
   use local_mesh_collection_mod,  only : local_mesh_collection, &
                                          local_mesh_collection_type
   use log_mod,                    only : log_event,          &
@@ -57,11 +62,11 @@ module gungho_model_mod
                                          LOG_LEVEL_INFO,     &
                                          LOG_LEVEL_DEBUG,    &
                                          LOG_LEVEL_TRACE
-  use moisture_conservation_alg_mod, &
-                                  only : moisture_conservation_alg
   use minmax_tseries_mod,         only : minmax_tseries,      &
                                          minmax_tseries_init, &
                                          minmax_tseries_final
+  use moisture_conservation_alg_mod, &
+                                  only : moisture_conservation_alg
   use mpi_mod,                    only : store_comm,    &
                                          get_comm_size, &
                                          get_comm_rank
@@ -74,24 +79,24 @@ module gungho_model_mod
                                          runge_kutta_final
   use runtime_constants_mod,      only : create_runtime_constants, &
                                          final_runtime_constants
+  use semi_implicit_timestep_alg_mod, &
+                                  only : semi_implicit_alg_init, &
+                                         semi_implicit_alg_final
   use section_choice_config_mod,  only : radiation,         &
                                          radiation_socrates,&
                                          surface, surface_jules
-  use time_config_mod,            only : timestep_start
+  use simple_io_mod,              only : initialise_simple_io
+  use simple_io_context_mod,      only : simple_io_context_type
+  use time_config_mod,            only : timestep_start, timestep_end
   use timer_mod,                  only : timer, output_timer, init_timer
-  use timestepping_config_mod,    only : method,               &
+  use timestepping_config_mod,    only : dt,                   &
+                                         method,               &
                                          method_semi_implicit, &
-                                         method_rk
+                                         method_rk,            &
+                                         spinup_period
   use transport_config_mod,       only : scheme, &
                                          scheme_method_of_lines
-  use lfric_xios_write_mod,       only : write_state, &
-                                         write_field_single_face
-  use xios,                       only : xios_context_finalize, &
-                                         xios_update_calendar
   use yaxt,                       only : xt_initialize, xt_finalize
-
-  use linked_list_mod,            only : linked_list_type
-  use gungho_setup_io_mod,        only : init_gungho_files
 
 #ifdef UM_PHYSICS
   use jules_control_init_mod,     only : jules_control_init
@@ -110,24 +115,46 @@ module gungho_model_mod
          finalise_infrastructure,   &
          finalise_model
 
-  contains
 
+contains
 
-  !> @brief Initialises the infrastructure and sets up constants used by the model
-  !> @param [in,out] communicator The MPI communicator for use within the model
-  !>                     (not XIOS' communicator)
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Fills I/O system's list of files for Gung Ho.
+  !>
+  !> @param[inout] file_list  List of files the model wishes to access.
+  !> @param[in]    clock      Model time.
+  !>
+  subroutine populate_file_list( file_list, clock )
+
+    implicit none
+
+    class(linked_list_type), intent(inout) :: file_list
+    class(clock_type),       intent(in)    :: clock
+
+    call init_gungho_files( file_list, clock )
+
+  end subroutine populate_file_list
+
+  !> @brief Initialises the infrastructure and sets up constants used by the
+  !>        model.
+  !>
+  !> @param [in]    communicator The MPI communicator for use within the model
+  !>                             (not XIOS' communicator)
   !> @param [in]    filename The name of the configuration namelist file
   !> @param [in]    program_name An identifier given to the model begin run
-  !> @param[out]     clock Model time
+  !> @param [out]    clock Model time
   !> @param [in,out] mesh_id The identifier given to the current 3d mesh
   !> @param [in,out] twod_mesh_id The identifier given to the current 2d mesh
-  !> @param [in,out] shifted_mesh_id The identifier given to the vertically shifted 3d mesh
-  !> @param [in,out] double_level_mesh_id The identifier given to the double-level 3d mesh
-  !> the double-level mesh
+  !> @param [in,out] shifted_mesh_id The identifier given to the vertically
+  !>                                 shifted 3d mesh
+  !> @param [in,out] double_level_mesh_id The identifier given to the
+  !>                                      double-level 3d mesh the double-level
+  !>                                      mesh
+  !>
   subroutine initialise_infrastructure(communicator,         &
                                        filename,             &
                                        program_name,         &
-                                       clock,                &
+                                       io_context,           &
                                        mesh_id,              &
                                        twod_mesh_id,         &
                                        shifted_mesh_id,      &
@@ -143,20 +170,25 @@ module gungho_model_mod
 
     implicit none
 
-    integer(i_native),  intent(in)    :: communicator
-    character(*),       intent(in)    :: filename
-    character(*),       intent(in)    :: program_name
-    class(clock_type), intent(out), allocatable :: clock
+    integer(i_native),      intent(in)               :: communicator
+    character(*),           intent(in)               :: filename
+    character(*),           intent(in)               :: program_name
+    class(io_context_type), intent(out), allocatable :: io_context
+    integer(i_def),         intent(inout)            :: mesh_id
+    integer(i_def),         intent(inout)            :: twod_mesh_id
+    integer(i_def),         intent(inout)            :: double_level_mesh_id
+    integer(i_def),         intent(inout)            :: shifted_mesh_id
 
-    integer(i_def),     intent(inout) :: mesh_id, twod_mesh_id
-    integer(i_def),     intent(inout) :: double_level_mesh_id, shifted_mesh_id
+    character(len=*), parameter :: io_context_name = "gungho_atm"
 
-    character(len=*), parameter :: xios_ctx  = "gungho_atm"
+    procedure(populate_filelist_if), pointer :: populate_pointer
 
     integer(i_def)    :: total_ranks, local_rank
     integer(i_native) :: log_level
 
-    type(field_type)  :: surface_altitude
+    class(clock_type), pointer :: clock
+
+    type(field_type) :: surface_altitude
 
     type(field_type), target :: chi_xyz(3)
     type(field_type), target :: chi_sph(3)
@@ -165,8 +197,6 @@ module gungho_model_mod
     type(field_type), target :: shifted_chi_sph(3)
     type(field_type), target :: double_level_chi_xyz(3)
     type(field_type), target :: double_level_chi_sph(3)
-
-    type(linked_list_type) :: files_list
 
     integer(i_def), allocatable :: multigrid_mesh_ids(:)
     integer(i_def), allocatable :: multigrid_2d_mesh_ids(:)
@@ -208,8 +238,6 @@ module gungho_model_mod
         'Runtime message logging severity set to log level: '// &
         convert_to_upper(key_from_run_log_level(run_log_level))
     call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
-
-    call initialise_clock( clock )
 
     write(log_scratch_space,'(A)')                        &
         'Application built with '//trim(PRECISION_REAL)// &
@@ -270,27 +298,30 @@ module gungho_model_mod
     ! Initialise aspects of output
     !-------------------------------------------------------------------------
 
-    ! If using XIOS for diagnostic output or checkpointing, then set up XIOS
-    ! domain and context
+    call log_event("Initialising I/O context", LOG_LEVEL_INFO)
+
     if ( use_xios_io ) then
-
-      call init_gungho_files(files_list, clock)
-
-      call initialise_xios( xios_ctx,     &
-                            communicator, &
-                            clock,        &
-                            mesh_id,      &
-                            twod_mesh_id, &
-                            chi_xyz,      &
-                            files_list )
-
-      if (clock%is_initialisation()) then
-        ! Make sure XIOS calendar is set to timestep 1 as it starts there
-        ! not timestep 0.
-        call xios_update_calendar(1)
-      end if
-
+      populate_pointer => populate_file_list
+      call initialise_xios( io_context,      &
+                            io_context_name, &
+                            communicator,    &
+                            mesh_id,         &
+                            twod_mesh_id,    &
+                            chi_xyz,         &
+                            timestep_start,  &
+                            timestep_end,    &
+                            spinup_period,   &
+                            dt,              &
+                            populate_pointer )
+    else
+      call initialise_simple_io( io_context,     &
+                                 timestep_start, &
+                                 timestep_end,   &
+                                 spinup_period,  &
+                                 dt )
     end if
+
+    clock => io_context%get_clock()
 
     ! Set up surface altitude field - this will be used to generate orography
     ! for models with global land mass included (i.e GAL)
@@ -355,17 +386,19 @@ module gungho_model_mod
 
   !---------------------------------------------------------------------------
   !> @brief Initialises the gungho application
+  !>
   !> @param[in] clock Model time
   !> @param[in] mesh_id The identifier of the primary mesh
-  !> @param[inout] model_data The working data set for the model run
+  !> @param[in,out] model_data The working data set for the model run
+  !>
   subroutine initialise_model( clock,   &
                                mesh_id, &
                                model_data )
     implicit none
 
-    class(clock_type),               intent(in)    :: clock
-    integer(i_def),                  intent(in)    :: mesh_id
-    type( model_data_type ), target, intent(inout) :: model_data
+    class(clock_type),       intent(in), pointer   :: clock
+    integer(i_def),          intent(in)            :: mesh_id
+    type( model_data_type ), intent(inout), target :: model_data
 
     type( field_collection_type ), pointer :: prognostic_fields => null()
     type( field_collection_type ), pointer :: diagnostic_fields => null()
@@ -451,7 +484,9 @@ module gungho_model_mod
 
   end subroutine initialise_model
 
-  !> @brief Finalises infrastructure and constants used by the model
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Finalises infrastructure and constants used by the model.
+  !>
   subroutine finalise_infrastructure(program_name)
 
     implicit none
@@ -476,15 +511,6 @@ module gungho_model_mod
     if ( subroutine_counters ) then
       call halo_calls%counter(program_name)
       call halo_calls%output_counters()
-    end if
-
-    !-------------------------------------------------------------------------
-    ! Finalise aspects of output
-    !-------------------------------------------------------------------------
-
-    ! Finalise XIOS context if we used it for diagnostic output or checkpointing
-    if ( use_xios_io ) then
-      call xios_context_finalize()
     end if
 
     !-------------------------------------------------------------------------
@@ -517,9 +543,11 @@ module gungho_model_mod
 
   !---------------------------------------------------------------------------
   !> @brief Finalise the gungho application
+  !>
   !> @param[in] mesh_id The identifier of the primary mesh
-  !> @param[inout] model_data The working data set for the model run
+  !> @param[in,out] model_data The working data set for the model run
   !> @param[in] program_name An identifier given to the model begin run
+  !>
   subroutine finalise_model( mesh_id, &
                              model_data, &
                              program_name )

@@ -29,7 +29,7 @@ contains
     implicit none
 
     type(linked_list_type),      intent(in)    :: time_axis_list
-    type(clock_type),            intent(in)    :: clock
+    class(clock_type),           intent(in)    :: clock
     type(field_collection_type), intent(inout) :: state
 
     ! Pointer to linked list - used for looping through the list
@@ -78,7 +78,7 @@ contains
     implicit none
 
     type(linked_list_type),      intent(in)    :: time_axis_list
-    type(clock_type),            intent(in)    :: clock
+    class(clock_type),           intent(in)    :: clock
     type(field_collection_type), intent(inout) :: state
 
     ! Pointer to linked list - used for looping through the list

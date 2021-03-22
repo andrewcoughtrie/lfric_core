@@ -17,26 +17,31 @@ module gravity_wave_driver_mod
                                             finalise_io
   use create_gravity_wave_prognostics_mod, &
                                       only: create_gravity_wave_prognostics
+  use field_mod,                      only: field_type
+  use field_collection_mod,           only: field_collection_type
+  use function_space_chain_mod,       only: function_space_chain_type
+  use gravity_wave_mod,               only: program_name
   use gravity_wave_constants_config_mod, &
                                       only: b_space,       &
                                             b_space_w0,    &
                                             b_space_w3,    &
                                             b_space_wtheta
-  use field_mod,                      only: field_type
-  use field_collection_mod,           only: field_collection_type
-  use function_space_chain_mod,       only: function_space_chain_type
-  use gravity_wave_mod,               only: program_name
   use gravity_wave_diagnostics_driver_mod, &
                                       only: gravity_wave_diagnostics_driver
   use gravity_wave_grid_mod,          only: initialise_grid
   use gravity_wave_infrastructure_mod, &
                                       only: initialise_infrastructure, &
                                             finalise_infrastructure
-  use gravity_wave_io_mod,            only: initialise_io, &
-                                            finalise_io
   use gw_init_fields_alg_mod,         only: gw_init_fields_alg
-  use init_clock_mod,                 only: initialise_clock
   use init_gravity_wave_mod,          only: init_gravity_wave
+  use io_config_mod,                  only: write_diag,           &
+                                            checkpoint_read,      &
+                                            checkpoint_write,     &
+                                            diagnostic_frequency, &
+                                            use_xios_io,          &
+                                            nodal_output_on_w3,   &
+                                            subroutine_timers
+  use io_context_mod,                 only: io_context_type
   use runtime_constants_mod,          only: create_runtime_constants
   use step_gravity_wave_mod,          only: step_gravity_wave
   use final_gravity_wave_mod,         only: final_gravity_wave
@@ -49,16 +54,8 @@ module gravity_wave_driver_mod
                                             LOG_LEVEL_ERROR
   use lfric_xios_read_mod,            only: read_checkpoint
   use lfric_xios_write_mod,           only: write_checkpoint
-  use io_config_mod,                  only: write_diag,           &
-                                            checkpoint_read,      &
-                                            checkpoint_write,     &
-                                            diagnostic_frequency, &
-                                            use_xios_io,          &
-                                            nodal_output_on_w3,   &
-                                            subroutine_timers
   use files_config_mod,               only: checkpoint_stem_name
   use timer_mod,                      only: init_timer, timer, output_timer
-  use xios,                           only: xios_update_calendar
 
   implicit none
 
@@ -85,7 +82,7 @@ module gravity_wave_driver_mod
   ! Function space chains
   type(function_space_chain_type) :: multigrid_function_space_chain
 
-  class(clock_type), allocatable :: clock
+  class(io_context_type), allocatable :: io_context
 
 contains
 
@@ -98,6 +95,8 @@ contains
 
   character(*),      intent(in) :: filename
   integer(i_native), intent(in) :: model_communicator
+
+  class(clock_type), pointer :: clock
 
   ! Initialise aspects of the infrastructure
   call initialise_infrastructure( model_communicator, &
@@ -128,8 +127,6 @@ contains
     call timer(program_name)
   end if
 
-  call initialise_clock( clock )
-
   multigrid_function_space_chain = function_space_chain_type()
 
   ! Initialise aspects of the grid
@@ -138,11 +135,13 @@ contains
 
   ! Initialise aspects of output
   call initialise_io( model_communicator, &
-                      clock,              &
                       mesh_id,            &
                       twod_mesh_id,       &
                       chi_xyz,            &
-                      xios_ctx )
+                      xios_ctx,           &
+                      io_context )
+
+  clock => io_context%get_clock()
 
   ! Create runtime_constants object. This in turn creates various things
   ! needed by the timestepping algorithms such as mass matrix operators, mass
@@ -171,20 +170,11 @@ contains
 
   ! Output initial conditions
   ! We only want these once at the beginning of a run
-  if (clock%is_initialisation()) then
-    if ( use_xios_io ) then
-      ! Need to ensure calendar is initialised here as XIOS has no concept of
-      ! timestep 0
-      call xios_update_calendar(1)
-    end if
-
-    if ( write_diag ) then
-      call gravity_wave_diagnostics_driver( mesh_id,           &
-                                            prognostic_fields, &
-                                            clock,             &
-                                            nodal_output_on_w3)
-    end if
-
+  if (clock%is_initialisation() .and. write_diag) then
+    call gravity_wave_diagnostics_driver( mesh_id,           &
+                                          prognostic_fields, &
+                                          clock,             &
+                                          nodal_output_on_w3)
   end if
 
   end subroutine initialise
@@ -196,8 +186,12 @@ contains
 
   implicit none
 
+  class(clock_type), pointer :: clock
+
   write(log_scratch_space,'(A,I0,A)') 'Running '//program_name//' ...'
   call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
+
+  clock => io_context%get_clock()
 
   !--------------------------------------------------------------------------
   ! Model step
@@ -210,7 +204,6 @@ contains
     if ( use_xios_io ) then
       call log_event( program_name//': Updating XIOS timestep', &
                       LOG_LEVEL_INFO )
-      call xios_update_calendar( clock%get_step() )
     end if
 
     write( log_scratch_space, '("/",A,"\ ")' ) repeat('*', 76)
@@ -246,6 +239,10 @@ contains
   subroutine finalise()
 
   implicit none
+
+  class(clock_type), pointer :: clock
+
+  clock => io_context%get_clock()
 
   !--------------------------------------------------------------------------
   ! Model finalise

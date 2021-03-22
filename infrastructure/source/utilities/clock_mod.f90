@@ -86,6 +86,7 @@ contains
       call log_event(log_scratch_space, log_level_error)
     end if
     this%last_step = this%calendar%parse_instance( last )
+
     if (this%last_step < this%first_step) then
       write(log_scratch_space, '("Last clock step must be after first")')
       call log_event(log_scratch_space, log_level_error)

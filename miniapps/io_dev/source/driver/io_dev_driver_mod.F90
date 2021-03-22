@@ -11,34 +11,33 @@
 module io_dev_driver_mod
 
   ! Infrastructure
-  use clock_mod,                  only: clock_type
-  use constants_mod,              only: i_def, i_native, imdi,     &
-                                        i_timestep
-  use field_mod,                  only: field_type
-  use log_mod,                    only: log_event,                 &
-                                        log_scratch_space,         &
-                                        LOG_LEVEL_ALWAYS,          &
-                                        LOG_LEVEL_INFO
-  use variable_fields_mod,        only: update_variable_fields
+  use clock_mod,           only: clock_type
+  use constants_mod,       only: i_def, i_native, imdi, &
+                                 i_timestep
+  use field_mod,           only: field_type
+  use io_context_mod,      only: io_context_type
+  use log_mod,             only: log_event,         &
+                                 log_scratch_space, &
+                                 LOG_LEVEL_ALWAYS,  &
+                                 LOG_LEVEL_INFO
+  use variable_fields_mod, only: update_variable_fields
   ! Configuration
-  use io_config_mod,              only: use_xios_io,               &
-                                        write_diag,                &
-                                        write_dump,                &
-                                        diagnostic_frequency
-  use io_dev_config_mod,          only: timestepping_on
+  use io_config_mod,       only: use_xios_io, &
+                                 write_diag,  &
+                                 write_dump,  &
+                                 diagnostic_frequency
+  use io_dev_config_mod,   only: timestepping_on
   ! IO_Dev driver modules
-  use io_dev_mod,                 only: program_name
-  use io_dev_data_mod,            only: io_dev_data_type,          &
-                                        create_model_data,         &
-                                        initialise_model_data,     &
-                                        output_model_data,         &
-                                        finalise_model_data
-  use io_dev_model_mod,           only: initialise_infrastructure, &
-                                        finalise_infrastructure
+  use io_dev_mod,          only: program_name
+  use io_dev_data_mod,     only: io_dev_data_type,      &
+                                 create_model_data,     &
+                                 initialise_model_data, &
+                                 output_model_data,     &
+                                 finalise_model_data
+  use io_dev_model_mod,    only: initialise_infrastructure, &
+                                 finalise_infrastructure
   ! Algorithms
   use io_dev_timestep_alg_mod,    only: io_dev_timestep_alg
-  ! XIOS
-  use xios,                       only: xios_update_calendar
 
   implicit none
 
@@ -57,8 +56,7 @@ module io_dev_driver_mod
   integer(i_def) :: mesh_id
   integer(i_def) :: twod_mesh_id
 
-  ! Clock object
-  class(clock_type), allocatable :: clock
+  class(io_context_type), allocatable :: io_context
 
   contains
 
@@ -74,15 +72,15 @@ module io_dev_driver_mod
     integer(i_native), intent(in) :: communicator
 
     ! Initialise infrastructure and setup constants
-    call initialise_infrastructure( filename,        &
-                                    program_name,    &
-                                    communicator,    &
-                                    mesh_id,         &
-                                    twod_mesh_id,    &
-                                    chi_xyz,         &
-                                    chi_sph,         &
-                                    panel_id,        &
-                                    clock )
+    call initialise_infrastructure( filename,     &
+                                    program_name, &
+                                    communicator, &
+                                    mesh_id,      &
+                                    twod_mesh_id, &
+                                    chi_xyz,      &
+                                    chi_sph,      &
+                                    panel_id,     &
+                                    io_context )
 
     ! Instantiate the fields stored in model_data
     call create_model_data( model_data,  &
@@ -90,7 +88,7 @@ module io_dev_driver_mod
                             twod_mesh_id )
 
     ! Initialise the fields stored in the model_data
-    call initialise_model_data( model_data, chi_xyz, clock )
+    call initialise_model_data( model_data, chi_xyz, io_context%get_clock() )
 
 
   end subroutine initialise
@@ -101,20 +99,15 @@ module io_dev_driver_mod
 
     implicit none
 
-    integer(i_timestep) :: new_step
+    class(clock_type), pointer :: clock
 
     write(log_scratch_space,'(A)') 'Running '//program_name//' ...'
     call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
 
+    clock => io_context%get_clock()
+
     ! Model step
     do while( clock%tick() )
-
-      ! Update XIOS calendar
-      if ( use_xios_io ) then
-        call log_event( program_name//': Updating XIOS timestep', LOG_LEVEL_INFO )
-        new_step = clock%get_step() - clock%get_first_step() + 1
-        call xios_update_calendar( new_step )
-      end if
 
       ! Update time-varying fields
       call update_variable_fields( model_data%variable_field_times, &
@@ -142,7 +135,7 @@ module io_dev_driver_mod
     call log_event( 'Finalising '//program_name//' ...', LOG_LEVEL_ALWAYS )
 
     ! Destroy the fields stored in model_data
-    call finalise_model_data( model_data, clock )
+    call finalise_model_data( model_data, io_context%get_clock() )
 
     ! Finalise infrastructure and constants
     call finalise_infrastructure( program_name )

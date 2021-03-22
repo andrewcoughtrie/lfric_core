@@ -3,49 +3,52 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
-!> @brief Sets up I/O configuration from within GungHo
+!> @brief Sets up I/O configuration from within GungHo.
+!>
 !> @details Collects configuration information relevant for the I/O subsystem
 !>          and formats it so that it can be passed to the infrastructure
+!>
 module gungho_setup_io_mod
 
-  use clock_mod,                     only: clock_type
-  use constants_mod,                 only: i_def, str_def, str_max_filename
-  use lfric_xios_file_mod,           only: xios_file_type
-  use linked_list_mod,               only: linked_list_type, &
-                                           linked_list_item_type
+  use clock_mod,                 only: clock_type
+  use constants_mod,             only: i_def, str_def, str_max_filename
+  use lfric_xios_file_mod,       only: xios_file_type
+  use linked_list_mod,           only: linked_list_type, &
+                                       linked_list_item_type
 
   ! Configuration modules
-  use files_config_mod,              only: ancil_directory,           &
-                                           checkpoint_stem_name,      &
-                                           land_area_ancil_path,      &
-                                           orography_ancil_path,      &
-                                           aerosols_ancil_path,       &
-                                           albedo_nir_ancil_path,     &
-                                           albedo_vis_ancil_path,     &
-                                           hydtop_ancil_path,         &
-                                           ozone_ancil_path,          &
-                                           plant_func_ancil_path,     &
-                                           sea_ancil_path,            &
-                                           sea_ice_ancil_path,        &
-                                           soil_ancil_path,           &
-                                           sst_ancil_path,            &
-                                           surface_frac_ancil_path,   &
-                                           start_dump_filename,       &
-                                           start_dump_directory
-  use initialization_config_mod,     only: init_option,               &
-                                           init_option_fd_start_dump, &
-                                           ancil_option,              &
-                                           ancil_option_aquaplanet,   &
-                                           ancil_option_basic_gal,    &
-                                           ancil_option_prototype_gal
-  use io_config_mod,                 only: diagnostic_frequency,      &
-                                           checkpoint_write,          &
-                                           checkpoint_read,           &
-                                           write_dump
-  use orography_config_mod,          only: orog_init_option,          &
-                                           orog_init_option_ancil
-  use time_config_mod,               only: timestep_start,            &
-                                           timestep_end
+  use files_config_mod,          only: ancil_directory,           &
+                                       checkpoint_stem_name,      &
+                                       land_area_ancil_path,      &
+                                       orography_ancil_path,      &
+                                       aerosols_ancil_path,       &
+                                       albedo_nir_ancil_path,     &
+                                       albedo_vis_ancil_path,     &
+                                       hydtop_ancil_path,         &
+                                       ozone_ancil_path,          &
+                                       plant_func_ancil_path,     &
+                                       sea_ancil_path,            &
+                                       sea_ice_ancil_path,        &
+                                       soil_ancil_path,           &
+                                       sst_ancil_path,            &
+                                       surface_frac_ancil_path,   &
+                                       start_dump_filename,       &
+                                       start_dump_directory
+  use initialization_config_mod, only: init_option,               &
+                                       init_option_fd_start_dump, &
+                                       ancil_option,              &
+                                       ancil_option_aquaplanet,   &
+                                       ancil_option_basic_gal,    &
+                                       ancil_option_prototype_gal
+  use io_config_mod,             only: diagnostic_frequency,      &
+                                       checkpoint_write,          &
+                                       checkpoint_read,           &
+                                       write_dump
+  use io_context_mod,            only: io_context_type
+  use orography_config_mod,      only: orog_init_option,          &
+                                       orog_init_option_ancil
+  use time_config_mod,           only: timestep_start,            &
+                                       timestep_end
 
   implicit none
 
@@ -54,12 +57,18 @@ module gungho_setup_io_mod
 
   contains
 
-  subroutine init_gungho_files(files_list, clock)
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Adds details of all files-of-interest to a list.
+  !>
+  !> @param[in,out] files_list  Collection of xios_file_type objects.
+  !> @param[in]     clock       Model time.
+  !>
+  subroutine init_gungho_files( files_list, clock )
 
     implicit none
 
-    type(linked_list_type), intent(out) :: files_list
-    type(clock_type),       intent(in)  :: clock
+    type(linked_list_type), intent(inout) :: files_list
+    class(clock_type),      intent(in)    :: clock
 
     type(xios_file_type)            :: tmp_file
     character(len=str_max_filename) :: checkpoint_write_fname, &
@@ -193,9 +202,9 @@ module gungho_setup_io_mod
       ! Create checkpoint filename from stem and end timestep
       write(checkpoint_write_fname,'(A,A,I6.6)') &
                            trim(checkpoint_stem_name),"_", clock%get_last_step()
-
       call tmp_file%init_xios_file( "lfric_checkpoint_write", &
-                                    checkpoint_write_fname, clock%get_last_step(), &
+                                    checkpoint_write_fname,   &
+                                    clock%get_last_step(), &
                                     field_group_id="checkpoint_fields" )
       call files_list%insert_item(tmp_file)
     end if
@@ -205,9 +214,9 @@ module gungho_setup_io_mod
       ! Create checkpoint filename from stem and (start - 1) timestep
       write(checkpoint_read_fname,'(A,A,I6.6)') &
                    trim(checkpoint_stem_name),"_", (clock%get_first_step() - 1)
-
-      call tmp_file%init_xios_file( "lfric_checkpoint_read", &
-                                    checkpoint_read_fname, clock%get_first_step() - 1, &
+      call tmp_file%init_xios_file( "lfric_checkpoint_read",    &
+                                    checkpoint_read_fname,      &
+                                    clock%get_first_step() - 1, &
                                     field_group_id="checkpoint_fields" )
       call files_list%insert_item(tmp_file)
     end if

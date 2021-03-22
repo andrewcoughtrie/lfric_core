@@ -3,7 +3,7 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-!>@brief Drives the execution of the GungHo model.
+!> @brief Drives the execution of the GungHo model.
 !>
 !> This is a temporary solution until we have a proper driver layer.
 !>
@@ -25,10 +25,10 @@ module gungho_driver_mod
                                          output_model_data, &
                                          finalise_model_data
   use gungho_step_mod,            only : gungho_step
-  use gungho_update_calendar_mod, only : gungho_update_calendar
   use io_config_mod,              only : write_diag, &
                                          diagnostic_frequency, &
                                          nodal_output_on_w3
+  use io_context_mod,             only : io_context_type
   use log_mod,                    only : log_event,         &
                                          log_scratch_space, &
                                          LOG_LEVEL_ALWAYS
@@ -48,13 +48,17 @@ module gungho_driver_mod
   integer(i_def) :: shifted_mesh_id      = imdi
   integer(i_def) :: double_level_mesh_id = imdi
 
-  class(clock_type), allocatable :: clock
+  class(io_context_type), allocatable :: io_context
 
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !>@brief Sets up required state in preparation for run.
-  !>@param[in] filename Name of the file containing the desired configuration
+  !> @brief Sets up required state in preparation for run.
+  !>
+  !> @param[in] filename            Name of the file containing the desired
+  !>                                configuration.
+  !> @param[in] model_communicator  MPI communicator the model is to use.
+  !>
   subroutine initialise( filename, model_communicator )
 
     implicit none
@@ -62,17 +66,19 @@ contains
     character(*),      intent(in) :: filename
     integer(i_native), intent(in) :: model_communicator
 
+    class(clock_type), pointer :: clock
 
     ! Initialise infrastructure and setup constants
     call initialise_infrastructure( model_communicator,   &
                                     filename,             &
                                     program_name,         &
-                                    clock,                &
+                                    io_context,           &
                                     mesh_id,              &
                                     twod_mesh_id,         &
                                     shifted_mesh_id,      &
                                     double_level_mesh_id  )
 
+    clock => io_context%get_clock()
     ! Instantiate the fields stored in model_data
     call create_model_data( model_data,   &
                             mesh_id,      &
@@ -99,20 +105,21 @@ contains
 
   end subroutine initialise
 
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !>@brief Timesteps the model, calling the desired timestepping algorithm based
-  !upon the configuration
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !>@brief Timesteps the model, calling the desired timestepping algorithm
+  !>       based upon the configuration.
+  !>
   subroutine run()
 
     implicit none
 
+    class(clock_type), pointer :: clock
+
     write(log_scratch_space,'(A)') 'Running '//program_name//' ...'
     call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
 
+    clock => io_context%get_clock()
     do while (clock%tick())
-
-      ! Update the calendar if required
-      call gungho_update_calendar( clock )
 
       ! Update time-varying fields
       call update_variable_fields( model_data%ancil_times_list, &
@@ -143,11 +150,16 @@ contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !>@brief Tidies up after a run.
+  !>
   subroutine finalise()
 
     implicit none
 
+    class(clock_type), pointer :: clock
+
     call log_event( 'Finalising '//program_name//' ...', LOG_LEVEL_ALWAYS )
+
+    clock => io_context%get_clock()
 
     ! Output the fields stored in the model_data (checkpoint and dump)
     call output_model_data( model_data, clock )
@@ -162,6 +174,7 @@ contains
 
     ! Finalise infrastructure and constants
     call finalise_infrastructure( program_name )
+    deallocate( io_context )
 
   end subroutine finalise
 

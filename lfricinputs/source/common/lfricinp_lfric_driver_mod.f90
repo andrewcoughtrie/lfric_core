@@ -5,9 +5,7 @@
 ! *****************************COPYRIGHT*******************************
 MODULE lfricinp_lfric_driver_mod
 
-USE clock_mod,                  ONLY: clock_type
-USE init_clock_mod,             ONLY: initialise_clock
-USE constants_mod,              ONLY: i_def, imdi
+USE constants_mod,              ONLY: i_def, imdi, r_second
 USE log_mod,                    ONLY: log_event, log_scratch_space,            &
                                       LOG_LEVEL_INFO, LOG_LEVEL_ERROR,         &
                                       LOG_LEVEL_ALWAYS, initialise_logging,    &
@@ -15,6 +13,7 @@ USE log_mod,                    ONLY: log_event, log_scratch_space,            &
 
 ! LFRic Modules
 USE lfric_xios_io_mod,          ONLY: initialise_xios
+USE clock_mod,                  ONLY: clock_type
 USE create_mesh_mod,            ONLY: init_mesh
 USE create_fem_mod,             ONLY: init_fem
 USE derived_config_mod,         ONLY: set_derived_config
@@ -22,8 +21,10 @@ USE global_mesh_collection_mod, ONLY: global_mesh_collection,                  &
                                       global_mesh_collection_type
 USE field_collection_mod,       ONLY: field_collection_type
 USE field_mod,                  ONLY: field_type
+USE io_context_mod,             ONLY: io_context_type
 USE mod_wait,                   ONLY: init_wait
 USE linked_list_mod,            ONLY: linked_list_type
+USE lfric_xios_io_mod,          ONLY: populate_filelist_if
 USE lfricinp_setup_io_mod,      ONLY: init_lfricinp_files
 USE local_mesh_collection_mod,  ONLY: local_mesh_collection,                   &
                                       local_mesh_collection_type
@@ -33,8 +34,8 @@ USE mpi_mod,                    ONLY: initialise_comm, store_comm,             &
                                       get_comm_size, get_comm_rank,            &
                                       finalise_comm
 ! External libs
+USE xios,                       ONLY: xios_finalize, xios_initialize
 USE yaxt,                       ONLY: xt_initialize
-USE xios
 
 ! lfricinp modules
 USE lfricinp_um_parameters_mod, ONLY: fnamelen
@@ -66,12 +67,26 @@ INTEGER(KIND=i_def), PUBLIC :: twod_mesh_id = imdi
 ! Container for all input fields
 TYPE(field_collection_type) :: lfric_fields
 
-! Clock object
-CLASS(clock_type), ALLOCATABLE :: clock
+CLASS(io_context_type), allocatable :: io_context
 
 CONTAINS
 
-SUBROUTINE lfricinp_initialise_lfric(program_name_arg, lfric_nl_fname,         &
+SUBROUTINE populate_file_list( file_list, clock )
+  ! Description:
+  !   Populates I/O context's list of interesting files.
+
+  IMPLICIT NONE
+
+  CLASS(linked_list_type), INTENT(INOUT) :: file_list
+  CLASS(clock_type),       INTENT(IN)    :: clock
+
+  CALL init_lfricinp_files( file_list, clock )
+
+END SUBROUTINE populate_file_list
+
+
+SUBROUTINE lfricinp_initialise_lfric(program_name_arg, &
+                                     lfric_nl_fname,   &
                                      required_lfric_namelists)
 
 ! Description:
@@ -83,7 +98,12 @@ CHARACTER(LEN=*), INTENT(IN) :: program_name_arg
 CHARACTER(LEN=*), INTENT(IN) :: lfric_nl_fname
 CHARACTER(LEN=*), INTENT(IN) :: required_lfric_namelists(:)
 
-TYPE(linked_list_type)       :: files_list
+CHARACTER(*),   PARAMETER :: first_step       = '1'
+CHARACTER(*),   PARAMETER :: last_step        = '1'
+REAL(r_second), PARAMETER :: spinup_period    = 0.0_r_second
+REAL(r_second), PARAMETER :: seconds_per_step = 1.0_r_second
+
+PROCEDURE(populate_filelist_if), POINTER :: populate_pointer
 
 ! Set module variables
 program_name = program_name_arg
@@ -105,15 +125,12 @@ local_rank = get_comm_rank()
 ! Initialise logging system
 CALL initialise_logging(local_rank, total_ranks, program_name)
 
-WRITE(log_scratch_space, '(2(A,I0))') 'total ranks = ', total_ranks,             &
+WRITE(log_scratch_space, '(2(A,I0))') 'total ranks = ', total_ranks, &
                             ', local_rank = ', local_rank
 CALL log_event(log_scratch_space, LOG_LEVEL_INFO)
 
 CALL log_event('Loading LFRic Infrastructure namelists', LOG_LEVEL_INFO)
 CALL load_configuration(lfric_nl_fname, required_lfric_namelists)
-
-! Initialise clock
-CALL initialise_clock( clock )
 
 ! Sets variables used interally by the LFRic infrastructure.
 CALL set_derived_config( .TRUE. )
@@ -129,15 +146,18 @@ CALL log_event('Creating function spaces and chi', LOG_LEVEL_INFO)
 CALL init_fem(mesh_id, chi_xyz, chi_sph, panel_id)
 
 ! XIOS domain initialisation
-CALL log_event('Initialising XIOS domain', LOG_LEVEL_INFO)
-CALL init_lfricinp_files(files_list, clock)
-CALL initialise_xios(xios_ctx, comm, clock, mesh_id, twod_mesh_id, chi_xyz,    &
-                     files_list)
-
-! XIOS calendar initialisation
-CALL log_event('Initialising XIOS calendar', LOG_LEVEL_INFO)
-CALL xios_update_calendar(1)
-
+populate_pointer => populate_file_list
+call initialise_xios( io_context,       &
+                      xios_ctx,         &
+                      comm,             &
+                      mesh_id,          &
+                      twod_mesh_id,     &
+                      chi_xyz,          &
+                      first_step,       &
+                      last_step,        &
+                      spinup_period,    &
+                      seconds_per_step, &
+                      populate_pointer )
 
 END SUBROUTINE lfricinp_initialise_lfric
 

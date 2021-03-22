@@ -1,0 +1,52 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Exercise the simple I/O system.
+!>
+module simple_io_mod_test
+
+  use clock_mod,             only : clock_type
+  use constants_mod,         only : r_second
+  use io_context_mod,        only : io_context_type
+  use pfunit_mod
+  use simple_io_context_mod, only : simple_io_context_type
+  use simple_io_mod,         only : initialise_simple_io
+
+  implicit none
+
+  private
+  public :: test_simple_io
+
+contains
+
+  @test
+  subroutine test_simple_io()
+
+    implicit none
+
+    class(io_context_type), allocatable :: context
+    class(clock_type),      pointer     :: clock
+
+    call initialise_simple_io( context, '3', '5', 1.2_r_second, 2.7_r_second )
+
+    select type(context)
+      type is (simple_io_context_type)
+        clock => context%get_clock()
+        select type(clock)
+          type is (clock_type)
+            @assertEqual( 3, clock%get_first_step() )
+            @assertEqual( 5, clock%get_last_step() )
+            @assertFalse( clock%is_spinning_up() )
+            @assertEqual( 2.7_r_second, clock%get_seconds_per_step() )
+        class default
+          @assertFail( "initialise_simple_io created the wrong clock" )
+      end select
+      class default
+        @assertFail( "initialise_simple_io returned the wrong type" )
+    end select
+
+  end subroutine test_simple_io
+
+end module simple_io_mod_test

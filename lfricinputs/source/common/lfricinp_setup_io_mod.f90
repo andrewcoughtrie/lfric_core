@@ -40,8 +40,8 @@ USE lfricinp_ancils_mod, ONLY: l_land_area_fraction
 
 IMPLICIT NONE
 
-TYPE(linked_list_type), INTENT(OUT) :: files_list
-TYPE(clock_type),       INTENT(IN)  :: clock
+CLASS(linked_list_type), INTENT(INOUT) :: files_list
+CLASS(clock_type),       INTENT(IN)    :: clock
 
 TYPE(xios_file_type)            :: tmp_file
 INTEGER(i_def)                  :: tmp_freq

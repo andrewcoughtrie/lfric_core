@@ -4,7 +4,8 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 !> @brief Handles initialisation and finalisation of infrastructure, constants
-! and the io_dev model
+!>        and the io_dev model.
+!>
 module io_dev_model_mod
 
   ! Infrastructure
@@ -16,8 +17,11 @@ module io_dev_model_mod
   use field_mod,                  only : field_type
   use global_mesh_collection_mod, only : global_mesh_collection, &
                                          global_mesh_collection_type
-  use init_clock_mod,             only : initialise_clock
-  use lfric_xios_io_mod,          only : initialise_xios
+  use io_context_mod,             only : io_context_type, &
+                                         io_context_initialiser_type
+  use lfric_xios_clock_mod,       only : lfric_xios_clock_type
+  use lfric_xios_io_mod,          only : initialise_xios, &
+                                         populate_filelist_if
   use linked_list_mod,            only : linked_list_type
   use local_mesh_collection_mod,  only : local_mesh_collection, &
                                          local_mesh_collection_type
@@ -39,6 +43,8 @@ module io_dev_model_mod
   use configuration_mod,          only : final_configuration
   use derived_config_mod,         only : set_derived_config
   use io_config_mod,              only : use_xios_io
+  use time_config_mod,            only : timestep_end, timestep_start
+  use timestepping_config_mod,    only : dt, spinup_period
   ! IO_Dev driver modules
   use io_dev_mod,                 only : load_configuration
   use io_dev_init_files_mod,      only : init_io_dev_files
@@ -55,9 +61,19 @@ module io_dev_model_mod
   public initialise_infrastructure, &
          finalise_infrastructure
 
-  contains
+contains
 
-  !> @brief Initialises the infrastructure components of the model
+  !> @brief Populate I/O context's list of interesting files.
+  !>
+  subroutine initialise_context( file_list, clock )
+    implicit none
+    class(linked_list_type), intent(inout) :: file_list
+    class(clock_type),       intent(in)    :: clock
+    call init_io_dev_files( file_list, clock )
+  end subroutine initialise_context
+
+  !> @brief Initialises the infrastructure components of the model.
+  !>
   !> @param[in]     filename     The name of the configuration namelist file
   !> @param[in]     program_name An identifier given to the model run
   !> @param[in]     communicator The MPI communicator for use within the model
@@ -69,16 +85,17 @@ module io_dev_model_mod
   !> @param[in,out] chi_sph      A size 3 array of fields holding the
   !>                             spherical coordinates of the mesh
   !> @param[in,out] panel_id     A 2D field holding the cubed sphere panel id
-  !> @param[out]    clock        Model time
-  subroutine initialise_infrastructure( filename,        &
-                                        program_name,    &
-                                        communicator,    &
-                                        mesh_id,         &
-                                        twod_mesh_id,    &
-                                        chi_xyz,         &
-                                        chi_sph,         &
-                                        panel_id,        &
-                                        clock )
+  !> @param[out]    io_context   Initialise context for interacting with I/O.
+  !>
+  subroutine initialise_infrastructure( filename,     &
+                                        program_name, &
+                                        communicator, &
+                                        mesh_id,      &
+                                        twod_mesh_id, &
+                                        chi_xyz,      &
+                                        chi_sph,      &
+                                        panel_id,     &
+                                        io_context )
 
     use logging_config_mod, only: run_log_level,          &
                                   key_from_run_log_level, &
@@ -91,20 +108,24 @@ module io_dev_model_mod
     implicit none
 
     ! Arguments
-    character(*),      intent(in)               :: filename
-    character(*),      intent(in)               :: program_name
-    integer(i_native), intent(in)               :: communicator
-    integer(i_def),    intent(inout)            :: mesh_id, twod_mesh_id
-    type(field_type),  intent(inout)            :: chi_xyz(3)
-    type(field_type),  intent(inout)            :: chi_sph(3)
-    type(field_type),  intent(inout)            :: panel_id
-    class(clock_type), intent(out), allocatable :: clock
+    character(*),           intent(in)    :: filename
+    character(*),           intent(in)    :: program_name
+    integer(i_native),      intent(in)    :: communicator
+    integer(i_def),         intent(inout) :: mesh_id
+    integer(i_def),         intent(inout) :: twod_mesh_id
+    type(field_type),       intent(inout) :: chi_xyz(3)
+    type(field_type),       intent(inout) :: chi_sph(3)
+    type(field_type),       intent(inout) :: panel_id
+    class(io_context_type), intent(out), &
+                            allocatable   :: io_context
 
     ! Local variables
     character(*), parameter :: xios_context_id = 'io_dev'
-    integer(i_def)          :: total_ranks, local_rank
-    integer(i_native)       :: log_level
-    type(linked_list_type)  :: files_list
+
+    procedure(populate_filelist_if), pointer :: init_context_ptr
+
+    integer(i_def)    :: total_ranks, local_rank
+    integer(i_native) :: log_level
 
     ! Save the model's part of the split communicator for later use
     call store_comm( communicator )
@@ -146,8 +167,6 @@ module io_dev_model_mod
 
     call set_derived_config( .true. )
 
-    call initialise_clock( clock )
-
     call log_event( 'Initialising '//program_name//' ...', LOG_LEVEL_ALWAYS )
 
     ! Create the mesh
@@ -169,16 +188,18 @@ module io_dev_model_mod
     if (allocated(global_mesh_collection)) deallocate(global_mesh_collection)
 
     ! Set up XIOS domain and context
-    call init_io_dev_files( files_list, clock )
-
-    call initialise_xios( xios_context_id, &
+    init_context_ptr => initialise_context
+    call initialise_xios( io_context,      &
+                          xios_context_id, &
                           communicator,    &
-                          clock,           &
                           mesh_id,         &
                           twod_mesh_id,    &
                           chi_xyz,         &
-                          files_list )
-
+                          timestep_start,  &
+                          timestep_end,    &
+                          spinup_period,   &
+                          dt,              &
+                          init_context_ptr )
 
   end subroutine initialise_infrastructure
 

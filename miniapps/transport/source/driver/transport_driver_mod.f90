@@ -12,8 +12,9 @@ module transport_driver_mod
   use checksum_alg_mod,               only: checksum_alg
   use clock_mod,                      only: clock_type
   use configuration_mod,              only: final_configuration
-  use constants_mod,                  only: i_def, r_def, l_def, i_native, &
-                                            tiny_eps, l_def
+  use constants_mod,                  only: i_def, i_native, l_def, &
+                                            r_def, r_second, &
+                                            tiny_eps
   use convert_to_upper_mod,           only: convert_to_upper
   use create_fem_mod,                 only: init_fem
   use create_mesh_mod,                only: init_mesh
@@ -21,12 +22,14 @@ module transport_driver_mod
   use field_mod,                      only: field_type
   use global_mesh_collection_mod,     only: global_mesh_collection, &
                                             global_mesh_collection_type
-  use mesh_collection_mod,            only: mesh_collection
-  use init_clock_mod,                 only: initialise_clock
   use init_transport_mod,             only: init_transport
+  use io_context_mod,                 only: io_context_type
+  use lfric_xios_io_mod,              only: initialise_xios
+  use mesh_collection_mod,            only: mesh_collection
+  use time_config_mod,                only: timestep_end, timestep_start
+  use timestepping_config_mod,        only: dt, spinup_period
   use transport_mod,                  only: transport_load_configuration, &
                                             program_name
-  use lfric_xios_io_mod,              only: initialise_xios
   use diagnostics_io_mod,             only: write_scalar_diagnostic, &
                                             write_vector_diagnostic
   use diagnostics_calc_mod,           only: write_density_diagnostic
@@ -53,6 +56,7 @@ module transport_driver_mod
   use mpi_mod,                        only: store_comm,    &
                                             get_comm_size, &
                                             get_comm_rank
+  use simple_io_mod,                  only: initialise_simple_io
   use transport_config_mod,           only: key_from_scheme,            &
                                             scheme,                     &
                                             scheme_yz_bip_cosmic,       &
@@ -76,8 +80,6 @@ module transport_driver_mod
   use geometric_constants_mod,        only: get_cell_orientation,             &
                                             get_cell_orientation_shifted
   use yaxt,                           only: xt_initialize, xt_finalize
-  use xios,                           only: xios_context_finalize, &
-                                            xios_update_calendar
   use rk_transport_rho_mod,           only: rk_transport_rho_final
   use rk_transport_theta_mod,         only: rk_transport_theta_final
   use runge_kutta_init_mod,           only: runge_kutta_init, &
@@ -129,7 +131,7 @@ module transport_driver_mod
   type(field_type), target, dimension(3) :: shifted_chi_xyz
   type(field_type), target, dimension(3) :: shifted_chi_sph
 
-  class(clock_type), allocatable :: clock
+  class(io_context_type), allocatable :: io_context
 
   integer(i_def) :: mesh_id
   integer(i_def) :: twod_mesh_id
@@ -157,6 +159,8 @@ contains
 
     character(len=*), parameter :: xios_ctx  = "transport"
 
+    class(clock_type), pointer :: clock
+
     integer(i_def)    :: total_ranks, local_rank
     integer(i_native) :: log_level
 
@@ -167,8 +171,6 @@ contains
     call store_comm( model_communicator )
 
     call transport_load_configuration( filename )
-
-    call initialise_clock( clock )
 
     ! Initialise YAXT
     call xt_initialize( model_communicator )
@@ -277,35 +279,40 @@ contains
       cell_orientation_shifted => get_cell_orientation_shifted()
     end if
 
-    if ( use_xios_io ) then
-      call initialise_xios( xios_ctx,     &
+    ! I/O initialisation
+    !
+    if (use_xios_io) then
+      call initialise_xios( io_context,         &
+                            xios_ctx,           &
                             model_communicator, &
-                            clock,        &
-                            mesh_id,      &
-                            twod_mesh_id, &
-                            chi_xyz )
+                            mesh_id,            &
+                            twod_mesh_id,       &
+                            chi_xyz,            &
+                            timestep_start,     &
+                            timestep_end,       &
+                            real(spinup_period, &
+                                 r_second),     &
+                            real(dt, r_second) )
+    else
+      call initialise_simple_io( io_context,         &
+                                 timestep_start,     &
+                                 timestep_end,       &
+                                 real(spinup_period, &
+                                      r_second),     &
+                                 real(dt, r_second) )
     end if
 
+    clock => io_context%get_clock()
+
     ! Output initial conditions
-    if (clock%is_initialisation()) then
+    if (clock%is_initialisation() .and. write_diag) then
 
-      if ( write_diag ) then
-
-        if ( use_xios_io ) then
-
-          ! Need to ensure calendar is initialised here as XIOS has no concept of timestep 0
-          call xios_update_calendar(1)
-
-        end if
-
-        call write_vector_diagnostic( 'wind', wind_n, clock, &
-                                      mesh_id, nodal_output_on_w3 )
-        call write_scalar_diagnostic( 'density', density, clock, &
-                                      mesh_id, nodal_output_on_w3 )
-        call write_scalar_diagnostic( 'theta', theta, clock, &
-                                      mesh_id, nodal_output_on_w3 )
-
-     end if
+      call write_vector_diagnostic( 'wind', wind_n, clock, &
+                                    mesh_id, nodal_output_on_w3 )
+      call write_scalar_diagnostic( 'density', density, clock, &
+                                    mesh_id, nodal_output_on_w3 )
+      call write_scalar_diagnostic( 'theta', theta, clock, &
+                                    mesh_id, nodal_output_on_w3 )
 
     end if
 
@@ -318,6 +325,7 @@ contains
 
     implicit none
 
+    class(clock_type), pointer :: clock
     type(field_type)    :: density_t0, density_inc, density_n
     type(field_type)    :: theta_t0, theta_inc, theta_n
     real(r_def)         :: err_rho, err_theta
@@ -366,6 +374,8 @@ contains
         time_varying_wind = .false.
       end if
 
+    clock => io_context%get_clock()
+
     ! Initialise winds before first time step
     call set_winds( wind_n, mesh_id, clock%get_step() )
 
@@ -380,13 +390,6 @@ contains
         'Start of timestep ', clock%get_step()
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
-      ! Update XIOS calendar if we are using it for diagnostic output or
-      ! checkpoint
-      if ( use_xios_io ) then
-        call log_event( "Transport: Updating XIOS timestep", LOG_LEVEL_INFO )
-        call xios_update_calendar( clock%get_step() )
-      end if
-
       ! Only update the wind for time varying prescribed profiles
       if (time_varying_wind) then
         call set_winds( wind_n, mesh_id, clock%get_step() )
@@ -397,7 +400,7 @@ contains
           theta_splitting /= theta_splitting_none  ) then
         ! Calculate departure points.
         ! Here the wind is assumed to be the same at timestep n and timestep n+1
-        call calc_dep_pts( dep_pts_x, dep_pts_y, dep_pts_z, wind_divergence,    &
+        call calc_dep_pts( dep_pts_x, dep_pts_y, dep_pts_z, wind_divergence, &
                            wind_n, wind_n, detj_at_w2, cell_orientation )
       end if
 
@@ -541,9 +544,7 @@ contains
       call output_timer()
     end if
 
-    if ( use_xios_io ) then
-      call xios_context_finalize()
-    end if
+    deallocate( io_context )
 
     ! Finalise namelist configurations
     call final_configuration()

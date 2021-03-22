@@ -3,38 +3,37 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
-
-!>  @brief    Module for field reading routines
+!>  @brief    Module for field reading routines.
 !>  @details  Holds all routines for reading LFRic fields. All routines are set
 !>            up to read data with dimension ordering according to the
 !>            recommendations in the NetCDF CF standard.
 !>
 module lfric_xios_read_mod
 
-  use constants_mod,                 only: i_def, dp_xios, str_def, r_def, &
-                                           r_solver
-  use field_mod,                     only: field_type, field_proxy_type
-  use field_collection_mod,          only: field_collection_type, &
-                                           field_collection_iterator_type
-  use field_parent_mod,              only: field_parent_type, &
-                                           field_parent_proxy_type
-  use files_config_mod,              only: checkpoint_stem_name
-  use fs_continuity_mod,             only: W3, WTheta
-  use integer_field_mod,             only: integer_field_type, &
-                                           integer_field_proxy_type
-  use r_solver_field_mod,            only: r_solver_field_type, &
-                                           r_solver_field_proxy_type
-  use io_mod,                        only: ts_fname
-  use log_mod,                       only: log_event,         &
-                                           log_scratch_space, &
-                                           LOG_LEVEL_INFO,    &
-                                           LOG_LEVEL_ERROR
-  use xios,                          only: xios_field,           &
-                                           xios_recv_field,      &
-                                           xios_get_handle,      &
-                                           xios_get_attr,        &
-                                           xios_get_domain_attr, &
-                                           xios_get_axis_attr
+  use constants_mod,        only: i_def, dp_xios, str_def, r_def, &
+                                  r_solver
+  use field_mod,            only: field_type, field_proxy_type
+  use field_collection_mod, only: field_collection_type, &
+                                  field_collection_iterator_type
+  use field_parent_mod,     only: field_parent_type, &
+                                  field_parent_proxy_type
+  use files_config_mod,     only: checkpoint_stem_name
+  use fs_continuity_mod,    only: W3, WTheta
+  use integer_field_mod,    only: integer_field_type, &
+                                  integer_field_proxy_type
+  use r_solver_field_mod,   only: r_solver_field_type, &
+                                  r_solver_field_proxy_type
+  use io_mod,               only: ts_fname
+  use log_mod,              only: log_event,         &
+                                  log_scratch_space, &
+                                  LOG_LEVEL_INFO,    &
+                                  LOG_LEVEL_ERROR
+  use xios,                 only: xios_field,           &
+                                  xios_recv_field,      &
+                                  xios_get_handle,      &
+                                  xios_get_attr,        &
+                                  xios_get_domain_attr, &
+                                  xios_get_axis_attr
 
   implicit none
 
@@ -599,7 +598,6 @@ subroutine read_checkpoint(state, timestep)
   type( field_collection_iterator_type) :: iter
 
   class( field_parent_type ), pointer :: fld => null()
-
   iter = state%get_iterator()
   do
     if ( .not.iter%has_next() ) exit
@@ -607,6 +605,7 @@ subroutine read_checkpoint(state, timestep)
     select type(fld)
       type is (field_type)
         if ( fld%can_checkpoint() ) then
+
           call log_event( 'Reading checkpoint file to restart '// &
                            trim(adjustl(fld%get_name())), LOG_LEVEL_INFO)
           call fld%read_checkpoint( "restart_"//trim(adjustl(fld%get_name())), &
