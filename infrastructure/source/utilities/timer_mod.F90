@@ -11,7 +11,7 @@ module timer_mod
 
    private
 
-   integer(i_def),        parameter            :: num_subs       = 100
+   integer(i_def),        parameter            :: num_subs       = 300
    integer(i_def)                              :: num_tim_in_use = 0
    character(len=str_def)                      :: routine_name(num_subs)
    integer(i_long),       dimension(num_subs)  :: isystem_clock_time
@@ -116,17 +116,20 @@ contains
 !=============================================================================!
 !> @brief Calculate statistics required for output
    subroutine calculate_timer_stats()
-     use mpi_mod, only:    get_comm_size
-     use scalar_mod, only: scalar_type
-     use log_mod,    only: log_event,         &
-                           LOG_LEVEL_INFO,    &
-                           log_scratch_space
+     use mpi_mod, only: get_comm_size,     &
+                        global_sum,        &
+                        global_min,        &
+                        global_max
+     use log_mod, only: log_event,         &
+                        LOG_LEVEL_INFO,    &
+                        log_scratch_space
 
      implicit none
 
      integer :: k
-     ! use a scalar_type to access collective operations
-     type(scalar_type) :: time_scalar
+     ! use a fixed precision (64 bit `r_double` kind) to ensure that the
+     ! output is invariant to `r_def`
+     real(r_double)    :: time_sum
      real(r_double)    :: time_real_tmp
      integer(i_def)    :: total_ranks
 
@@ -144,10 +147,10 @@ contains
 
      do k = 1, num_tim_in_use
        time_real_tmp = real(isystem_clock_time(k)/clock_rate, r_double)
-       time_scalar = scalar_type(time_real_tmp)
-       mean_system_time(k) = time_scalar%get_sum()/total_ranks
-       min_system_time(k) = time_scalar%get_min()
-       max_system_time(k) = time_scalar%get_max()
+       call global_sum(time_real_tmp, time_sum)
+       mean_system_time(k) = time_sum/total_ranks
+       call global_min(time_real_tmp, min_system_time(k))
+       call global_max(time_real_tmp, max_system_time(k))
      end do
 
    end subroutine calculate_timer_stats
