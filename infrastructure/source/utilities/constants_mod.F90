@@ -28,6 +28,7 @@ module constants_mod
             real_type, r_solver_real_type, integer_type, logical_type,   &
             EPS, tiny_eps,                                               &
             str_def, str_long, str_max_filename, str_short,              &
+            str_longlong,                                                &
             LARGE_REAL_NEGATIVE, LARGE_REAL_POSITIVE,                    &
             xios_max_int, PI, degrees_to_radians, radians_to_degrees,    &
             cache_block, PRECISION_REAL, PRECISION_R_SOLVER
@@ -123,6 +124,7 @@ module constants_mod
   integer, parameter :: str_short        = 16  !< Length of "short" strings.
   integer, parameter :: str_def          = 128 !< Default string length for normal strings.
   integer, parameter :: str_long         = 255 !< Default length of long string.
+  integer, parameter :: str_longlong     = 512 !< Default length of longer string.
   integer, parameter :: str_max_filename = 512 !< Default maximum length of a file-name.
   !> @}
 

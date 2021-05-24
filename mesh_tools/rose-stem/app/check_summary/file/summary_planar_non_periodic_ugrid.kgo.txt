@@ -2,7 +2,7 @@
   Class:               plane
   Periodic X:          F
   Periodic Y:          F
-  Constructor inputs:  edge_cells_x=5;edge_cells_y=4;periodic_x=F;periodic_y=F;domain_x=1000.00;domain_y=400.00;cartesian=T;target_mesh_names=['physics'];target_edge_cells_x=[10];target_edge_cells_y=[8]
+  Constructor inputs:  edge_cells_x=5;edge_cells_y=4;periodic_x=F;periodic_y=F;domain_x=1000.00;domain_y=400.00;coord_sys=xyz;target_mesh_names=['physics'];target_edge_cells_x=[10];target_edge_cells_y=[8]
   Nodes:               30
   Edges:               49
   Faces:               20
@@ -15,7 +15,7 @@
   Class:               plane
   Periodic X:          F
   Periodic Y:          F
-  Constructor inputs:  edge_cells_x=10;edge_cells_y=8;periodic_x=F;periodic_y=F;domain_x=1000.00;domain_y=400.00;cartesian=T;target_mesh_names=['dynamics'];target_edge_cells_x=[5];target_edge_cells_y=[4]
+  Constructor inputs:  edge_cells_x=10;edge_cells_y=8;periodic_x=F;periodic_y=F;domain_x=1000.00;domain_y=400.00;coord_sys=xyz;target_mesh_names=['dynamics'];target_edge_cells_x=[5];target_edge_cells_y=[4]
   Nodes:               99
   Edges:               178
   Faces:               80

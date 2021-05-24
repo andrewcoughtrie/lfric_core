@@ -15,7 +15,7 @@ module gen_lbc_mod
 !-------------------------------------------------------------------------------
 
   use constants_mod,                  only: r_def, i_def, l_def, str_def, &
-                                            str_long, imdi
+                                            str_longlong, imdi
   use gen_planar_mod,                 only: gen_planar_type
   use global_mesh_map_mod,            only: global_mesh_map_type
   use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
@@ -184,11 +184,12 @@ module gen_lbc_mod
 
     private
 
-    character(str_def)  :: mesh_name
-    character(str_def)  :: mesh_class
-    character(str_def)  :: coord_units_x
-    character(str_def)  :: coord_units_y
-    character(str_long) :: constructor_inputs
+    character(str_def) :: mesh_name
+    character(str_def) :: mesh_class
+    character(str_def) :: coord_units_x
+    character(str_def) :: coord_units_y
+
+    character(str_longlong) :: constructor_inputs
 
     integer(i_def) :: outer_cells_x !> Max number of cells in x-direction
     integer(i_def) :: outer_cells_y !> Max number of cells in y-direction
@@ -212,6 +213,8 @@ module gen_lbc_mod
     integer(i_def), allocatable :: nodes_on_edge(:,:) ! (2, edge_cells_x*edge_cells_y)
     real(r_def),    allocatable :: node_coords(:,:)   ! (2, edge_cells_x*edge_cells_y)
     real(r_def),    allocatable :: cell_coords(:,:)   ! (2, edge_cells_x*edge_cells_y)
+
+    integer(i_def) :: coord_sys
 
     ! Hold variables from the reference element.
     ! Done because the available Cray compiler has internal compiler errors
@@ -331,7 +334,8 @@ function gen_lbc_constructor( lam_strategy, rim_depth ) result( self )
   call lam_strategy%get_metadata                                    &
                         ( mesh_name    = self%target_mesh_names(1), &
                           edge_cells_x = self%outer_cells_x,        &
-                          edge_cells_y = self%outer_cells_y )
+                          edge_cells_y = self%outer_cells_y,        &
+                          coord_sys    = self%coord_sys )
 
   self%mesh_name  =  trim(self%target_mesh_names(1))//'-lbc'
   self%mesh_class = 'lbc'
@@ -686,6 +690,7 @@ end subroutine generate
 !> @param[out]  periodic_x         [optional] Periodic in E-W direction.
 !> @param[out]  periodic_y         [optional] Periodic in N-S direction.
 !> @param[out]  npanels            [optional] Number of panels use to describe mesh
+!> @param[out]  coord_sys          [optional] Coordinate system to position nodes.
 !> @param[out]  edge_cells_x       [optional] Number of panel edge cells (x-axis).
 !> @param[out]  edge_cells_y       [optional] Number of panel edge cells (y-axis).
 !> @param[out]  constructor_inputs [optional] Inputs used to create this mesh from
@@ -705,6 +710,7 @@ subroutine get_metadata( self,               &
                          periodic_x,         &
                          periodic_y,         &
                          npanels,            &
+                         coord_sys,          &
                          edge_cells_x,       &
                          edge_cells_y,       &
                          constructor_inputs, &
@@ -716,19 +722,21 @@ subroutine get_metadata( self,               &
 
   class(gen_lbc_type), intent(in) :: self
 
-  character(str_def),  optional, intent(out) :: mesh_name
-  character(str_def),  optional, intent(out) :: mesh_class
-  logical(l_def),      optional, intent(out) :: periodic_x
-  logical(l_def),      optional, intent(out) :: periodic_y
-  integer(i_def),      optional, intent(out) :: npanels
-  integer(i_def),      optional, intent(out) :: edge_cells_x
-  integer(i_def),      optional, intent(out) :: edge_cells_y
-  integer(i_def),      optional, intent(out) :: nmaps
-  character(str_long), optional, intent(out) :: constructor_inputs
+  character(str_def), optional, intent(out) :: mesh_name
+  character(str_def), optional, intent(out) :: mesh_class
+  logical(l_def),     optional, intent(out) :: periodic_x
+  logical(l_def),     optional, intent(out) :: periodic_y
+  integer(i_def),     optional, intent(out) :: npanels
+  integer(i_def),     optional, intent(out) :: coord_sys
+  integer(i_def),     optional, intent(out) :: edge_cells_x
+  integer(i_def),     optional, intent(out) :: edge_cells_y
+  integer(i_def),     optional, intent(out) :: nmaps
 
-  character(str_def),  optional, intent(out), allocatable :: target_mesh_names(:)
-  integer(i_def),      optional, intent(out), allocatable :: maps_edge_cells_x(:)
-  integer(i_def),      optional, intent(out), allocatable :: maps_edge_cells_y(:)
+  character(str_longlong), optional, intent(out) :: constructor_inputs
+
+  character(str_def), optional, intent(out), allocatable :: target_mesh_names(:)
+  integer(i_def),     optional, intent(out), allocatable :: maps_edge_cells_x(:)
+  integer(i_def),     optional, intent(out), allocatable :: maps_edge_cells_y(:)
 
   if (present(mesh_name))  mesh_name  = self%mesh_name
   if (present(mesh_class)) mesh_class = self%mesh_class
@@ -740,6 +748,8 @@ subroutine get_metadata( self,               &
     write(log_scratch_space, '(A)') 'LBC mesh has no context of panels.'
     call log_event(log_scratch_space, LOG_LEVEL_WARNING)
   end if
+
+  if (present(coord_sys)) coord_sys = self%coord_sys
 
   if (present(constructor_inputs)) constructor_inputs = self%constructor_inputs
 

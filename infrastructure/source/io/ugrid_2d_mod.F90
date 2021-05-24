@@ -11,7 +11,7 @@
 
 module ugrid_2d_mod
 
-use constants_mod,  only : i_def, r_def, str_def, str_long, l_def
+use constants_mod,  only : i_def, r_def, str_def, str_longlong, l_def
 use ugrid_file_mod, only : ugrid_file_type
 use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
 
@@ -32,11 +32,12 @@ type, public :: ugrid_2d_type
   private
 
   character(str_def)  :: mesh_name
-  character(str_def)  :: mesh_class           !< Primitive class of mesh,
-                                              !< i.e. sphere, plane
-  logical(l_def)      :: periodic_x = .false. !< Periodic in E-W direction.
-  logical(l_def)      :: periodic_y = .false. !< Periodic in N-S direction.
-  character(str_long) :: constructor_inputs   !< Inputs used to generate mesh
+  character(str_def)  :: mesh_class             !< Primitive class of mesh,
+                                                !< i.e. sphere, plane
+  logical(l_def)      :: periodic_x = .false.   !< Periodic in E-W direction.
+  logical(l_def)      :: periodic_y = .false.   !< Periodic in N-S direction.
+
+  character(str_longlong) :: constructor_inputs !< Inputs used to generate mesh
 
   character(str_def)  :: coord_units_x
   character(str_def)  :: coord_units_y
@@ -572,7 +573,9 @@ subroutine get_metadata( self, mesh_name, mesh_class,         &
   logical(l_def),       optional, intent(out) :: periodic_y
   integer(i_def),       optional, intent(out) :: edge_cells_x
   integer(i_def),       optional, intent(out) :: edge_cells_y
-  character(str_long),  optional, intent(out) :: constructor_inputs
+
+  character(str_longlong),  optional, intent(out) :: constructor_inputs
+
   integer(i_def),       optional, intent(out) :: nmaps
   character(str_def),   optional, intent(out), &
                                   allocatable :: target_mesh_names(:)

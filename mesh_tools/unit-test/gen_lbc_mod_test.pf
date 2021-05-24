@@ -7,16 +7,19 @@
 !>
 module gen_lbc_mod_test
 
-  use pFUnit_mod
+  use constants_mod,  only: i_def, r_def, str_def, l_def, str_long
+
   use gen_lbc_mod,    only: gen_lbc_type
   use gen_planar_mod, only: gen_planar_type
+
   use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
   use global_mesh_map_mod,            only: global_mesh_map_type
 
-  use constants_mod,  only: i_def, r_def, str_def, l_def, str_long
-
+  use mesh_config_mod,       only: coord_sys_xyz
   use reference_element_mod, only: reference_cube_type, &
                                    W, S, E, N
+
+  use pFUnit_mod
 
   implicit none
 
@@ -231,7 +234,7 @@ contains
    cube_element    = reference_cube_type()
    planar_strategy = gen_planar_type( reference_element=cube_element, &
                                       mesh_name=name,                 &
-                                      cartesian=.true.,               &
+                                      coord_sys=coord_sys_xyz,        &
                                       edge_cells_x=edge_cells_x,      &
                                       edge_cells_y=edge_cells_y,      &
                                       periodic_x=periodic_x,          &
@@ -369,7 +372,7 @@ contains
    cube_element    = reference_cube_type()
    planar_strategy = gen_planar_type( reference_element=cube_element, &
                                       mesh_name=name,                 &
-                                      cartesian=.true.,               &
+                                      coord_sys=coord_sys_xyz,        &
                                       periodic_x=periodic_x,          &
                                       periodic_y=periodic_y,          &
                                       domain_x=domain_x,              &
@@ -503,7 +506,7 @@ contains
    cube_element    = reference_cube_type()
    planar_strategy = gen_planar_type( reference_element=cube_element, &
                                       mesh_name=name,                 &
-                                      cartesian=.true.,               &
+                                      coord_sys=coord_sys_xyz,        &
                                       edge_cells_x=edge_cells_x,      &
                                       edge_cells_y=edge_cells_y,      &
                                       periodic_x=periodic_x,          &

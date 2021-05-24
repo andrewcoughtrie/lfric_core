@@ -8,6 +8,7 @@ class gen_lbc_mod::gen_lbc_type {
 
   -mesh_name: string
   -mesh_class: string
+  -coord_sys: integer
   -coord_units_x: string
   -coord_units_y: string
   -constructor_inputs: string

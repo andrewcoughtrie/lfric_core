@@ -9,7 +9,7 @@
 module ncdf_quad_mod
 
 use constants_mod,  only : r_def, i_def, l_def, str_def, str_long,             &
-                           str_max_filename, r_ncdf, i_native
+                           str_longlong, str_max_filename, r_ncdf, i_native
 use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
 use global_mesh_map_mod,            only: global_mesh_map_type
 use ugrid_file_mod, only : ugrid_file_type
@@ -69,7 +69,7 @@ type, extends(ugrid_file_type), public :: ncdf_quad_type
   logical(l_def)              :: periodic_x !< Periodic in E-W direction
   logical(l_def)              :: periodic_y !< Periodic in N-S direction
 
-  character(str_long) :: constructor_inputs !< Inputs to ugrid_generator for this mesh
+  character(str_longlong) :: constructor_inputs !< Inputs to ugrid_generator for this mesh
 
   character(str_def)  :: coord_units_x
   character(str_def)  :: coord_units_y
@@ -1272,7 +1272,9 @@ subroutine read_mesh( self, mesh_name, mesh_class,                     &
   character(str_def),  intent(out) :: mesh_class
   logical(l_def),      intent(out) :: periodic_x
   logical(l_def),      intent(out) :: periodic_y
-  character(str_long), intent(out) :: constructor_inputs
+
+  character(str_longlong), intent(out) :: constructor_inputs
+
   real(r_def),         intent(out) :: node_coordinates(:,:)
   real(r_def),         intent(out) :: face_coordinates(:,:)
   character(str_def),  intent(out) :: coord_units_x
@@ -1282,6 +1284,7 @@ subroutine read_mesh( self, mesh_name, mesh_class,                     &
   integer(i_def),      intent(out) :: face_edge_connectivity(:,:)
   integer(i_def),      intent(out) :: face_face_connectivity(:,:)
   integer(i_def),      intent(out) :: num_targets
+
   character(str_def),  intent(out), allocatable :: target_mesh_names(:)
 
   ! Internal variables
@@ -1651,7 +1654,9 @@ subroutine write_mesh( self, mesh_name, mesh_class,                       &
   character(str_def),  intent(in) :: mesh_class
   logical(l_def),      intent(in) :: periodic_x
   logical(l_def),      intent(in) :: periodic_y
-  character(str_long), intent(in) :: constructor_inputs
+
+  character(str_longlong), intent(in) :: constructor_inputs
+
   integer(i_def),      intent(in) :: num_nodes
   integer(i_def),      intent(in) :: num_edges
   integer(i_def),      intent(in) :: num_faces
@@ -1664,6 +1669,7 @@ subroutine write_mesh( self, mesh_name, mesh_class,                       &
   integer(i_def),      intent(in) :: face_edge_connectivity(:,:)
   integer(i_def),      intent(in) :: face_face_connectivity(:,:)
   integer(i_def),      intent(in) :: num_targets
+
   character(str_def),  intent(in), allocatable :: target_mesh_names(:)
   type(global_mesh_map_collection_type), &
                        intent(in) :: target_mesh_maps
@@ -1894,7 +1900,7 @@ subroutine append_mesh( self, mesh_name, mesh_class,                       &
   logical(l_def),        intent(in)    :: periodic_x
   logical(l_def),        intent(in)    :: periodic_y
   character(str_def),    intent(in)    :: mesh_name
-  character(str_long),   intent(in)    :: constructor_inputs
+  character(str_longlong),   intent(in)    :: constructor_inputs
   integer(i_def),        intent(in)    :: num_nodes
   integer(i_def),        intent(in)    :: num_edges
   integer(i_def),        intent(in)    :: num_faces

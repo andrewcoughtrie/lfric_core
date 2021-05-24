@@ -17,14 +17,23 @@
 !  *  "dynamics" mesh (source) object mapping to "physics"  (target)
 !  *  "physics"  mesh (source) object mapping to "dynamics" (target)
 !
-! Notes: Only the first "n_meshes" listed in mesh_names will be
-!        output in the mesh file.
+! Notes: 
+!  *  Only the first "n_meshes" listed in mesh_names will be
+!     output in the mesh file.
+!  *  All spherical co-ordinates are given the order
+!     [longitude, latitude] in the units, degrees_east, degrees_north
+!     respectively
 !===================================================================
 &mesh
-  mesh_filename = 'planar_test.nc'
-  n_meshes      = 1
-  mesh_names    = 'planar_test'
-  n_partitions  = 0
+  mesh_filename  = 'planar_test.nc'
+  n_meshes       = 1
+  mesh_names     = 'planar_test'
+  n_partitions   = 0
+  coord_sys      = 'll'
+  rotate_mesh    = .false.
+  target_pole    = 0.0, 90.0
+  rotation_angle = 0.0
+
 /
 
 !==================================================================
@@ -41,10 +50,6 @@
 &cubedsphere_mesh
   edge_cells     = 24, 12, 6, 3
   smooth_passes  = 0
-  do_rotate      = .false.
-  lon_north      = 0.0
-  lat_north      = 90.0
-  rotate_angle   = 0.0
   stretch_factor = 1.0
 /
 
@@ -64,7 +69,6 @@
 !       be a factor of the other.
 
 &planar_mesh
-  cartesian     = .false.
   edge_cells_x  = 48
   edge_cells_y  = 24
   domain_x      = 48.0

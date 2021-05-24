@@ -16,7 +16,7 @@
 program summarise_ugrid
 
   use cli_mod,         only : get_initial_filename
-  use constants_mod,   only : i_def, str_def, str_long, l_def
+  use constants_mod,   only : i_def, str_def, str_long, str_longlong, l_def
   use, intrinsic :: iso_fortran_env, only : output_unit
   use ncdf_quad_mod,   only : ncdf_quad_type
   use ugrid_2d_mod,    only : ugrid_2d_type
@@ -26,7 +26,6 @@ program summarise_ugrid
                               LOG_LEVEL_ERROR, LOG_LEVEL_INFO
   use mpi_mod,         only : initialise_comm, store_comm, finalise_comm, &
                               get_comm_size, get_comm_rank
-
 
   implicit none
 
@@ -38,15 +37,16 @@ program summarise_ugrid
   integer(i_def) :: n_meshes, i, j
   character(str_def), allocatable :: mesh_names(:)
 
-  character(str_def)  :: mesh_name
-  character(str_def)  :: mesh_class
-  logical(l_def)      :: periodic_x
-  logical(l_def)      :: periodic_y
-  character(str_long) :: constructor_inputs
-  character(str_def), allocatable :: target_mesh_names(:)
-  character(str_long) :: target_mesh_names_str
+  character(str_def) :: mesh_name
+  character(str_def) :: mesh_class
+  logical(l_def)     :: periodic_x
+  logical(l_def)     :: periodic_y
 
-  character(str_def)  :: fmt_str
+  character(str_longlong) :: constructor_inputs
+  character(str_long)     :: target_mesh_names_str
+  character(str_def), allocatable :: target_mesh_names(:)
+
+  character(str_def) :: fmt_str
 
   integer(i_def) :: nodes, edges, faces
   integer(i_def) :: nodes_per_face, edges_per_face

@@ -2,7 +2,7 @@
   Class:               plane
   Periodic X:          F
   Periodic Y:          F
-  Constructor inputs:  edge_cells_x=16;edge_cells_y=8;periodic_x=F;periodic_y=F;domain_x=1600.00;domain_y=400.00;cartesian=T
+  Constructor inputs:  edge_cells_x=16;edge_cells_y=8;periodic_x=F;periodic_y=F;domain_x=1600.00;domain_y=400.00;coord_sys=xyz
   Nodes:               153
   Edges:               280
   Faces:               128
@@ -14,7 +14,7 @@
   Class:               plane
   Periodic X:          F
   Periodic Y:          F
-  Constructor inputs:  edge_cells_x=48;edge_cells_y=24;periodic_x=F;periodic_y=F;domain_x=1600.00;domain_y=400.00;cartesian=T
+  Constructor inputs:  edge_cells_x=48;edge_cells_y=24;periodic_x=F;periodic_y=F;domain_x=1600.00;domain_y=400.00;coord_sys=xyz
   Nodes:               1225
   Edges:               2376
   Faces:               1152

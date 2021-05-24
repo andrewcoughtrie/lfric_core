@@ -6,15 +6,18 @@ class gencube_ps_mod::gencube_ps_type {
   -mesh_name: string
   -mesh_class: string
   -constructor_inputs: string
+  -coord_sys: integer
   -coord_units_x: string
   -coord_units_y: string
   -edge_cells: integer
   -nsmooth: integer
   -npanels: integer
   -nmaps: integer
-  -lat_north: real
-  -lon_north: real
-  -do_rotate: logical
+
+  -target_pole: real[2]
+  -rotation_angle: real
+  -rotate_mesh: logical
+
   -stretch_factor: real
 
   -target_mesh_names: string[:] <<allocatable>>
@@ -28,12 +31,12 @@ class gencube_ps_mod::gencube_ps_type {
   -vert_coords: real[::] <<allocatable>>
   -cell_coords: real[::] <<allocatable>>
 
-  +<<create>>gencube_ps_constructor( <<in>> mesh_name: string, <<in>> edge_cells: integer, <<in>> nsmooth: integer, <<in>> target_mesh_names: string[:] <<optional>>, <<in>> target_edge_cells: integer[:] <<optional>> ): gencube_ps_type
+  +<<create>>gencube_ps_constructor(\n\t<<in>> mesh_name: string,\n\t<<in>> edge_cells: integer,\n\t<<in>> nsmooth: integer,\n\t<<in>> coord_sys: integer,\n\t<<in, optional>> rotate_mesh: integer,\n\t<<in, optional>> target_pole: real[2],\n\t<<in, optional>> rotation_angle: real,\n\t<<in, optional>> stretch_factor: real,\n\t<<in, optional>> target_mesh_names: string[:]\n\t<<in, optional>> target_edge_cells: integer[:] ): gencube_ps_type
 
-  +calc_adjacency ( <<out>> cell_next:integer[::] <<allocatable>> )
-  +calc_face_to_vert ( <<out>> verts_on_cell:integer[::] <<allocatable>> )
-  +calc_edges( <<out>> edges_on_cell: integer[::] <<allocatable>>, <<out>> verts_on_edge: integer[::] <<allocatable>> )
-  +calc_coords( <<out>> vert_coords: real[::] <<allocatable>>, <<out>> coord_units_x: string, <<out>> coord_units_y: string )
+  +calc_adjacency ( <<out, allocatable>> cell_next: integer[::] )
+  +calc_face_to_vert ( <<out, allocatable>> verts_on_cell: integer[::] )
+  +calc_edges( \n\t<<out, allocatable>> edges_on_cell: integer[::],\n\t<<out, allocatable>> verts_on_edge: integer[::] )
+  +calc_coords( \n\t<<out, allocatable>> vert_coords: real[::],\n\t<<out>> coord_units_x: string,\n\t<<out>> coord_units_y: string )
   +calc_cell_centres()
 
   +generate( ... )

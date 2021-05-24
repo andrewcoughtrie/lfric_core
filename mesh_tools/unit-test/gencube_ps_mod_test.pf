@@ -1,5 +1,3 @@
-
-
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -7,11 +5,11 @@
 !-----------------------------------------------------------------------------
 module gencube_ps_mod_test
 
-  use constants_mod,                  only: i_def, r_def, str_def, str_long
+  use constants_mod,                  only: i_def, r_def, str_def, str_longlong
   use gencube_ps_mod,                 only: gencube_ps_type
   use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
   use global_mesh_map_mod,            only: global_mesh_map_type
-
+  use mesh_config_mod,                only: coord_sys_ll
   use pFUnit_Mod
 
   implicit none
@@ -78,7 +76,8 @@ contains
     character(str_def)  :: test_coord_units_x
     character(str_def)  :: test_coord_units_y
 
-    character(str_long) :: test_constructor_inputs
+    character(str_longlong) :: test_constructor_inputs
+
     integer(i_def)      :: test_npanels
     integer(i_def)      :: test_edge_cells_x
     integer(i_def)      :: test_edge_cells_y
@@ -106,7 +105,7 @@ contains
     real(r_def) :: coords(2, 6*edge_cells*edge_cells+2)
     real(r_def) :: face_coords(2, 6*edge_cells*edge_cells)
 
-    csgen = gencube_ps_type( mesh_name, edge_cells, nsmooth)
+    csgen = gencube_ps_type( mesh_name, edge_cells, nsmooth, coord_sys=coord_sys_ll )
 
     ! Test metadata retrieval
     call csgen%get_metadata( mesh_name          = test_mesh_name,          &
@@ -231,7 +230,8 @@ contains
     character(str_def)  :: test_coord_units_x
     character(str_def)  :: test_coord_units_y
 
-    character(str_long) :: test_constructor_inputs
+    character(str_longlong) :: test_constructor_inputs
+
     integer(i_def)      :: test_npanels
     integer(i_def)      :: test_edge_cells_x
     integer(i_def)      :: test_edge_cells_y
@@ -259,7 +259,7 @@ contains
     real(r_def) :: coords(2, 6*edge_cells*edge_cells+2)
     real(r_def) :: face_coords(2, 6*edge_cells*edge_cells)
 
-    csgen = gencube_ps_type( mesh_name, edge_cells, nsmooth )
+    csgen = gencube_ps_type( mesh_name, edge_cells, nsmooth, coord_sys=coord_sys_ll )
 
     ! Test metadata retrieval
     call csgen%get_metadata( mesh_name          = test_mesh_name,          &
@@ -413,16 +413,17 @@ contains
 
     real(r_def) :: lon_north = 0.0_r_def
     real(r_def) :: lat_north = 45.0_r_def
-    real(r_def) :: rotate_angle = 0.0_r_def
+    real(r_def) :: rotation_angle = 0.0_r_def
 
     ! Further test of the rotation of the mesh
     ! Create a new mesh as above, but with rotation of North to (0,45)
-    csgen_rot = gencube_ps_type(                              &
-                    mesh_name, edge_cells, nsmooth,           &
-                    do_rotate=.true.,                         &
-                    lat_north=lat_north, lon_north=lon_north, &
-                    rotate_angle=rotate_angle,                &
-                    target_mesh_names=target_mesh_names,      &
+    csgen_rot = gencube_ps_type(                         &
+                    mesh_name, edge_cells, nsmooth,      &
+                    coord_sys=coord_sys_ll,              &
+                    rotate_mesh=.true.,                  &
+                    target_pole=[lon_north,lat_north],   &
+                    rotation_angle=rotation_angle,       &
+                    target_mesh_names=target_mesh_names, &
                     target_edge_cells=target_edge_cells )
 
     ! Generate the mesh and connectivity
@@ -452,16 +453,17 @@ contains
     ! Changing to a rotation about the north pole
     lon_north = 0.0_r_def
     lat_north = 90.0_r_def
-    rotate_angle = 45.0_r_def
+    rotation_angle = 45.0_r_def
 
     ! Further test of the rotation of the mesh
     ! Create a new mesh as above, but with rotation about pole of 45 degrees
-    csgen_rot = gencube_ps_type(                              &
-                    mesh_name, edge_cells, nsmooth,           &
-                    do_rotate=.true.,                         &
-                    lat_north=lat_north, lon_north=lon_north, &
-                    rotate_angle=rotate_angle,                &
-                    target_mesh_names=target_mesh_names,      &
+    csgen_rot = gencube_ps_type(                         &
+                    mesh_name, edge_cells, nsmooth,      &
+                    coord_sys=coord_sys_ll,              &
+                    rotate_mesh=.true.,                  &
+                    target_pole=[lon_north,lat_north],   &
+                    rotation_angle=rotation_angle,       &
+                    target_mesh_names=target_mesh_names, &
                     target_edge_cells=target_edge_cells )
 
     ! Generate the mesh and connectivity
@@ -493,16 +495,17 @@ contains
 
     lon_north = 0.0_r_def
     lat_north = 0.0_r_def
-    rotate_angle = -90.0_r_def
+    rotation_angle = -90.0_r_def
 
     ! Further test of the rotation of the mesh
     ! Create a new mesh as above, but with rotation of North to (0,0)
-    csgen_rot = gencube_ps_type(                                &
-                    mesh_name, edge_cells, nsmooth,             &
-                    do_rotate=.true.,                           &
-                    lat_north=lat_north, lon_north=lon_north,   &
-                    rotate_angle=rotate_angle,                  &
-                    target_mesh_names=target_mesh_names,        &
+    csgen_rot = gencube_ps_type(                         &
+                    mesh_name, edge_cells, nsmooth,      &
+                    coord_sys=coord_sys_ll,              &
+                    rotate_mesh=.true.,                  &
+                    target_pole=[lon_north,lat_north],   &
+                    rotation_angle=rotation_angle,       &
+                    target_mesh_names=target_mesh_names, &
                     target_edge_cells=target_edge_cells )
 
     call csgen_rot%generate()
@@ -559,8 +562,9 @@ contains
     ! Testing a stretched mesh with 0.5 stretch factor.
     stretch_factor = 0.5_r_def
 
-    csgen_stretch = gencube_ps_type( mesh_name, edge_cells, nsmooth,      &
-                                     stretch_factor=stretch_factor )
+    csgen_stretch = gencube_ps_type( mesh_name, edge_cells, nsmooth, &
+                    coord_sys=coord_sys_ll,                          &
+                    stretch_factor=stretch_factor )
 
     ! Generate the mesh and connectivity
     call csgen_stretch%generate()
@@ -589,8 +593,9 @@ contains
     ! Testing mesh with 2.0 stretch factor. Same as 0.5 stretch factor.
     stretch_factor = 2.0_r_def
 
-    csgen_stretch = gencube_ps_type( mesh_name, edge_cells, nsmooth,      &
-                             stretch_factor=stretch_factor )
+    csgen_stretch = gencube_ps_type( mesh_name, edge_cells, nsmooth, &
+                                     coord_sys=coord_sys_ll,         &
+                                     stretch_factor=stretch_factor )
 
     ! Generate the mesh and connectivity
     call csgen_stretch%generate()

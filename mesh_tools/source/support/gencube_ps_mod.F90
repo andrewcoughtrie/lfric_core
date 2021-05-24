@@ -28,11 +28,13 @@ module gencube_ps_mod
   use calc_global_cell_map_mod,       only: calc_global_cell_map
   use constants_mod,                  only: r_def, i_def, str_def, l_def,     &
                                             str_long, PI, radians_to_degrees, &
-                                            degrees_to_radians, rmdi
+                                            degrees_to_radians, rmdi, imdi,   &
+                                            str_longlong
   use coord_transform_mod,            only: ll2xyz, xyz2ll
   use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
   use log_mod,                        only: log_event, log_scratch_space, &
                                             LOG_LEVEL_ERROR, LOG_LEVEL_INFO
+  use mesh_config_mod,                only: coord_sys_ll, coord_sys_xyz
   use reference_element_mod,          only: W, S, E, N, SWB, SEB, NWB, NEB
   use ugrid_generator_mod,            only: ugrid_generator_type
 
@@ -70,11 +72,13 @@ module gencube_ps_mod
 
     private
 
+    character(str_longlong)  :: constructor_inputs
+
     character(str_def)  :: mesh_name
     character(str_def)  :: mesh_class
     character(str_def)  :: coord_units_x
     character(str_def)  :: coord_units_y
-    character(str_long) :: constructor_inputs
+
     integer(i_def)      :: edge_cells
     integer(i_def)      :: nsmooth
     integer(i_def)      :: npanels
@@ -83,10 +87,11 @@ module gencube_ps_mod
     integer(i_def)      :: max_num_faces_per_node
 
     real(r_def)         :: stretch_factor = 1.0_r_def
-    real(r_def)         :: lat_north      = rmdi
-    real(r_def)         :: lon_north      = rmdi
-    real(r_def)         :: rotate_angle   = rmdi
-    logical             :: do_rotate      = .false.
+
+    real(r_def)         :: target_pole(2) = rmdi
+    real(r_def)         :: rotation_angle = rmdi
+    logical(l_def)      :: rotate_mesh    = .false.
+    integer(i_def)      :: coord_sys      = imdi
 
     character(str_def), allocatable :: target_mesh_names(:)
     integer(i_def),     allocatable :: target_edge_cells(:)
@@ -113,7 +118,6 @@ module gencube_ps_mod
     procedure :: get_global_mesh_maps
     procedure :: write_mesh
     procedure :: orient_lfric
-    procedure :: rotate_mesh
     procedure :: smooth
 
     procedure :: clear
@@ -135,30 +139,28 @@ contains
 !>                               Each panel will contain edge_cells*edge_cells faces.
 !> @param[in] nsmooth            Number of smoothing passes to be performed on mesh nodes.
 !>                               Each panel will contain edge_cells*edge_cells faces.
-!> @param[in, optional] do_rotate
+!> @param[in] coord_sys          Coordinate system to position nodes.
+!> @param[in, optional] rotate_mesh
 !>                               Logical to indicate rotation of the resulting mesh
-!> @param[in, optional] lat_north
+!> @param[in, optional] target_pole
 !>                               If rotating the cubed-sphere, then this is the target
-!>                               latitude (degrees) of the center of the "Northern" panel
-!> @param[in, optional] lon_north
-!>                               If rotating the cubed-sphere, then this is the target
-!>                               longitude (degrees) of the center of the "Northern" panel
-!> @param[in, optional] rotate_angle
+!>                               pole coordinates [longitude, latitude] (degrees)
+!>                               to move the reference pole (default: North)
+!> @param[in, optional] rotation_angle
 !>                               If rotating the cubed-sphere, then this rotation
-!>                               angle (degrees) about the "Northern" panel
+!>                               angle (degrees) about the reference pole (default: North).
 !> @param[in, optional] target_mesh_names
 !>                               Names of meshes to map to.
 !> @param[in, optional] target_edge_cells
 !>                               Number of cells per panel edge of the meshes to map to.
-!>
 !> @param[in, optional] stretch_factor
 !>                               Attracts points to the North (< 1) or South (> 1) to give
 !>                               a variable resolution mesh
 !>
 !> @return    self               Instance of gencube_ps_type
 !-------------------------------------------------------------------------------
- function gencube_ps_constructor( mesh_name, edge_cells, nsmooth, do_rotate,   &
-                                  lat_north, lon_north, rotate_angle,          &
+ function gencube_ps_constructor( mesh_name, edge_cells, nsmooth, coord_sys,   &
+                                  rotate_mesh, target_pole, rotation_angle,    &
                                   target_mesh_names, target_edge_cells,        &
                                   stretch_factor )                             &
                                   result( self )
@@ -168,11 +170,11 @@ contains
   character(str_def), intent(in) :: mesh_name
   integer(i_def),     intent(in) :: edge_cells
   integer(i_def),     intent(in) :: nsmooth
+  integer(i_def),     intent(in) :: coord_sys
 
-  logical,            optional, intent(in) :: do_rotate
-  real(r_def),        optional, intent(in) :: lat_north
-  real(r_def),        optional, intent(in) :: lon_north
-  real(r_def),        optional, intent(in) :: rotate_angle
+  logical,            optional, intent(in) :: rotate_mesh
+  real(r_def),        optional, intent(in) :: target_pole(2)
+  real(r_def),        optional, intent(in) :: rotation_angle
   real(r_def),        optional, intent(in) :: stretch_factor
 
   character(str_def), optional, intent(in) :: target_mesh_names(:)
@@ -191,6 +193,7 @@ contains
   self%nsmooth    = nsmooth
   self%npanels    = NPANELS
   self%nmaps      = 0
+  self%coord_sys  = coord_sys
 
   ! There are a maximum of 4 faces around a node in this type of mesh
   self%max_num_faces_per_node = 4
@@ -215,16 +218,15 @@ contains
   end if
 
 
-  if (present(do_rotate)) then
+  if (present(rotate_mesh)) then
 
-    self%do_rotate = do_rotate
+    self%rotate_mesh = rotate_mesh
 
-    if ( do_rotate ) then
+    if ( self%rotate_mesh ) then
       ! The namelist inputs were in degrees, so convert
       ! and store them as radians.
-      self%lat_north      = lat_north    * degrees_to_radians
-      self%lon_north      = lon_north    * degrees_to_radians
-      self%rotate_angle   = rotate_angle * degrees_to_radians
+      self%target_pole    = degrees_to_radians * target_pole
+      self%rotation_angle = degrees_to_radians * rotation_angle
     end if
 
   end if
@@ -1088,10 +1090,10 @@ end subroutine calc_coords
 !-------------------------------------------------------------------------------
 !> @brief   Rotates coordinates of the mesh by rotating to a new 'North'
 !>          given by lon_north, lat_north and then rotating clockwise by an
-!>          angle rotate_angle
+!>          angle rotation_angle
 !> @details Rotates coordinates of the mesh by rotating to a new 'North'
 !>          given by lon_north, lat_north and then rotating clockwise by an
-!>          angle rotate_angle.  This routine updates self%vert_coords
+!>          angle rotation_angle.  This routine updates self%vert_coords
 !>
 !> We can describe moving the pole from TRUE_NORTH to new_north
 !> as a rotation  about the vector rot_vec by an angle alpha_vec
@@ -1115,30 +1117,34 @@ subroutine rotate_mesh(self)
   integer(i_def) :: icell, nverts
   real(r_def)    :: lat, lon
 
-  logical        :: do_newnorth  ! To determine if we want a new north
-  logical        :: do_rotate    ! To determine if we want to rotate about north
+  logical        :: rotate_the_pole   ! To determine if we want a new north
+  logical        :: rotate_about_pole ! To determine if we want to rotate about north
+
   nverts = size(self%vert_coords, dim=2)
 
   ! First set up axis of rotation
   ! NB dot_product(TRUE_NORTH, TRUE_NORTH)=1
   ! We leave it in case this changes.
-  call ll2xyz( self%lon_north, self%lat_north, new_north(1), new_north(2),   &
+  call ll2xyz( self%target_pole(1),        &
+               self%target_pole(2),        &
+               new_north(1), new_north(2), &
                new_north(3) )
+
   rot_vec   = cross_product( TRUE_NORTH, new_north )
-  alpha_rot = acos( dot_product( TRUE_NORTH, new_north ) /                   &
-              sqrt( dot_product(  new_north, new_north ) *                   &
+  alpha_rot = acos( dot_product( TRUE_NORTH, new_north ) / &
+              sqrt( dot_product(  new_north, new_north ) * &
                     dot_product( TRUE_NORTH, TRUE_NORTH ) ) )
 
   ! If angle is less than ~ 0.0001 degrees (i.e. norm2(rot_vec) < 1.e-6)
   ! Then don't change axis
-  do_newnorth = .true.
-  if ( norm2(rot_vec) < 1.e-6 ) do_newnorth = .false.
+  rotate_the_pole = .true.
+  if ( norm2(rot_vec) < 1.e-6 ) rotate_the_pole = .false.
 
-  ! If rotate_angle < 0.0001 degress, then don't rotate
-  do_rotate   = .true.
-  if ( abs(self%rotate_angle) < 0.0001 ) do_rotate = .false.
+  ! If rotation_angle < 0.0001 degress, then don't rotate
+  rotate_about_pole   = .true.
+  if ( abs(self%rotation_angle) < 0.0001 ) rotate_about_pole = .false.
 
-  if (do_newnorth .or. do_rotate) then
+  if (rotate_the_pole .or. rotate_about_pole) then
 
     do icell = 1, nverts
 
@@ -1148,15 +1154,20 @@ subroutine rotate_mesh(self)
       call ll2xyz(lon, lat, x_vec(1), x_vec(2), x_vec(3))
 
       ! First rotate by rotation_angle
-      if (do_rotate) x_vec = rodrigues_rotation(x_vec, TRUE_NORTH,           &
-                                                self%rotate_angle)
+      if (rotate_about_pole) then
+        x_vec = rodrigues_rotation( x_vec, TRUE_NORTH, &
+                                    self%rotation_angle )
+      end if
+
       ! Next rotate to new North
-      if (do_newnorth) x_vec = rodrigues_rotation(x_vec, rot_vec, alpha_rot)
+      if (rotate_the_pole) then
+        x_vec = rodrigues_rotation(x_vec, rot_vec, alpha_rot)
+      end if
 
       ! convert back to lat, lon and send back to vert_coords
-      call xyz2ll(x_vec(1), x_vec(2), x_vec(3), self%vert_coords(1,icell),   &
-                  self%vert_coords(2,icell))
-
+      call xyz2ll( x_vec(1), x_vec(2), x_vec(3), &
+                   self%vert_coords(1,icell),    &
+                   self%vert_coords(2,icell))
     end do
 
   end if
@@ -1362,8 +1373,10 @@ subroutine generate(self)
 
   call orient_lfric(self, PANEL_ROTATIONS)
 
-  if (self%nsmooth > 0_i_def)           call smooth(self)
-  if (self%do_rotate)                   call rotate_mesh(self)
+  if (self%nsmooth > 0_i_def) call smooth(self)
+
+  if (self%rotate_mesh) call rotate_mesh(self)
+
   if (self%stretch_factor /= 1.0_r_def) call stretch_mesh(self)
 
   call calc_cell_centres(self)
@@ -1815,6 +1828,7 @@ end subroutine calc_cell_centres
 !> @param[out, optional]  mesh_name          Name of mesh instance to generate
 !> @param[out, optional]  mesh_class         Primitive shape, i.e. sphere, plane
 !> @param[out, optional]  npanels            Number of panels use to describe mesh
+!> @param[out, optional]  coord_sys          Coordinate system to position nodes.
 !> @param[out, optional]  edge_cells_x       Number of panel edge cells (x-axis).
 !> @param[out, optional]  edge_cells_y       Number of panel edge cells (y-axis).
 !> @param[out, optional]  constructor_inputs Inputs used to create this mesh from
@@ -1834,6 +1848,7 @@ subroutine get_metadata( self,               &
                          periodic_x,         &
                          periodic_y,         &
                          npanels,            &
+                         coord_sys,          &
                          edge_cells_x,       &
                          edge_cells_y,       &
                          constructor_inputs, &
@@ -1849,11 +1864,13 @@ subroutine get_metadata( self,               &
   character(str_def), optional, intent(out) :: mesh_class
   logical(l_def), optional, intent(out)     :: periodic_x
   logical(l_def), optional, intent(out)     :: periodic_y
-  character(str_long),optional, intent(out) :: constructor_inputs
 
-  integer(i_def),   optional,  intent(out) :: npanels
-  integer(i_def),   optional,  intent(out) :: edge_cells_x
-  integer(i_def),   optional,  intent(out) :: edge_cells_y
+  integer(i_def), optional, intent(out) :: npanels
+  integer(i_def), optional, intent(out) :: coord_sys
+  integer(i_def), optional, intent(out) :: edge_cells_x
+  integer(i_def), optional, intent(out) :: edge_cells_y
+
+  character(str_longlong), optional, intent(out) :: constructor_inputs
 
   integer(i_def),   optional,  intent(out) :: nmaps
   character(str_def), allocatable, optional,intent(out) :: target_mesh_names(:)
@@ -1868,6 +1885,8 @@ subroutine get_metadata( self,               &
 
   if (present(constructor_inputs)) constructor_inputs = trim(self%constructor_inputs)
   if (present(nmaps)) nmaps = self%nmaps
+
+  if (present(coord_sys)) coord_sys = self%coord_sys
 
   if (self%nmaps > 0) then
     if (present(target_mesh_names)) target_mesh_names  = self%target_mesh_names

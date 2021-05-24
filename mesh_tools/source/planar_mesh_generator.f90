@@ -16,7 +16,8 @@
 program planar_mesh_generator
 
   use cli_mod,           only: get_initial_filename
-  use constants_mod,     only: i_def, str_def, str_long, l_def, imdi, cmdi
+  use constants_mod,     only: i_def, l_def, r_def, str_def, &
+                               cmdi, imdi
   use configuration_mod, only: read_configuration, final_configuration
   use gen_lbc_mod,       only: gen_lbc_type
   use gen_planar_mod,    only: gen_planar_type,          &
@@ -31,22 +32,11 @@ program planar_mesh_generator
                                log_scratch_space,        &
                                LOG_LEVEL_INFO,           &
                                LOG_LEVEL_ERROR
-  use mesh_config_mod,   only: mesh_filename, n_partitions, &
-                               n_meshes, mesh_names, mesh_maps
+
   use mpi_mod,           only: initialise_comm, store_comm, finalise_comm, &
                                get_comm_size, get_comm_rank
   use ncdf_quad_mod,     only: ncdf_quad_type
   use partition_mod,     only: partition_type, partitioner_interface
-  use partitioning_config_mod, &
-                         only: max_stencil_depth
-  use planar_mesh_config_mod,                                  &
-                         only: edge_cells_x, edge_cells_y,     &
-                               periodic_x, periodic_y,         &
-                               domain_x, domain_y,             &
-                               cartesian, create_lbc_mesh,     &
-                               lbc_rim_depth, lbc_parent_mesh, &
-                               do_rotate, pole_lat, pole_lon,  &
-                               first_lat, first_lon
   use reference_element_mod, only: reference_element_type, &
                                    reference_cube_type
   use remove_duplicates_mod, only: any_duplicates
@@ -54,6 +44,22 @@ program planar_mesh_generator
   use ugrid_file_mod,        only: ugrid_file_type
   use ugrid_mesh_data_mod,   only: ugrid_mesh_data_type
   use yaxt,                  only: xt_initialize, xt_finalize
+
+  ! Configuration modules
+  use mesh_config_mod,         only: mesh_filename, rotate_mesh, &
+                                     n_meshes, mesh_names,       &
+                                     mesh_maps, n_partitions,    &
+                                     coord_sys, key_from_coord_sys
+  use partitioning_config_mod, only: max_stencil_depth
+  use planar_mesh_config_mod,  only: edge_cells_x, edge_cells_y, &
+                                     periodic_x, periodic_y,     &
+                                     domain_x, domain_y,         &
+                                     create_lbc_mesh,            &
+                                     lbc_rim_depth,              &
+                                     lbc_parent_mesh
+  use rotation_config_mod,     only: target_pole,    &
+                                     rotation_angle, &
+                                     first_node
 
   implicit none
 
@@ -78,7 +84,6 @@ program planar_mesh_generator
   character(str_def), allocatable :: target_mesh_names(:)
   integer(i_def),     allocatable :: target_edge_cells_x(:)
   integer(i_def),     allocatable :: target_edge_cells_y(:)
-
 
   integer(i_def),     allocatable :: target_edge_cells_x_tmp(:)
   integer(i_def),     allocatable :: target_edge_cells_y_tmp(:)
@@ -109,6 +114,9 @@ program planar_mesh_generator
   character(str_def) :: name
   logical(l_def)     :: lbc_generated
   type(gen_lbc_type) :: lbc_mesh_gen
+
+  character(str_def)  :: lon_str
+  character(str_def)  :: lat_str
 
   ! Counters
   integer(i_def) :: i, j, k, l, n_voids
@@ -316,7 +324,8 @@ program planar_mesh_generator
   call log_event( log_scratch_space, LOG_LEVEL_INFO )
   write(log_scratch_space, '(A,L1)') '  Periodic in y-axis: ', periodic_y
   call log_event( log_scratch_space, LOG_LEVEL_INFO )
-  write(log_scratch_space, '(A,L1)') '  Cartesian grid: ', cartesian
+  write(log_scratch_space, '(A)')    '   Coordinate system: '// &
+      trim(key_from_coord_sys(coord_sys))
   call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
   ! 6.1 Generate objects which know how to generate each requested
@@ -334,23 +343,26 @@ program planar_mesh_generator
     allocate( target_edge_cells_y_tmp(n_mesh_maps*2) )
   end if
 
-  if (do_rotate) then
+  if (rotate_mesh) then
     write(log_scratch_space, '(A)') &
        '  Rotation of mesh requested with: '
     call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
-    write(log_scratch_space, '(A,F6.1)') &
-       '  New Pole lat: ', pole_lat
-    call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
-    write(log_scratch_space, '(A,F6.1)') &
-       '  New Pole lon: ', pole_lon
-    call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
-    write(log_scratch_space, '(A,F6.1)') &
-       '  First lat: ', first_lat
-    call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
-    write(log_scratch_space, '(A,F6.1)') &
-       '  First lon: ', first_lon
+
+    write(lon_str,'(F10.2)') target_pole(1)
+    write(lat_str,'(F10.2)') target_pole(2)
+    write(log_scratch_space,'(A)')       &
+        '  Target pole [lon,lat]: ['  // &
+        trim(adjustl(lon_str)) // ',' // &
+        trim(adjustl(lat_str)) // ']'
     call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
 
+    write(lon_str,'(F10.2)') first_node(1)
+    write(lat_str,'(F10.2)') first_node(2)
+    write(log_scratch_space,'(A)')       &
+        '  First node [lon,lat]:  ['  // &
+        trim(adjustl(lon_str)) // ',' // &
+        trim(adjustl(lat_str)) // ']'
+    call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
   end if
 
   do i=1, n_meshes
@@ -399,12 +411,10 @@ program planar_mesh_generator
                         domain_y          = domain_y,        &
                         periodic_x        = periodic_x,      &
                         periodic_y        = periodic_y,      &
-                        cartesian         = cartesian,       &
-                        do_rotate         = do_rotate,       &
-                        pole_lat          = pole_lat,        &
-                        pole_lon          = pole_lon,        &
-                        first_lat         = first_lat,       &
-                        first_lon         = first_lon )
+                        coord_sys         = coord_sys,       &
+                        rotate_mesh       = rotate_mesh,     &
+                        target_pole       = target_pole,     &
+                        first_node        = first_node )
 
     else if (n_meshes > 1) then
 
@@ -439,15 +449,13 @@ program planar_mesh_generator
                         domain_y            = domain_y,            &
                         periodic_x          = periodic_x,          &
                         periodic_y          = periodic_y,          &
-                        cartesian           = cartesian,           &
+                        coord_sys           = coord_sys,           &
                         target_mesh_names   = target_mesh_names,   &
                         target_edge_cells_x = target_edge_cells_x, &
                         target_edge_cells_y = target_edge_cells_y, &
-                        do_rotate           = do_rotate,           &
-                        pole_lat            = pole_lat,            &
-                        pole_lon            = pole_lon,            &
-                        first_lat           = first_lat,           &
-                        first_lon           = first_lon )
+                        rotate_mesh         = rotate_mesh,         &
+                        target_pole         = target_pole,         &
+                        first_node          = first_node )
     else
       write(log_scratch_space, "(A,I0,A)") &
          '  Number of meshes is negative [', n_meshes,']'

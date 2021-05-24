@@ -10,7 +10,7 @@
 !-------------------------------------------------------------------------------
 module ugrid_file_mod
 
-  use constants_mod, only: i_def, r_def, str_def, str_long, l_def
+  use constants_mod, only: i_def, r_def, str_def, str_longlong, l_def
   use file_mod,      only: file_type
   use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
 
@@ -188,18 +188,19 @@ abstract interface
                                   face_face_connectivity,         &
                                   num_targets, target_mesh_names )
 
-    import :: ugrid_file_type, i_def, r_def, str_def, str_long, l_def
+    import :: ugrid_file_type, i_def, r_def, str_def, str_longlong, l_def
 
     implicit none
 
     ! Arguments
     class(ugrid_file_type), intent(inout) :: self
 
-    character(str_def),  intent(in)  :: mesh_name
-    character(str_def),  intent(out) :: mesh_class
-    logical(l_def),      intent(out) :: periodic_x
-    logical(l_def),      intent(out) :: periodic_y
-    character(str_long), intent(out) :: constructor_inputs
+    character(str_def), intent(in)  :: mesh_name
+    character(str_def), intent(out) :: mesh_class
+    logical(l_def),     intent(out) :: periodic_x
+    logical(l_def),     intent(out) :: periodic_y
+
+    character(str_longlong), intent(out) :: constructor_inputs
 
     real(r_def),        intent(out) :: node_coordinates(:,:)
     real(r_def),        intent(out) :: face_coordinates(:,:)
@@ -255,7 +256,7 @@ abstract interface
                                    target_mesh_names,               &
                                    target_mesh_maps )
 
-    import :: ugrid_file_type, i_def, r_def, str_def, str_long, l_def, &
+    import :: ugrid_file_type, i_def, r_def, str_def, str_longlong, l_def, &
               global_mesh_map_collection_type
 
     implicit none
@@ -263,26 +264,28 @@ abstract interface
     ! Arguments
     class(ugrid_file_type), intent(inout) :: self
 
-    character(str_def),  intent(in) :: mesh_name
-    character(str_def),  intent(in) :: mesh_class
-    logical(l_def),      intent(in) :: periodic_x
-    logical(l_def),      intent(in) :: periodic_y
-    character(str_long), intent(in) :: constructor_inputs
-    integer(i_def),      intent(in) :: num_nodes
-    integer(i_def),      intent(in) :: num_edges
-    integer(i_def),      intent(in) :: num_faces
-    real(r_def),         intent(in) :: node_coordinates(:,:)
-    real(r_def),         intent(in) :: face_coordinates(:,:)
-    character(str_def),  intent(in) :: coord_units_x
-    character(str_def),  intent(in) :: coord_units_y
-    integer(i_def),      intent(in) :: face_node_connectivity(:,:)
-    integer(i_def),      intent(in) :: edge_node_connectivity(:,:)
-    integer(i_def),      intent(in) :: face_edge_connectivity(:,:)
-    integer(i_def),      intent(in) :: face_face_connectivity(:,:)
-    integer(i_def),      intent(in) :: num_targets
-    character(str_def),  intent(in), allocatable :: target_mesh_names(:)
+    character(str_def), intent(in) :: mesh_name
+    character(str_def), intent(in) :: mesh_class
+    logical(l_def),     intent(in) :: periodic_x
+    logical(l_def),     intent(in) :: periodic_y
+
+    character(str_longlong), intent(in) :: constructor_inputs
+
+    integer(i_def),     intent(in) :: num_nodes
+    integer(i_def),     intent(in) :: num_edges
+    integer(i_def),     intent(in) :: num_faces
+    real(r_def),        intent(in) :: node_coordinates(:,:)
+    real(r_def),        intent(in) :: face_coordinates(:,:)
+    character(str_def), intent(in) :: coord_units_x
+    character(str_def), intent(in) :: coord_units_y
+    integer(i_def),     intent(in) :: face_node_connectivity(:,:)
+    integer(i_def),     intent(in) :: edge_node_connectivity(:,:)
+    integer(i_def),     intent(in) :: face_edge_connectivity(:,:)
+    integer(i_def),     intent(in) :: face_face_connectivity(:,:)
+    integer(i_def),     intent(in) :: num_targets
+    character(str_def), intent(in), allocatable :: target_mesh_names(:)
     type(global_mesh_map_collection_type), &
-                         intent(in) :: target_mesh_maps
+                        intent(in) :: target_mesh_maps
 
   end subroutine write_mesh_interface
 

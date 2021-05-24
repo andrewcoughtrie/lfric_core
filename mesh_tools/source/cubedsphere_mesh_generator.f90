@@ -15,7 +15,8 @@
 program cubedsphere_mesh_generator
 
   use cli_mod,           only: get_initial_filename
-  use constants_mod,     only: i_def, imdi, l_def, str_def, str_long, cmdi
+  use constants_mod,     only: i_def, l_def, r_def, str_def, &
+                               cmdi, imdi
   use configuration_mod, only: read_configuration, final_configuration
   use gencube_ps_mod,    only: gencube_ps_type,          &
                                set_partition_parameters, &
@@ -40,15 +41,14 @@ program cubedsphere_mesh_generator
   use yaxt,                  only: xt_initialize, xt_finalize
 
   ! Configuration modules
-  use cubedsphere_mesh_config_mod, only: edge_cells, smooth_passes, &
-                                         do_rotate, lat_north,      &
-                                         lon_north, rotate_angle,   &
+  use cubedsphere_mesh_config_mod, only: edge_cells, smooth_passes,  &
                                          stretch_factor
-  use mesh_config_mod,             only: mesh_filename,        &
-                                         n_meshes, mesh_names, &
-                                         mesh_maps, n_partitions
+  use mesh_config_mod,             only: mesh_filename, rotate_mesh, &
+                                         n_meshes, mesh_names,       &
+                                         mesh_maps, n_partitions,    &
+                                         coord_sys
   use partitioning_config_mod,     only: max_stencil_depth
-
+  use rotation_config_mod,         only: target_pole, rotation_angle
 
   implicit none
 
@@ -104,6 +104,10 @@ program cubedsphere_mesh_generator
   character(str_def) :: check_mesh(2)
   integer(i_def)     :: first_mesh_edge_cells
   integer(i_def)     :: second_mesh_edge_cells
+
+  character(str_def) :: lon_str
+  character(str_def) :: lat_str
+  character(str_def) :: temp_str
 
   ! Counters
   integer(i_def) :: i, j, k, l, n_voids
@@ -324,18 +328,22 @@ program cubedsphere_mesh_generator
   end if
 
 
-  if (do_rotate) then
+  if (rotate_mesh) then
     write(log_scratch_space, '(A)') &
-       '  Rotation of mesh requested with: '
+        '  Rotation of mesh requested with: '
     call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
-    write(log_scratch_space, '(A,F6.1)') &
-       '  New North lat: ', lat_north
+
+    write(lon_str,'(F10.2)') target_pole(1)
+    write(lat_str,'(F10.2)') target_pole(2)
+    write(log_scratch_space,'(A)')       &
+        '  Target pole [lon,lat]: ['  // &
+        trim(adjustl(lon_str)) // ',' // &
+        trim(adjustl(lat_str)) // ']'
     call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
-    write(log_scratch_space, '(A,F6.1)') &
-       '  New North lon: ', lon_north
-    call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
-    write(log_scratch_space, '(A,F6.1)') &
-       '  Rotation about north: ', rotate_angle
+
+    write(temp_str,'(F10.2)') rotation_angle
+    write(log_scratch_space, '(A)') &
+        '  Rotation about pole:  ' // trim(adjustl(temp_str))
     call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
   end if
 
@@ -394,14 +402,14 @@ program cubedsphere_mesh_generator
     ! 6.4 Call generation stratedgy
     if (n_targets == 0 .or. n_meshes == 1 ) then
       ! No mesh maps required for this mesh
-      mesh_gen(i) = gencube_ps_type( mesh_name      = mesh_names(i), &
-                                     edge_cells     = edge_cells(i), &
-                                     nsmooth        = nsmooth,       &
-                                     do_rotate      = do_rotate,     &
-                                     lat_north      = lat_north,     &
-                                     lon_north      = lon_north,     &
-                                     rotate_angle   = rotate_angle,  &
-                                     stretch_factor = stretch_factor )
+      mesh_gen(i) = gencube_ps_type( mesh_name=mesh_names(i),       &
+                                     edge_cells=edge_cells(i),      &
+                                     nsmooth=nsmooth,               &
+                                     coord_sys=coord_sys,           &
+                                     rotate_mesh=rotate_mesh,       &
+                                     target_pole=target_pole,       &
+                                     rotation_angle=rotation_angle, &
+                                     stretch_factor=stretch_factor )
 
     else if (n_meshes > 1) then
 
@@ -427,15 +435,15 @@ program cubedsphere_mesh_generator
                         target_mesh_names=target_mesh_names, &
                         target_edge_cells=target_edge_cells, &
                         nsmooth=nsmooth,                     &
-                        do_rotate=do_rotate,                 &
-                        lat_north=lat_north,                 &
-                        lon_north=lon_north,                 &
-                        rotate_angle=rotate_angle,           &
+                        coord_sys=coord_sys,                 &
+                        rotate_mesh=rotate_mesh,             &
+                        target_pole=target_pole,             &
+                        rotation_angle=rotation_angle,       &
                         stretch_factor=stretch_factor )
 
     else
       write(log_scratch_space, "(A,I0,A)") &
-           '  Number of unique meshes is negative [', n_meshes,']'
+          '  Number of unique meshes is negative [', n_meshes,']'
       call log_event( trim(log_scratch_space), LOG_LEVEL_ERROR)
     end if
 

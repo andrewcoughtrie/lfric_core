@@ -7,6 +7,7 @@ class gen_planar_mod::gen_planar_type {
 
   -mesh_name: string
   -mesh_class: string
+  -coord_sys: integer
   -coord_units_x: string
   -coord_units_y: string
   -constructor_inputs: string
@@ -16,6 +17,10 @@ class gen_planar_mod::gen_planar_type {
   -edge_cells_y: integer
   -npanels: integer
   -nmaps: integer
+
+  -rotate_mesh: logical
+  -target_pole: real[2]
+  -first_node: real[2]
 
   -nedges_cell: integer
   -n_nodes: integer
@@ -41,7 +46,7 @@ class gen_planar_mod::gen_planar_type {
   -vert_coords: real[::] <<allocatable>>
   -cell_coords: real[::] <<allocatable>>
 
-  +<<create>>gen_planar_constructor( <<in>> reference_element:reference_cube_type, <<in>> mesh_name: string, <<in>> edge_cells_x: integer, <<in>> edge_cells_y: integer, <<in>> periodic_x: logical, <<in>> periodic_y: logical, <<in>> domain_x: integer, <<in>> domain_y: integer, <<in>> target_mesh_names: string[:] <<optional>>, <<in>> target_edge_cells_x: integer[:] <<optional>>, <<in>> target_edge_cells_y: integer[:] <<optional>> ): gen_planar_type
+  +<<create>>gen_planar_constructor( \n\t<<in>> reference_element: reference_cube_type,\n\t<<in>> mesh_name: string,\n\t<<in>> edge_cells_x: integer,\n\t<<in>> edge_cells_y: integer,\n\t<<in>> periodic_x: logical,\n\t<<in>> periodic_y: logical,\n\t<<in>> domain_x: integer,\n\t<<in>> domain_y: integer,\n\t<<in>> coord_sys: integer,\n\t<<in, optional>> rotate_mesh: logical,\n\t<<in, optional>> target_pole: real[2],\n\t<<in, optional>> first_node: real[2],\n\t<<in, optional>> target_mesh_names: string[:],\n\t<<in, optional>> target_mesh_names: string[:],\n\t<<in, optional>> target_mesh_names: string[:],\n\t<<in, optional>> target_edge_cells_x: integer[:],\n\t<<in, optional>> target_edge_cells_y: integer[:] ): gen_planar_type
 
   +is_generated() : logical
   +get_corner_gid( <<in>> corner: integer ): integer

@@ -16,10 +16,11 @@
 module gen_planar_mod_test
 
   use constants_mod,                  only: i_def, r_def, str_def, l_def, &
-                                            str_long, imdi
+                                            imdi, str_longlong
   use gen_planar_mod,                 only: gen_planar_type, NON_PERIODIC_ID
   use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
   use global_mesh_map_mod,            only: global_mesh_map_type
+  use mesh_config_mod,                only: coord_sys_ll, coord_sys_xyz
   use pFUnit_Mod
 
   use reference_element_mod,          only: reference_cube_type, &
@@ -148,7 +149,6 @@ contains
 
     logical(l_def) :: periodic_x = .true.
     logical(l_def) :: periodic_y = .true.
-    logical(l_def) :: cartesian  = .true.
 
     integer(i_def) :: edge_cells_x = 2
     integer(i_def) :: edge_cells_y = 2
@@ -157,8 +157,10 @@ contains
     integer(i_def), pointer  :: edge_cell_ids(:) => null()
     integer(i_def)           ::  icell
 
-    character(str_def)  :: test_str1, test_str2
-    character(str_long) :: test_str3
+    character(str_def) :: test_str1
+    character(str_def) :: test_str2
+
+    character(str_longlong) :: test_str3
 
     character(str_def)  :: test_coord_units_x
     character(str_def)  :: test_coord_units_y
@@ -174,7 +176,7 @@ contains
                                 periodic_y=periodic_y,          &
                                 domain_x=domain_x,              &
                                 domain_y=domain_y,              &
-                                cartesian=cartesian )
+                                coord_sys=coord_sys_xyz )
 
     ! Test metadata retrieval
     call mesh_gen%get_metadata( mesh_name          = test_str1, &
@@ -183,7 +185,7 @@ contains
 
     @assertEqual( mesh_name, trim(test_str1) )
     @assertEqual( 'plane', trim(test_str2) )
-    @assertEqual( 'edge_cells_x=2;edge_cells_y=2;periodic_x=T;periodic_y=T;domain_x=30000.00;domain_y=8000.00;cartesian=T', trim(test_str3) )
+    @assertEqual( 'edge_cells_x=2;edge_cells_y=2;periodic_x=T;periodic_y=T;domain_x=30000.00;domain_y=8000.00;coord_sys=xyz', trim(test_str3) )
 
     ! Generate the mesh and connectivity
     call mesh_gen%generate()
@@ -301,14 +303,14 @@ contains
 
     logical(l_def) :: periodic_x = .true.
     logical(l_def) :: periodic_y = .true.
-    logical(l_def) :: cartesian  = .true.
 
     character(str_def)  :: test_mesh_name
     character(str_def)  :: test_mesh_class
     character(str_def)  :: test_coord_units_x
     character(str_def)  :: test_coord_units_y
 
-    character(str_long) :: test_constructor_inputs
+    character(str_longlong) :: test_constructor_inputs
+
     integer(i_def)      :: test_npanels
     integer(i_def)      :: test_edge_cells_x
     integer(i_def)      :: test_edge_cells_y
@@ -333,7 +335,7 @@ contains
                    periodic_y   = periodic_y,                 &
                    domain_x     = domain_x,                   &
                    domain_y     = domain_y,                   &
-                   cartesian    = cartesian,                  &
+                   coord_sys    = coord_sys_xyz,              &
                    target_mesh_names   = target_mesh_names,   &
                    target_edge_cells_x = target_edge_cells_x, &
                    target_edge_cells_y = target_edge_cells_y  )
@@ -352,7 +354,7 @@ contains
 
     @assertEqual( mesh_name, trim(test_mesh_name) )
     @assertEqual( 'plane',   trim(test_mesh_class) )
-    @assertEqual( "edge_cells_x=5;edge_cells_y=4;periodic_x=T;periodic_y=T;domain_x=30000.00;domain_y=8000.00;cartesian=T;target_mesh_names=['unit_test_target'];target_edge_cells_x=[10];target_edge_cells_y=[12]", trim(test_constructor_inputs) )
+    @assertEqual( "edge_cells_x=5;edge_cells_y=4;periodic_x=T;periodic_y=T;domain_x=30000.00;domain_y=8000.00;coord_sys=xyz;target_mesh_names=['unit_test_target'];target_edge_cells_x=[10];target_edge_cells_y=[12]", trim(test_constructor_inputs) )
     @assertEqual( npanels, test_npanels )
     @assertEqual( edge_cells_x, test_edge_cells_x )
     @assertEqual( edge_cells_y, test_edge_cells_y )
@@ -477,14 +479,15 @@ contains
 
     logical(l_def) :: periodic_x = .true.
     logical(l_def) :: periodic_y = .false.
-    logical(l_def) :: cartesian  = .true.
 
     integer(i_def)           :: row,i
     integer(i_def), pointer  :: edge_cell_ids(:) => null()
     integer(i_def)           ::  icell
 
-    character(str_def)  :: test_str1, test_str2
-    character(str_long) :: test_str3
+    character(str_def) :: test_str1
+    character(str_def) :: test_str2
+
+    character(str_longlong) :: test_str3
 
     character(str_def)  :: test_coord_units_x
     character(str_def)  :: test_coord_units_y
@@ -500,7 +503,7 @@ contains
                                 periodic_y=periodic_y,          &
                                 domain_x=domain_x,              &
                                 domain_y=domain_y,              &
-                                cartesian=cartesian )
+                                coord_sys=coord_sys_xyz )
 
     ! Test metadata retrieval
     call mesh_gen%get_metadata( mesh_name          = test_str1, &
@@ -509,7 +512,7 @@ contains
 
     @assertEqual( mesh_name, trim(test_str1) )
     @assertEqual( 'plane', trim(test_str2) )
-    @assertEqual( 'edge_cells_x=5;edge_cells_y=4;periodic_x=T;periodic_y=F;domain_x=30000.00;domain_y=8000.00;cartesian=T', trim(test_str3) )
+    @assertEqual( 'edge_cells_x=5;edge_cells_y=4;periodic_x=T;periodic_y=F;domain_x=30000.00;domain_y=8000.00;coord_sys=xyz', trim(test_str3) )
 
     ! Generate the mesh and connectivity
     call mesh_gen%generate()
@@ -611,10 +614,11 @@ contains
 
     logical(l_def) :: periodic_x = .false.
     logical(l_def) :: periodic_y = .true.
-    logical(l_def) :: cartesian  = .true.
 
-    character(str_def)  :: test_str1, test_str2
-    character(str_long) :: test_str3
+    character(str_def) :: test_str1
+    character(str_def) :: test_str2
+
+    character(str_longlong) :: test_str3
 
     character(str_def)  :: test_coord_units_x
     character(str_def)  :: test_coord_units_y
@@ -633,7 +637,7 @@ contains
                                 periodic_y=periodic_y,          &
                                 domain_x=domain_x,              &
                                 domain_y=domain_y,              &
-                                cartesian=cartesian )
+                                coord_sys=coord_sys_xyz )
 
     ! Test metadata retrieval
     call mesh_gen%get_metadata( mesh_name          = test_str1, &
@@ -642,7 +646,7 @@ contains
 
     @assertEqual( mesh_name, trim(test_str1) )
     @assertEqual( 'plane', trim(test_str2) )
-    @assertEqual( 'edge_cells_x=5;edge_cells_y=4;periodic_x=F;periodic_y=T;domain_x=30000.00;domain_y=8000.00;cartesian=T', trim(test_str3) )
+    @assertEqual( 'edge_cells_x=5;edge_cells_y=4;periodic_x=F;periodic_y=T;domain_x=30000.00;domain_y=8000.00;coord_sys=xyz', trim(test_str3) )
 
     ! Generate the mesh and connectivity
     call mesh_gen%generate()
@@ -746,13 +750,14 @@ contains
 
     logical(l_def) :: periodic_x = .false.
     logical(l_def) :: periodic_y = .false.
-    logical(l_def) :: cartesian  = .true.
 
     integer(i_def) :: icell, row, i
     integer(i_def), pointer :: edge_cell_ids(:) => null()
 
-    character(str_def)  :: test_str1, test_str2
-    character(str_long) :: test_str3
+    character(str_def) :: test_str1
+    character(str_def) :: test_str2
+
+    character(str_longlong) :: test_str3
 
     character(str_def)  :: test_coord_units_x
     character(str_def)  :: test_coord_units_y
@@ -768,7 +773,7 @@ contains
                                 periodic_y=periodic_y,          &
                                 domain_x=domain_x,              &
                                 domain_y=domain_y,              &
-                                cartesian=cartesian )
+                                coord_sys=coord_sys_xyz )
 
     ! Test metadata retrieval
     call mesh_gen%get_metadata( mesh_name          = test_str1, &
@@ -777,7 +782,7 @@ contains
 
     @assertEqual( mesh_name, trim(test_str1) )
     @assertEqual( 'plane', trim(test_str2) )
-    @assertEqual( 'edge_cells_x=5;edge_cells_y=4;periodic_x=F;periodic_y=F;domain_x=30000.00;domain_y=8000.00;cartesian=T', trim(test_str3) )
+    @assertEqual( 'edge_cells_x=5;edge_cells_y=4;periodic_x=F;periodic_y=F;domain_x=30000.00;domain_y=8000.00;coord_sys=xyz', trim(test_str3) )
 
     ! Generate the mesh and connectivity
     call mesh_gen%generate()
@@ -882,7 +887,6 @@ contains
 
     logical(l_def) :: periodic_x = .true.
     logical(l_def) :: periodic_y = .false.
-    logical(l_def) :: cartesian  = .true.
 
     integer(i_def) :: edge_cells_x = 2
     integer(i_def) :: edge_cells_y = 1
@@ -891,8 +895,10 @@ contains
     integer(i_def), pointer  :: edge_cell_ids(:) => null()
     integer(i_def)           ::  icell
 
-    character(str_def)  :: test_str1, test_str2
-    character(str_long) :: test_str3
+    character(str_def) :: test_str1
+    character(str_def) :: test_str2
+
+    character(str_longlong) :: test_str3
 
     character(str_def)  :: test_coord_units_x
     character(str_def)  :: test_coord_units_y
@@ -908,7 +914,7 @@ contains
                                 periodic_y=periodic_y,          &
                                 domain_x=domain_x,              &
                                 domain_y=domain_y,              &
-                                cartesian=cartesian )
+                                coord_sys=coord_sys_xyz )
 
     ! Test metadata retrieval
     call mesh_gen%get_metadata( mesh_name          = test_str1, &
@@ -917,7 +923,7 @@ contains
 
     @assertEqual( mesh_name, trim(test_str1) )
     @assertEqual( 'plane', trim(test_str2) )
-    @assertEqual( 'edge_cells_x=2;edge_cells_y=1;periodic_x=T;periodic_y=F;domain_x=30000.00;domain_y=8000.00;cartesian=T', trim(test_str3) )
+    @assertEqual( 'edge_cells_x=2;edge_cells_y=1;periodic_x=T;periodic_y=F;domain_x=30000.00;domain_y=8000.00;coord_sys=xyz', trim(test_str3) )
 
     ! Generate the mesh and connectivity
     call mesh_gen%generate()
@@ -1025,7 +1031,6 @@ contains
 
     logical(l_def) :: periodic_x = .true.
     logical(l_def) :: periodic_y = .false.
-    logical(l_def) :: cartesian  = .true.
 
     integer(i_def) :: edge_cells_x = 3
     integer(i_def) :: edge_cells_y = 1
@@ -1034,8 +1039,10 @@ contains
     integer(i_def), pointer  :: edge_cell_ids(:) => null()
     integer(i_def)           ::  icell
 
-    character(str_def)  :: test_str1, test_str2
-    character(str_long) :: test_str3
+    character(str_def) :: test_str1
+    character(str_def) :: test_str2
+
+    character(str_longlong) :: test_str3
 
     character(str_def)  :: test_coord_units_x
     character(str_def)  :: test_coord_units_y
@@ -1051,7 +1058,7 @@ contains
                                 periodic_y=periodic_y,          &
                                 domain_x=domain_x,              &
                                 domain_y=domain_y,              &
-                                cartesian=cartesian )
+                                coord_sys=coord_sys_xyz )
 
     ! Test metadata retrieval
     call mesh_gen%get_metadata( mesh_name          = test_str1, &
@@ -1060,7 +1067,7 @@ contains
 
     @assertEqual( mesh_name, trim(test_str1) )
     @assertEqual( 'plane', trim(test_str2) )
-    @assertEqual( 'edge_cells_x=3;edge_cells_y=1;periodic_x=T;periodic_y=F;domain_x=30000.00;domain_y=8000.00;cartesian=T', trim(test_str3) )
+    @assertEqual( 'edge_cells_x=3;edge_cells_y=1;periodic_x=T;periodic_y=F;domain_x=30000.00;domain_y=8000.00;coord_sys=xyz', trim(test_str3) )
 
     ! Generate the mesh and connectivity
     call mesh_gen%generate()
@@ -1176,7 +1183,6 @@ contains
 
     logical(l_def) :: periodic_x = .true.
     logical(l_def) :: periodic_y = .false.
-    logical(l_def) :: cartesian  = .true.
 
     integer(i_def) :: edge_cells_x = 2
     integer(i_def) :: edge_cells_y = 2
@@ -1185,8 +1191,10 @@ contains
     integer(i_def), pointer  :: edge_cell_ids(:) => null()
     integer(i_def)           ::  icell
 
-    character(str_def)  :: test_str1, test_str2
-    character(str_long) :: test_str3
+    character(str_def) :: test_str1
+    character(str_def) :: test_str2
+
+    character(str_longlong) :: test_str3
 
     character(str_def)  :: test_coord_units_x
     character(str_def)  :: test_coord_units_y
@@ -1202,7 +1210,7 @@ contains
                                 periodic_y=periodic_y,          &
                                 domain_x=domain_x,              &
                                 domain_y=domain_y,              &
-                                cartesian=cartesian )
+                                coord_sys=coord_sys_xyz )
 
     ! Test metadata retrieval
     call mesh_gen%get_metadata( mesh_name          = test_str1, &
@@ -1211,7 +1219,7 @@ contains
 
     @assertEqual( mesh_name, trim(test_str1) )
     @assertEqual( 'plane', trim(test_str2) )
-    @assertEqual( 'edge_cells_x=2;edge_cells_y=2;periodic_x=T;periodic_y=F;domain_x=30000.00;domain_y=8000.00;cartesian=T', trim(test_str3) )
+    @assertEqual( 'edge_cells_x=2;edge_cells_y=2;periodic_x=T;periodic_y=F;domain_x=30000.00;domain_y=8000.00;coord_sys=xyz', trim(test_str3) )
 
     ! Generate the mesh and connectivity
     call mesh_gen%generate()
@@ -1331,7 +1339,6 @@ contains
 
     logical(l_def) :: periodic_x = .true.
     logical(l_def) :: periodic_y = .false.
-    logical(l_def) :: cartesian  = .true.
 
     integer(i_def) :: edge_cells_x = 3
     integer(i_def) :: edge_cells_y = 2
@@ -1340,8 +1347,10 @@ contains
     integer(i_def), pointer  :: edge_cell_ids(:) => null()
     integer(i_def)           ::  icell
 
-    character(str_def)  :: test_str1, test_str2
-    character(str_long) :: test_str3
+    character(str_def) :: test_str1
+    character(str_def) :: test_str2
+
+    character(str_longlong) :: test_str3
 
     character(str_def)  :: test_coord_units_x
     character(str_def)  :: test_coord_units_y
@@ -1357,7 +1366,7 @@ contains
                                 periodic_y=periodic_y,          &
                                 domain_x=domain_x,              &
                                 domain_y=domain_y,              &
-                                cartesian=cartesian )
+                                coord_sys=coord_sys_xyz )
 
     ! Test metadata retrieval
     call mesh_gen%get_metadata( mesh_name          = test_str1, &
@@ -1366,7 +1375,7 @@ contains
 
     @assertEqual( mesh_name, trim(test_str1) )
     @assertEqual( 'plane', trim(test_str2) )
-    @assertEqual( 'edge_cells_x=3;edge_cells_y=2;periodic_x=T;periodic_y=F;domain_x=30000.00;domain_y=8000.00;cartesian=T', trim(test_str3) )
+    @assertEqual( 'edge_cells_x=3;edge_cells_y=2;periodic_x=T;periodic_y=F;domain_x=30000.00;domain_y=8000.00;coord_sys=xyz', trim(test_str3) )
 
     ! Generate the mesh and connectivity
     call mesh_gen%generate()
@@ -1488,7 +1497,6 @@ contains
 
     logical(l_def) :: periodic_x = .false.
     logical(l_def) :: periodic_y = .true.
-    logical(l_def) :: cartesian  = .true.
 
     integer(i_def) :: edge_cells_x = 1
     integer(i_def) :: edge_cells_y = 2
@@ -1497,8 +1505,10 @@ contains
     integer(i_def), pointer  :: edge_cell_ids(:) => null()
     integer(i_def)           ::  icell
 
-    character(str_def)  :: test_str1, test_str2
-    character(str_long) :: test_str3
+    character(str_def) :: test_str1
+    character(str_def) :: test_str2
+
+    character(str_longlong) :: test_str3
 
     character(str_def)  :: test_coord_units_x
     character(str_def)  :: test_coord_units_y
@@ -1514,7 +1524,7 @@ contains
                                 periodic_y=periodic_y,          &
                                 domain_x=domain_x,              &
                                 domain_y=domain_y,              &
-                                cartesian=cartesian )
+                                coord_sys=coord_sys_xyz )
 
     ! Test metadata retrieval
     call mesh_gen%get_metadata( mesh_name          = test_str1, &
@@ -1523,7 +1533,7 @@ contains
 
     @assertEqual( mesh_name, trim(test_str1) )
     @assertEqual( 'plane', trim(test_str2) )
-    @assertEqual( 'edge_cells_x=1;edge_cells_y=2;periodic_x=F;periodic_y=T;domain_x=30000.00;domain_y=8000.00;cartesian=T', trim(test_str3) )
+    @assertEqual( 'edge_cells_x=1;edge_cells_y=2;periodic_x=F;periodic_y=T;domain_x=30000.00;domain_y=8000.00;coord_sys=xyz', trim(test_str3) )
 
     ! Generate the mesh and connectivity
     call mesh_gen%generate()
@@ -1631,7 +1641,6 @@ contains
 
     logical(l_def) :: periodic_x = .false.
     logical(l_def) :: periodic_y = .true.
-    logical(l_def) :: cartesian  = .true.
 
     integer(i_def) :: edge_cells_x = 1
     integer(i_def) :: edge_cells_y = 3
@@ -1640,8 +1649,10 @@ contains
     integer(i_def), pointer  :: edge_cell_ids(:) => null()
     integer(i_def)           ::  icell
 
-    character(str_def)  :: test_str1, test_str2
-    character(str_long) :: test_str3
+    character(str_def) :: test_str1
+    character(str_def) :: test_str2
+
+    character(str_longlong) :: test_str3
 
     character(str_def)  :: test_coord_units_x
     character(str_def)  :: test_coord_units_y
@@ -1659,7 +1670,7 @@ contains
                                 periodic_y=periodic_y,          &
                                 domain_x=domain_x,              &
                                 domain_y=domain_y,              &
-                                cartesian=cartesian )
+                                coord_sys=coord_sys_xyz )
 
     ! Test metadata retrieval
     call mesh_gen%get_metadata( mesh_name          = test_str1, &
@@ -1668,7 +1679,7 @@ contains
 
     @assertEqual( mesh_name, trim(test_str1) )
     @assertEqual( 'plane', trim(test_str2) )
-    @assertEqual( 'edge_cells_x=1;edge_cells_y=3;periodic_x=F;periodic_y=T;domain_x=30000.00;domain_y=8000.00;cartesian=T', trim(test_str3) )
+    @assertEqual( 'edge_cells_x=1;edge_cells_y=3;periodic_x=F;periodic_y=T;domain_x=30000.00;domain_y=8000.00;coord_sys=xyz', trim(test_str3) )
 
     ! Generate the mesh and connectivity
     call mesh_gen%generate()
@@ -1786,7 +1797,6 @@ contains
 
     logical(l_def) :: periodic_x = .false.
     logical(l_def) :: periodic_y = .true.
-    logical(l_def) :: cartesian  = .true.
 
     integer(i_def) :: edge_cells_x = 2
     integer(i_def) :: edge_cells_y = 2
@@ -1795,8 +1805,10 @@ contains
     integer(i_def), pointer  :: edge_cell_ids(:) => null()
     integer(i_def)           ::  icell
 
-    character(str_def)  :: test_str1, test_str2
-    character(str_long) :: test_str3
+    character(str_def) :: test_str1
+    character(str_def) :: test_str2
+
+    character(str_longlong) :: test_str3
 
     character(str_def)  :: test_coord_units_x
     character(str_def)  :: test_coord_units_y
@@ -1812,7 +1824,7 @@ contains
                                 periodic_y=periodic_y,          &
                                 domain_x=domain_x,              &
                                 domain_y=domain_y,              &
-                                cartesian=cartesian )
+                                coord_sys=coord_sys_xyz )
 
     ! Test metadata retrieval
     call mesh_gen%get_metadata( mesh_name          = test_str1, &
@@ -1821,7 +1833,7 @@ contains
 
     @assertEqual( mesh_name, trim(test_str1) )
     @assertEqual( 'plane', trim(test_str2) )
-    @assertEqual( 'edge_cells_x=2;edge_cells_y=2;periodic_x=F;periodic_y=T;domain_x=30000.00;domain_y=8000.00;cartesian=T', trim(test_str3) )
+    @assertEqual( 'edge_cells_x=2;edge_cells_y=2;periodic_x=F;periodic_y=T;domain_x=30000.00;domain_y=8000.00;coord_sys=xyz', trim(test_str3) )
 
     ! Generate the mesh and connectivity
     call mesh_gen%generate()
@@ -1942,7 +1954,6 @@ contains
 
     logical(l_def) :: periodic_x = .false.
     logical(l_def) :: periodic_y = .true.
-    logical(l_def) :: cartesian  = .true.
 
     integer(i_def) :: edge_cells_x = 2
     integer(i_def) :: edge_cells_y = 3
@@ -1951,8 +1962,10 @@ contains
     integer(i_def), pointer  :: edge_cell_ids(:) => null()
     integer(i_def)           ::  icell
 
-    character(str_def)  :: test_str1, test_str2
-    character(str_long) :: test_str3
+    character(str_def) :: test_str1
+    character(str_def) :: test_str2
+
+    character(str_longlong) :: test_str3
 
     character(str_def)  :: test_coord_units_x
     character(str_def)  :: test_coord_units_y
@@ -1973,7 +1986,7 @@ contains
                                 periodic_y=periodic_y,          &
                                 domain_x=domain_x,              &
                                 domain_y=domain_y,              &
-                                cartesian=cartesian )
+                                coord_sys=coord_sys_xyz )
 
     ! Test metadata retrieval
     call mesh_gen%get_metadata( mesh_name          = test_str1, &
@@ -1982,7 +1995,7 @@ contains
 
     @assertEqual( mesh_name, trim(test_str1) )
     @assertEqual( 'plane', trim(test_str2) )
-    @assertEqual( 'edge_cells_x=2;edge_cells_y=3;periodic_x=F;periodic_y=T;domain_x=2.00;domain_y=3.00;cartesian=T', trim(test_str3) )
+    @assertEqual( 'edge_cells_x=2;edge_cells_y=3;periodic_x=F;periodic_y=T;domain_x=2.00;domain_y=3.00;coord_sys=xyz', trim(test_str3) )
 
     ! Generate the mesh and connectivity
     call mesh_gen%generate()
@@ -2119,7 +2132,6 @@ contains
 
     logical(l_def) :: periodic_x = .false.
     logical(l_def) :: periodic_y = .false.
-    logical(l_def) :: cartesian  = .true.
 
     integer(i_def) :: edge_cells_x = 1
     integer(i_def) :: edge_cells_y = 1
@@ -2128,8 +2140,10 @@ contains
     integer(i_def), pointer  :: edge_cell_ids(:) => null()
     integer(i_def)           ::  icell
 
-    character(str_def)  :: test_str1, test_str2
-    character(str_long) :: test_str3
+    character(str_def) :: test_str1
+    character(str_def) :: test_str2
+
+    character(str_longlong) :: test_str3
 
     character(str_def)  :: test_coord_units_x
     character(str_def)  :: test_coord_units_y
@@ -2145,7 +2159,7 @@ contains
                                 periodic_y=periodic_y,          &
                                 domain_x=domain_x,              &
                                 domain_y=domain_y,              &
-                                cartesian=cartesian )
+                                coord_sys=coord_sys_xyz )
 
     ! Test metadata retrieval
     call mesh_gen%get_metadata( mesh_name          = test_str1, &
@@ -2154,7 +2168,7 @@ contains
 
     @assertEqual( mesh_name, trim(test_str1) )
     @assertEqual( 'plane', trim(test_str2) )
-    @assertEqual( 'edge_cells_x=1;edge_cells_y=1;periodic_x=F;periodic_y=F;domain_x=30000.00;domain_y=8000.00;cartesian=T', trim(test_str3) )
+    @assertEqual( 'edge_cells_x=1;edge_cells_y=1;periodic_x=F;periodic_y=F;domain_x=30000.00;domain_y=8000.00;coord_sys=xyz', trim(test_str3) )
 
     ! Generate the mesh and connectivity
     call mesh_gen%generate()
@@ -2261,7 +2275,6 @@ contains
 
     logical(l_def) :: periodic_x = .false.
     logical(l_def) :: periodic_y = .false.
-    logical(l_def) :: cartesian  = .true.
 
     integer(i_def) :: edge_cells_x = 1
     integer(i_def) :: edge_cells_y = 2
@@ -2270,8 +2283,10 @@ contains
     integer(i_def), pointer  :: edge_cell_ids(:) => null()
     integer(i_def)           :: icell
 
-    character(str_def)  :: test_str1, test_str2
-    character(str_long) :: test_str3
+    character(str_def) :: test_str1
+    character(str_def) :: test_str2
+
+    character(str_longlong) :: test_str3
 
     character(str_def)  :: test_coord_units_x
     character(str_def)  :: test_coord_units_y
@@ -2287,7 +2302,7 @@ contains
                                 periodic_y=periodic_y,          &
                                 domain_x=domain_x,              &
                                 domain_y=domain_y,              &
-                                cartesian=cartesian )
+                                coord_sys=coord_sys_xyz )
 
     ! Test metadata retrieval
     call mesh_gen%get_metadata( mesh_name          = test_str1, &
@@ -2296,7 +2311,7 @@ contains
 
     @assertEqual( mesh_name, trim(test_str1) )
     @assertEqual( 'plane', trim(test_str2) )
-    @assertEqual( 'edge_cells_x=1;edge_cells_y=2;periodic_x=F;periodic_y=F;domain_x=30000.00;domain_y=8000.00;cartesian=T', trim(test_str3) )
+    @assertEqual( 'edge_cells_x=1;edge_cells_y=2;periodic_x=F;periodic_y=F;domain_x=30000.00;domain_y=8000.00;coord_sys=xyz', trim(test_str3) )
 
     ! Generate the mesh and connectivity
     call mesh_gen%generate()
@@ -2411,7 +2426,6 @@ contains
 
     logical(l_def) :: periodic_x = .false.
     logical(l_def) :: periodic_y = .false.
-    logical(l_def) :: cartesian  = .true.
 
     integer(i_def) :: edge_cells_x = 1
     integer(i_def) :: edge_cells_y = 3
@@ -2420,8 +2434,10 @@ contains
     integer(i_def), pointer  :: edge_cell_ids(:) => null()
     integer(i_def)           :: icell
 
-    character(str_def)  :: test_str1, test_str2
-    character(str_long) :: test_str3
+    character(str_def) :: test_str1
+    character(str_def) :: test_str2
+
+    character(str_longlong) :: test_str3
 
     character(str_def)  :: test_coord_units_x
     character(str_def)  :: test_coord_units_y
@@ -2440,7 +2456,7 @@ contains
                                 periodic_y=periodic_y,          &
                                 domain_x=domain_x,              &
                                 domain_y=domain_y,              &
-                                cartesian=cartesian )
+                                coord_sys=coord_sys_xyz )
 
     ! Test metadata retrieval
     call mesh_gen%get_metadata( mesh_name          = test_str1, &
@@ -2449,7 +2465,7 @@ contains
 
     @assertEqual( mesh_name, trim(test_str1) )
     @assertEqual( 'plane', trim(test_str2) )
-    @assertEqual( 'edge_cells_x=1;edge_cells_y=3;periodic_x=F;periodic_y=F;domain_x=1.00;domain_y=3.00;cartesian=T', trim(test_str3) )
+    @assertEqual( 'edge_cells_x=1;edge_cells_y=3;periodic_x=F;periodic_y=F;domain_x=1.00;domain_y=3.00;coord_sys=xyz', trim(test_str3) )
 
     ! Generate the mesh and connectivity
     call mesh_gen%generate()
@@ -2570,7 +2586,6 @@ contains
 
     logical(l_def) :: periodic_x = .false.
     logical(l_def) :: periodic_y = .false.
-    logical(l_def) :: cartesian  = .true.
 
     integer(i_def) :: edge_cells_x = 2
     integer(i_def) :: edge_cells_y = 1
@@ -2579,8 +2594,10 @@ contains
     integer(i_def), pointer  :: edge_cell_ids(:) => null()
     integer(i_def)           :: icell
 
-    character(str_def)  :: test_str1, test_str2
-    character(str_long) :: test_str3
+    character(str_def) :: test_str1
+    character(str_def) :: test_str2
+
+    character(str_longlong) :: test_str3
 
     character(str_def)  :: test_coord_units_x
     character(str_def)  :: test_coord_units_y
@@ -2596,7 +2613,7 @@ contains
                                 periodic_y=periodic_y,          &
                                 domain_x=domain_x,              &
                                 domain_y=domain_y,              &
-                                cartesian=cartesian )
+                                coord_sys=coord_sys_xyz )
 
     ! Test metadata retrieval
     call mesh_gen%get_metadata( mesh_name          = test_str1, &
@@ -2605,7 +2622,7 @@ contains
 
     @assertEqual( mesh_name, trim(test_str1) )
     @assertEqual( 'plane', trim(test_str2) )
-    @assertEqual( 'edge_cells_x=2;edge_cells_y=1;periodic_x=F;periodic_y=F;domain_x=30000.00;domain_y=8000.00;cartesian=T', trim(test_str3) )
+    @assertEqual( 'edge_cells_x=2;edge_cells_y=1;periodic_x=F;periodic_y=F;domain_x=30000.00;domain_y=8000.00;coord_sys=xyz', trim(test_str3) )
 
     ! Generate the mesh and connectivity
     call mesh_gen%generate()
@@ -2720,7 +2737,6 @@ contains
 
     logical(l_def) :: periodic_x = .false.
     logical(l_def) :: periodic_y = .false.
-    logical(l_def) :: cartesian  = .true.
 
     integer(i_def) :: edge_cells_x = 3
     integer(i_def) :: edge_cells_y = 1
@@ -2729,8 +2745,10 @@ contains
     integer(i_def), pointer  :: edge_cell_ids(:) => null()
     integer(i_def)           :: icell
 
-    character(str_def)  :: test_str1, test_str2
-    character(str_long) :: test_str3
+    character(str_def) :: test_str1
+    character(str_def) :: test_str2
+
+    character(str_longlong) :: test_str3
 
     character(str_def)  :: test_coord_units_x
     character(str_def)  :: test_coord_units_y
@@ -2749,7 +2767,7 @@ contains
                                 periodic_y=periodic_y,          &
                                 domain_x=domain_x,              &
                                 domain_y=domain_y,              &
-                                cartesian=cartesian )
+                                coord_sys=coord_sys_xyz )
 
     ! Test metadata retrieval
     call mesh_gen%get_metadata( mesh_name          = test_str1, &
@@ -2758,7 +2776,7 @@ contains
 
     @assertEqual( mesh_name, trim(test_str1) )
     @assertEqual( 'plane', trim(test_str2) )
-    @assertEqual( 'edge_cells_x=3;edge_cells_y=1;periodic_x=F;periodic_y=F;domain_x=3.00;domain_y=1.00;cartesian=T', trim(test_str3) )
+    @assertEqual( 'edge_cells_x=3;edge_cells_y=1;periodic_x=F;periodic_y=F;domain_x=3.00;domain_y=1.00;coord_sys=xyz', trim(test_str3) )
 
     ! Generate the mesh and connectivity
     call mesh_gen%generate()
@@ -2878,7 +2896,6 @@ contains
 
     logical(l_def) :: periodic_x = .false.
     logical(l_def) :: periodic_y = .false.
-    logical(l_def) :: cartesian  = .false.
 
     real(r_def), parameter :: domain_x_degrees = 50.0_r_def
     real(r_def), parameter :: domain_y_degrees = 10.0_r_def
@@ -2892,8 +2909,10 @@ contains
     integer(i_def), pointer  :: edge_cell_ids(:) => null()
     integer(i_def)           :: icell
 
-    character(str_def)  :: test_str1, test_str2
-    character(str_long) :: test_str3
+    character(str_def) :: test_str1
+    character(str_def) :: test_str2
+
+    character(str_longlong) :: test_str3
 
     character(str_def)  :: test_coord_units_x
     character(str_def)  :: test_coord_units_y
@@ -2901,18 +2920,17 @@ contains
     type(reference_cube_type) :: cube_element
     cube_element = reference_cube_type()
 
-    mesh_gen = gen_planar_type( reference_element=cube_element, &
-                                mesh_name=mesh_name,            &
-                                edge_cells_x=edge_cells_x,      &
-                                edge_cells_y=edge_cells_y,      &
-                                periodic_x=periodic_x,          &
-                                periodic_y=periodic_y,          &
-                                domain_x=domain_x_degrees,      &
-                                domain_y=domain_y_degrees,      &
-                                cartesian=cartesian,            &
-                                first_lat=first_lat,            &
-                                first_lon=first_lon,            &
-                                do_rotate=.false. )
+    mesh_gen = gen_planar_type( reference_element=cube_element,   &
+                                mesh_name=mesh_name,              &
+                                edge_cells_x=edge_cells_x,        &
+                                edge_cells_y=edge_cells_y,        &
+                                periodic_x=periodic_x,            &
+                                periodic_y=periodic_y,            &
+                                domain_x=domain_x_degrees,        &
+                                domain_y=domain_y_degrees,        &
+                                coord_sys=coord_sys_ll,           &
+                                first_node=[first_lon,first_lat], &
+                                rotate_mesh=.false. )
 
     ! Test metadata retrieval
     call mesh_gen%get_metadata( mesh_name          = test_str1, &
@@ -2921,7 +2939,7 @@ contains
 
     @assertEqual( mesh_name, trim(test_str1) )
     @assertEqual( 'plane', trim(test_str2) )
-    @assertEqual( 'edge_cells_x=1;edge_cells_y=1;periodic_x=F;periodic_y=F;domain_x=50.00;domain_y=10.00;cartesian=F;first_lon=-25.00;first_lat=-5.00;do_rotate=F', trim(test_str3) )
+    @assertEqual( 'edge_cells_x=1;edge_cells_y=1;periodic_x=F;periodic_y=F;domain_x=50.00;domain_y=10.00;coord_sys=ll;rotate_mesh=F', trim(test_str3) )
 
     ! Generate the mesh and connectivity
     call mesh_gen%generate()
@@ -3027,7 +3045,6 @@ contains
 
     logical(l_def) :: periodic_x = .false.
     logical(l_def) :: periodic_y = .false.
-    logical(l_def) :: cartesian  = .false.
 
     real(r_def), parameter :: domain_x_degrees = 180.0_r_def
     real(r_def), parameter :: domain_y_degrees = 10.0_r_def
@@ -3043,8 +3060,10 @@ contains
     integer(i_def), pointer  :: edge_cell_ids(:) => null()
     integer(i_def)           :: icell
 
-    character(str_def)  :: test_str1, test_str2
-    character(str_long) :: test_str3
+    character(str_def) :: test_str1
+    character(str_def) :: test_str2
+
+    character(str_longlong) :: test_str3
 
     character(str_def)  :: test_coord_units_x
     character(str_def)  :: test_coord_units_y
@@ -3052,20 +3071,18 @@ contains
     type(reference_cube_type) :: cube_element
     cube_element = reference_cube_type()
 
-    mesh_gen = gen_planar_type( reference_element=cube_element, &
-                                mesh_name=mesh_name,            &
-                                edge_cells_x=edge_cells_x,      &
-                                edge_cells_y=edge_cells_y,      &
-                                periodic_x=periodic_x,          &
-                                periodic_y=periodic_y,          &
-                                domain_x=domain_x_degrees,      &
-                                domain_y=domain_y_degrees,      &
-                                cartesian=cartesian,            &
-                                do_rotate=.true.,               &
-                                pole_lat=pole_lat,              &
-                                pole_lon=pole_lon,              &
-                                first_lat=first_lat,            &
-                                first_lon=first_lon )
+    mesh_gen = gen_planar_type( reference_element=cube_element,  &
+                                mesh_name=mesh_name,             &
+                                edge_cells_x=edge_cells_x,       &
+                                edge_cells_y=edge_cells_y,       &
+                                periodic_x=periodic_x,           &
+                                periodic_y=periodic_y,           &
+                                domain_x=domain_x_degrees,       &
+                                domain_y=domain_y_degrees,       &
+                                coord_sys=coord_sys_ll,          &
+                                rotate_mesh=.true.,              &
+                                target_pole=[pole_lon,pole_lat], &
+                                first_node=[first_lon,first_lat] )
 
     ! Test metadata retrieval
     call mesh_gen%get_metadata( mesh_name          = test_str1, &
@@ -3074,7 +3091,7 @@ contains
 
     @assertEqual( mesh_name, trim(test_str1) )
     @assertEqual( 'plane', trim(test_str2) )
-    @assertEqual( 'edge_cells_x=1;edge_cells_y=1;periodic_x=F;periodic_y=F;domain_x=180.00;domain_y=10.00;cartesian=F;first_lon=-85.00;first_lat=0.00;do_rotate=T;pole_lon=0.00;pole_lat=180.00', trim(test_str3) )
+    @assertEqual( 'edge_cells_x=1;edge_cells_y=1;periodic_x=F;periodic_y=F;domain_x=180.00;domain_y=10.00;coord_sys=ll;rotate_mesh=T;target_pole=[0.00,180.00];first_node=[-85.00,0.00]', trim(test_str3) )
 
     ! Generate the mesh and connectivity
     call mesh_gen%generate()
@@ -3190,7 +3207,6 @@ contains
 
     logical(l_def) :: periodic_x = .false.
     logical(l_def) :: periodic_y = .false.
-    logical(l_def) :: cartesian  = .false.
 
     real(r_def), parameter :: domain_x_degrees = 50.0_r_def
     real(r_def), parameter :: domain_y_degrees = 10.0_r_def
@@ -3206,8 +3222,10 @@ contains
     integer(i_def), pointer  :: edge_cell_ids(:) => null()
     integer(i_def)           :: icell
 
-    character(str_def)  :: test_str1, test_str2
-    character(str_long) :: test_str3
+    character(str_def) :: test_str1
+    character(str_def) :: test_str2
+
+    character(str_longlong) :: test_str3
 
     character(str_def)  :: test_coord_units_x
     character(str_def)  :: test_coord_units_y
@@ -3215,20 +3233,18 @@ contains
     type(reference_cube_type) :: cube_element
     cube_element = reference_cube_type()
 
-    mesh_gen = gen_planar_type( reference_element=cube_element, &
-                                mesh_name=mesh_name,            &
-                                edge_cells_x=edge_cells_x,      &
-                                edge_cells_y=edge_cells_y,      &
-                                periodic_x=periodic_x,          &
-                                periodic_y=periodic_y,          &
-                                domain_x=domain_x_degrees,      &
-                                domain_y=domain_y_degrees,      &
-                                cartesian=cartesian,            &
-                                do_rotate=.true.,               &
-                                pole_lat=pole_lat,              &
-                                pole_lon=pole_lon,              &
-                                first_lat=first_lat,            &
-                                first_lon=first_lon )
+    mesh_gen = gen_planar_type( reference_element=cube_element,  &
+                                mesh_name=mesh_name,             &
+                                edge_cells_x=edge_cells_x,       &
+                                edge_cells_y=edge_cells_y,       &
+                                periodic_x=periodic_x,           &
+                                periodic_y=periodic_y,           &
+                                domain_x=domain_x_degrees,       &
+                                domain_y=domain_y_degrees,       &
+                                coord_sys=coord_sys_ll,          &
+                                rotate_mesh=.true.,              &
+                                target_pole=[pole_lon,pole_lat], &
+                                first_node=[first_lon,first_lat] )
 
     ! Test metadata retrieval
     call mesh_gen%get_metadata( mesh_name          = test_str1, &
@@ -3237,7 +3253,7 @@ contains
 
     @assertEqual( mesh_name, trim(test_str1) )
     @assertEqual( 'plane', trim(test_str2) )
-    @assertEqual( 'edge_cells_x=1;edge_cells_y=1;periodic_x=F;periodic_y=F;domain_x=50.00;domain_y=10.00;cartesian=F;first_lon=0.00;first_lat=-5.00;do_rotate=T;pole_lon=25.00;pole_lat=90.00', trim(test_str3) )
+    @assertEqual( 'edge_cells_x=1;edge_cells_y=1;periodic_x=F;periodic_y=F;domain_x=50.00;domain_y=10.00;coord_sys=ll;rotate_mesh=T;target_pole=[25.00,90.00];first_node=[0.00,-5.00]', trim(test_str3) )
 
     ! Generate the mesh and connectivity
     call mesh_gen%generate()
@@ -3353,7 +3369,6 @@ contains
 
     logical(l_def) :: periodic_x = .false.
     logical(l_def) :: periodic_y = .false.
-    logical(l_def) :: cartesian  = .false.
 
     real(r_def), parameter :: domain_x_degrees = 180.0_r_def
     real(r_def), parameter :: domain_y_degrees = 10.0_r_def
@@ -3369,8 +3384,10 @@ contains
     integer(i_def), pointer  :: edge_cell_ids(:) => null()
     integer(i_def)           :: icell
 
-    character(str_def)  :: test_str1, test_str2
-    character(str_long) :: test_str3
+    character(str_def) :: test_str1
+    character(str_def) :: test_str2
+
+    character(str_longlong) :: test_str3
 
     character(str_def)  :: test_coord_units_x
     character(str_def)  :: test_coord_units_y
@@ -3378,20 +3395,19 @@ contains
     type(reference_cube_type) :: cube_element
     cube_element = reference_cube_type()
 
-    mesh_gen = gen_planar_type( reference_element=cube_element, &
-                                mesh_name=mesh_name,            &
-                                edge_cells_x=edge_cells_x,      &
-                                edge_cells_y=edge_cells_y,      &
-                                periodic_x=periodic_x,          &
-                                periodic_y=periodic_y,          &
-                                domain_x=domain_x_degrees,      &
-                                domain_y=domain_y_degrees,      &
-                                cartesian=cartesian,            &
-                                do_rotate=.true.,               &
-                                pole_lat=pole_lat,              &
-                                pole_lon=pole_lon,              &
-                                first_lat=first_lat,            &
-                                first_lon=first_lon )
+    mesh_gen = gen_planar_type( reference_element=cube_element,  &
+                                mesh_name=mesh_name,             &
+                                edge_cells_x=edge_cells_x,       &
+                                edge_cells_y=edge_cells_y,       &
+                                periodic_x=periodic_x,           &
+                                periodic_y=periodic_y,           &
+                                domain_x=domain_x_degrees,       &
+                                domain_y=domain_y_degrees,       &
+                                coord_sys=coord_sys_ll,          &
+                                rotate_mesh=.true.,              &
+                                target_pole=[pole_lon,pole_lat], &
+                                first_node=[first_lon,first_lat] )
+
 
     ! Test metadata retrieval
     call mesh_gen%get_metadata( mesh_name          = test_str1, &
@@ -3400,7 +3416,7 @@ contains
 
     @assertEqual( mesh_name, trim(test_str1) )
     @assertEqual( 'plane', trim(test_str2) )
-    @assertEqual( 'edge_cells_x=1;edge_cells_y=1;periodic_x=F;periodic_y=F;domain_x=180.00;domain_y=10.00;cartesian=F;first_lon=5.00;first_lat=0.00;do_rotate=T;pole_lon=90.00;pole_lat=180.00', trim(test_str3) )
+    @assertEqual( 'edge_cells_x=1;edge_cells_y=1;periodic_x=F;periodic_y=F;domain_x=180.00;domain_y=10.00;coord_sys=ll;rotate_mesh=T;target_pole=[90.00,180.00];first_node=[5.00,0.00]', trim(test_str3) )
 
     ! Generate the mesh and connectivity
     call mesh_gen%generate()
