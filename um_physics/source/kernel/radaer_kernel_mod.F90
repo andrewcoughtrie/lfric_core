@@ -461,10 +461,10 @@ subroutine radaer_code( nlayers,                                               &
   ! temperature on theta levels
   real(r_um),dimension( row_length, rows, nlayers ) :: t_theta_levels
 
-  real(r_um),dimension( row_length*rows, nlayers, n_ukca_cpnt ) ::             &
+  real(r_um),dimension( n_ukca_cpnt, row_length*rows, nlayers ) ::             &
                                                                ukca_comp_vol_um
 
-  real(r_um),dimension( row_length*rows, nlayers, n_ukca_cpnt ) ::             &
+  real(r_um),dimension( n_ukca_cpnt, row_length*rows, nlayers ) ::             &
                                                               ukca_mix_ratio_um
 
   real(r_um),dimension( row_length*rows, nlayers, n_ukca_mode ) ::             &
@@ -590,41 +590,41 @@ subroutine radaer_code( nlayers,                                               &
 
   ! note - zeroth level is redundant for these fields in UM
   do k = 1, nlayers
-    ukca_comp_vol_um(1,k, 1) = pvol_su_ait_sol(map_wth(1) + k)
-    ukca_comp_vol_um(1,k, 2) = pvol_bc_ait_sol(map_wth(1) + k)
-    ukca_comp_vol_um(1,k, 3) = pvol_om_ait_sol(map_wth(1) + k)
-    ukca_comp_vol_um(1,k, 4) = pvol_su_acc_sol(map_wth(1) + k)
-    ukca_comp_vol_um(1,k, 5) = pvol_bc_acc_sol(map_wth(1) + k)
-    ukca_comp_vol_um(1,k, 6) = pvol_om_acc_sol(map_wth(1) + k)
-    ukca_comp_vol_um(1,k, 7) = pvol_ss_acc_sol(map_wth(1) + k)
-    ukca_comp_vol_um(1,k, 8) = pvol_du_acc_sol(map_wth(1) + k)
-    ukca_comp_vol_um(1,k, 9) = pvol_su_cor_sol(map_wth(1) + k)
-    ukca_comp_vol_um(1,k,10) = pvol_bc_cor_sol(map_wth(1) + k)
-    ukca_comp_vol_um(1,k,11) = pvol_om_cor_sol(map_wth(1) + k)
-    ukca_comp_vol_um(1,k,12) = pvol_ss_cor_sol(map_wth(1) + k)
-    ukca_comp_vol_um(1,k,13) = pvol_du_cor_sol(map_wth(1) + k)
-    ukca_comp_vol_um(1,k,14) = pvol_bc_ait_ins(map_wth(1) + k)
-    ukca_comp_vol_um(1,k,15) = pvol_om_ait_ins(map_wth(1) + k)
-    ukca_comp_vol_um(1,k,16) = pvol_du_acc_ins(map_wth(1) + k)
-    ukca_comp_vol_um(1,k,17) = pvol_du_cor_ins(map_wth(1) + k)
+    ukca_comp_vol_um(1, 1,k) = pvol_su_ait_sol(map_wth(1) + k)
+    ukca_comp_vol_um(2, 1,k) = pvol_bc_ait_sol(map_wth(1) + k)
+    ukca_comp_vol_um(3, 1,k) = pvol_om_ait_sol(map_wth(1) + k)
+    ukca_comp_vol_um(4, 1,k) = pvol_su_acc_sol(map_wth(1) + k)
+    ukca_comp_vol_um(5, 1,k) = pvol_bc_acc_sol(map_wth(1) + k)
+    ukca_comp_vol_um(6, 1,k) = pvol_om_acc_sol(map_wth(1) + k)
+    ukca_comp_vol_um(7, 1,k) = pvol_ss_acc_sol(map_wth(1) + k)
+    ukca_comp_vol_um(8, 1,k) = pvol_du_acc_sol(map_wth(1) + k)
+    ukca_comp_vol_um(9, 1,k) = pvol_su_cor_sol(map_wth(1) + k)
+    ukca_comp_vol_um(10,1,k) = pvol_bc_cor_sol(map_wth(1) + k)
+    ukca_comp_vol_um(11,1,k) = pvol_om_cor_sol(map_wth(1) + k)
+    ukca_comp_vol_um(12,1,k) = pvol_ss_cor_sol(map_wth(1) + k)
+    ukca_comp_vol_um(13,1,k) = pvol_du_cor_sol(map_wth(1) + k)
+    ukca_comp_vol_um(14,1,k) = pvol_bc_ait_ins(map_wth(1) + k)
+    ukca_comp_vol_um(15,1,k) = pvol_om_ait_ins(map_wth(1) + k)
+    ukca_comp_vol_um(16,1,k) = pvol_du_acc_ins(map_wth(1) + k)
+    ukca_comp_vol_um(17,1,k) = pvol_du_cor_ins(map_wth(1) + k)
 
-    ukca_mix_ratio_um(1,k, 1) = ait_sol_su(map_wth(1) + k)
-    ukca_mix_ratio_um(1,k, 2) = ait_sol_bc(map_wth(1) + k)
-    ukca_mix_ratio_um(1,k, 3) = ait_sol_om(map_wth(1) + k)
-    ukca_mix_ratio_um(1,k, 4) = acc_sol_su(map_wth(1) + k)
-    ukca_mix_ratio_um(1,k, 5) = acc_sol_bc(map_wth(1) + k)
-    ukca_mix_ratio_um(1,k, 6) = acc_sol_om(map_wth(1) + k)
-    ukca_mix_ratio_um(1,k, 7) = acc_sol_ss(map_wth(1) + k)
-    ukca_mix_ratio_um(1,k, 8) = acc_sol_du(map_wth(1) + k)
-    ukca_mix_ratio_um(1,k, 9) = cor_sol_su(map_wth(1) + k)
-    ukca_mix_ratio_um(1,k,10) = cor_sol_bc(map_wth(1) + k)
-    ukca_mix_ratio_um(1,k,11) = cor_sol_om(map_wth(1) + k)
-    ukca_mix_ratio_um(1,k,12) = cor_sol_ss(map_wth(1) + k)
-    ukca_mix_ratio_um(1,k,13) = cor_sol_du(map_wth(1) + k)
-    ukca_mix_ratio_um(1,k,14) = ait_ins_bc(map_wth(1) + k)
-    ukca_mix_ratio_um(1,k,15) = ait_ins_om(map_wth(1) + k)
-    ukca_mix_ratio_um(1,k,16) = acc_ins_du(map_wth(1) + k)
-    ukca_mix_ratio_um(1,k,17) = cor_ins_du(map_wth(1) + k)
+    ukca_mix_ratio_um(1, 1,k) = ait_sol_su(map_wth(1) + k)
+    ukca_mix_ratio_um(2, 1,k) = ait_sol_bc(map_wth(1) + k)
+    ukca_mix_ratio_um(3, 1,k) = ait_sol_om(map_wth(1) + k)
+    ukca_mix_ratio_um(4, 1,k) = acc_sol_su(map_wth(1) + k)
+    ukca_mix_ratio_um(5, 1,k) = acc_sol_bc(map_wth(1) + k)
+    ukca_mix_ratio_um(6, 1,k) = acc_sol_om(map_wth(1) + k)
+    ukca_mix_ratio_um(7, 1,k) = acc_sol_ss(map_wth(1) + k)
+    ukca_mix_ratio_um(8, 1,k) = acc_sol_du(map_wth(1) + k)
+    ukca_mix_ratio_um(9, 1,k) = cor_sol_su(map_wth(1) + k)
+    ukca_mix_ratio_um(10,1,k) = cor_sol_bc(map_wth(1) + k)
+    ukca_mix_ratio_um(11,1,k) = cor_sol_om(map_wth(1) + k)
+    ukca_mix_ratio_um(12,1,k) = cor_sol_ss(map_wth(1) + k)
+    ukca_mix_ratio_um(13,1,k) = cor_sol_du(map_wth(1) + k)
+    ukca_mix_ratio_um(14,1,k) = ait_ins_bc(map_wth(1) + k)
+    ukca_mix_ratio_um(15,1,k) = ait_ins_om(map_wth(1) + k)
+    ukca_mix_ratio_um(16,1,k) = acc_ins_du(map_wth(1) + k)
+    ukca_mix_ratio_um(17,1,k) = cor_ins_du(map_wth(1) + k)
 
     ukca_dry_diam_um(1,k,(mode_ait_sol-1))    = drydp_ait_sol(map_wth(1) + k)
     ukca_dry_diam_um(1,k,(mode_acc_sol-1))    = drydp_acc_sol(map_wth(1) + k)
