@@ -103,7 +103,6 @@ contains
             jac_ref2sph(3,dir,i,j) = jac_ref2sph(3,dir,i,j) + chi_3(df)*diff_basis(dir,df,i,j)
           end do
         end do
-
       end do
     end do
 

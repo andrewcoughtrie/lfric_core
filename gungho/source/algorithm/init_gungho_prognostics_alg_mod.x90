@@ -16,20 +16,22 @@ module init_gungho_prognostics_alg_mod
   use constants_mod,                   only: r_def, i_def,      &
                                              str_short
   use mass_matrix_solver_alg_mod,      only: mass_matrix_solver_alg
-  use geometric_constants_mod,         only: get_coordinates_xyz, &
-                                             get_coordinates, &
-                                             get_panel_id, &
+  use dg_matrix_vector_kernel_mod,     only: dg_matrix_vector_kernel_type
+  use geometric_constants_mod,         only: get_coordinates, &
+                                             get_panel_id,    &
                                              get_height
   use fem_constants_mod,               only: get_mass_matrix, &
                                              w3inv_id
-
   use finite_element_config_mod,       only: element_order, &
                                              nqp_exact
   use base_mesh_config_mod,            only: geometry,           &
                                              geometry_spherical, &
                                              geometry_planar
-  use formulation_config_mod,          only: use_moisture, &
-                                             transport_only
+  use formulation_config_mod,          only: use_moisture,         &
+                                             transport_only,       &
+                                             eos_method,           &
+                                             eos_method_sampled,   &
+                                             eos_method_projected
   use initial_pressure_config_mod,     only: method,           &
                                              method_sampled,   &
                                              method_projected, &
@@ -47,20 +49,20 @@ module init_gungho_prognostics_alg_mod
   use field_bundle_mod,                only: set_bundle_scalar
 
   ! PsyKAl PSYClone kernels
-  use set_rho_kernel_mod,              only: set_rho_kernel_type
   use set_exner_kernel_mod,            only: set_exner_kernel_type
+  use set_rho_kernel_mod,              only: set_rho_kernel_type
   use initial_u_kernel_mod,            only: initial_u_kernel_type
   use enforce_bc_kernel_mod,           only: enforce_bc_kernel_type
   use initial_theta_kernel_mod,        only: initial_theta_kernel_type
   use initial_exner_sample_kernel_mod, only: initial_exner_sample_kernel_type
-  use project_pressure_kernel_mod,     only: project_pressure_kernel_type
+  use initial_rho_sample_kernel_mod,   only: initial_rho_sample_kernel_type
+  use project_eos_rho_kernel_mod,      only: project_eos_rho_kernel_type
   use sample_eos_rho_kernel_mod,       only: sample_eos_rho_kernel_type
   use hydrostatic_exner_kernel_mod,    only: hydrostatic_exner_kernel_type
   use moist_dyn_factors_kernel_mod,    only: moist_dyn_factors_kernel_type
   use initial_mr_kernel_mod,           only: initial_mr_kernel_type
   use initial_streamfunc_kernel_mod,   only: initial_streamfunc_kernel_type
   use strong_curl_kernel_mod,          only: strong_curl_kernel_type
-  use initial_rho_sample_kernel_mod,   only: initial_rho_sample_kernel_type
 
   ! Derived Types
   use field_mod,                       only: field_type
@@ -98,9 +100,8 @@ contains
 
     type( quadrature_xyoz_type )          :: qr
     type( quadrature_rule_gaussian_type ) :: quadrature_rule
-    type( field_type )                    :: r_u, r_psi, psi
+    type( field_type )                    :: r_u, r_psi, psi, r_rho
     ! Coordinate fields
-    type( field_type ), pointer           :: chi_xyz(:) => null()
     type( field_type ), pointer           :: chi_sph(:) => null()
     type( field_type ), pointer           :: panel_id => null()
     type( field_type ), pointer           :: height_wth => null()
@@ -113,7 +114,7 @@ contains
     type( field_type ), pointer   :: exner => null()
 
     ! Operators
-    type(operator_type), pointer        :: m3_inv => null()
+    type(operator_type), pointer  :: m3_inv => null()
 
     integer(kind=i_def)  :: i, mesh_id
     real(kind=r_def)     :: initial_time
@@ -125,10 +126,12 @@ contains
 
     mesh_id = u%get_mesh_id()
 
+    call r_rho%initialise( vector_space =  rho%get_function_space() )
+
     qr = quadrature_xyoz_type(nqp_exact, quadrature_rule)
-    chi_xyz => get_coordinates_xyz(mesh_id)
     chi_sph => get_coordinates(mesh_id)
     panel_id => get_panel_id(mesh_id)
+    m3_inv => get_mass_matrix(w3inv_id)
 
     ! Default is dry dynamics - set moist dynamics factors to one
     do i = 1, num_moist_factors
@@ -193,38 +196,56 @@ contains
       end if
     end if
 
-    ! Initialise Rho and Exner pressure according to formulation
+    ! Initialise Exner pressure according to formulation
     select case(method)
       case(method_balanced)
         height_w3 => get_height(W3, mesh_id)
         height_wth => get_height(Wtheta, mesh_id)
 
-        ! Initialize exner assuming hydrostatic balance
-        call invoke( hydrostatic_exner_kernel_type( exner, theta, moist_dyn, &
-                                                    height_wth, height_w3,   &
-                                                    chi_sph, panel_id ),     &
-        ! Diagnose density from equation of state
-                     sample_eos_rho_kernel_type( rho, exner, theta,          &
-                                                 moist_dyn(gas_law) ) )
+        ! Initialise exner assuming hydrostatic balance
+        call invoke( hydrostatic_exner_kernel_type( exner, theta, moist_dyn, height_wth, &
+                                                    height_w3, chi_sph, panel_id ) )
       case(method_sampled)
-        call invoke( initial_rho_sample_kernel_type( rho, chi_sph,             &
-                                                     panel_id, initial_time ), &
-                     initial_exner_sample_kernel_type( exner, chi_sph,         &
-                                                       panel_id, initial_time ) )
+        ! Initialise exner through sampling analytic solution
+        call invoke (initial_exner_sample_kernel_type( exner, chi_sph, panel_id, initial_time ) )
       case(method_projected)
-        call invoke( set_rho_kernel_type   ( rho,   chi_sph, panel_id, initial_time, qr ), &
-                     set_exner_kernel_type ( exner, chi_sph, panel_id, initial_time, qr ) )
-        call log_event( "Gungho: Computing initial pressure as projection..", LOG_LEVEL_INFO )
-        m3_inv => get_mass_matrix(w3inv_id)
-        qr = quadrature_xyoz_type(1, quadrature_rule)
-
-        ! Pressure has already been initialized
-        call invoke( project_pressure_kernel_type( exner, rho, theta, moist_dyn(gas_law), &
-                                                   chi_sph, panel_id, m3_inv, qr ) )
-
+        ! Initialise exner by projecting analytic solution
+        call invoke( set_exner_kernel_type ( exner, chi_sph, panel_id, initial_time, qr ) )
       case default
         call log_event( "Gungho: Unrecognised method in initial_pressure", LOG_LEVEL_ERROR )
     end select
+
+    if (transport_only) then
+      ! Initialise rho analytically if transport-only. Either sampled or projected
+      select case(method)
+        case(method_sampled, &
+             method_balanced)
+          call invoke( initial_rho_sample_kernel_type( rho, chi_sph, panel_id, initial_time ) )
+        case(method_projected)
+          qr = quadrature_xyoz_type( nqp_exact, quadrature_rule )
+          call invoke( set_rho_kernel_type( rho, chi_sph, panel_id, initial_time, qr ) )
+        case default
+          call log_event( "Gungho: Unrecognised method in initial_pressure", LOG_LEVEL_ERROR )
+      end select
+    else
+      ! Initialise rho using equation of state, either sampled or projected
+      select case(eos_method)
+        case(eos_method_sampled)
+          ! Diagnose density from equation of state by sampling
+          call invoke( sample_eos_rho_kernel_type( rho, exner, theta,      &
+                                                   moist_dyn(gas_law) ) )
+        case(eos_method_projected)
+          qr = quadrature_xyoz_type( nqp_exact, quadrature_rule )
+          ! Diagnose density from equation of state by projection
+          call invoke(   setval_c( r_rho, 0.0_r_def ),                           &
+                         project_eos_rho_kernel_type( r_rho, exner, theta,       &
+                                                    moist_dyn(gas_law), chi_sph, &
+                                                    panel_id, qr ),              &
+                         dg_matrix_vector_kernel_type(rho, r_rho, m3_inv) )
+        case default
+          call log_event( "Gungho: Unrecognised method used for equation of state", LOG_LEVEL_ERROR )
+      end select
+    end if
 
     if (use_moisture) then
       if (transport_only) then
@@ -242,9 +263,21 @@ contains
         height_wth => get_height(Wtheta, mesh_id)
         call invoke( hydrostatic_exner_kernel_type( exner, theta, moist_dyn, &
                                                     height_wth, height_w3,   &
-                                                    chi_sph, panel_id ),     &
-                     sample_eos_rho_kernel_type( rho, exner, theta,          &
-                                                 moist_dyn(gas_law) ) )
+                                                    chi_sph, panel_id ) )
+        select case(eos_method)
+          case(eos_method_sampled)
+            call invoke( sample_eos_rho_kernel_type( rho, exner, theta,      &
+                                                     moist_dyn(gas_law) ) )
+          case(eos_method_projected)
+            qr = quadrature_xyoz_type( nqp_exact, quadrature_rule )
+            call invoke(   setval_c( r_rho, 0.0_r_def ),                           &
+                           project_eos_rho_kernel_type( r_rho, exner, theta,       &
+                                                      moist_dyn(gas_law), chi_sph, &
+                                                      panel_id, qr ),              &
+                           dg_matrix_vector_kernel_type(rho, r_rho, m3_inv) )
+          case default
+            call log_event( "Gungho: Unrecognised method used for equation of state", LOG_LEVEL_ERROR )
+        end select
       end if
     else
       call set_bundle_scalar(0.0_r_def, mr, nummr)
@@ -253,7 +286,7 @@ contains
     call log_event( "Gungho: Initialised prognostic fields", LOG_LEVEL_INFO )
 
     !==========================================================================!
-    nullify( m3_inv, chi_xyz, chi_sph, panel_id, height_wth, height_w3 )
+    nullify( m3_inv, chi_sph, panel_id, height_wth, height_w3 )
     nullify( theta, rho, u, exner)
 
   end subroutine init_gungho_prognostics_alg

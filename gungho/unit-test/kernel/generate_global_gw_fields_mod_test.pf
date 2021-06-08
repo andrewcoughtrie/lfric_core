@@ -50,6 +50,8 @@ contains
                                         feign_formulation_config,         &
                                         feign_initial_pressure_config
 
+    use formulation_config_mod, only : eos_method_sampled
+
     use initial_pressure_config_mod,                    &
                                  only : method_balanced
 
@@ -92,6 +94,7 @@ contains
                                   use_wavedynamics=.true.,                  &
                                   dry_static_adjust=.false.,                &
                                   exner_from_eos=.false.,                   &
+                                  eos_method=eos_method_sampled,            &
                                   dlayer_on=.false.,                        &
                                   init_exner_bt        = .true.,            &
                                   si_momentum_equation=.true.,              &

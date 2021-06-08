@@ -222,9 +222,9 @@ contains
   subroutine test_bottom_up( this )
 
     use hydrostatic_exner_kernel_mod, only : hydrostatic_exner_code
+    use formulation_config_mod,       only : eos_method_sampled
     use feign_config_mod,             only : feign_formulation_config,     &
                                              feign_initial_pressure_config
-
     use initial_pressure_config_mod,  only : method_balanced
 
 
@@ -246,6 +246,7 @@ contains
                                   dry_static_adjust=.false.,                &
                                   dlayer_on=.false.,                        &
                                   exner_from_eos=.true.,                    &
+                                  eos_method=eos_method_sampled,            &
                                   init_exner_bt        = .true.,            &
                                   si_momentum_equation=.true.,              &
                                   vector_invariant=.true.,                  &
@@ -291,7 +292,7 @@ contains
     use hydrostatic_exner_kernel_mod, only : hydrostatic_exner_code
     use feign_config_mod,             only : feign_formulation_config,     &
                                              feign_initial_pressure_config
-
+    use formulation_config_mod,       only : eos_method_sampled
     use initial_pressure_config_mod,  only : method_balanced
 
     implicit none
@@ -311,6 +312,7 @@ contains
                                   dry_static_adjust=.false.,                 &
                                   dlayer_on=.false.,                         &
                                   exner_from_eos=.true.,                     &
+                                  eos_method=eos_method_sampled,             &
                                   init_exner_bt        = .false.,            &
                                   si_momentum_equation=.true.,               &
                                   vector_invariant=.true.,                   &

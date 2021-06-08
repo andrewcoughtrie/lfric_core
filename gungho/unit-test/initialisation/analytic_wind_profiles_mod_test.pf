@@ -52,6 +52,7 @@ contains
                                         feign_extrusion_config,    &
                                         feign_domain_size_config,  &
                                         feign_initial_wind_config
+    use formulation_config_mod,  only : eos_method_projected
     use initial_wind_config_mod, only : profile_none
     use extrusion_config_mod,    only : method_uniform, stretching_method_linear
 
@@ -68,20 +69,21 @@ contains
                               rd=rd, cp=cp, p_zero=p_zero,                 &
                               scaling_factor=scaling )
 
-    call feign_formulation_config( transport_only        = .false.,         &
-                                   l_multigrid           = .false.,         &
-                                   rotating              = .true.,          &
-                                   use_moisture          = .false.,         &
-                                   use_physics           = .false.,         &
-                                   shallow               = .false.,         &
-                                   use_wavedynamics      = .true.,          &
-                                   dry_static_adjust     = .false.,         &
-                                   exner_from_eos        = .false.,         &
-                                   init_exner_bt         = .true.,          &
-                                   dlayer_on             = .false.,         &
-                                   si_momentum_equation  = .true.,          &
-                                   vector_invariant      = .true.,          &
-                                   moisture_conservation = .false.          )
+    call feign_formulation_config( transport_only        = .false.,              &
+                                   l_multigrid           = .false.,              &
+                                   rotating              = .true.,               &
+                                   use_moisture          = .false.,              &
+                                   use_physics           = .false.,              &
+                                   shallow               = .false.,              &
+                                   use_wavedynamics      = .true.,               &
+                                   dry_static_adjust     = .false.,              &
+                                   exner_from_eos        = .false.,              &
+                                   eos_method            = eos_method_projected, &
+                                   init_exner_bt         = .true.,               &
+                                   dlayer_on             = .false.,              &
+                                   si_momentum_equation  = .true.,               &
+                                   vector_invariant      = .true.,               &
+                                   moisture_conservation = .false.               )
 
     call feign_initial_wind_config( profile=profile_none,                  &
                                     u0=0.0_r_def,                          &

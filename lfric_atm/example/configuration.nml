@@ -74,11 +74,12 @@ spherical_coord_system='xyz',
 vorticity_in_w1=.false.,
 /
 &formulation
+l_multigrid=.false.,
 dlayer_on=.false.,
 dry_static_adjust=.true.,
 exner_from_eos=.true.,
 init_exner_bt=.true.,
-l_multigrid=.false.,
+eos_method='sampled'
 moisture_conservation=.true.,
 rotating=.true.,
 shallow=.true.,

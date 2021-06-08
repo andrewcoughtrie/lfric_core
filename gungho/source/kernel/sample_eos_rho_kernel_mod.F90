@@ -16,7 +16,7 @@ use argument_mod,               only : arg_type, func_type,   &
                                        ANY_SPACE_1, GH_BASIS, &
                                        CELL_COLUMN, GH_EVALUATOR
 use constants_mod,              only : r_def, i_def
-use planet_config_mod,          only : gravity, cp, rd, p_zero
+use planet_config_mod,          only : kappa, rd, p_zero
 use idealised_config_mod,       only : test
 use fs_continuity_mod,          only : Wtheta, W3
 use kernel_mod,                 only : kernel_type
@@ -62,11 +62,11 @@ contains
 !! @param[in] ndf_w3 Number of degrees of freedom per cell for W3
 !! @param[in] undf_w3 Number of unique degrees of freedom for W3
 !! @param[in] map_w3 Dofmap for the cell at the base of the column for W3
-!! @param[in] basis_3 Basis functions evaluated at Gaussian quadrature points for W3
+!! @param[in] basis_3 Basis functions evaluated at degrees of freedom for W3
 !! @param[in] ndf_wt Number of degrees of freedom per cell for Wtheta
 !! @param[in] undf_wt Number of unique degrees of freedom for Wtheta
 !! @param[in] map_wt Dofmap for the cell at the base of the column for Wtheta
-!! @param[in] basis_t Basis functions evaluated at Gaussian quadrature points for Wtheta
+!! @param[in] basis_t Basis functions evaluated at degrees of freedom for W3
 subroutine sample_eos_rho_code(nlayers, rho, exner,              &
                                theta, moist_dyn_gas,             &
                                ndf_w3, undf_w3, map_w3, basis_3, &
@@ -117,7 +117,7 @@ subroutine sample_eos_rho_code(nlayers, rho, exner,              &
         theta_vd_cell = theta_vd_cell + theta_vd_e(dft)*basis_t(1,dft,df)
       end do
 
-      rho(map_w3(df)+k) = (p_zero*exner_cell**(1.0/(rd/cp)-1.0))/(rd*theta_vd_cell)
+      rho(map_w3(df)+k) = (p_zero*exner_cell**((1.0_r_def - kappa)/kappa))/(rd*theta_vd_cell)
     end do
 
   end do

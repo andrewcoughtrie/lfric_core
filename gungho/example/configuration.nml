@@ -49,6 +49,7 @@
   si_momentum_equation  = .false.
   vector_invariant      = .false.
   moisture_conservation = .false.
+  eos_method = 'projected'
 /
 
 &idealised

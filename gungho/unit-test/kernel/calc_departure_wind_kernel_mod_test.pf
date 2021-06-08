@@ -48,6 +48,7 @@ contains
 
     use finite_element_config_mod, only : cellshape_quadrilateral, &
                                           spherical_coord_system_xyz
+    use formulation_config_mod,    only : eos_method_sampled
     use feign_config_mod,          only : feign_finite_element_config, &
                                           feign_formulation_config
 
@@ -68,20 +69,21 @@ contains
              spherical_coord_system=spherical_coord_system_xyz, &
              vorticity_in_w1=.false. )
 
-    call feign_formulation_config( dlayer_on=.false.,            &
-                                   dry_static_adjust=.false.,    &
-                                   exner_from_eos=.false.,       &
-                                   init_exner_bt=.false.,        &
-                                   l_multigrid=.false.,          &
-                                   rotating=.true.,              &
-                                   shallow=.false.,              &
-                                   transport_only=.false.,       &
-                                   use_moisture=.false.,         &
-                                   use_physics=.false.,          &
-                                   use_wavedynamics=.false.,     &
-                                   si_momentum_equation=.true.,  &
-                                   vector_invariant=.false.,     &
-                                   moisture_conservation=.false. )
+    call feign_formulation_config( dlayer_on=.false.,               &
+                                   dry_static_adjust=.false.,       &
+                                   exner_from_eos=.false.,          &
+                                   eos_method=eos_method_sampled,   &
+                                   init_exner_bt=.false.,           &
+                                   l_multigrid=.false.,             &
+                                   rotating=.true.,                 &
+                                   shallow=.false.,                 &
+                                   transport_only=.false.,          &
+                                   use_moisture=.false.,            &
+                                   use_physics=.false.,             &
+                                   use_wavedynamics=.false.,        &
+                                   si_momentum_equation=.true.,     &
+                                   vector_invariant=.false.,        &
+                                   moisture_conservation=.false.    )
 
   end subroutine setUp
 
