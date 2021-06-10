@@ -76,6 +76,7 @@ contains
                                    use_physics           = .false.,              &
                                    shallow               = .false.,              &
                                    use_wavedynamics      = .true.,               &
+                                   use_multires_coupling = .false.,              &
                                    dry_static_adjust     = .false.,              &
                                    exner_from_eos        = .false.,              &
                                    eos_method            = eos_method_projected, &

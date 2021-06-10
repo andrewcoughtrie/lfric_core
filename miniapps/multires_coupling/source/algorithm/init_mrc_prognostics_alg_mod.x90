@@ -1,0 +1,57 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!------------------------------------------------------------------------------
+
+!>@brief Initialisation of prognostic fields for the multires_coupling miniapp
+module init_mrc_prognostics_alg_mod
+
+  use log_mod,                           only: log_event,         &
+                                               log_scratch_space, &
+                                               LOG_LEVEL_INFO
+  use constants_mod,                     only: r_def
+  use field_mod,                         only: field_type
+  use field_collection_mod,              only: field_collection_type
+
+  implicit none
+
+  private
+  public :: init_mrc_prognostics_alg
+
+contains
+  !> @details An algorithm for initialising prognostic fields for
+  !>          all solvers.
+  !> @param[inout] prognostics  The prognostic fields
+  subroutine init_mrc_prognostics_alg( prognostics )
+
+    implicit none
+
+    ! Prognostic fields
+    type( field_collection_type ), intent(inout) :: prognostics
+
+    type( field_type ), pointer           :: u => null()
+    type( field_type ), pointer           :: rho => null()
+    type( field_type ), pointer           :: theta => null()
+
+    ! Get references out of the prognostic collection for the prognostic
+    ! variables
+    u => prognostics%get_field("u")
+    rho => prognostics%get_field("rho")
+    theta => prognostics%get_field("theta")
+
+    !=== Initialise global prognostic fields ==================================!
+
+    call log_event( 'multires_coupling: Initialising prognostic fields', LOG_LEVEL_INFO )
+
+    call invoke( setval_c(u, 0.0_r_def),    &
+                 setval_c(rho, 0.0_r_def),  &
+                 setval_c(theta, 0.0_r_def) )
+
+    call log_event( 'multires_coupling: Initialised prognostic fields', LOG_LEVEL_INFO )
+
+    !==========================================================================!
+
+  end subroutine init_mrc_prognostics_alg
+
+end module init_mrc_prognostics_alg_mod

@@ -46,25 +46,37 @@ module create_fem_mod
   contains
     !==================================================================================
     !> @brief Initialises the coordinate fields (chi) and FEM components
-    !> @param[in]     mesh_id               Mesh id used for chi field
-    !> @param[in,out] chi_xyz               XYZ Coordinate field
-    !> @param[in,out] chi_sph               Spherically-based Coordinate field
-    !> @param[in,out] panel_id              Field giving the ID of the mesh panels
-    !> @param[in]     shifted_mesh_id       Optional, mesh id used for shifted chi field
-    !> @param[in,out] shifted_chi_xyz       Optional, XYZ spatial coordinates of vertically shifted mesh
-    !> @param[in,out] shifted_chi_sph       Optional, Spherically-based coordinates of vertically shifted mesh
-    !> @param[in]     double_level_mesh_id  Optional, mesh id used for double-level chi field
-    !> @param[in,out] double_level_chi_xyz  Optional, XYZ spatial coordinates of double level mesh
-    !> @param[in,out] double_level_chi_sph  Optional, Spherically-based coordinates of double level mesh
-    !> @param[in]     multigrid_mesh_ids    Optional, mesh id array for multigrid function spaces chain
-    !> @param[in]     multigrid_2d_mesh_ids Optional, 2d-mesh id array for multigrid function spaces chain
+    !> @param[in]     mesh_id                        Mesh id used for chi field
+    !> @param[in,out] chi_xyz                        XYZ Coordinate field
+    !> @param[in,out] chi_sph                        Spherically-based Coordinate field
+    !> @param[in,out] panel_id                       Field giving the ID of the mesh panels
+    !> @param[in]     shifted_mesh_id                Optional, mesh id used for shifted chi field
+    !> @param[in,out] shifted_chi_xyz                Optional, XYZ spatial coordinates of vertically shifted mesh
+    !> @param[in,out] shifted_chi_sph                Optional, Spherically-based coordinates of vertically shifted mesh
+    !> @param[in]     double_level_mesh_id           Optional, mesh id used for double-level chi field
+    !> @param[in,out] double_level_chi_xyz           Optional, XYZ spatial coordinates of double level mesh
+    !> @param[in,out] double_level_chi_sph           Optional, Spherically-based coordinates of double level mesh
+    !> @param[in]     multigrid_mesh_ids             Optional, mesh id array for multigrid function spaces chain
+    !> @param[in]     multigrid_2d_mesh_ids          Optional, 2d-mesh id array for multigrid function spaces chain
+    !> @param[in,out] chi_mg_sph                     Optional, Spherically-based coordinates for multigrid meshes
+    !> @param[in,out] panel_id_mg                    Optional, Field giving the ID of the mesh panels for multigrid meshes
+    !> @param[in]     multires_coupling_mesh_ids     Optional, mesh id array for multires_coupling chi fields
+    !> @param[in]     multires_coupling_2d_mesh_ids  Optional, 2d-mesh id array for multires_coupling chi fields
+    !> @param[in,out] chi_multires_coupling_sph      Optional, Spherically-based coordinates for multires_coupling meshes
+    !> @param[in,out] chi_multires_coupling_xyz      Optional, XYZ spatial coordinates for multires_coupling meshes
+    !> @param[in,out] panel_id_multires_coupling     Optional, Field giving the ID of the mesh panels for multires_coupling meshes
+    !> @param[in]     use_multires_coupling          Optional, Logical flag to enable multiresolution atmospheric coupling
     !==================================================================================
-    subroutine init_fem( mesh_id, chi_xyz, chi_sph, panel_id,               &
-                         shifted_mesh_id, shifted_chi_xyz, shifted_chi_sph, &
-                         double_level_mesh_id, double_level_chi_xyz,        &
-                         double_level_chi_sph,                              &
-                         multigrid_mesh_ids, multigrid_2D_mesh_ids,         &
-                         chi_mg_sph, panel_id_mg                            )
+    subroutine init_fem( mesh_id, chi_xyz, chi_sph, panel_id,                  &
+                         shifted_mesh_id, shifted_chi_xyz, shifted_chi_sph,    &
+                         double_level_mesh_id, double_level_chi_xyz,           &
+                         double_level_chi_sph,                                 &
+                         multigrid_mesh_ids, multigrid_2D_mesh_ids,            &
+                         chi_mg_sph, panel_id_mg,                              &
+                         multires_coupling_mesh_ids,                           &
+                         multires_coupling_2D_mesh_ids,                        &
+                         chi_multires_coupling_sph, chi_multires_coupling_xyz, &
+                         panel_id_multires_coupling, use_multires_coupling )
 
     implicit none
 
@@ -84,10 +96,17 @@ module create_fem_mod
     integer(i_def),   optional, intent(in)    :: multigrid_2d_mesh_ids(:)
     type(field_type), optional, intent(inout), allocatable :: chi_mg_sph(:,:)
     type(field_type), optional, intent(inout), allocatable :: panel_id_mg(:)
+    integer(i_def),   optional, intent(in)    :: multires_coupling_mesh_ids(:)
+    integer(i_def),   optional, intent(in)    :: multires_coupling_2d_mesh_ids(:)
+    type(field_type), optional, intent(inout), allocatable :: chi_multires_coupling_sph(:,:)
+    type(field_type), optional, intent(inout), allocatable :: chi_multires_coupling_xyz(:,:)
+    type(field_type), optional, intent(inout), allocatable :: panel_id_multires_coupling(:)
+    logical(l_def),   optional, intent(in) :: use_multires_coupling
 
-    logical(l_def) :: create_shifted_chi        = .false.
-    logical(l_def) :: create_double_level_chi   = .false.
-    logical(l_def) :: create_multigrid_fs_chain = .false.
+    logical(l_def) :: create_shifted_chi            = .false.
+    logical(l_def) :: create_double_level_chi       = .false.
+    logical(l_def) :: create_multigrid_fs_chain     = .false.
+    logical(l_def) :: create_multires_coupling_chi  = .false.
 
     integer(i_native), parameter :: fs_list(5) = [W0, W1, W2, W3, Wtheta]
 
@@ -109,6 +128,15 @@ module create_fem_mod
          present(multigrid_2d_mesh_ids) .and. &
          present(chi_mg_sph)            .and. &
          present(panel_id_mg) ) create_multigrid_fs_chain = .true.
+
+    if (present(use_multires_coupling)) then
+      if ( use_multires_coupling                  .and. &
+           present(multires_coupling_mesh_ids)    .and. &
+           present(multires_coupling_2d_mesh_ids) .and. &
+           present(chi_multires_coupling_sph)     .and. &
+           present(chi_multires_coupling_xyz)     .and. &
+           present(panel_id_multires_coupling) ) create_multires_coupling_chi = .true.
+    end if
 
     if ( present(shifted_mesh_id) .and. &
          present(shifted_chi_xyz) ) create_shifted_chi = .true.
@@ -237,6 +265,57 @@ module create_fem_mod
                                    double_level_mesh_id, spherical_coords=.true.)
 
       nullify( double_level_fs )
+    end if
+
+    ! Create multires_coupling coordinate fields
+    ! =========================================
+    if ( create_multires_coupling_chi ) then
+      call log_event( "FEM specifics: Making spaces for multires_coupling meshes", &
+                      LOG_LEVEL_INFO )
+
+      if (allocated(chi_multires_coupling_sph)) deallocate(chi_multires_coupling_sph)
+      if (allocated(chi_multires_coupling_xyz)) deallocate(chi_multires_coupling_xyz)
+      if (allocated(panel_id_multires_coupling)) deallocate(panel_id_multires_coupling)
+      allocate(chi_multires_coupling_sph(3,size(multires_coupling_mesh_ids)))
+      allocate(chi_multires_coupling_xyz(3,size(multires_coupling_mesh_ids)))
+      allocate(panel_id_multires_coupling(size(multires_coupling_mesh_ids)))
+
+      do i = 1, 3
+         call chi_sph(i)%copy_field(chi_multires_coupling_sph(i,1))
+      end do
+      do i = 1, 3
+         call chi_xyz(i)%copy_field(chi_multires_coupling_xyz(i,1))
+      end do
+      call panel_id%copy_field(panel_id_multires_coupling(1))
+
+      do mesh_ctr = 1, size(multires_coupling_mesh_ids)
+        ! Set up the coordinate fields for non-primary multires_coupling meshes
+        if (mesh_ctr > 1) then
+          do i = 1, 3
+            call chi_multires_coupling_sph( i, mesh_ctr )%initialise( vector_space =    &
+              function_space_collection%get_fs( multires_coupling_mesh_ids(mesh_ctr),   &
+                                                spherical_coord_order, chi_sph_space) )
+            call chi_multires_coupling_xyz( i, mesh_ctr )%initialise( vector_space =    &
+              function_space_collection%get_fs( multires_coupling_mesh_ids(mesh_ctr),   &
+                                                coordinate_order, chi_xyz_space) )
+          end do
+
+          call panel_id_multires_coupling(mesh_ctr)%initialise(vector_space =  &
+            function_space_collection%get_fs( multires_coupling_mesh_ids(mesh_ctr), 0, W3) )
+
+          call assign_coordinate_field( chi_multires_coupling_sph(:,mesh_ctr), &
+                                        panel_id_multires_coupling(mesh_ctr),  &
+                                        multires_coupling_mesh_ids(mesh_ctr),  &
+                                        spherical_coords=.true.)
+
+          call assign_coordinate_field( chi_multires_coupling_xyz(:,mesh_ctr), &
+                                        panel_id_multires_coupling(mesh_ctr),  &
+                                        multires_coupling_mesh_ids(mesh_ctr),  &
+                                        spherical_coords=.false.)
+        end if
+
+      end do
+
     end if
 
     ! Create function space chains

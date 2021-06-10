@@ -151,7 +151,6 @@ contains
     do i = 1, num_meshes
 
       !=========== Create function spaces required for setup ==================!
-
       mesh_id = mesh_id_list(i)
       twod_mesh_id = twod_mesh_id_list(i)
       global_mesh_id_list(i) = mesh_id

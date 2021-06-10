@@ -23,8 +23,9 @@ OPERATE_ON ?= infrastructure                             \
               miniapps/gravity_wave                      \
               miniapps/solver_miniapp                    \
               miniapps/io_dev                            \
-              miniapps/transport                         \
-              lfricinputs
+              miniapps/transport												 \
+							miniapps/multires_coupling								 \
+							lfricinputs
 
 export SUITE_GROUP ?= developer
 export SUITE_GROUP_NAME ?= $(notdir $(realpath $(shell pwd)))-.*

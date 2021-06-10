@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<simulation>
+
+  <context id = "multires_coupling">
+
+   <calendar type = "Gregorian" start_date = "2016-01-01 15:00:00" />
+
+   <axis_definition>
+    <axis id="vert_axis_half_levels" name="half_levels"/>
+    <axis id="vert_axis_full_levels" name="full_levels"/>
+   </axis_definition>
+
+   <domain_definition>
+      <domain id="node" name="Mesh2d_node" nvertex="1"/>
+      <domain id="face" name="Mesh2d_face" nvertex="4"/>
+      <domain id="edge" name="Mesh2d_edge" nvertex="2"/>
+      <domain id="checkpoint_W0" name="checkpoint_W0" nvertex="1"/>
+      <domain id="checkpoint_W1" name="checkpoint_W1" nvertex="1"/>
+      <domain id="checkpoint_W2" name="checkpoint_W2" nvertex="1"/>
+      <domain id="checkpoint_W3" name="checkpoint_W3" nvertex="1"/>
+      <domain id="checkpoint_Wtheta" name="checkpoint_Wtheta" nvertex="1"/>
+ </domain_definition>
+
+
+   <grid_definition>
+    <grid id="node_grid">
+      <domain domain_ref="node"/>
+      <axis axis_ref="vert_axis_full_levels"/>
+    </grid>
+    <grid id="half_level_face_grid">
+      <domain domain_ref="face"/>
+      <axis axis_ref="vert_axis_half_levels"/>
+    </grid>
+    <grid id="full_level_face_grid">
+      <domain domain_ref="face"/>
+      <axis axis_ref="vert_axis_full_levels"/>
+    </grid>
+        <grid id="half_level_edge_grid">
+      <domain domain_ref="edge"/>
+      <axis axis_ref="vert_axis_half_levels"/>
+    </grid>
+   </grid_definition>
+
+   <field_definition prec="8" >
+
+     <!-- Main diagnostic group -->
+     <field_group id="diagnostic_fields" freq_op="1ts" enabled=".TRUE." operation="once" >
+       <field id="u1" name="u1" long_name="eastward_wind" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="u2" name="u2" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="u3" name="u3" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
+       <field id="rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
+       <field id="theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
+     </field_group>
+     <!-- Initial conditions group -->
+     <field_group id="initial_fields" freq_op="1ts" enabled=".TRUE." operation="once" >
+       <field id="init_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
+       <field id="init_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
+       <field id="init_u1" name="u1" long_name="eastward_wind" standard_name="eastward_wind"  unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="init_u2" name="u2" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="init_u3" name="u3" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
+     </field_group>
+
+   </field_definition>
+
+   <file_definition
+      type="one_file"
+      par_access="collective"
+      time_counter="none">
+
+      <!-- File definition for checkpoint write -->
+      <file id="lfric_checkpoint_write" name="multires_coupling_checkpoint" output_freq="1ts" convention="CF" enabled=".FALSE.">
+        <field field_ref="checkpoint_theta"/>
+        <field field_ref="checkpoint_rho"/>
+        <field field_ref="checkpoint_u"/>
+      </file>
+
+     <!-- file definition for checkpoint read -->
+      <file id="lfric_checkpoint_read" name="multires_coupling_checkpoint" mode="read" output_freq="1ts" cyclic="true" enabled=".FALSE.">
+        <field id="restart_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" operation="instant" domain_ref="checkpoint_Wtheta" />
+        <field id="restart_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" operation="instant" domain_ref="checkpoint_W3" />
+        <field id="restart_u" name="u" long_name="U" unit="m s-1" operation="instant" domain_ref="checkpoint_W2" />
+        <field id="restart_m_v" name="m_v" long_name="m_v" unit="kg/kg" operation="instant" domain_ref="checkpoint_Wtheta" />
+      </file>
+
+     <file id="lfric_diag" name="multires_coupling_diag" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
+       <field field_ref="theta"/>
+       <field field_ref="rho"/>
+       <field field_ref="u1"/>
+       <field field_ref="u2"/>
+       <field field_ref="u3"/>
+     </file>
+
+     <file id="lfric_initial" name="multires_coupling_initial" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
+       <field field_ref="init_theta"/>
+       <field field_ref="init_rho"/>
+       <field field_ref="init_u1"/>
+       <field field_ref="init_u2"/>
+       <field field_ref="init_u3"/>
+     </file>
+
+    </file_definition>
+
+  </context>
+
+  <context id = "xios">
+    <variable_definition>
+      <variable_group id = "buffer">
+        <variable id = "optimal_buffer_size" type = "string" >performance</variable>
+        <variable id = "buffer_factor_size" type = "double" >1.0</variable>
+      </variable_group>
+
+      <variable_group id = "parameters" >
+        <variable id = "using_server" type = "bool" >true</variable>
+        <variable id = "info_level" type = "int" >50</variable>
+        <variable id = "print_file" type="bool">true</variable>
+      </variable_group>
+    </variable_definition>
+  </context>
+
+</simulation>

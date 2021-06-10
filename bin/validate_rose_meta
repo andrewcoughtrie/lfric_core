@@ -41,7 +41,8 @@ default_project_names=( infrastructure  \
                         gravity_wave    \
                         io_dev          \
                         solver_miniapp  \
-                        transport )
+                        transport       \
+                        multires_coupling  )
 
 default_app_names=( infrastructure:none            \
                     gungho:gungho                  \
@@ -54,7 +55,8 @@ default_app_names=( infrastructure:none            \
                     io_dev:io_dev                  \
                     solver_miniapp:solver_miniapp  \
                     transport:transport            \
-                    transport:mesh )
+                    transport:mesh                 \
+                    multires_coupling:multires_coupling )
 
 while getopts "?" OPTION; do
   case $OPTION in
@@ -95,7 +97,8 @@ project_folder_location=(                  \
   [gravity_wave]=miniapps/gravity_wave     \
   [io_dev]=miniapps/io_dev                 \
   [solver_miniapp]=miniapps/solver_miniapp \
-  [transport]=miniapps/transport )
+  [transport]=miniapps/transport           \
+  [multires_coupling]=miniapps/multires_coupling )
 
 
 declare -A project_primary_app
@@ -109,7 +112,8 @@ project_primary_app=(             \
   [gravity_wave]=gravity_wave     \
   [io_dev]=io_dev                 \
   [solver_miniapp]=solver_miniapp \
-  [transport]=transport )
+  [transport]=transport           \
+  [multires_coupling]=multires_coupling )
 
 ##########################################################################
 # Process the inputs, checking for duplicates.

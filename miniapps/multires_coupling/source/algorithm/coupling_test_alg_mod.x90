@@ -1,0 +1,101 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!>@brief Coupling algorithm which tests the mapping capability for the multires_coupling miniapp
+module coupling_test_alg_mod
+
+  use constants_mod,                      only : i_def, r_def
+  use log_mod,                            only : log_event,         &
+                                                 LOG_LEVEL_INFO,    &
+                                                 LOG_LEVEL_ERROR
+  use field_mod,                          only : field_type
+  use finite_element_config_mod,          only : element_order
+  use fs_continuity_mod,                  only : W2, W3
+  use function_space_collection_mod,      only : function_space_collection
+  use operator_mod,                       only : operator_type
+  use matrix_vector_kernel_mod,           only : matrix_vector_kernel_type
+  use fem_constants_mod,                  only : get_div
+  use multires_coupling_config_mod,       only : multires_coupling_mesh_tags
+  use multires_coupling_mappings_alg_mod, only : map_scalars_alg
+  use mesh_collection_mod,                only : mesh_collection
+
+  implicit none
+
+  private
+
+  public :: coupling_test_alg
+
+contains
+
+  !> @details An standalone algorithm which tests the mapping capability for the
+  !> multires_coupling miniapp
+  subroutine coupling_test_alg()
+
+    implicit none
+
+    ! Divergence fields
+    type( field_type ) :: field_A_divergence
+    type( field_type ) :: field_B_divergence
+
+    ! Prognostic fields
+    type( field_type ) :: field_A
+    type( field_type ) :: field_B
+
+    real(kind=r_def)               :: s
+    integer(kind=i_def)            :: mesh_A_id
+    integer(kind=i_def)            :: mesh_B_id
+    type( operator_type ), pointer :: divergence_A => null()
+
+    ! Tolerance
+    real(kind=r_def) :: tol = 1-0e-12_r_def
+
+    real(kind=r_def) :: div_min, div_max
+
+    call log_event( "multires_coupling: Running test algorithm", LOG_LEVEL_INFO )
+
+    ! Check how many multires_coupling meshes have been declared in configuration
+    if ( size(multires_coupling_mesh_tags) > 1 ) then
+      mesh_A_id = mesh_collection%get_mesh_id(multires_coupling_mesh_tags(1))
+      mesh_B_id = mesh_collection%get_mesh_id(multires_coupling_mesh_tags(2))
+    else
+      mesh_A_id = mesh_collection%get_mesh_id(multires_coupling_mesh_tags(1))
+      mesh_B_id = mesh_collection%get_mesh_id(multires_coupling_mesh_tags(1))
+    end if
+
+    ! Initialise fields
+    call field_A%initialise( function_space_collection%get_fs(mesh_A_id, element_order, W2) )
+    call field_B%initialise( function_space_collection%get_fs(mesh_B_id, element_order, W2) )
+    call field_A_divergence%initialise( function_space_collection%get_fs(mesh_A_id, element_order, W3) )
+    call field_B_divergence%initialise( function_space_collection%get_fs(mesh_B_id, element_order, W3) )
+
+    ! Set the new field to a constant value and compute the divergence of it
+    divergence_A => get_div()
+    s = 2.0_r_def
+
+    call invoke ( name = "Compute_divergence",             &
+                  setval_c(field_A, s),                    &
+                  setval_c(field_B, s),                    &
+                  setval_c(field_A_divergence, 0.0_r_def), &
+                  setval_c(field_B_divergence, 0.0_r_def), &
+                  matrix_vector_kernel_type(field_A_divergence, field_A, divergence_A) )
+    call map_scalars_alg( field_A_divergence, field_B_divergence )
+
+    ! The divergence of a constant field should be zero. We check this is the case for the mapped field
+    ! and the non-mapped field
+    call field_A_divergence%log_minmax(LOG_LEVEL_INFO,'Source field divergence')
+    call field_B_divergence%log_minmax(LOG_LEVEL_INFO,'Mapped field divergence')
+
+    call field_B_divergence%field_minmax(div_min, div_max)
+
+    if ( abs(div_min) > tol .or. div_max > tol ) then
+      call log_event( "Error: The divergence of the mapped field is incorrect ", LOG_LEVEL_ERROR )
+    end if
+
+    call log_event( "multires_coupling: finished test algorithm", LOG_LEVEL_INFO )
+
+  end subroutine coupling_test_alg
+
+end module coupling_test_alg_mod

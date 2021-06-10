@@ -1,0 +1,484 @@
+-> info : update step : 0 timestep 1s
+-> info : CClientBuffer: allocated 2 x 498487 bytes for server 0 with a maximum of 10 buffered events
+-> info : attribut recu start_date  -> info : --> empty
+-> info : attribut recu start_date  -> info : 
+-> info : attribut recu timestep  -> info : --> empty
+-> info : attribut recu timestep  -> info : 
+-> info : attribut recu type  -> info : --> empty
+-> info : attribut recu type  -> info : 
+-> info : attribut recu convention  -> info : --> empty
+-> info : attribut recu convention  -> info : 
+-> info : attribut recu enabled  -> info : --> empty
+-> info : attribut recu enabled  -> info : 
+-> info : attribut recu name  -> info : --> empty
+-> info : attribut recu name  -> info : 
+-> info : attribut recu output_freq  -> info : --> empty
+-> info : attribut recu output_freq  -> info : 
+-> info : attribut recu par_access  -> info : --> empty
+-> info : attribut recu par_access  -> info : 
+-> info : attribut recu time_counter  -> info : --> empty
+-> info : attribut recu time_counter  -> info : 
+-> info : attribut recu type  -> info : --> empty
+-> info : attribut recu type  -> info : 
+-> info : attribut recu convention  -> info : --> empty
+-> info : attribut recu convention  -> info : 
+-> info : attribut recu enabled  -> info : --> empty
+-> info : attribut recu enabled  -> info : 
+-> info : attribut recu name  -> info : --> empty
+-> info : attribut recu name  -> info : 
+-> info : attribut recu output_freq  -> info : --> empty
+-> info : attribut recu output_freq  -> info : 
+-> info : attribut recu par_access  -> info : --> empty
+-> info : attribut recu par_access  -> info : 
+-> info : attribut recu time_counter  -> info : --> empty
+-> info : attribut recu time_counter  -> info : 
+-> info : attribut recu type  -> info : --> empty
+-> info : attribut recu type  -> info : 
+-> info : attribut recu enabled  -> info : --> empty
+-> info : attribut recu enabled  -> info : 
+-> info : attribut recu field_ref  -> info : --> empty
+-> info : attribut recu field_ref  -> info : 
+-> info : attribut recu freq_offset  -> info : --> empty
+-> info : attribut recu freq_offset  -> info : 
+-> info : attribut recu freq_op  -> info : --> empty
+-> info : attribut recu freq_op  -> info : 
+-> info : attribut recu grid_ref  -> info : --> empty
+-> info : attribut recu grid_ref  -> info : 
+-> info : attribut recu long_name  -> info : --> empty
+-> info : attribut recu long_name  -> info : 
+-> info : attribut recu name  -> info : --> empty
+-> info : attribut recu name  -> info : 
+-> info : attribut recu operation  -> info : --> empty
+-> info : attribut recu operation  -> info : 
+-> info : attribut recu prec  -> info : --> empty
+-> info : attribut recu prec  -> info : 
+-> info : attribut recu standard_name  -> info : --> empty
+-> info : attribut recu standard_name  -> info : 
+-> info : attribut recu unit  -> info : --> empty
+-> info : attribut recu unit  -> info : 
+-> info : attribut recu enabled  -> info : --> empty
+-> info : attribut recu enabled  -> info : 
+-> info : attribut recu field_ref  -> info : --> empty
+-> info : attribut recu field_ref  -> info : 
+-> info : attribut recu freq_offset  -> info : --> empty
+-> info : attribut recu freq_offset  -> info : 
+-> info : attribut recu freq_op  -> info : --> empty
+-> info : attribut recu freq_op  -> info : 
+-> info : attribut recu grid_ref  -> info : --> empty
+-> info : attribut recu grid_ref  -> info : 
+-> info : attribut recu long_name  -> info : --> empty
+-> info : attribut recu long_name  -> info : 
+-> info : attribut recu name  -> info : --> empty
+-> info : attribut recu name  -> info : 
+-> info : attribut recu operation  -> info : --> empty
+-> info : attribut recu operation  -> info : 
+-> info : attribut recu prec  -> info : --> empty
+-> info : attribut recu prec  -> info : 
+-> info : attribut recu standard_name  -> info : --> empty
+-> info : attribut recu standard_name  -> info : 
+-> info : attribut recu unit  -> info : --> empty
+-> info : attribut recu unit  -> info : 
+-> info : attribut recu enabled  -> info : --> empty
+-> info : attribut recu enabled  -> info : 
+-> info : attribut recu field_ref  -> info : --> empty
+-> info : attribut recu field_ref  -> info : 
+-> info : attribut recu freq_offset  -> info : --> empty
+-> info : attribut recu freq_offset  -> info : 
+-> info : attribut recu freq_op  -> info : --> empty
+-> info : attribut recu freq_op  -> info : 
+-> info : attribut recu grid_ref  -> info : --> empty
+-> info : attribut recu grid_ref  -> info : 
+-> info : attribut recu long_name  -> info : --> empty
+-> info : attribut recu long_name  -> info : 
+-> info : attribut recu name  -> info : --> empty
+-> info : attribut recu name  -> info : 
+-> info : attribut recu operation  -> info : --> empty
+-> info : attribut recu operation  -> info : 
+-> info : attribut recu prec  -> info : --> empty
+-> info : attribut recu prec  -> info : 
+-> info : attribut recu standard_name  -> info : --> empty
+-> info : attribut recu standard_name  -> info : 
+-> info : attribut recu unit  -> info : --> empty
+-> info : attribut recu unit  -> info : 
+-> info : attribut recu enabled  -> info : --> empty
+-> info : attribut recu enabled  -> info : 
+-> info : attribut recu field_ref  -> info : --> empty
+-> info : attribut recu field_ref  -> info : 
+-> info : attribut recu freq_offset  -> info : --> empty
+-> info : attribut recu freq_offset  -> info : 
+-> info : attribut recu freq_op  -> info : --> empty
+-> info : attribut recu freq_op  -> info : 
+-> info : attribut recu grid_ref  -> info : --> empty
+-> info : attribut recu grid_ref  -> info : 
+-> info : attribut recu long_name  -> info : --> empty
+-> info : attribut recu long_name  -> info : 
+-> info : attribut recu name  -> info : --> empty
+-> info : attribut recu name  -> info : 
+-> info : attribut recu operation  -> info : --> empty
+-> info : attribut recu operation  -> info : 
+-> info : attribut recu prec  -> info : --> empty
+-> info : attribut recu prec  -> info : 
+-> info : attribut recu standard_name  -> info : --> empty
+-> info : attribut recu standard_name  -> info : 
+-> info : attribut recu unit  -> info : --> empty
+-> info : attribut recu unit  -> info : 
+-> info : attribut recu enabled  -> info : --> empty
+-> info : attribut recu enabled  -> info : 
+-> info : attribut recu field_ref  -> info : --> empty
+-> info : attribut recu field_ref  -> info : 
+-> info : attribut recu freq_offset  -> info : --> empty
+-> info : attribut recu freq_offset  -> info : 
+-> info : attribut recu freq_op  -> info : --> empty
+-> info : attribut recu freq_op  -> info : 
+-> info : attribut recu grid_ref  -> info : --> empty
+-> info : attribut recu grid_ref  -> info : 
+-> info : attribut recu long_name  -> info : --> empty
+-> info : attribut recu long_name  -> info : 
+-> info : attribut recu name  -> info : --> empty
+-> info : attribut recu name  -> info : 
+-> info : attribut recu operation  -> info : --> empty
+-> info : attribut recu operation  -> info : 
+-> info : attribut recu prec  -> info : --> empty
+-> info : attribut recu prec  -> info : 
+-> info : attribut recu standard_name  -> info : --> empty
+-> info : attribut recu standard_name  -> info : 
+-> info : attribut recu unit  -> info : --> empty
+-> info : attribut recu unit  -> info : 
+-> info : attribut recu enabled  -> info : --> empty
+-> info : attribut recu enabled  -> info : 
+-> info : attribut recu field_ref  -> info : --> empty
+-> info : attribut recu field_ref  -> info : 
+-> info : attribut recu freq_offset  -> info : --> empty
+-> info : attribut recu freq_offset  -> info : 
+-> info : attribut recu freq_op  -> info : --> empty
+-> info : attribut recu freq_op  -> info : 
+-> info : attribut recu grid_ref  -> info : --> empty
+-> info : attribut recu grid_ref  -> info : 
+-> info : attribut recu long_name  -> info : --> empty
+-> info : attribut recu long_name  -> info : 
+-> info : attribut recu name  -> info : --> empty
+-> info : attribut recu name  -> info : 
+-> info : attribut recu operation  -> info : --> empty
+-> info : attribut recu operation  -> info : 
+-> info : attribut recu prec  -> info : --> empty
+-> info : attribut recu prec  -> info : 
+-> info : attribut recu standard_name  -> info : --> empty
+-> info : attribut recu standard_name  -> info : 
+-> info : attribut recu unit  -> info : --> empty
+-> info : attribut recu unit  -> info : 
+-> info : attribut recu enabled  -> info : --> empty
+-> info : attribut recu enabled  -> info : 
+-> info : attribut recu field_ref  -> info : --> empty
+-> info : attribut recu field_ref  -> info : 
+-> info : attribut recu freq_offset  -> info : --> empty
+-> info : attribut recu freq_offset  -> info : 
+-> info : attribut recu freq_op  -> info : --> empty
+-> info : attribut recu freq_op  -> info : 
+-> info : attribut recu grid_ref  -> info : --> empty
+-> info : attribut recu grid_ref  -> info : 
+-> info : attribut recu long_name  -> info : --> empty
+-> info : attribut recu long_name  -> info : 
+-> info : attribut recu name  -> info : --> empty
+-> info : attribut recu name  -> info : 
+-> info : attribut recu operation  -> info : --> empty
+-> info : attribut recu operation  -> info : 
+-> info : attribut recu prec  -> info : --> empty
+-> info : attribut recu prec  -> info : 
+-> info : attribut recu standard_name  -> info : --> empty
+-> info : attribut recu standard_name  -> info : 
+-> info : attribut recu unit  -> info : --> empty
+-> info : attribut recu unit  -> info : 
+-> info : attribut recu enabled  -> info : --> empty
+-> info : attribut recu enabled  -> info : 
+-> info : attribut recu field_ref  -> info : --> empty
+-> info : attribut recu field_ref  -> info : 
+-> info : attribut recu freq_offset  -> info : --> empty
+-> info : attribut recu freq_offset  -> info : 
+-> info : attribut recu freq_op  -> info : --> empty
+-> info : attribut recu freq_op  -> info : 
+-> info : attribut recu grid_ref  -> info : --> empty
+-> info : attribut recu grid_ref  -> info : 
+-> info : attribut recu long_name  -> info : --> empty
+-> info : attribut recu long_name  -> info : 
+-> info : attribut recu name  -> info : --> empty
+-> info : attribut recu name  -> info : 
+-> info : attribut recu operation  -> info : --> empty
+-> info : attribut recu operation  -> info : 
+-> info : attribut recu prec  -> info : --> empty
+-> info : attribut recu prec  -> info : 
+-> info : attribut recu standard_name  -> info : --> empty
+-> info : attribut recu standard_name  -> info : 
+-> info : attribut recu unit  -> info : --> empty
+-> info : attribut recu unit  -> info : 
+-> info : attribut recu enabled  -> info : --> empty
+-> info : attribut recu enabled  -> info : 
+-> info : attribut recu field_ref  -> info : --> empty
+-> info : attribut recu field_ref  -> info : 
+-> info : attribut recu freq_offset  -> info : --> empty
+-> info : attribut recu freq_offset  -> info : 
+-> info : attribut recu freq_op  -> info : --> empty
+-> info : attribut recu freq_op  -> info : 
+-> info : attribut recu grid_ref  -> info : --> empty
+-> info : attribut recu grid_ref  -> info : 
+-> info : attribut recu long_name  -> info : --> empty
+-> info : attribut recu long_name  -> info : 
+-> info : attribut recu name  -> info : --> empty
+-> info : attribut recu name  -> info : 
+-> info : attribut recu operation  -> info : --> empty
+-> info : attribut recu operation  -> info : 
+-> info : attribut recu prec  -> info : --> empty
+-> info : attribut recu prec  -> info : 
+-> info : attribut recu standard_name  -> info : --> empty
+-> info : attribut recu standard_name  -> info : 
+-> info : attribut recu unit  -> info : --> empty
+-> info : attribut recu unit  -> info : 
+-> info : attribut recu enabled  -> info : --> empty
+-> info : attribut recu enabled  -> info : 
+-> info : attribut recu field_ref  -> info : --> empty
+-> info : attribut recu field_ref  -> info : 
+-> info : attribut recu freq_offset  -> info : --> empty
+-> info : attribut recu freq_offset  -> info : 
+-> info : attribut recu freq_op  -> info : --> empty
+-> info : attribut recu freq_op  -> info : 
+-> info : attribut recu grid_ref  -> info : --> empty
+-> info : attribut recu grid_ref  -> info : 
+-> info : attribut recu long_name  -> info : --> empty
+-> info : attribut recu long_name  -> info : 
+-> info : attribut recu name  -> info : --> empty
+-> info : attribut recu name  -> info : 
+-> info : attribut recu operation  -> info : --> empty
+-> info : attribut recu operation  -> info : 
+-> info : attribut recu prec  -> info : --> empty
+-> info : attribut recu prec  -> info : 
+-> info : attribut recu standard_name  -> info : --> empty
+-> info : attribut recu standard_name  -> info : 
+-> info : attribut recu unit  -> info : --> empty
+-> info : attribut recu unit  -> info : 
+-> info : attribut recu axis_domain_order  -> info : --> empty
+-> info : attribut recu axis_domain_order  -> info : 
+-> info : attribut recu data_dim  -> info : --> empty
+-> info : attribut recu data_dim  -> info : 
+-> info : attribut recu domain_ref  -> info : --> empty
+-> info : attribut recu domain_ref  -> info : 
+-> info : attribut recu global_zoom_ibegin  -> info : --> empty
+-> info : attribut recu global_zoom_ibegin  -> info : 
+-> info : attribut recu global_zoom_jbegin  -> info : --> empty
+-> info : attribut recu global_zoom_jbegin  -> info : 
+-> info : attribut recu global_zoom_ni  -> info : --> empty
+-> info : attribut recu global_zoom_ni  -> info : 
+-> info : attribut recu global_zoom_nj  -> info : --> empty
+-> info : attribut recu global_zoom_nj  -> info : 
+-> info : attribut recu name  -> info : --> empty
+-> info : attribut recu name  -> info : 
+-> info : attribut recu ni_glo  -> info : --> empty
+-> info : attribut recu ni_glo  -> info : 
+-> info : attribut recu nj_glo  -> info : --> empty
+-> info : attribut recu nj_glo  -> info : 
+-> info : attribut recu nvertex  -> info : --> empty
+-> info : attribut recu nvertex  -> info : 
+-> info : attribut recu type  -> info : --> empty
+-> info : attribut recu type  -> info : 
+-> info : attribut recu zoom_ibegin  -> info : --> empty
+-> info : attribut recu zoom_ibegin  -> info : 
+-> info : attribut recu zoom_jbegin  -> info : --> empty
+-> info : attribut recu zoom_jbegin  -> info : 
+-> info : attribut recu zoom_ni  -> info : --> empty
+-> info : attribut recu zoom_ni  -> info : 
+-> info : attribut recu zoom_nj  -> info : --> empty
+-> info : attribut recu zoom_nj  -> info : 
+-> info : attribut recu axis_ref  -> info : --> empty
+-> info : attribut recu axis_ref  -> info : 
+-> info : attribut recu begin  -> info : --> empty
+-> info : attribut recu begin  -> info : 
+-> info : attribut recu data_begin  -> info : --> empty
+-> info : attribut recu data_begin  -> info : 
+-> info : attribut recu data_index  -> info : --> empty
+-> info : attribut recu data_index  -> info : 
+-> info : attribut recu data_n  -> info : --> empty
+-> info : attribut recu data_n  -> info : 
+-> info : attribut recu global_zoom_begin  -> info : --> empty
+-> info : attribut recu global_zoom_begin  -> info : 
+-> info : attribut recu global_zoom_n  -> info : --> empty
+-> info : attribut recu global_zoom_n  -> info : 
+-> info : attribut recu index  -> info : --> empty
+-> info : attribut recu index  -> info : 
+-> info : attribut recu mask  -> info : --> empty
+-> info : attribut recu mask  -> info : 
+-> info : attribut recu n  -> info : --> empty
+-> info : attribut recu n  -> info : 
+-> info : attribut recu n_glo  -> info : --> empty
+-> info : attribut recu n_glo  -> info : 
+-> info : attribut recu name  -> info : --> empty
+-> info : attribut recu name  -> info : 
+-> info : attribut recu value  -> info : --> empty
+-> info : attribut recu value  -> info : 
+-> info : attribut recu zoom_begin  -> info : --> empty
+-> info : attribut recu zoom_begin  -> info : 
+-> info : attribut recu zoom_index  -> info : --> empty
+-> info : attribut recu zoom_index  -> info : 
+-> info : attribut recu zoom_n  -> info : --> empty
+-> info : attribut recu zoom_n  -> info : 
+-> info : attribut recu axis_domain_order  -> info : --> empty
+-> info : attribut recu axis_domain_order  -> info : 
+-> info : attribut recu data_dim  -> info : --> empty
+-> info : attribut recu data_dim  -> info : 
+-> info : attribut recu domain_ref  -> info : --> empty
+-> info : attribut recu domain_ref  -> info : 
+-> info : attribut recu global_zoom_ibegin  -> info : --> empty
+-> info : attribut recu global_zoom_ibegin  -> info : 
+-> info : attribut recu global_zoom_jbegin  -> info : --> empty
+-> info : attribut recu global_zoom_jbegin  -> info : 
+-> info : attribut recu global_zoom_ni  -> info : --> empty
+-> info : attribut recu global_zoom_ni  -> info : 
+-> info : attribut recu global_zoom_nj  -> info : --> empty
+-> info : attribut recu global_zoom_nj  -> info : 
+-> info : attribut recu name  -> info : --> empty
+-> info : attribut recu name  -> info : 
+-> info : attribut recu ni_glo  -> info : --> empty
+-> info : attribut recu ni_glo  -> info : 
+-> info : attribut recu nj_glo  -> info : --> empty
+-> info : attribut recu nj_glo  -> info : 
+-> info : attribut recu nvertex  -> info : --> empty
+-> info : attribut recu nvertex  -> info : 
+-> info : attribut recu type  -> info : --> empty
+-> info : attribut recu type  -> info : 
+-> info : attribut recu zoom_ibegin  -> info : --> empty
+-> info : attribut recu zoom_ibegin  -> info : 
+-> info : attribut recu zoom_jbegin  -> info : --> empty
+-> info : attribut recu zoom_jbegin  -> info : 
+-> info : attribut recu zoom_ni  -> info : --> empty
+-> info : attribut recu zoom_ni  -> info : 
+-> info : attribut recu zoom_nj  -> info : --> empty
+-> info : attribut recu zoom_nj  -> info : 
+-> info : attribut recu axis_ref  -> info : --> empty
+-> info : attribut recu axis_ref  -> info : 
+-> info : attribut recu begin  -> info : --> empty
+-> info : attribut recu begin  -> info : 
+-> info : attribut recu data_begin  -> info : --> empty
+-> info : attribut recu data_begin  -> info : 
+-> info : attribut recu data_index  -> info : --> empty
+-> info : attribut recu data_index  -> info : 
+-> info : attribut recu data_n  -> info : --> empty
+-> info : attribut recu data_n  -> info : 
+-> info : attribut recu global_zoom_begin  -> info : --> empty
+-> info : attribut recu global_zoom_begin  -> info : 
+-> info : attribut recu global_zoom_n  -> info : --> empty
+-> info : attribut recu global_zoom_n  -> info : 
+-> info : attribut recu index  -> info : --> empty
+-> info : attribut recu index  -> info : 
+-> info : attribut recu mask  -> info : --> empty
+-> info : attribut recu mask  -> info : 
+-> info : attribut recu n  -> info : --> empty
+-> info : attribut recu n  -> info : 
+-> info : attribut recu n_glo  -> info : --> empty
+-> info : attribut recu n_glo  -> info : 
+-> info : attribut recu name  -> info : --> empty
+-> info : attribut recu name  -> info : 
+-> info : attribut recu value  -> info : --> empty
+-> info : attribut recu value  -> info : 
+-> info : attribut recu zoom_begin  -> info : --> empty
+-> info : attribut recu zoom_begin  -> info : 
+-> info : attribut recu zoom_index  -> info : --> empty
+-> info : attribut recu zoom_index  -> info : 
+-> info : attribut recu zoom_n  -> info : --> empty
+-> info : attribut recu zoom_n  -> info : 
+-> info : attribut recu axis_domain_order  -> info : --> empty
+-> info : attribut recu axis_domain_order  -> info : 
+-> info : attribut recu data_dim  -> info : --> empty
+-> info : attribut recu data_dim  -> info : 
+-> info : attribut recu domain_ref  -> info : --> empty
+-> info : attribut recu domain_ref  -> info : 
+-> info : attribut recu global_zoom_ibegin  -> info : --> empty
+-> info : attribut recu global_zoom_ibegin  -> info : 
+-> info : attribut recu global_zoom_jbegin  -> info : --> empty
+-> info : attribut recu global_zoom_jbegin  -> info : 
+-> info : attribut recu global_zoom_ni  -> info : --> empty
+-> info : attribut recu global_zoom_ni  -> info : 
+-> info : attribut recu global_zoom_nj  -> info : --> empty
+-> info : attribut recu global_zoom_nj  -> info : 
+-> info : attribut recu name  -> info : --> empty
+-> info : attribut recu name  -> info : 
+-> info : attribut recu ni_glo  -> info : --> empty
+-> info : attribut recu ni_glo  -> info : 
+-> info : attribut recu nj_glo  -> info : --> empty
+-> info : attribut recu nj_glo  -> info : 
+-> info : attribut recu nvertex  -> info : --> empty
+-> info : attribut recu nvertex  -> info : 
+-> info : attribut recu type  -> info : --> empty
+-> info : attribut recu type  -> info : 
+-> info : attribut recu zoom_ibegin  -> info : --> empty
+-> info : attribut recu zoom_ibegin  -> info : 
+-> info : attribut recu zoom_jbegin  -> info : --> empty
+-> info : attribut recu zoom_jbegin  -> info : 
+-> info : attribut recu zoom_ni  -> info : --> empty
+-> info : attribut recu zoom_ni  -> info : 
+-> info : attribut recu zoom_nj  -> info : --> empty
+-> info : attribut recu zoom_nj  -> info : 
+-> info : attribut recu axis_ref  -> info : --> empty
+-> info : attribut recu axis_ref  -> info : 
+-> info : attribut recu begin  -> info : --> empty
+-> info : attribut recu begin  -> info : 
+-> info : attribut recu data_begin  -> info : --> empty
+-> info : attribut recu data_begin  -> info : 
+-> info : attribut recu data_index  -> info : --> empty
+-> info : attribut recu data_index  -> info : 
+-> info : attribut recu data_n  -> info : --> empty
+-> info : attribut recu data_n  -> info : 
+-> info : attribut recu global_zoom_begin  -> info : --> empty
+-> info : attribut recu global_zoom_begin  -> info : 
+-> info : attribut recu global_zoom_n  -> info : --> empty
+-> info : attribut recu global_zoom_n  -> info : 
+-> info : attribut recu index  -> info : --> empty
+-> info : attribut recu index  -> info : 
+-> info : attribut recu mask  -> info : --> empty
+-> info : attribut recu mask  -> info : 
+-> info : attribut recu n  -> info : --> empty
+-> info : attribut recu n  -> info : 
+-> info : attribut recu n_glo  -> info : --> empty
+-> info : attribut recu n_glo  -> info : 
+-> info : attribut recu name  -> info : --> empty
+-> info : attribut recu name  -> info : 
+-> info : attribut recu value  -> info : --> empty
+-> info : attribut recu value  -> info : 
+-> info : attribut recu zoom_begin  -> info : --> empty
+-> info : attribut recu zoom_begin  -> info : 
+-> info : attribut recu zoom_index  -> info : --> empty
+-> info : attribut recu zoom_index  -> info : 
+-> info : attribut recu zoom_n  -> info : --> empty
+-> info : attribut recu zoom_n  -> info : 
+-> info : update step : 0 timestep 1s
+-> info : updateCalendar : before : 2016-01-01 15:00:00
+-> info : update step : 1 timestep 1s
+-> info : updateCalendar : after : 2016-01-01 15:00:01
+-> info : updateCalendar : before : 2016-01-01 15:00:00
+-> info : update step : 1 timestep 1s
+-> info : updateCalendar : after : 2016-01-01 15:00:01
+-> info : updateCalendar: already at step 1, no operation done.
+-> info : updateCalendar: already at step 1, no operation done.
+-> info :  CContextServer: Receive context <coupling_server> finalize.
+-> info : CClientBuffer: allocated 2 x 55382 bytes for server 0 with a maximum of 4 buffered events
+-> info :  CContextServer: Receive context <coupling> finalize.
+-> report :  Memory report : Context <coupling> : server side : memory used for buffer of each connection to client
+  +) With client of rank 0 : 55382 bytes 
+-> report :  Memory report : Context <coupling> : server side : total memory used for buffer 55382 bytes
+-> report :  Memory report : Context <coupling_server> : client side : memory used for buffer of each connection to server
+  +) To server with rank 0 : 55382 bytes 
+-> report :  Memory report : Context <coupling_server> : client side : total memory used for buffer 55382 bytes
+-> info : Closing File : lfric_diag
+-> info : Closing File : lfric_initial
+-> info : CContext: Context <coupling_server> is finalized.
+-> report :  Memory report : Context <coupling_server> : server side : memory used for buffer of each connection to client
+  +) With client of rank 0 : 498487 bytes 
+-> report :  Memory report : Context <coupling_server> : server side : total memory used for buffer 498487 bytes
+-> report :  Memory report : Context <coupling> : client side : memory used for buffer of each connection to server
+  +) To server with rank 0 : 498487 bytes 
+-> report :  Memory report : Context <coupling> : client side : total memory used for buffer 498487 bytes
+-> info : CContext: Context <coupling> is finalized.
+-> info : Client side context is finalized
+-> report :  Performance report : Whole time from XIOS init and finalize: 5.66468 s
+-> report :  Performance report : total time spent for XIOS : 0.242042 s
+-> report :  Performance report : time spent for waiting free buffer : 6.19888e-05 s
+-> report :  Performance report : Ratio : 0.0010943 %
+-> report :  Performance report : This ratio must be close to zero. Otherwise it may be usefull to increase buffer size or numbers of server
+-> report :  Memory report : Minimum buffer size required : 165977 bytes
+-> report :  Memory report : increasing it by a factor will increase performance, depending of the volume of data wrote in file at each time step of the file

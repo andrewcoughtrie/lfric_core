@@ -1,0 +1,4 @@
+access-list=*
+owner=lfric
+project=multires_coupling
+title=Functional testing suite for LFRic multiresolution coupling project

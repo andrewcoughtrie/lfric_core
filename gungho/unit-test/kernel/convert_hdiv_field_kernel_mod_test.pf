@@ -69,6 +69,7 @@ contains
                                    rotating              = .true.,               &
                                    use_moisture          = .false.,              &
                                    use_physics           = .false.,              &
+                                   use_multires_coupling = .false.,              &
                                    shallow               = .false.,              &
                                    use_wavedynamics      = .true.,               &
                                    dry_static_adjust     = .false.,              &

@@ -243,6 +243,7 @@ contains
                                   use_moisture=.false.,                     &
                                   shallow=.true., use_physics=.false.,      &
                                   use_wavedynamics=.true.,                  &
+                                  use_multires_coupling=.false.,            &
                                   dry_static_adjust=.false.,                &
                                   dlayer_on=.false.,                        &
                                   exner_from_eos=.true.,                    &
@@ -309,6 +310,7 @@ contains
                                   use_moisture=.false.,                      &
                                   shallow=.true., use_physics=.false.,       &
                                   use_wavedynamics=.true.,                   &
+                                  use_multires_coupling=.false.,             &
                                   dry_static_adjust=.false.,                 &
                                   dlayer_on=.false.,                         &
                                   exner_from_eos=.true.,                     &
