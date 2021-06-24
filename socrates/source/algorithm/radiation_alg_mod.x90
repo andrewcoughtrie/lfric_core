@@ -144,6 +144,8 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr,                    &
                         cloud_droplet_re_rts, sw_aer_optical_depth_rts, &
                         lw_aer_optical_depth_rts
 
+  if ( subroutine_timers ) call timer("sw_radiation")
+
   call log_event( 'slow_physics: Running Radiation', LOG_LEVEL_INFO )
 
   mesh_id = theta%get_mesh_id()
@@ -209,8 +211,6 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr,                    &
   call lw_heating_rate%copy_field_properties(cloud_droplet_re_rts)
   call sw_heating_rate%copy_field_properties(sw_aer_optical_depth_rts)
   call lw_heating_rate%copy_field_properties(lw_aer_optical_depth_rts)
-
-  if ( subroutine_timers ) call timer("sw_radiation")
 
   call log_event( 'SW inputs:',               LOG_LEVEL_DEBUG )
   call log_field_alg( mr(imr_v),              LOG_LEVEL_DEBUG )
@@ -285,8 +285,6 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr,                    &
   call log_field_alg( cloud_fraction_rts,   LOG_LEVEL_DEBUG )
   call log_field_alg( cloud_droplet_re_rts, LOG_LEVEL_DEBUG )
 
-  if ( subroutine_timers ) call timer("lw_radiation")
-
   ! first calculate the total temperature increment
   dt_again=dt
   call invoke(aX_plus_bY(dtheta_rad, dt,       sw_heating_rate,  &
@@ -294,8 +292,12 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr,                    &
   ! then convert it to a theta increment
               inc_X_divideby_Y(dtheta_rad, exner_in_wth) )
 
+  if ( subroutine_timers ) call timer("lw_radiation")
+
   ! Output diagnostics
   if (write_diag .and. use_xios_io) then
+    if ( subroutine_timers ) call timer("radiation_xios")
+
     call lw_down_surf%write_field('lw_down_surf')
     call sw_down_surf%write_field('sw_down_surf')
     call sw_direct_surf%write_field('sw_direct_surf')
@@ -328,6 +330,8 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr,                    &
     call lw_aer_optical_depth_rts%write_field('lw_aer_optical_depth_rts')
 
     call sw_up_tile%write_field('sw_up_tile')
+
+    if ( subroutine_timers ) call timer("radiation_xios")
   end if
 
 end subroutine radiation_alg

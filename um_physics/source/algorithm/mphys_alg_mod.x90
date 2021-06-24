@@ -182,16 +182,16 @@ contains
     dmv_mphys => microphysics_fields%get_field('dmv_mphys')
     call invoke(setval_X(dmv_mphys, dmr_mphys(imr_v)))
 
+    if ( subroutine_timers ) call timer("mphys_alg")
+
     ! Output microphysics diagnostics
     if (write_diag .and. use_xios_io) then
-
+      if ( subroutine_timers ) call timer("mphys_xios")
       call ls_rain%write_field('ls_rain')
       call ls_snow%write_field('ls_snow')
       call lsca_2d%write_field('lsca_2d')
-
+      if ( subroutine_timers ) call timer("mphys_xios")
     end if
-
-    if ( subroutine_timers ) call timer("mphys_alg")
 
   end subroutine mphys_alg
 

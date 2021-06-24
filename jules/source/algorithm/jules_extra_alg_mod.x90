@@ -194,7 +194,10 @@ contains
                            soil_sat_frac, water_table,                         &
                            wetness_under_soil) )
 
+    if ( subroutine_timers ) call timer('jules_extra_alg')
+
     if (use_xios_io .and. write_diag) then
+      if ( subroutine_timers ) call timer("jules_extra_xios")
 
       call soil_moisture%write_field('soil_moisture')
       call unfrozen_soil_moisture%write_field('unfrozen_soil_moisture')
@@ -216,9 +219,8 @@ contains
       call snow_layer_liq_mass%write_field('snow_layer_liq_mass')
       call snow_layer_rgrain%write_field('snow_layer_rgrain')
 
+      if ( subroutine_timers ) call timer("jules_extra_xios")
     end if
-
-    if ( subroutine_timers ) call timer('jules_extra_alg')
 
   end subroutine jules_extra_alg
 

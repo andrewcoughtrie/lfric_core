@@ -12,6 +12,8 @@ use field_mod,               only: field_type
 use field_collection_mod,    only: field_collection_type
 use geometric_constants_mod, only: get_latitude, get_longitude
 use illuminate_kernel_mod,   only: illuminate_kernel_type
+use io_config_mod,           only: subroutine_timers
+use timer_mod,               only: timer
 
 implicit none
 private
@@ -47,6 +49,8 @@ subroutine illuminate_alg(radiation_fields, timestep)
   type( field_type ), pointer :: sin_stellar_declination_rts => null()
   type( field_type ), pointer :: stellar_eqn_of_time_rts => null()
 
+  if ( subroutine_timers ) call timer("illuminate_alg")
+
   cos_zenith_angle => radiation_fields%get_field('cos_zenith_angle')
   lit_fraction     => radiation_fields%get_field('lit_fraction')
   cos_zenith_angle_rts   => radiation_fields%get_field('cos_zenith_angle_rts')
@@ -68,6 +72,8 @@ subroutine illuminate_alg(radiation_fields, timestep)
                  sin_stellar_declination_rts, &
                  stellar_eqn_of_time_rts, &
                  latitude, longitude, timestep ) )
+
+  if ( subroutine_timers ) call timer("illuminate_alg")
 
 end subroutine illuminate_alg
 

@@ -350,7 +350,7 @@
                                                "use_xios":"True",
                                                "xios_nodes":1,
                                                "mpi_parts_xios":36,
-                                               "wallclock":"1:50:00"},
+                                               "wallclock":"0:60:00"},
 					       },
                          },
                      plotstr="plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR"
@@ -362,7 +362,7 @@
                                         "C192":{"mpi_parts":864,
                                                "threads":1,
                                                "use_xios":"True",
-                                               "wallclock":"1:50:00"},
+                                               "wallclock":"0:30:00"},
 					       },
                          },
                      plotstr="plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR"

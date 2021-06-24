@@ -126,18 +126,22 @@ contains
                 X_divideby_Y ( dtheta_spectral_gwd, dtemp_spectral_gwd,     &
                                exner_in_wth) )
 
-    ! Mapping back of wind increments
-    call set_wind(du_tot_spectral_gwd, du_spectral_gwd, dv_spectral_gwd, &
-                  dw_spectral_gwd)
+   if ( subroutine_timers ) call timer("spectral_gwd_alg")
 
     if (write_diag .and. use_xios_io) then
+      if ( subroutine_timers ) call timer("spectral_gwd_xios")
+
       call du_spectral_gwd%write_field('du_spectral_gwd')
       call dv_spectral_gwd%write_field('dv_spectral_gwd')
       call dtheta_spectral_gwd%write_field('dtheta_spectral_gwd')
       call dtemp_spectral_gwd%write_field('dtemp_spectral_gwd')
+
+      if ( subroutine_timers ) call timer("spectral_gwd_xios")
    end if
 
-   if ( subroutine_timers ) call timer("spectral_gwd_alg")
+    ! Mapping back of wind increments
+    call set_wind(du_tot_spectral_gwd, du_spectral_gwd, dv_spectral_gwd, &
+                  dw_spectral_gwd)
 
   end subroutine spectral_gwd_alg
 

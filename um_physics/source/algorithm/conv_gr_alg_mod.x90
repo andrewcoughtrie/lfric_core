@@ -294,8 +294,11 @@ contains
                           parcel_buoyancy, qsat_at_lcl,                       &
                           dcfl_conv, dcff_conv, dbcf_conv ) )
 
+    if ( subroutine_timers ) call timer("conv_gr_alg")
+
     ! output diagnostics on last iteration only
     if (write_diag .and. use_xios_io .and. outer == outer_iterations) then
+      if ( subroutine_timers ) call timer("conv_gr_xios")
 
       ! output the convection increments
       call dt_conv%write_field('dt_conv')
@@ -344,9 +347,8 @@ contains
       call cv_base%write_field('cv_base ')
       call cv_top%write_field('cv_top ')
 
+      if ( subroutine_timers ) call timer("conv_gr_xios")
     end if
-
-    if ( subroutine_timers ) call timer("conv_gr_alg")
 
   end subroutine conv_gr_alg
 

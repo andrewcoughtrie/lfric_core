@@ -16,6 +16,8 @@ use lfric_xios_write_mod,          only: write_field_single_face
 use field_parent_mod,              only: write_interface
 use geometric_constants_mod,       only: get_height
 use locate_tropopause_kernel_mod,  only: locate_tropopause_kernel_type
+use io_config_mod,                 only: subroutine_timers
+use timer_mod,                     only: timer
 
 implicit none
 private
@@ -41,6 +43,7 @@ subroutine locate_tropopause_alg(trop_level, theta, exner_in_wth, twod_mesh_id)
   type(function_space_type),  pointer :: vector_space => null()
   procedure(write_interface), pointer :: write_diag_behaviour => null()
 
+  if ( subroutine_timers ) call timer("locate_tropopause_alg")
 
   height_wth => get_height(Wtheta, theta%get_mesh_id())
 
@@ -50,10 +53,14 @@ subroutine locate_tropopause_alg(trop_level, theta, exner_in_wth, twod_mesh_id)
   call invoke( locate_tropopause_kernel_type( theta, exner_in_wth, &
                                               height_wth, trop_level ) )
 
+  if ( subroutine_timers ) call timer("locate_tropopause_alg")
+
   if (write_diag .and. use_xios_io) then
+    if ( subroutine_timers ) call timer("locate_tropopause_xios")
     write_diag_behaviour => write_field_single_face
     call trop_level%set_write_behaviour(write_diag_behaviour)
     call trop_level%write_field('trop_level')
+    if ( subroutine_timers ) call timer("locate_tropopause_xios")
   end if
 
 end subroutine locate_tropopause_alg

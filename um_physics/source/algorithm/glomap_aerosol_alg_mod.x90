@@ -115,7 +115,11 @@ contains
                                             ait_ins_om,                        &
                                             cloud_drop_no_conc ))
 
+    if ( subroutine_timers ) call timer('glomap_aerosol_alg')
+
     if ( write_diag .and. use_xios_io ) then
+      if ( subroutine_timers ) call timer("glomap_aerosol_xios")
+
       ! Diagnostic output
       call n_nuc_sol%write_field('n_nuc_sol')
       call nuc_sol_su%write_field('nuc_sol_su')
@@ -138,9 +142,9 @@ contains
       call ait_ins_bc%write_field('ait_ins_bc')
       call ait_ins_om%write_field('ait_ins_om')
       call cloud_drop_no_conc%write_field('cloud_drop_no_conc')
-    end if
 
-    if ( subroutine_timers ) call timer('glomap_aerosol_alg')
+      if ( subroutine_timers ) call timer("glomap_aerosol_xios")
+    end if
 
   end subroutine glomap_aerosol_alg
 
