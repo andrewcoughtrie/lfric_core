@@ -175,7 +175,14 @@ subroutine rad_tile_code(nlayers,                                &
   use pftparm, only: emis_pft
   use jules_sea_seaice_mod, only: nice, nice_use, emis_sea, emis_sice
   use jules_fields_mod, only: psparms, ainfo, urban_param, progs, coast, &
-    jules_vars
+    jules_vars, &
+    !fluxes, &
+    lake_vars
+    !forcing, &
+    !rivers, &
+    !veg3_parm, &
+    !veg3_field, &
+    !chemvars
   use ancil_info, only: sea_pts, sice_pts_ncat, rad_nband
 
   use tilepts_mod, only: tilepts
@@ -446,7 +453,14 @@ subroutine rad_tile_code(nlayers,                                &
   ! UM-only args: INTENT(OUT)
     albobs_sc, open_sea_albedo,                                 &
   ! JULES types
-    psparms, ainfo, urban_param, progs, coast, jules_vars)
+    psparms, ainfo, urban_param, progs, coast, jules_vars, &
+  lake_vars &
+  !forcing, &
+  !rivers, &
+  !veg3_parm, &
+  !veg3_field, &
+  !chemvars, &
+  )
 
   df_rtile = 0
   do i_band = 1, n_sw_band

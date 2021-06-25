@@ -97,13 +97,13 @@ module jules_physics_init_mod
                                       coastal_data, coast,                    &
                                       jules_vars_data, jules_vars,            &
                                       !fluxes_data, fluxes, &
-                                      !lake_data, lake, &
+                                      lake_data, lake_vars, &
                                       forcing_data, forcing
                                       !rivers_data, rivers, &
                                       !veg3_parm_data, veg3_parm, &
                                       !veg3_field_data, veg3_field, &
                                       !chemvars_data, chemvars
-                                      
+
   use crop_vars_mod,           only : crop_vars_assoc
   use p_s_parms,               only : psparms_assoc
   use top_pdm,                 only : top_pdm_assoc
@@ -118,7 +118,7 @@ module jules_physics_init_mod
   use coastal,                 only : coastal_assoc
   use jules_vars_mod,          only : jules_vars_assoc
 ! use fluxes,                  only: fluxes_assoc
-! use lake_mod,                only: lake_assoc
+  use lake_mod,                only: lake_assoc
   use jules_forcing_mod,       only: forcing_assoc
 ! use jules_rivers_mod,        only: rivers_assoc
 ! use veg3_parm_mod,           only: in_dev
@@ -487,7 +487,7 @@ contains
                                urban_param_data, progs_data, trifctl_data,     &
                                coastal_data,jules_vars_data,                   &
                               !fluxes_data, &
-                              !lake_data, &
+                               lake_data, &
                                forcing_data &
                               !rivers_data, &
                               !veg3_parm_data, &
@@ -516,13 +516,13 @@ contains
     call coastal_assoc(coast, coastal_data)
     call jules_vars_assoc(jules_vars,jules_vars_data)
     !call fluxes_assoc(fluxes,fluxes_data)
-    !call lake_assoc(lake,lake_data)
+    call lake_assoc(lake_vars,lake_data)
     call forcing_assoc(forcing,forcing_data)
     !call rivers_assoc(rivers,rivers_data)
     !call in_dev
     !call in_dev
     !call chemvars_assoc(chemvars,chemvars_data)
-    
+
     ! ----------------------------------------------------------------
     ! Jules non-vegetated tile settings - contained in module nvegparm
     ! ----------------------------------------------------------------

@@ -258,7 +258,7 @@ contains
                                 trif_vars, soilecosse, aerotype, urban_param, &
                                 progs, trifctltype, jules_vars, &
                                 !fluxes, &
-                                !lake, &
+                                lake_vars, &
                                 forcing
                                 !rivers, &
                                 !veg3_parm, &
@@ -401,12 +401,6 @@ contains
     real(r_um), dimension(river_row_length, river_rows) :: trivdir, trivseq
     real(r_um), dimension(row_length, rows) :: r_area, slope, flowobs1,       &
          r_inext, r_jnext, r_land
-
-    ! Lakes
-    real(r_um), dimension(land_pts) :: lake_albedo_gb
-    real(r_um), dimension(land_pts) :: lake_t_sfc_gb
-    real(r_um), dimension(land_pts) :: lake_h_snow_gb
-    real(r_um), dimension(land_pts) :: lake_t_snow_gb
 
 
     ! Integers (module intent = in out)
@@ -662,9 +656,6 @@ contains
     !Fluxes INTENT(IN OUT)
     melt_surft,                                                               &
 
-    !Misc INTENT(INOUT)
-    lake_albedo_gb, lake_t_sfc_gb, lake_h_snow_gb, lake_t_snow_gb,            &
-
     !Fluxes INTENT(OUT)
     snomlt_surf_htf, snowmelt_ij, snomlt_sub_htf, sub_surf_roff, surf_roff,   &
     tot_tfall, snowmelt_gb, rrun, rflow, snow_soil_htf,                       &
@@ -700,7 +691,7 @@ contains
     crop_vars, psparms, toppdm, fire_vars, ainfo, trif_vars, soilecosse,      &
     urban_param, progs, trifctltype, jules_vars,                              &
     !fluxes, &
-    !lake, &
+    lake_vars, &
     forcing &
     !rivers, &
     !veg3_parm, &

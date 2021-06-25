@@ -437,7 +437,7 @@ contains
     use jules_fields_mod, only : crop_vars, ainfo, aerotype, progs, coast, &
       jules_vars,                                                          &
       !fluxes, &
-      !lake, &
+      lake_vars, &
       forcing
       !rivers, &
       !veg3_parm, &
@@ -1282,7 +1282,7 @@ contains
     ! JULES TYPES (IN OUT)
           , crop_vars, ainfo, aerotype, progs, coast, jules_vars        &
           !fluxes, &
-          !lake, &
+          , lake_vars &
           , forcing &
           !rivers, &
           !veg3_parm, &
@@ -1560,7 +1560,7 @@ contains
     ! JULES TYPES (IN OUT)
           , crop_vars, ainfo, aerotype, progs, coast, jules_vars        &
           !fluxes, &
-          !lake, &
+          , lake_vars &
           , forcing &
           !rivers, &
           !veg3_parm, &

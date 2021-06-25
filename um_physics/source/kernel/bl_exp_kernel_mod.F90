@@ -551,7 +551,7 @@ contains
                                  aerotype, urban_param, progs, trifctltype,    &
                                  coast, jules_vars,                            &
                                 !fluxes, &
-                                !lake, &
+                                lake_vars, &
                                 forcing
                                 !rivers, &
                                 !veg3_parm, &
@@ -1380,7 +1380,7 @@ contains
          crop_vars, psparms, ainfo, trif_vars, aerotype, urban_param,          &
          progs, trifctltype, coast, jules_vars,                                &
         !fluxes, &
-        !lake, &
+         lake_vars, &
          forcing, &
         !rivers, &
         !veg3_parm, &
@@ -1526,7 +1526,7 @@ contains
          crop_vars, psparms, ainfo, trif_vars, aerotype, urban_param,   &
          progs, trifctltype, coast, jules_vars,                         &
         !fluxes, &
-        !lake, &
+         lake_vars, &
          forcing, &
         !rivers, &
         !veg3_parm, &
