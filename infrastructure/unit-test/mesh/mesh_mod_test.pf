@@ -206,6 +206,7 @@ contains
     class( mesh_test_type ), intent( inout ) :: this
 
     call global_mesh_collection%clear()
+    call local_mesh_collection%clear()
 
     ! Finalise YAXT
     call xt_finalize()

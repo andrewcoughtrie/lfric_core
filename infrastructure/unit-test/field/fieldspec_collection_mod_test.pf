@@ -65,13 +65,13 @@ contains
     class(fieldspec_collection_test_type), intent(inout) :: self
     type(fieldspec_type)                                 :: test_fieldspec1
     type(fieldspec_type),                  pointer       :: returned_fieldspec => null()
-    type(fieldspec_collection_type)                      :: f_collection
+    type(fieldspec_collection_type),       pointer       :: f_collection => null()
 
     type(axisspec_type), target  :: vertical_axis
     type(axisspec_type), pointer :: vert_axis_ptr => null()
     type(axisspec_type), pointer :: returned_vert_axis => null()
 
-    f_collection = fieldspec_collection_type()
+    f_collection => fieldspec_collection_type()
 
     vertical_axis = axisspec_type( &
             "vertical_axis", &
@@ -104,6 +104,8 @@ contains
     @assertEqual("bar", returned_fieldspec%get_unique_id())
     @assertEqual("vertical_axis", returned_vert_axis%get_unique_id())
     @assertEqual([real(r_def) :: 1,2,3], returned_vert_axis%get_numeric_axis_def())
+
+    call f_collection%clear()
 
   end subroutine test_assignment
 
@@ -181,6 +183,9 @@ contains
 
     ! The loop should have been exited after 2 fieldspecs, so i=3
     @assertEqual(3, i)
+
+    call d_collection%clear()
+    call f_collection%clear()
 
   end subroutine test_iterator
 
