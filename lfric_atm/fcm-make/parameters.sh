@@ -14,15 +14,15 @@
 # variables below are empty, and the revisions of any projects with
 # dependent changes should be updated to the revision at which those
 # changes were committed to the project's trunk
-export casim_rev=8786
+export casim_rev=um12.0
 export casim_sources=
-export jules_rev=20458
+export jules_rev=um12.0
 export jules_sources=
-export shumlib_rev=um11.9
+export shumlib_rev=5358
 export shumlib_sources=
-export socrates_rev=1040
+export socrates_rev=um12.0
 export socrates_sources=
-export um_rev=100295
+export um_rev=vn12.0
 export um_sources=
 
 #### Do not edit the definitions below this line without
