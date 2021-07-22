@@ -18,7 +18,7 @@ module lfric_xios_read_mod
   use field_parent_mod,     only: field_parent_type, &
                                   field_parent_proxy_type
   use files_config_mod,     only: checkpoint_stem_name
-  use fs_continuity_mod,    only: W3, WTheta
+  use fs_continuity_mod,    only: W3, WTheta, W2H
   use integer_field_mod,    only: integer_field_type, &
                                   integer_field_proxy_type
   use r_solver_field_mod,   only: r_solver_field_type, &
@@ -334,20 +334,22 @@ subroutine read_field_single_face(xios_field_name, field_proxy)
 
 end subroutine read_field_single_face
 
-!>  @brief  Read a time-varying field in UGRID format using XIOS
+!>  @brief  Read a time-varying field, with given time dimension, in UGRID format using XIOS
 !>
 !>  @param[in]     xios_field_name  XIOS identifier for the field
 !>  @param[inout]  field_proxy      A field proxy to be read into
 !>  @param[in]     time_index       The indices of the time 'columns' to be
 !>                                  read in
+!>  @param[in]     time_axis_id     The XIOS id of the time axis
 !>
-subroutine read_field_time_var(xios_field_name, field_proxy, time_indices)
+subroutine read_field_time_var(xios_field_name, field_proxy, time_indices, time_axis_id)
 
   implicit none
 
   character(len=*),       intent(in)    :: xios_field_name
   type(field_proxy_type), intent(inout) :: field_proxy
   integer(i_def),         intent(in)    :: time_indices(:)
+  character(len=*),       intent(in)    :: time_axis_id
 
   integer(i_def) :: undf, fs_id, i, j, k, nlayers, ndata, time_index, vert_levels
   integer(i_def) :: domain_size, vert_axis_size, time_axis_size, start_index
@@ -355,6 +357,15 @@ subroutine read_field_time_var(xios_field_name, field_proxy, time_indices)
   real(r_def),   allocatable :: ndata_slice(:)
   real(r_def),   allocatable :: time_slice(:)
   real(r_def),   allocatable :: field_data(:)
+
+  fs_id = field_proxy%vspace%which()
+  ! get the horizontal / vertical / time domain sizes
+  if ( fs_id == W3 .or. fs_id==WTheta .or. fs_id==W2H ) then
+    call xios_get_axis_attr( time_axis_id, n_glo=time_axis_size )
+  else
+    call log_event( 'Time varying fields only readable for W3, WTheta or W2H function spaces', &
+                     LOG_LEVEL_ERROR )
+  end if
 
   ! Get the number of layers to distiniguish between 2D and 3D fields
   nlayers = field_proxy%vspace%get_nlayers()
@@ -371,13 +382,14 @@ subroutine read_field_time_var(xios_field_name, field_proxy, time_indices)
   if ( fs_id == W3 ) then
     call xios_get_domain_attr( 'face', ni=domain_size )
     call xios_get_axis_attr( 'vert_axis_half_levels', n_glo=vert_axis_size )
-    call xios_get_axis_attr( 'monthly_axis', n_glo=time_axis_size )
   else if ( fs_id == WTheta ) then
     call xios_get_domain_attr( 'face', ni=domain_size )
     call xios_get_axis_attr( 'vert_axis_full_levels', n_glo=vert_axis_size )
-    call xios_get_axis_attr( "monthly_axis", n_glo=time_axis_size )
+  else if ( fs_id == W2H ) then
+    call xios_get_domain_attr( 'edge', ni=domain_size )
+    call xios_get_axis_attr( 'vert_axis_half_levels', n_glo=vert_axis_size )
   else
-    call log_event( 'Time varying fields only readable for W3 or WTheta function spaces', &
+    call log_event( 'Time varying fields only readable for W3, WTheta or W2H function spaces', &
                      LOG_LEVEL_ERROR )
   end if
 
@@ -479,7 +491,9 @@ subroutine read_time_data(time_id, time_data)
 
   ! Set time units to seconds across a single year - the calendar type needs to
   ! be integrated into this eventually
-  if ( time_units == 'days' ) then
+  if ( time_units == 'seconds' ) then
+    call log_event( 'Time units already in seconds', LOG_LEVEL_INFO )
+  else if ( time_units == 'days' ) then
     time_data = mod( time_data, 365.0_dp_xios )
     time_data = time_data * 3600.0_dp_xios * 24.0_dp_xios
   else if ( time_units == 'hours' ) then

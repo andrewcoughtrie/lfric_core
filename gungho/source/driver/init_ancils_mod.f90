@@ -6,7 +6,7 @@
 
 module init_ancils_mod
 
-  use constants_mod,                  only : i_def, l_def, dp_xios, str_def,   &
+  use constants_mod,                  only : i_def, l_def, str_def,   &
                                              r_def
   use log_mod,                        only : log_event,         &
                                              log_scratch_space, &
@@ -22,10 +22,10 @@ module init_ancils_mod
   use linked_list_mod,                only : linked_list_type
   use lfric_xios_read_mod,            only : read_field_face, &
                                              read_field_single_face, &
-                                             read_field_time_var, &
-                                             read_time_data
+                                             read_field_time_var
   use lfric_xios_write_mod,           only : write_field_face, &
                                              write_field_single_face
+  use init_time_axis_mod,             only : init_time_axis
   use field_collection_mod,           only : field_collection_type, &
                                              field_collection_real_iterator_type
   use function_space_mod,             only : function_space_type
@@ -75,6 +75,11 @@ contains
     type(time_axis_type), save :: pft_time_axis
     type(time_axis_type), save :: ozone_time_axis
 
+    ! Time axis options
+    logical(l_def),   parameter :: cyclic=.true.
+    logical(l_def),   parameter :: interp_flag=.false.
+    character(len=*), parameter :: axis_id="monthly_axis"
+
     ! Set pointer to time axis read behaviour
     tmp_update_ptr => read_field_time_var
 
@@ -101,7 +106,8 @@ contains
       call setup_ancil_field("land_tile_fraction", depository, ancil_fields, &
                               mesh_id, twod_mesh_id, twod=.true.,            &
                               ndata=n_land_tile)
-      call init_time_axis("pft_time", pft_time_axis)
+      call init_time_axis("pft_time", pft_time_axis, axis_id, &
+                           cyclic, interp_flag)
       call setup_ancil_field("canopy_height", depository, ancil_fields, &
                               mesh_id, twod_mesh_id, twod=.true., ndata=npft, &
                               time_axis=pft_time_axis)
@@ -111,14 +117,16 @@ contains
       call pft_time_axis%set_update_behaviour(tmp_update_ptr)
       call ancil_times_list%insert_item(pft_time_axis)
 
-      call init_time_axis("sea_time", sea_time_axis)
+      call init_time_axis("sea_time", sea_time_axis, axis_id, &
+                           cyclic, interp_flag)
       call setup_ancil_field("chloro_sea", depository, ancil_fields, mesh_id, &
                               twod_mesh_id, twod=.true.,                      &
                               time_axis=sea_time_axis)
       call sea_time_axis%set_update_behaviour(tmp_update_ptr)
       call ancil_times_list%insert_item(sea_time_axis)
 
-      call init_time_axis("sst_time", sst_time_axis)
+      call init_time_axis("sst_time", sst_time_axis, axis_id, &
+                          cyclic, interp_flag)
       call setup_ancil_field("tstar_sea", depository, ancil_fields, mesh_id, &
                               twod_mesh_id, twod=.true.,                     &
                               time_axis=sst_time_axis)
@@ -126,7 +134,8 @@ contains
       call ancil_times_list%insert_item(sst_time_axis)
 
       !=====  SEA ICE ANCILS  =====
-      call init_time_axis("sea_ice_time", sea_ice_time_axis)
+      call init_time_axis("sea_ice_time", sea_ice_time_axis, axis_id, &
+                          cyclic, interp_flag)
       call setup_ancil_field("sea_ice_thickness", depository, ancil_fields, &
                 mesh_id, twod_mesh_id, twod=.true., time_axis=sea_ice_time_axis)
       call setup_ancil_field("sea_ice_fraction", depository, ancil_fields, &
@@ -135,14 +144,16 @@ contains
       call ancil_times_list%insert_item(sea_ice_time_axis)
 
       !=====  RADIATION ANCILS  =====
-      call init_time_axis("albedo_vis_time", albedo_vis_time_axis)
+      call init_time_axis("albedo_vis_time", albedo_vis_time_axis, axis_id, &
+                          cyclic, interp_flag)
       call setup_ancil_field("albedo_obs_vis", depository, ancil_fields, &
                              mesh_id, twod_mesh_id, twod=.true., &
                              time_axis=albedo_vis_time_axis)
       call albedo_vis_time_axis%set_update_behaviour(tmp_update_ptr)
       call ancil_times_list%insert_item(albedo_vis_time_axis)
 
-      call init_time_axis("albedo_nir_time", albedo_nir_time_axis)
+      call init_time_axis("albedo_nir_time", albedo_nir_time_axis, axis_id, &
+                          cyclic, interp_flag)
       call setup_ancil_field("albedo_obs_nir", depository, ancil_fields, &
                               mesh_id, twod_mesh_id, twod=.true., &
                               time_axis=albedo_nir_time_axis)
@@ -194,14 +205,16 @@ contains
                               mesh_id, twod_mesh_id, twod=.true.)
 
       !=====  OZONE ANCIL  =====
-      call init_time_axis("ozone_time", ozone_time_axis)
+      call init_time_axis("ozone_time", ozone_time_axis, axis_id, &
+                          cyclic, interp_flag)
       call setup_ancil_field("ozone", depository, ancil_fields, mesh_id, &
                              twod_mesh_id, time_axis=ozone_time_axis)
       call ozone_time_axis%set_update_behaviour(tmp_update_ptr)
       call ancil_times_list%insert_item(ozone_time_axis)
 
       !=====  AEROSOL ANCILS  =====
-      call init_time_axis("aerosols_time", aerosol_time_axis)
+      call init_time_axis("aerosols_time", aerosol_time_axis, axis_id, &
+                          cyclic, interp_flag)
       call setup_ancil_field("acc_sol_bc", depository, ancil_fields, mesh_id,  &
                              twod_mesh_id, time_axis=aerosol_time_axis)
       call setup_ancil_field("acc_sol_om", depository, ancil_fields, mesh_id,  &
@@ -363,37 +376,5 @@ contains
     nullify(fld_ptr)
 
   end subroutine setup_ancil_field
-
-  !> @details Initialises a time_axis object for a group of time-varying ancils
-  !> @param[in] time_id The name of the time axis (also the XIOS id of the time
-  !>                    data)
-  !> @param[out] time_axis The resulting time_axis object
-  subroutine init_time_axis(time_id, time_axis)
-
-    implicit none
-
-    character(len=*),     intent(in)  :: time_id
-    type(time_axis_type), intent(out) :: time_axis
-
-    ! Local/derived variables for time axis initialisation
-    real(dp_xios),  allocatable :: time_data_dpxios(:)
-    real(r_def),    allocatable :: time_data(:)
-    integer(i_def), allocatable :: axis_indices(:)
-
-    ! Other local variables for XIOS interface
-    integer(i_def) :: i
-
-    ! Read time data from ancil file, then cast to r_def
-    call read_time_data(time_id, time_data_dpxios)
-    allocate( time_data( size(time_data_dpxios) ) )
-    time_data = real(time_data_dpxios, kind=r_def)
-
-    ! Initialise time axis
-    call time_axis%initialise( time_data, time_id )
-
-    deallocate(time_data)
-    deallocate(time_data_dpxios)
-
-  end subroutine init_time_axis
 
 end module init_ancils_mod

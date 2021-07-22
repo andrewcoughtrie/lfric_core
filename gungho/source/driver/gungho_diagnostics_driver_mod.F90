@@ -14,6 +14,7 @@ module gungho_diagnostics_driver_mod
 
   use clock_mod,                 only : clock_type
   use constants_mod,             only : i_def, str_def
+  use boundaries_config_mod,     only : limited_area, output_lbcs
   use diagnostics_io_mod,        only : write_scalar_diagnostic, &
                                         write_vector_diagnostic
   use diagnostics_calc_mod,      only : write_divergence_diagnostic, &
@@ -62,6 +63,7 @@ contains
 
     type( field_collection_type ), pointer :: prognostic_fields => null()
     type( field_collection_type ), pointer :: diagnostic_fields => null()
+    type( field_collection_type ), pointer :: lbc_fields => null()
     type( field_type ),            pointer :: mr(:) => null()
     type( field_type ),            pointer :: moist_dyn(:) => null()
     type( field_collection_type ), pointer :: derived_fields => null()
@@ -69,6 +71,8 @@ contains
 
     type( field_type), pointer :: theta => null()
     type( field_type), pointer :: u => null()
+    type( field_type), pointer :: h_u => null()
+    type( field_type), pointer :: v_u => null()
     type( field_type), pointer :: rho => null()
     type( field_type), pointer :: exner => null()
     type( field_type), pointer :: panel_id => null()
@@ -89,6 +93,7 @@ contains
     ! Get pointers to field collections for use downstream
     prognostic_fields => model_data%prognostic_fields
     diagnostic_fields => model_data%diagnostic_fields
+    lbc_fields => model_data%lbc_fields
     mr => model_data%mr
     moist_dyn => model_data%moist_dyn
     derived_fields => model_data%derived_fields
@@ -123,6 +128,34 @@ contains
                                       clock, mesh_id, nodal_output_on_w3 )
       end do
     end if
+
+    if (limited_area) then
+      if (output_lbcs) then
+        theta => lbc_fields%get_field('lbc_theta')
+        u => lbc_fields%get_field('lbc_u')
+        rho => lbc_fields%get_field('lbc_rho')
+        exner => lbc_fields%get_field('lbc_exner')
+
+        h_u => lbc_fields%get_field('lbc_h_u')
+        v_u => lbc_fields%get_field('lbc_v_u')
+
+        ! Scalar fields
+        call write_scalar_diagnostic('lbc_rho', rho, &
+                                 clock, mesh_id, nodal_output_on_w3)
+        call write_scalar_diagnostic('lbc_theta', theta, &
+                                 clock, mesh_id, nodal_output_on_w3)
+        call write_scalar_diagnostic('lbc_exner', exner, &
+                                 clock, mesh_id, nodal_output_on_w3)
+        call write_scalar_diagnostic('readlbc_v_u', v_u, &
+                                 clock, mesh_id, nodal_output_on_w3)
+
+        ! Vector fields
+        call write_vector_diagnostic('lbc_u', u, &
+                                 clock, mesh_id, nodal_output_on_w3)
+        call write_vector_diagnostic('readlbc_h_u', h_u, &
+                                 clock, mesh_id, nodal_output_on_w3)
+      endif
+    endif
 
     ! Cloud fields - are all scalars - so iterate over collection
     if (use_physics .and. cloud == cloud_um) then

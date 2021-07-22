@@ -33,13 +33,17 @@ module gungho_setup_io_mod
                                        sst_ancil_path,            &
                                        surface_frac_ancil_path,   &
                                        start_dump_filename,       &
-                                       start_dump_directory
+                                       start_dump_directory,      &
+                                       lbc_filename,              &
+                                       lbc_directory
   use initialization_config_mod, only: init_option,               &
                                        init_option_fd_start_dump, &
                                        ancil_option,              &
                                        ancil_option_aquaplanet,   &
                                        ancil_option_basic_gal,    &
-                                       ancil_option_prototype_gal
+                                       ancil_option_prototype_gal,&
+                                       lbc_option,                &
+                                       lbc_option_file
   use io_config_mod,             only: diagnostic_frequency,      &
                                        checkpoint_write,          &
                                        checkpoint_read,           &
@@ -74,7 +78,8 @@ module gungho_setup_io_mod
     character(len=str_max_filename) :: checkpoint_write_fname, &
                                        checkpoint_read_fname,  &
                                        dump_fname,             &
-                                       ancil_fname
+                                       ancil_fname,            &
+                                       lbc_fname
 
     ! Setup diagnostic output file
     call tmp_file%init_xios_file("lfric_diag", freq=diagnostic_frequency)
@@ -196,6 +201,14 @@ module gungho_setup_io_mod
       call tmp_file%init_xios_file("orography_ancil", path=ancil_fname)
       call files_list%insert_item(tmp_file)
     end if
+
+    ! Setup the lbc file
+    if ( lbc_option == lbc_option_file ) then
+      write(lbc_fname,'(A)') trim(lbc_directory)//'/'// &
+                             trim(lbc_filename)
+      call tmp_file%init_xios_file("lbc", path=lbc_fname)
+      call files_list%insert_item(tmp_file)
+    endif
 
     ! Setup checkpoint writing context information
     if ( checkpoint_write ) then

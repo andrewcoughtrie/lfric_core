@@ -7,16 +7,30 @@
 !> @brief Initialisation of analytical LBC fields.
 module init_gungho_lbcs_alg_mod
 
+  use clock_mod,                       only: clock_type
+  use constants_mod,                   only: i_def
   use field_mod,                       only: field_type
   use field_collection_mod,            only: field_collection_type
   use fs_continuity_mod,               only: W2, W3, Wtheta
+  use log_mod,                         only: log_event,         &
+                                             log_scratch_space, &
+                                             LOG_LEVEL_INFO
   use limited_area_constants_mod,      only: get_boundary_mask, &
                                              get_lbc_mask
+  use lfric_xios_read_mod,             only: read_state
+  use variable_fields_mod,             only: init_variable_fields,  &
+                                             update_variable_fields
+  use lfric_xios_time_axis_mod,        only: time_axis_type
+  use linked_list_mod,                 only: linked_list_type
 
   implicit none
 
   private
-  public :: init_gungho_lbcs_alg
+  public :: init_lbcs_analytic_alg, &
+            init_lbcs_file_alg,     &
+            update_lbcs_file_alg,   &
+            combine_lbc_winds,      &
+            define_boundary_u
 
   contains
 
@@ -29,7 +43,7 @@ module init_gungho_lbcs_alg_mod
   !!          by the interior.
   !> @param[in]     prognostic_fields The collection of prognostics
   !> @param[in,out] lbc_fields        The collection of LBC fields
-  subroutine init_gungho_lbcs_alg( prognostic_fields, lbc_fields )
+  subroutine init_lbcs_analytic_alg( prognostic_fields, lbc_fields )
 
     implicit none
 
@@ -78,6 +92,119 @@ module init_gungho_lbcs_alg_mod
     nullify( theta, u, rho, exner )
     nullify( lbc_theta, lbc_u, lbc_rho, lbc_exner, boundary_u )
 
-  end subroutine init_gungho_lbcs_alg
+  end subroutine init_lbcs_analytic_alg
+
+  !> @brief   Read the time-varying LBCs from a file.
+  !> @details Initialise the LBCs, that are read in and updated using
+  !!          a time-axis.
+  !> @param[in,out] lbc_times_list  The LBC time axis list
+  !> @param[in]     clock           Clock
+  !> @param[in,out] lbc_fields      The LBC field collection
+  subroutine init_lbcs_file_alg( lbc_times_list, clock, lbc_fields )
+
+    implicit none
+
+    type( field_collection_type ), intent(inout) :: lbc_fields
+    type(linked_list_type),        intent(in)    :: lbc_times_list
+    class(clock_type),             intent(in)    :: clock
+
+    call read_state( lbc_fields )
+    call init_variable_fields( lbc_times_list, &
+                               clock, lbc_fields )
+
+    call combine_lbc_winds( lbc_fields )
+
+    call define_boundary_u( lbc_fields )
+
+  end subroutine init_lbcs_file_alg
+
+  !> @brief   Update the time-varying LBCs from a file.
+  !> @details Update the LBCs, that are read in and updated using
+  !!          a time-axis.
+  !> @param[in]     lbc_times_list  The LBC time axis list
+  !> @param[in]     clock           Clock
+  !> @param[in,out] lbc_fields      The LBC field collection
+  subroutine update_lbcs_file_alg( lbc_times_list, clock, lbc_fields )
+
+    implicit none
+
+    type( field_collection_type ), intent(inout) :: lbc_fields
+    type(linked_list_type),        intent(in)    :: lbc_times_list
+    class(clock_type),             intent(in)    :: clock
+
+    call update_variable_fields( lbc_times_list, &
+                                 clock,lbc_fields )
+
+    ! Combine h_wind (W2h) and v_wind (wtheta) into wind (w2)
+    call combine_lbc_winds( lbc_fields )
+
+    ! Define boundary_u_driving
+    call define_boundary_u( lbc_fields )
+
+  end subroutine update_lbcs_file_alg
+
+  !> @brief   Combine horizontal and vertical winds
+  !> @details The horizontal winds are read in as W2H, and the vertical
+  !!          winds are read in as Wtheta. This combines them into a
+  !!          single W2 field.
+  !> @param[in,out] fields  The collection of lbc fields
+  subroutine combine_lbc_winds( fields )
+
+    use combine_w2_field_kernel_mod, only: combine_w2_field_kernel_type
+
+    implicit none
+
+    type( field_collection_type ), intent(inout) :: fields
+    type(field_type), pointer                    :: wind => null()
+    type(field_type), pointer                    :: h_wind => null()
+    type(field_type), pointer                    :: v_wind => null()
+
+    write(log_scratch_space,'(A)') "Combining winds "
+    call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
+    h_wind => fields%get_field("lbc_h_u")
+    v_wind => fields%get_field("lbc_v_u")
+    wind => fields%get_field("lbc_u")
+
+    call invoke( combine_w2_field_kernel_type(wind, h_wind, v_wind) )
+
+  end subroutine combine_lbc_winds
+
+  !> @brief   Define the LBC wind on the solver boundary
+  !> @details Define boundary_u by applying the w2_boundary_mask
+  !!          to lbc_u
+  !> @param[in,out] lbc_fields  The collection of lbc fields
+  subroutine define_boundary_u( lbc_fields )
+
+    implicit none
+
+    type( field_collection_type ), intent(inout) :: lbc_fields
+    type( field_type ), pointer :: lbc_field  => null()
+    type( field_type ), pointer :: boundary_u => null()
+    type( field_type ), pointer :: w2_boundary_mask => null()
+
+    w2_boundary_mask => get_boundary_mask( W2 )
+
+    lbc_field  => lbc_fields%get_field( 'lbc_u' )
+    boundary_u => lbc_fields%get_field( 'boundary_u_driving' )
+
+    call invoke( X_times_Y( boundary_u, lbc_field, w2_boundary_mask ) )
+
+    ! Print max and min
+    lbc_field  => lbc_fields%get_field( 'lbc_u' )
+    call lbc_field%log_minmax(LOG_LEVEL_INFO, 'lbc_u')
+
+    lbc_field      => lbc_fields%get_field( 'lbc_theta' )
+    call lbc_field%log_minmax(LOG_LEVEL_INFO, 'lbc_theta')
+
+    lbc_field      => lbc_fields%get_field( 'lbc_rho' )
+    call lbc_field%log_minmax(LOG_LEVEL_INFO, 'lbc_rho')
+
+    lbc_field      => lbc_fields%get_field( 'lbc_exner' )
+    call lbc_field%log_minmax(LOG_LEVEL_INFO, 'lbc_exner')
+
+    nullify( boundary_u, lbc_field, w2_boundary_mask)
+
+  end subroutine define_boundary_u
 
 end module init_gungho_lbcs_alg_mod

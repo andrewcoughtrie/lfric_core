@@ -37,6 +37,8 @@ module lfric_xios_time_axis_mod
     real(kind=r_def), allocatable :: time_data( : )
     !> The indices of the data points of the time axis
     integer(kind=i_def), allocatable :: index_data( : )
+    !> The XIOS ID of the time axis
+    character(str_def) :: xios_id
     !> The collection of fields associated with the time axis
     type(field_collection_type) :: fields
     !> Flag determining the cyclical nature of time axis
@@ -86,11 +88,12 @@ module lfric_xios_time_axis_mod
   !> @param[in,out] field_proxy Field proxy to be updated
   !> @param[in]     times       The time data corresponding to the new field data
   !>
-  subroutine update_interface(field_name, field_proxy, times)
+  subroutine update_interface(field_name, field_proxy, times, xios_id)
     import i_def, field_proxy_type
     character(len=*),        intent(in) :: field_name
     type(field_proxy_type),  intent(inout) :: field_proxy
     integer(i_def),          intent(in) :: times(:)
+    character(len=*),        intent(in) :: xios_id
   end subroutine update_interface
 
 end interface
@@ -103,6 +106,7 @@ contains
   !>
   !> @param[in] input_data   The input time data array
   !> @param[in] name         The time axis name
+  !> @param[in] xios_id      The type of time axis
   !> @param[in] input_units  The units of time data
   !> @param[in] cyclic       Flag determining if axis is cyclic
   !> @param[in] upper_limit  The maximum value that the time axis can take
@@ -110,7 +114,7 @@ contains
   !> @param[in] interp_flag  Flag determining if time_axis fields are linearly
   !>                         interpolated before being passed to the model data
   !> @param[in] update_freq  The update frequency of the time axis in timesteps
-subroutine initialise( self, input_data, name, input_units, cyclic, &
+  subroutine initialise( self, input_data, name, xios_id, input_units, cyclic, &
                          upper_limit, interp_flag, update_freq )
 
     implicit none
@@ -118,6 +122,7 @@ subroutine initialise( self, input_data, name, input_units, cyclic, &
     class(time_axis_type),        intent(inout) :: self
     real(r_def),                  intent(in)    :: input_data(:)
     character(*),                 intent(in)    :: name
+    character(*),                 intent(in)    :: xios_id
     character(*),   optional,     intent(in)    :: input_units
     logical(l_def), optional,     intent(in)    :: cyclic
     real(r_def),    optional,     intent(in)    :: upper_limit
@@ -132,6 +137,8 @@ subroutine initialise( self, input_data, name, input_units, cyclic, &
     self%index_data = (/ (i, i=1, size(input_data)) /)
 
     self%name = name
+
+    self%xios_id = xios_id
 
     input_fields = field_collection_type(name=trim(name)//'_fields')
     self%fields = input_fields
@@ -344,7 +351,7 @@ subroutine initialise( self, input_data, name, input_units, cyclic, &
           call log_event( &
             'Reading '//trim(adjustl(updated_field%get_name())), &
             LOG_LEVEL_INFO)
-          call self%update_behaviour(updated_field%get_name(), tmp_proxy, self%index_data(1:2))
+          call self%update_behaviour(updated_field%get_name(), tmp_proxy, self%index_data(1:2), self%xios_id)
       end select
     end do
 

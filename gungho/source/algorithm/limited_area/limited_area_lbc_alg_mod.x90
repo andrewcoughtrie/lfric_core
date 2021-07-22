@@ -113,22 +113,23 @@ contains
     character(len=*), intent(in)            :: name
     type(field_type), intent(inout)         :: lam_field
     type(field_collection_type), intent(in) :: lbc_fields
-    type(field_type), pointer               :: driving_lbc => null(), &
-                                               blendmask   => null(), &
-                                               lbcmask     => null()
-    type(field_type)                        :: lam_lbc, inc
+    type(field_type), pointer               :: driving_field => null(), &
+                                               blend_mask    => null(), &
+                                               lbc_mask      => null()
+    type(field_type)                        :: lam_lbc, driving_lbc, inc
     integer(i_def)                          :: function_space
-
-    ! Setup the temporary fields.
-    call lam_field%copy_field_properties( lam_lbc )
-    call lam_field%copy_field_properties( inc )
 
     ! Define the function space required for masks.
     function_space = lam_field%which_function_space()
 
-    driving_lbc => lbc_fields%get_field( name )
-    blendmask   => get_blend_mask( function_space )
-    lbcmask     => get_lbc_mask( function_space )
+    driving_field => lbc_fields%get_field( name )
+    blend_mask    => get_blend_mask( function_space )
+    lbc_mask      => get_lbc_mask( function_space )
+
+    ! Setup the temporary fields.
+    call lam_field%copy_field_properties( lam_lbc )
+    call lam_field%copy_field_properties( inc )
+    call driving_field%copy_field_properties( driving_lbc )
 
     ! Apply blending, as follows:
     ! x_blended = (1-w) * x_lam + w * x_driving
@@ -140,18 +141,20 @@ contains
                ! This is just extracting the LAM field in the LBC region.
                ! It ensures that the code still works if e.g. the blending
                ! mask is not applied.
-               X_times_Y( lam_lbc, lam_field, lbcmask ), &
+               X_times_Y( lam_lbc, lam_field, lbc_mask ), &
+
+               X_times_Y( driving_lbc, driving_field, lbc_mask ), &
 
                ! Calculate x_driving - x_lam (The LBC increment).
                X_minus_Y( inc, driving_lbc, lam_lbc ),   &
 
                ! Calculate w * (x_driving - x_lam) (Weight the increment).
-               inc_X_times_Y( inc, blendmask ),          &
+               inc_X_times_Y( inc, blend_mask ),          &
 
                ! Add weighted increment back on to the state.
                inc_X_plus_Y( lam_field, inc ) )
 
-    nullify( driving_lbc, blendmask, lbcmask )
+    nullify( driving_field, blend_mask, lbc_mask )
 
   end subroutine blend_field
 

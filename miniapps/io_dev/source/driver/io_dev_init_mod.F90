@@ -80,10 +80,11 @@ module io_dev_init_mod
     type(linked_list_type),      intent(inout) :: variable_times_list
 
     ! Local variables
-    type(time_axis_type), save :: time_varying_fields_axis
-    real(r_def)                :: time_data(12)
-    logical(l_def)             :: interp_flag = .true.
-    integer(i_def), parameter  :: n_multi_data = 5
+    type(time_axis_type), save  :: time_varying_fields_axis
+    real(r_def)                 :: time_data(12)
+    logical(l_def)              :: interp_flag = .true.
+    integer(i_def), parameter   :: n_multi_data = 5
+    character(len=*), parameter :: axis_id='monthly_axis'
 
     ! Pointers
     class(pure_abstract_field_type), pointer :: tmp_field_ptr => null()
@@ -128,6 +129,7 @@ module io_dev_init_mod
         time_data = ( (time_data*30.0_r_def) - 15.0_r_def ) * 86400_r_def
         call time_varying_fields_axis%initialise( time_data, &
                                                 "variable_field_times", &
+                                                axis_id,                &
                                                 input_units = 'seconds', &
                                                 upper_limit = 360.0_r_def*86400_r_def, &
                                                 interp_flag = interp_flag, &

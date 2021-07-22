@@ -33,7 +33,11 @@ module gungho_model_data_mod
                                                ancil_option_none,           &
                                                ancil_option_aquaplanet,     &
                                                ancil_option_basic_gal,      &
-                                               ancil_option_prototype_gal
+                                               ancil_option_prototype_gal,  &
+                                               lbc_option,                  &
+                                               lbc_option_none,             &
+                                               lbc_option_analytic,         &
+                                               lbc_option_file
   use io_config_mod,                    only : checkpoint_read,  &
                                                checkpoint_write, &
                                                write_dump
@@ -48,7 +52,8 @@ module gungho_model_data_mod
   use section_choice_config_mod,        only : cloud, cloud_none
   use map_fd_to_prognostics_alg_mod,    only : map_fd_to_prognostics
   use init_gungho_prognostics_alg_mod,  only : init_gungho_prognostics_alg
-  use init_gungho_lbcs_alg_mod,         only : init_gungho_lbcs_alg
+  use init_gungho_lbcs_alg_mod,         only : init_lbcs_file_alg,    &
+                                               init_lbcs_analytic_alg
   use init_physics_prognostics_alg_mod, only : init_physics_prognostics_alg
   use moist_dyn_factors_alg_mod,        only : moist_dyn_factors_alg
   use init_fd_prognostics_mod,          only : init_fd_prognostics_dump
@@ -91,6 +96,8 @@ module gungho_model_data_mod
     type( field_collection_type ), public   :: derived_fields
     !> LBC fields - lateral boundary conditions to run a limited area model
     type( field_collection_type ), public   :: lbc_fields
+    !> Linked list of time axis objects used to update time-varying lbcs
+    type( linked_list_type ),      public   :: lbc_times_list
     !> Fields owned by the radiation scheme
     type( field_collection_type ), public   :: radiation_fields
     !> Fields owned by the microphysics scheme
@@ -351,7 +358,8 @@ contains
     if (limited_area) call create_lbc_fields( mesh_id,                      &
                                               model_data%depository,        &
                                               model_data%prognostic_fields, &
-                                              model_data%lbc_fields )
+                                              model_data%lbc_fields,        &
+                                              model_data%lbc_times_list )
 
     ! Create prognostics used by physics
     if (use_physics) then
@@ -431,12 +439,6 @@ contains
                                           model_data%mr,                &
                                           model_data%moist_dyn )
 
-        ! Initialise the LBCs by copying from the prognostic fields
-        if ( limited_area ) then
-          call init_gungho_lbcs_alg( model_data%prognostic_fields, &
-                                     model_data%lbc_fields )
-        end if
-
       case ( init_option_checkpoint_dump )
 
         ! Initialize prognostics using a checkpoint file
@@ -480,6 +482,22 @@ contains
                           "stopping program! ",LOG_LEVEL_ERROR)
 
     end select
+
+    if (limited_area) then
+
+      select case( lbc_option )
+        case ( lbc_option_analytic )
+          call init_lbcs_analytic_alg( model_data%prognostic_fields, &
+                                       model_data%lbc_fields )
+        case ( lbc_option_file )
+          call init_lbcs_file_alg( model_data%lbc_times_list, &
+                                   clock,                     &
+                                   model_data%lbc_fields )
+        case ( lbc_option_none )
+          call log_event( "Gungho: No LBC option specified, yet limited area", LOG_LEVEL_ERROR )
+      end select
+
+    end if
 
     ! Assuming this is only relevant for physics runs at the moment
     if (use_physics) then

@@ -29,6 +29,9 @@ module gungho_driver_mod
                                          diagnostic_frequency, &
                                          nodal_output_on_w3
   use io_context_mod,             only : io_context_type
+  use initialization_config_mod,  only : lbc_option,     &
+                                         lbc_option_file
+  use init_gungho_lbcs_alg_mod,   only : update_lbcs_file_alg
   use log_mod,                    only : log_event,         &
                                          log_scratch_space, &
                                          LOG_LEVEL_ALWAYS,  &
@@ -132,6 +135,13 @@ contains
       ! Update time-varying fields
       call update_variable_fields( model_data%ancil_times_list, &
                                    clock, model_data%ancil_fields )
+
+      if ( lbc_option == lbc_option_file ) then
+
+        call update_lbcs_file_alg( model_data%lbc_times_list, &
+                                   clock, model_data%lbc_fields )
+      endif
+
 
       ! Perform a timestep
       call gungho_step( mesh_id,      &

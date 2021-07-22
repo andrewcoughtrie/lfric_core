@@ -57,6 +57,7 @@ subroutine_timers=.false.,
 use_xios_io=.false.,
 write_diag=.true.,
 write_dump=.false.,
+write_fluxes=.false.,
 write_minmax_tseries=.false.,
 /
 

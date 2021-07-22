@@ -19,6 +19,7 @@
   use_xios_io               = .true.
   write_diag                = .true.
   write_dump                = .false.
+  write_fluxes              = .false.
   diagnostic_frequency      = 1
   nodal_output_on_w3        = .false.
   subroutine_timers         = .false.

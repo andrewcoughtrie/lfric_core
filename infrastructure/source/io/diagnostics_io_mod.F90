@@ -13,11 +13,12 @@ module diagnostics_io_mod
   use clock_mod,                     only: clock_type
   use constants_mod,                 only: i_def, i_timestep, &
                                            r_def, str_max_filename
-  use diagnostic_alg_mod,            only: split_wind_diagnostic_alg, &
+  use diagnostic_alg_mod,            only: split_wind_diagnostic_alg,   &
+                                           extract_w2h_diagnostic_alg,  &
                                            scalar_nodal_diagnostic_alg, &
                                            scalar_ugrid_diagnostic_alg, &
                                            vector_nodal_diagnostic_alg
-  use io_config_mod,                 only: use_xios_io
+  use io_config_mod,                 only: use_xios_io, write_fluxes
   use files_config_mod,              only: diag_stem_name
   use project_output_mod,            only: project_output
   use io_mod,                        only: ts_fname, &
@@ -186,6 +187,7 @@ subroutine write_vector_diagnostic( field_name, field, &
   type(field_type)                :: projected_field(3)
   type(field_type)                :: level
   type(field_type)                :: u1_wind, u2_wind, u3_wind
+  type(field_type)                :: h_wind, v_wind
   character(len=str_max_filename) :: fname
   character(len=1)                :: uchar
   character(len=str_max_filename) :: field_name_new
@@ -296,8 +298,7 @@ subroutine write_vector_diagnostic( field_name, field, &
 
    else ! wind fields in w2
 
-    ! Note winds are currently a special case so we
-    ! call a special algorithm to process them for ugrid output
+      !---- Output wind as u1, u2, and u3 wind components ---
 
       call split_wind_diagnostic_alg(u1_wind, u2_wind, u3_wind, &
                                     field,  mesh_id)
@@ -318,6 +319,27 @@ subroutine write_vector_diagnostic( field_name, field, &
         call u2_wind%write_field(trim(field_name)//"2")
         call u3_wind%write_field(trim(field_name)//"3")
       end if
+
+      if (write_fluxes) then
+
+        !---- Output wind as w2h and wtheta fluxes ----
+
+        ! Convert u to w2h (h_wind) and wtheta (v_wind)
+        call extract_w2h_diagnostic_alg( h_wind, v_wind, field, mesh_id )
+
+        tmp_write_ptr => write_field_face
+        call v_wind%set_write_behaviour(tmp_write_ptr)
+        tmp_write_ptr => write_field_edge
+        call h_wind%set_write_behaviour(tmp_write_ptr)
+        if (clock%is_initialisation()) then
+          call h_wind%write_field( "init_h_"//trim(field_name) )
+          call v_wind%write_field( "init_v_"//trim(field_name) )
+        else
+          call h_wind%write_field( "h_"//trim(field_name) )
+          call v_wind%write_field( "v_"//trim(field_name) )
+        end if
+
+      end if ! Output fluxes
 
     end if ! Check for wind fields
 

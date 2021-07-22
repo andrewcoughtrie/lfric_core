@@ -89,6 +89,7 @@
 &initialization
  init_option = 'analytic'
  ancil_option = 'none'
+ lbc_option = 'none'
 /
 
 &files
@@ -105,6 +106,7 @@
   write_conservation_diag   = .true.
   write_diag                = .true.
   write_dump                = .false.
+  write_fluxes              = .false.
   diagnostic_frequency      = 10
   nodal_output_on_w3        = .false.
   subroutine_timers         = .true.

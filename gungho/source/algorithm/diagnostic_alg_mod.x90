@@ -41,6 +41,7 @@ module diagnostic_alg_mod
   public :: scalar_ugrid_diagnostic_alg
   public :: vorticity_diagnostic_alg
   public :: l2norm_diff_2fields
+  public :: extract_w2h_diagnostic_alg
 
 contains
 
@@ -613,5 +614,24 @@ contains
     l2norm = sqrt(num)/sqrt(deno)
 
   end subroutine l2norm_diff_2fields
+
+  subroutine extract_w2h_diagnostic_alg( h_wind, v_wind, wind, mesh_id )
+    use split_w2_field_kernel_mod,        only: split_w2_field_kernel_type
+
+    implicit none
+
+    type(field_type), intent(inout)  :: h_wind, v_wind
+    type(field_type), intent(in)     :: wind
+    integer(i_def),   intent(in)     :: mesh_id
+
+    call h_wind%initialise( vector_space = &
+              function_space_collection%get_fs(mesh_id,element_order, W2H) )
+
+    call v_wind%initialise( vector_space = &
+              function_space_collection%get_fs(mesh_id,element_order, Wtheta) )
+
+    call invoke( split_w2_field_kernel_type(h_wind, v_wind, wind) )
+
+  end subroutine extract_w2h_diagnostic_alg
 
 end module diagnostic_alg_mod
