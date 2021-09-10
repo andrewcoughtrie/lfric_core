@@ -108,29 +108,22 @@ contains
 
 
   !===========================================================================
-  !> @brief Throws an error if the given unique_id is already used by a
+  !> @brief Returns true if a given unique_id is already used by a
   !>        fieldspec in the collection
   !> @param [in] unique_id The unique_id to check
   !>
-  subroutine check_unique_id_in_use( self, unique_id )
+  function check_unique_id_in_use( self, unique_id ) result (fieldspec_exists)
 
     implicit none
 
     class(fieldspec_collection_type),   intent(inout) :: self
     character(len=*),                   intent(in)    :: unique_id
 
-    if ( associated( self%get_fieldspec( trim(unique_id) ) ) ) then
+    logical(l_def)                                    :: fieldspec_exists
 
-      write(log_scratch_space, '(3A)') &
-            'The field unique id "', trim(unique_id), &
-            '" is already in use'
+    fieldspec_exists = ( associated( self%get_fieldspec( trim(unique_id) ) ) )
 
-      call log_event( log_scratch_space, LOG_LEVEL_ERROR)
-
-    end if
-
-    return
-  end subroutine check_unique_id_in_use
+  end function check_unique_id_in_use
 
   !===========================================================================
   !> @brief Creates a new fieldspec object and adds to the collection
@@ -196,7 +189,13 @@ contains
     class(fieldspec_collection_type), intent(inout) :: self
     type(fieldspec_type),             intent(in)    :: fieldspec
 
-    call self%check_unique_id_in_use( fieldspec%get_unique_id() )
+    if ( self%check_unique_id_in_use( fieldspec%get_unique_id() ) ) then
+      write(log_scratch_space, '(3A)') &
+            'The field unique id "', trim( fieldspec%get_unique_id() ), &
+            '" is already in use'
+
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR)
+    end if
 
     ! Add it to the list
     call self%fieldspec_list%insert_item( fieldspec )

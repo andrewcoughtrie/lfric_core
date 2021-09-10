@@ -137,6 +137,10 @@ contains
     @assertEqual([real(r_def) :: 1,2,3], returned_vert_axis%get_numeric_axis_def())
     @assertNotAssociated(returned_non_spatial_dim)
 
+    ! Check ability to test for existence of a fieldspec in the collection
+    @assertTrue( f_collection%check_unique_id_in_use("foo") )
+    @assertFalse( f_collection%check_unique_id_in_use("fooey") )
+
     call f_collection%clear()
 
   end subroutine test_assignment
