@@ -182,7 +182,7 @@ contains
     qr => get_qr()
 
     ! Get geopotential field from runtime_constants
-    geopotential => get_geopotential()
+    geopotential => get_geopotential(theta%get_mesh_id())
 
     call invoke( setval_c(hyd_imbal, 0.0_r_def), &
                  hydrostatic_kernel_type( hyd_imbal, exner, theta, moist_dyn, &

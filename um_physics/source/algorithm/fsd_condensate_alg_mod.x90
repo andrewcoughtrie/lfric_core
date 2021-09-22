@@ -60,8 +60,8 @@ contains
 
     mesh_id = area_fraction%get_mesh_id()
 
-    delta => get_delta_at_wtheta()
-    dz_wth => get_dz_at_wtheta()
+    delta => get_delta_at_wtheta(mesh_id)
+    dz_wth => get_dz_at_wtheta(mesh_id)
 
     call invoke ( fsd_condensate_kernel_type ( sigma_qcw,     & ! fsd of condensate
                                                f_arr,         & ! fsd parameters

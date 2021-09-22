@@ -472,9 +472,9 @@ contains
           call log_event( 'gravity_wave, gravity_wave_alg_mod: '//    &
                           'Invalid buoyancy space', LOG_LEVEL_ERROR )
       end select
-      w2_mask => get_mask(W2)
-      w3_mask => get_mask(W3)
-      wtheta_mask => get_mask(buoyancy_space)
+      w2_mask => get_mask(W2, mesh_id)
+      w3_mask => get_mask(W3, mesh_id)
+      wtheta_mask => get_mask(buoyancy_space, mesh_id)
     endif
 
     call state%import_field(wind,     igw_u)

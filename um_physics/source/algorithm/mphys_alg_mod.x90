@@ -168,7 +168,7 @@ contains
                                      theta_inc, dcfl, dcff, dbcf, f_arr ) )
 
     if (turb_gen_mixph) then
-      dz_in_wth => get_dz_at_wtheta()
+      dz_in_wth => get_dz_at_wtheta(mesh_id)
       call invoke( mphys_turb_gen_kernel_type(theta, mr_n(imr_v), mr_n(imr_cl),&
                                               mr_n(imr_ci), mr_n(imr_s),       &
                                               cfl_in, cff_in, cf_in,           &

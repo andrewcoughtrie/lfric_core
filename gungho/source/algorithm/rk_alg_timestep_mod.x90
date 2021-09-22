@@ -207,11 +207,12 @@ contains
     reference_element => mesh%get_reference_element()
     qrf = quadrature_face_type(element_order+2, .true., .false., &
                                reference_element,  gaussian_quadrature)
-    ! Get geopotential field from runtime_constants
-    geopotential => get_geopotential()
 
     ! Get mm operators from runtime_constants
     mesh_id = u%get_mesh_id()
+
+    ! Get geopotential field from runtime_constants
+    geopotential => get_geopotential(mesh_id)
 
     ! Get coordinates
     chi => get_coordinates(mesh_id)
@@ -229,7 +230,7 @@ contains
                           dt_step=dt, n_substeps=1 )
       ! Compute new rhs
       if ( rotating ) then
-        coriolis => get_coriolis()
+        coriolis => get_coriolis(mesh_id)
         call invoke( matrix_vector_kernel_type( rhs_prediction(igh_u,stage),   &
                                                 state(igh_u), coriolis ) )
       end if

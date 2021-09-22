@@ -186,7 +186,7 @@ contains
 
     height_wth => get_height(Wtheta, mesh_id)
     height_w3 => get_height(W3, mesh_id)
-    delta => get_delta_at_wtheta()
+    delta => get_delta_at_wtheta(mesh_id)
 
     ! Convective diagnostics - 2d
     call ntml%copy_field_properties(deep_in_col)

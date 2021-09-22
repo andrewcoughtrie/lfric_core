@@ -200,7 +200,7 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr,                    &
 
   latitude  => get_latitude(twod_mesh_id)
   longitude => get_longitude(twod_mesh_id)
-  dz_in_wth => get_dz_at_wtheta()
+  dz_in_wth => get_dz_at_wtheta(mesh_id)
 
   ! Local 2D diagnostic fields
   call lw_down_surf%copy_field_properties(cloud_cover_rts)

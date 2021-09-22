@@ -305,8 +305,8 @@ contains
     height_w2 => get_height(W2, mesh_id)
     height_w3 => get_height(W3, mesh_id)
     dA => get_da_at_w2(mesh_id)
-    rdz => get_rdz_fd1()
-    dtrdz => get_dtrdz_fd2()
+    rdz => get_rdz_fd1(mesh_id)
+    dtrdz => get_dtrdz_fd2(mesh_id)
 
     ! Local surface fields that need creating
     call tile_temperature%copy_field_properties(snow_sublimation)

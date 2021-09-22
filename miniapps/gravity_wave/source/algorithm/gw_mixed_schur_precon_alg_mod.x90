@@ -403,8 +403,8 @@ contains
     const1 = self%alpha*dt
 
     if (limited_area) then
-      w2_mask => get_mask(W2)
-      w3_mask => get_mask(W3)
+      w2_mask => get_mask(W2, mesh_id)
+      w3_mask => get_mask(W3, mesh_id)
     endif
 
     call invoke( X_times_Y(self%mb_rb,rhs0%vector(igw_b),self%Mb_lumped_inv), &
@@ -452,12 +452,14 @@ contains
     type(field_vector_type),                   intent(inout) :: state
     type(field_vector_type),                   intent(in)    :: rhs
 
-    type(field_type), pointer :: w3_mask => null()
-    type(field_type), pointer :: w2_mask => null()
-    type(field_type), pointer :: wtheta_mask => null()
+    type(field_type),    pointer :: w3_mask => null()
+    type(field_type),    pointer :: w2_mask => null()
+    type(field_type),    pointer :: wtheta_mask => null()
     type(operator_type), pointer :: div => null()
-    real(kind=r_def) :: const1, const2
-    integer(i_def) :: buoyancy_space
+    real(kind=r_def)             :: const1, const2
+    integer(kind=i_def)          :: buoyancy_space, mesh_id
+
+    mesh_id = self%u_inc%get_mesh_id()
 
     if (limited_area) then
       select case(b_space)
@@ -471,9 +473,9 @@ contains
           call log_event( 'gravity_wave, gw_mixed_schur_precon_alg_mod: '//  &
                           'Invalid buoyancy space', LOG_LEVEL_ERROR )
       end select
-      w3_mask => get_mask(W3)
-      w2_mask => get_mask(W2)
-      wtheta_mask => get_mask(buoyancy_space)
+      w3_mask => get_mask(W3, mesh_id)
+      w2_mask => get_mask(W2, mesh_id)
+      wtheta_mask => get_mask(buoyancy_space, mesh_id)
 
       ! Apply masks to pressure, from Helmholtz solve
       call invoke( inc_X_times_Y(self%p_inc, w3_mask) )
@@ -483,7 +485,7 @@ contains
     call invoke( setval_c(self%u_inc, 0.0_r_def), &
                  setval_c(self%b_inc, 0.0_r_def) )
     ! U increment
-    div => get_div(self%u_inc%get_mesh_id())
+    div => get_div(mesh_id)
     const1 = self%alpha*dt
     call invoke( transpose_matrix_vector_kernel_type(self%u_inc,       &
                                                      self%p_inc,       &

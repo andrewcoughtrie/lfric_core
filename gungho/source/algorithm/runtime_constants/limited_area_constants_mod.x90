@@ -14,8 +14,9 @@
 module limited_area_constants_mod
 
   ! Infrastructure
-  use constants_mod,                     only: i_def, r_def
+  use constants_mod,                     only: i_def, r_def, str_def, str_short
   use field_mod,                         only: field_type
+  use field_collection_mod,              only: field_collection_type
   use function_space_mod,                only: function_space_type
   use function_space_collection_mod,     only: function_space_collection
   use fs_continuity_mod,                 only: W2, W3, Wtheta
@@ -23,6 +24,7 @@ module limited_area_constants_mod
   use log_mod,                           only: log_event, LOG_LEVEL_INFO, &
                                                LOG_LEVEL_ERROR
   use mesh_mod,                          only: mesh_type
+  use runtime_tools_mod,                 only: primary_mesh_label
   use timer_mod,                         only: timer
 
   ! Configuration
@@ -45,16 +47,16 @@ module limited_area_constants_mod
   ! functions returning pointers to them
 
   ! Limited-area masks
-  type(field_type), target :: w2boundary_mask
-  type(field_type), target :: w2_mask
-  type(field_type), target :: w3_mask
-  type(field_type), target :: wtheta_mask
-  type(field_type), target :: w2lbc_mask
-  type(field_type), target :: w3lbc_mask
-  type(field_type), target :: wthetalbc_mask
-  type(field_type), target :: w2blend_mask
-  type(field_type), target :: w3blend_mask
-  type(field_type), target :: wthetablend_mask
+  type(field_collection_type) :: w2boundary_mask_collection
+  type(field_collection_type) :: w2_mask_collection
+  type(field_collection_type) :: w3_mask_collection
+  type(field_collection_type) :: wtheta_mask_collection
+  type(field_collection_type) :: w2lbc_mask_collection
+  type(field_collection_type) :: w3lbc_mask_collection
+  type(field_collection_type) :: wthetalbc_mask_collection
+  type(field_collection_type) :: w2blend_mask_collection
+  type(field_collection_type) :: w3blend_mask_collection
+  type(field_collection_type) :: wthetablend_mask_collection
 
 
   ! Public functions to create and access the module contents
@@ -67,83 +69,158 @@ module limited_area_constants_mod
   public :: get_blend_mask
 
 contains
-  !>@brief Subroutine to create the limited area constants
-  !> @param[in] mesh_id     Mesh_id
-  !> @param[in] chi         Coordinate field
-  subroutine create_limited_area_constants(mesh_id, chi)
+
+  !> @brief Subroutine to create the limited area constants
+  !> @param[in] mesh_id_list         List of mesh_ids
+  !> @param[in] chi_list             List of coordinate fields
+  !> @param[in] label_list           List of labels for meshes
+  subroutine create_limited_area_constants(mesh_id_list,  &
+                                           chi_list,      &
+                                           label_list)
     implicit none
 
     ! Arguments
-    integer(i_def),   intent(in) :: mesh_id
-    type(field_type), intent(in) :: chi(:)
+    integer(kind=i_def),   intent(in) :: mesh_id_list(:)
+    type(field_type),      intent(in) :: chi_list(:,:)
+    integer(kind=i_def),   intent(in) :: label_list(:)
 
     ! Internal variables
     type(function_space_type), pointer :: w2_fs     => null()
     type(function_space_type), pointer :: w3_fs     => null()
     type(function_space_type), pointer :: wtheta_fs => null()
-    type(field_type)                   :: w2parallel_mask
-    type(field_type)                   :: w2perp_mask
-    type(field_type)                   :: w2interior_mask
 
+    type(field_type)         :: w2boundary_mask
+    type(field_type)         :: w2_mask
+    type(field_type)         :: w3_mask
+    type(field_type)         :: wtheta_mask
+    type(field_type)         :: w2lbc_mask
+    type(field_type)         :: w3lbc_mask
+    type(field_type)         :: wthetalbc_mask
+    type(field_type)         :: w2blend_mask
+    type(field_type)         :: w3blend_mask
+    type(field_type)         :: wthetablend_mask
+    type(field_type)         :: w2parallel_mask
+    type(field_type)         :: w2perp_mask
+    type(field_type)         :: w2interior_mask
+    integer(kind=i_def)      :: num_meshes, mesh_id, i
+    character(len=str_short) :: mesh_number
+    character(len=str_def)   :: field_name
 
     if ( subroutine_timers ) call timer('limited_area_constants_alg')
     call log_event( "Gungho: creating limited_area_constants", LOG_LEVEL_INFO )
 
-    !=========== Create function spaces required for setup ===================!
+    !========================== Set up collections ============================!
 
-    w2_fs     => function_space_collection%get_fs( mesh_id, element_order, W2 )
-    w3_fs     => function_space_collection%get_fs( mesh_id, element_order, W3 )
-    wtheta_fs => function_space_collection%get_fs( mesh_id, element_order, Wtheta )
+    w2boundary_mask_collection = field_collection_type(name="w2_boundary_mask")
+    w2_mask_collection = field_collection_type(name="w2_mask")
+    w3_mask_collection = field_collection_type(name="w3_mask")
+    wtheta_mask_collection = field_collection_type(name="wtheta_mask")
+    w2lbc_mask_collection = field_collection_type(name="w2_lbc_mask")
+    w3lbc_mask_collection = field_collection_type(name="w3_lbc_mask")
+    wthetalbc_mask_collection = field_collection_type(name="wtheta_lbc_mask")
+    w2blend_mask_collection = field_collection_type(name="w2_blend_mask")
+    w3blend_mask_collection = field_collection_type(name="w3_blend_mask")
+    wthetablend_mask_collection = field_collection_type(name="wtheta_blend_mask")
 
-    call log_event( "Creating limited area masks", LOG_LEVEL_INFO )
+    !=========== Start loop and initialisation of function_spaces =============!
 
-    ! Create the W2 masks by combining different masks together
-    call w2perp_mask%initialise( vector_space = w2_fs )
-    call w2parallel_mask%initialise( vector_space = w2_fs )
-    call w2boundary_mask%initialise( vector_space = w2_fs )
-    call w2interior_mask%initialise( vector_space = w2_fs )
-    call w2_mask%initialise( vector_space = w2_fs )
+    num_meshes = size(mesh_id_list)
 
-    if (normal_only) then
-      call log_event( "Using w2 dofs on boundary for LBC", &
-           LOG_LEVEL_INFO )
-      call create_boundary_mask( w2boundary_mask, chi )
-      call create_limited_area_mask( w2_mask, chi )
-    else
-      call log_event( "Using w2 dofs on boundary and tangential 1 cell in", &
-           LOG_LEVEL_INFO )
-      call create_boundary_mask( w2perp_mask, chi )
-      call create_parallel_boundary_mask ( w2parallel_mask, chi )
-      call create_limited_area_mask( w2interior_mask, chi )
+    ! Start loop through meshes
+    ! TODO: #2790 should change this structure to avoid looping through meshes
+    do i = 1, num_meshes
 
-      call invoke( &
-         ! Add the W2parallel and W2perp masks together
-         X_plus_Y ( w2boundary_mask,  w2perp_mask, w2parallel_mask ), &
-         ! Subtract the W2parallel mask from the W2interior_mask
-         X_minus_Y( w2_mask, w2interior_mask, w2parallel_mask ) )
-    end if
+      mesh_id = mesh_id_list(i)
+      ! Convert mesh id to character
+      write(mesh_number, '(I8)') mesh_id
 
-    ! Create the W3 and Wtheta masks directly
-    call w3_mask%initialise( vector_space = w3_fs )
-    call wtheta_mask%initialise( vector_space = wtheta_fs )
-    call w2lbc_mask%initialise( vector_space = w2_fs )
-    call w3lbc_mask%initialise( vector_space = w3_fs )
-    call wthetalbc_mask%initialise( vector_space = wtheta_fs )
-    call w2blend_mask%initialise( vector_space = w2_fs )
-    call w3blend_mask%initialise( vector_space = w3_fs )
-    call wthetablend_mask%initialise( vector_space = wtheta_fs )
+      w2_fs     => function_space_collection%get_fs( mesh_id, element_order, W2 )
+      w3_fs     => function_space_collection%get_fs( mesh_id, element_order, W3 )
+      wtheta_fs => function_space_collection%get_fs( mesh_id, element_order, Wtheta )
 
-    call create_limited_area_mask( w3_mask, chi )
-    call create_limited_area_mask( wtheta_mask, chi )
-    call create_lbc_mask( w2lbc_mask, chi )
-    call create_lbc_mask( w3lbc_mask, chi )
-    call create_lbc_mask( wthetalbc_mask, chi )
-    call create_blend_mask( w2blend_mask, chi )
-    call create_blend_mask( w3blend_mask, chi )
-    call create_blend_mask( wthetablend_mask, chi )
+      !============================ Create masks ==============================!
 
-    ! Check that the W2 boundary mask has the correct number of dofs
-    call check_w2b_mask( w2boundary_mask )
+      if ( label_list(i) == primary_mesh_label ) then
+
+        !========================== Create W2 masks ===========================!
+
+        ! Create the W2 masks by combining different masks together
+        call w2perp_mask%initialise( vector_space = w2_fs )
+        call w2parallel_mask%initialise( vector_space = w2_fs )
+        call w2interior_mask%initialise( vector_space = w2_fs )
+        field_name = trim('w2_boundary_mask_') // adjustl(mesh_number)
+        call w2boundary_mask%initialise( vector_space = w2_fs, name = field_name )
+        field_name = trim('w2_mask_') // adjustl(mesh_number)
+        call w2_mask%initialise( vector_space = w2_fs, name = field_name )
+
+        if (normal_only) then
+          call log_event( "Using W2 dofs on boundary for LBC", &
+               LOG_LEVEL_INFO )
+          call create_boundary_mask( w2boundary_mask, chi_list(:,i) )
+          call create_limited_area_mask( w2_mask, chi_list(:,i) )
+        else
+          call log_event( "Using W2 dofs on boundary and tangential 1 cell in", &
+               LOG_LEVEL_INFO )
+          call create_boundary_mask( w2perp_mask, chi_list(:,i) )
+          call create_parallel_boundary_mask ( w2parallel_mask, chi_list(:,i) )
+          call create_limited_area_mask( w2interior_mask, chi_list(:,i) )
+
+          call invoke( name = "combine_W2_perp_and_parallel_masks",       &
+             ! Add the W2parallel and W2perp masks together
+             X_plus_Y ( w2boundary_mask,  w2perp_mask, w2parallel_mask ), &
+             ! Subtract the W2parallel mask from the W2interior_mask
+             X_minus_Y( w2_mask, w2interior_mask, w2parallel_mask ) )
+        end if
+
+        ! Check that the W2 boundary mask has the correct number of dofs
+        call check_w2b_mask( w2boundary_mask )
+
+        ! Add masks to collections
+        call w2_mask_collection%add_field( w2_mask )
+        call w2boundary_mask_collection%add_field( w2boundary_mask )
+
+        !===================== Create W3 and Wtheta masks =====================!
+
+        ! Create the W3 and Wtheta masks directly
+        field_name = trim('w3_mask_') // adjustl(mesh_number)
+        call w3_mask%initialise( vector_space = w3_fs, name = field_name  )
+        field_name = trim('wtheta_mask_') // adjustl(mesh_number)
+        call wtheta_mask%initialise( vector_space = wtheta_fs, name = field_name )
+        field_name = trim('w2_lbc_mask_') // adjustl(mesh_number)
+        call w2lbc_mask%initialise( vector_space = w2_fs, name = field_name )
+        field_name = trim('w3_lbc_mask_') // adjustl(mesh_number)
+        call w3lbc_mask%initialise( vector_space = w3_fs, name = field_name )
+        field_name = trim('wtheta_lbc_mask_') // adjustl(mesh_number)
+        call wthetalbc_mask%initialise( vector_space = wtheta_fs, name = field_name )
+        field_name = trim('w2_blend_mask_') // adjustl(mesh_number)
+        call w2blend_mask%initialise( vector_space = w2_fs, name = field_name )
+        field_name = trim('w3_blend_mask_') // adjustl(mesh_number)
+        call w3blend_mask%initialise( vector_space = w3_fs, name = field_name )
+        field_name = trim('wtheta_blend_mask_') // adjustl(mesh_number)
+        call wthetablend_mask%initialise( vector_space = wtheta_fs, name = field_name )
+
+        call create_limited_area_mask( w3_mask, chi_list(:,i) )
+        call create_limited_area_mask( wtheta_mask, chi_list(:,i) )
+        call create_lbc_mask( w2lbc_mask, chi_list(:,i) )
+        call create_lbc_mask( w3lbc_mask, chi_list(:,i) )
+        call create_lbc_mask( wthetalbc_mask, chi_list(:,i) )
+        call create_blend_mask( w2blend_mask, chi_list(:,i) )
+        call create_blend_mask( w3blend_mask, chi_list(:,i) )
+        call create_blend_mask( wthetablend_mask, chi_list(:,i) )
+
+        ! Add masks to collections
+        call w3_mask_collection%add_field( w3_mask )
+        call wtheta_mask_collection%add_field( wtheta_mask )
+        call w2lbc_mask_collection%add_field( w2lbc_mask )
+        call w3lbc_mask_collection%add_field( w3lbc_mask )
+        call wthetalbc_mask_collection%add_field( wthetalbc_mask )
+        call w2blend_mask_collection%add_field( w2blend_mask )
+        call w3blend_mask_collection%add_field( w3blend_mask )
+        call wthetablend_mask_collection%add_field( wthetablend_mask )
+
+      end if ! Mesh label
+
+    end do ! Loop through meshes
 
     nullify( w2_fs  )
     nullify( w3_fs  )
@@ -154,21 +231,31 @@ contains
 
   end subroutine create_limited_area_constants
 
+
   !> @brief  Returns pointer to the interior mask
   !> @param[in] space The function space of the interior mask
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The interior mask field
-  function get_mask(space) result(mask_ptr)
+  function get_mask(space, mesh_id) result(mask_ptr)
     implicit none
-    integer(i_def), intent(in) :: space
-    type(field_type), pointer  :: mask_ptr
+    integer(kind=i_def), intent(in) :: mesh_id
+    integer(kind=i_def), intent(in) :: space
+    type(field_type),       pointer :: mask_ptr
+    character(len=str_short)        :: mesh_number
+    character(len=str_def)          :: field_name
+
+    write(mesh_number, '(I8)') mesh_id
 
     select case (space)
       case (W2)
-        mask_ptr => w2_mask
+        field_name = trim('w2_mask_') // adjustl(mesh_number)
+        mask_ptr => w2_mask_collection%get_field(field_name)
       case (W3)
-        mask_ptr => w3_mask
+        field_name = trim('w3_mask_') // adjustl(mesh_number)
+        mask_ptr => w3_mask_collection%get_field(field_name)
       case (Wtheta)
-        mask_ptr => wtheta_mask
+        field_name = trim('wtheta_mask_') // adjustl(mesh_number)
+        mask_ptr => wtheta_mask_collection%get_field(field_name)
       case default
         mask_ptr => null()
         call log_event( "Mask not available on requested space", &
@@ -179,15 +266,22 @@ contains
 
   !> @brief  Returns pointer to the boundary mask
   !> @param[in] space The function space of the boundary mask
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The boundary mask field
-  function get_boundary_mask(space) result(mask_ptr)
+  function get_boundary_mask(space, mesh_id) result(mask_ptr)
     implicit none
-    integer(i_def), intent(in) :: space
-    type(field_type), pointer  :: mask_ptr
+    integer(kind=i_def), intent(in) :: mesh_id
+    integer(kind=i_def), intent(in) :: space
+    type(field_type),       pointer :: mask_ptr
+    character(len=str_short)        :: mesh_number
+    character(len=str_def)          :: field_name
+
+    write(mesh_number, '(I8)') mesh_id
 
     select case (space)
       case (W2)
-        mask_ptr => w2boundary_mask
+        field_name = trim('w2_boundary_mask_') // adjustl(mesh_number)
+        mask_ptr => w2boundary_mask_collection%get_field(field_name)
       case default
         mask_ptr => null()
         call log_event( "Boundary mask not available on requested space", &
@@ -198,19 +292,28 @@ contains
 
   !> @brief  Returns pointer to the LBC mask
   !> @param[in] space The function space of the LBC mask
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The LBC mask field
-  function get_lbc_mask(space) result(mask_ptr)
+  function get_lbc_mask(space, mesh_id) result(mask_ptr)
     implicit none
-    integer(i_def), intent(in) :: space
-    type(field_type), pointer  :: mask_ptr
+    integer(kind=i_def), intent(in) :: mesh_id
+    integer(kind=i_def), intent(in) :: space
+    type(field_type),       pointer :: mask_ptr
+    character(len=str_short)        :: mesh_number
+    character(len=str_def)          :: field_name
+
+    write(mesh_number, '(I8)') mesh_id
 
     select case (space)
       case (W2)
-        mask_ptr => w2lbc_mask
+        field_name = trim('w2_lbc_mask_') // adjustl(mesh_number)
+        mask_ptr => w2lbc_mask_collection%get_field(field_name)
       case (W3)
-        mask_ptr => w3lbc_mask
+        field_name = trim('w3_lbc_mask_') // adjustl(mesh_number)
+        mask_ptr => w3lbc_mask_collection%get_field(field_name)
       case (Wtheta)
-        mask_ptr => wthetalbc_mask
+        field_name = trim('wtheta_lbc_mask_') // adjustl(mesh_number)
+        mask_ptr => wthetalbc_mask_collection%get_field(field_name)
       case default
         mask_ptr => null()
         call log_event( "Mask not available on requested space", &
@@ -221,19 +324,28 @@ contains
 
   !> @brief  Returns pointer to the blend mask
   !> @param[in] space The function space of the blend mask
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The blend mask field
-  function get_blend_mask(space) result(mask_ptr)
+  function get_blend_mask(space, mesh_id) result(mask_ptr)
     implicit none
-    integer(i_def), intent(in) :: space
-    type(field_type), pointer  :: mask_ptr
+    integer(kind=i_def), intent(in) :: mesh_id
+    integer(kind=i_def), intent(in) :: space
+    type(field_type),       pointer :: mask_ptr
+    character(len=str_short)        :: mesh_number
+    character(len=str_def)          :: field_name
+
+    write(mesh_number, '(I8)') mesh_id
 
     select case (space)
     case (W2)
-      mask_ptr => w2blend_mask
+      field_name = trim('w2_blend_mask_') // adjustl(mesh_number)
+      mask_ptr => w2blend_mask_collection%get_field(field_name)
     case (W3)
-      mask_ptr => w3blend_mask
+      field_name = trim('w3_blend_mask_') // adjustl(mesh_number)
+      mask_ptr => w3blend_mask_collection%get_field(field_name)
     case (Wtheta)
-      mask_ptr => wthetablend_mask
+      field_name = trim('wtheta_blend_mask_') // adjustl(mesh_number)
+      mask_ptr => wthetablend_mask_collection%get_field(field_name)
     case default
       mask_ptr => null()
       call log_event( "Blend mask not available on requested space", &
@@ -248,16 +360,16 @@ contains
 
     implicit none
 
-    call w2boundary_mask%field_final()
-    call w2_mask%field_final()
-    call w3_mask%field_final()
-    call wtheta_mask%field_final()
-    call w2lbc_mask%field_final()
-    call w3lbc_mask%field_final()
-    call wthetalbc_mask%field_final()
-    call w2blend_mask%field_final()
-    call w3blend_mask%field_final()
-    call wthetablend_mask%field_final()
+    call w2boundary_mask_collection%clear()
+    call w2_mask_collection%clear()
+    call w3_mask_collection%clear()
+    call wtheta_mask_collection%clear()
+    call w2lbc_mask_collection%clear()
+    call w3lbc_mask_collection%clear()
+    call wthetalbc_mask_collection%clear()
+    call w2blend_mask_collection%clear()
+    call w3blend_mask_collection%clear()
+    call wthetablend_mask_collection%clear()
 
   end subroutine final_limited_area_constants
 

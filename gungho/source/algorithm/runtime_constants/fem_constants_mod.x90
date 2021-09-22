@@ -143,7 +143,8 @@ module fem_constants_mod
   public :: get_detj_at_w2
 
 contains
-  !>@brief Subroutine to create the finite element constants
+
+  !> @brief Subroutine to create the finite element constants
   !> @param[in] mesh_id_list         List of mesh_ids
   !> @param[in] chi_list             List of coordinate fields
   !> @param[in] panel_id_list        List of panel_id fields
@@ -236,6 +237,7 @@ contains
     ! Begin loop through meshes
     !==========================================================================!
 
+    ! TODO: #2790 should change this structure to avoid looping through meshes
     do i = 1, num_meshes
 
       !=========== Create function spaces required for setup ==================!
@@ -558,8 +560,8 @@ contains
   end function get_qr
 
   !> @brief Returns a pointer to a mass matrix
-  !> @param[in] space   the space of the desired mass matrix
-  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @param[in] space   The space of the desired mass matrix
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The mass matrix operator
   function get_mass_matrix(space, mesh_id) result(mm_op)
     implicit none
@@ -587,7 +589,7 @@ contains
         mm_op => mm_w2h(mesh_index)
       case (W3)
         mm_op => mm_w3(mesh_index)
-      case (WTHETA)
+      case (Wtheta)
         mm_op => mm_wtheta(mesh_index)
       case default
         mm_op => null()
@@ -600,8 +602,8 @@ contains
   end function get_mass_matrix
 
   !> @brief Returns a pointer to a mass matrix diagonal
-  !> @param[in] space   the space of the desired diagonal mass matrix
-  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @param[in] space   The space of the desired diagonal mass matrix
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The mass matrix diagonal field
   function get_mass_matrix_diagonal(space, mesh_id) result(mmd)
     implicit none
@@ -621,7 +623,7 @@ contains
         mmd => mm1_diag(mesh_index)
       case (W2)
         mmd => mm2_diag(mesh_index)
-      case (WTHETA)
+      case (Wtheta)
         mmd => mmtheta_diag(mesh_index)
       case (W3)
         mmd => mm3_diag(mesh_index)
@@ -636,8 +638,8 @@ contains
   end function get_mass_matrix_diagonal
 
   !> @brief Returns a pointer to a inverse lumped mass matrix
-  !> @param[in] space   the space of the desired lumped inverse mass matrix
-  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @param[in] space   The space of the desired lumped inverse mass matrix
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The lumped inverse mass matrix
   function get_inverse_lumped_mass_matrix(space, mesh_id) result(mm)
     implicit none
@@ -657,7 +659,7 @@ contains
         mm => mm1_lumped_inv(mesh_index)
       case (W3)
         mm => mm3_lumped_inv(mesh_index)
-      case (WTHETA)
+      case (Wtheta)
         mm => mmtheta_lumped_inv(mesh_index)
       case default
         mm => null()
@@ -672,7 +674,7 @@ contains
   end function get_inverse_lumped_mass_matrix
 
   !> @brief Returns a pointer to the inverse W3 mass matrix operator
-  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The inverse W3 mass matrix operator
   function get_inverse_w3_mass_matrix(mesh_id) result(mm_w3_inv_op)
     implicit none
@@ -689,7 +691,7 @@ contains
   end function get_inverse_w3_mass_matrix
 
   !> @brief Returns a pointer to the damping layer W2 mass matrix operator
-  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The damping layer W2 mass matrix operator
   function get_dl_mass_matrix(mesh_id) result(mm_dl_op)
     implicit none
@@ -706,7 +708,7 @@ contains
   end function get_dl_mass_matrix
 
   !> @brief Returns a pointer to the semi-implicit W2 mass matrix operator
-  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The semi-implicit W2 mass matrix operator
   function get_w2_si_mass_matrix(mesh_id) result(mm_w2_si_op)
     implicit none
@@ -723,7 +725,7 @@ contains
   end function get_w2_si_mass_matrix
 
   !> @brief Returns a pointer to the grad operator
-  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The grad operator
   function get_grad(mesh_id) result(grad_op)
     implicit none
@@ -740,7 +742,7 @@ contains
   end function get_grad
 
   !> @brief Returns a pointer to the curl operator
-  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The curl operator
   function get_curl(mesh_id) result(curl_op)
     implicit none
@@ -757,7 +759,7 @@ contains
   end function get_curl
 
   !> @brief Returns a pointer to the div operator
-  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The grad operator
   function get_div(mesh_id) result(div_op)
     implicit none
@@ -774,7 +776,7 @@ contains
   end function get_div
 
   !> @brief Returns a pointer to the broken div operator
-  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The broken div operator
   function get_broken_div(mesh_id) result(broken_div_op)
     implicit none
@@ -791,7 +793,7 @@ contains
   end function get_broken_div
 
   !> @brief Returns a pointer to the horizontal div operator
-  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The div operator
   function get_div_h(mesh_id) result(div_h_op)
     implicit none
@@ -808,7 +810,7 @@ contains
   end function get_div_h
 
   !> @brief Returns a pointer to the vertical div operator
-  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The div operator
   function get_div_v(mesh_id) result(div_v_op)
     implicit none
@@ -825,8 +827,8 @@ contains
   end function get_div_v
 
   !> @brief Returns a pointer to the normalisation of prognostic fields
-  !> @param[in] space   the space of the normalisation field
-  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @param[in] space   The space of the normalisation field
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The normalisation field
   function get_normalisation(space, mesh_id) result(normalisation)
     implicit none
@@ -842,7 +844,7 @@ contains
     select case (space)
       case (W2)
         normalisation => w2_normalisation(mesh_index)
-      case (WTHETA)
+      case (Wtheta)
         normalisation => mmtheta_lumped_inv(mesh_index)
       case default
         normalisation => null()
@@ -857,8 +859,8 @@ contains
   end function get_normalisation
 
   !> @brief Returns a pointer to the reciprocal of the multiplicity field
-  !> @param[in] space   the space of the desired r-multiplicity field
-  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @param[in] space   The space of the desired r-multiplicity field
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The nodal reciprocal multiplicity field
   function get_rmultiplicity(space, mesh_id) result(rmultiplicity)
     implicit none
@@ -891,8 +893,8 @@ contains
   end function get_rmultiplicity
 
   !> @brief Returns a pointer to the multiplicity field
-  !> @param[in] space   the space of the desired multiplicity field
-  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @param[in] space   The space of the desired multiplicity field
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The multiplicity field
   function get_multiplicity(space, mesh_id) result(multiplicity)
     implicit none
@@ -915,7 +917,7 @@ contains
   end function get_multiplicity
 
   !> @brief Returns the detj values at W2 dof locations
-  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The detj field
   function get_detj_at_w2(mesh_id) result(detj)
     implicit none

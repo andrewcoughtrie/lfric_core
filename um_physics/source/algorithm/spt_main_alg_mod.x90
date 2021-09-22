@@ -221,13 +221,13 @@ module spt_main_alg_mod
 
   ! convection
   if (spt_use_convection) then
-    
+
     ! Set copies of dX_conv_cfl
     call dt_conv%copy_field_properties(dt_conv_cfl)
     call dmv_conv%copy_field_properties(dmv_conv_cfl)
     call invoke(setval_X(dt_conv_cfl,dt_conv),   &
                 setval_X(dmv_conv_cfl,dmv_conv))
-    
+
     ! Apply CFL condition via spt_convection_cfl_limit_cap_kernel
     if (spt_convection_cfl_limit) then
       if (.not. spt_mse_conservation) then
@@ -237,7 +237,7 @@ module spt_main_alg_mod
       call invoke(spt_convection_cfl_limit_cap_kernel_type(dmv_conv_cfl,  massflux_up,  &
                                           fp_spt, pressure))
     end if
-    
+
     ! Apply tendencies to dX_spt, conver dt to theta
     if (.not. spt_mse_conservation) then
       call invoke(inc_X_times_Y(dt_conv_cfl,exner_wth), &
@@ -312,7 +312,7 @@ module spt_main_alg_mod
 
   !!!!   7) Apply water conservation to the column if requested
   if (spt_moisture_conservation) then
-    dz_wth => get_dz_at_wtheta()
+    dz_wth => get_dz_at_wtheta(dtheta%get_mesh_id())
     call invoke(spt_moisture_conservation_kernel_type(dmv_spt,mv,dz_wth,rho_in_wth))
   end if
 

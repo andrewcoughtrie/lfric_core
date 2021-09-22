@@ -90,7 +90,7 @@ module geometric_constants_mod
 
 contains
 
-  !>@brief Subroutine to create the geometric constants
+  !> @brief Subroutine to create the geometric constants
   !> @param[in] mesh_id_list         List of mesh_ids
   !> @param[in] chi_in               List of coordinate fields
   !> @param[in] panel_id_in          List of panel_id fields
@@ -142,6 +142,7 @@ contains
     ! Begin loop through meshes
     !==========================================================================!
 
+    ! TODO: #2790 should change this structure to avoid looping through meshes
     do i = 1, num_meshes
 
       !=========== Create function spaces required for setup ==================!
@@ -261,7 +262,7 @@ contains
   end subroutine create_geometric_constants
 
   !> @brief Function to return a pointer to the panel_id
-  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The coordinate field array
   function get_panel_id(mesh_id) result(panel_id_ptr)
     implicit none
@@ -274,7 +275,7 @@ contains
   end function get_panel_id
 
   !> @brief Returns a pointer to the coordinate field array on the finest level
-  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The coordinate field array
   function get_coordinates(mesh_id) result(coords_ptr)
     implicit none
@@ -288,7 +289,7 @@ contains
   end function get_coordinates
 
   !> @brief Returns a pointer to the cell_orientation field
-  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The cell_orientation field
   function get_cell_orientation(mesh_id) result(orientation)
     implicit none
@@ -313,8 +314,8 @@ contains
 
   end function get_cell_orientation
 
-  !> @brief Returns the dA values at W2 dof locations
-  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @brief Returns the dA values at W2 DoF locations
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The dA field
   function get_dA_at_w2(mesh_id) result(dA)
     implicit none
@@ -331,8 +332,8 @@ contains
   end function get_dA_at_w2
 
   !> @brief Returns a pointer to a height field
-  !> @param[in] space   the space of the desired height field
-  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @param[in] space   The space of the desired height field
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return A height field
   function get_height(space, mesh_id) result(height)
     implicit none
@@ -364,7 +365,7 @@ contains
   end function get_height
 
   !> @brief Returns a pointer to the latitude map
-  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The latitude field array
   function get_latitude(mesh_id) result(lat_ptr)
     implicit none
@@ -381,7 +382,7 @@ contains
   end function get_latitude
 
   !> @brief Returns a pointer to the longitude map
-  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The longitude field array
   function get_longitude(mesh_id) result(long_ptr)
     implicit none

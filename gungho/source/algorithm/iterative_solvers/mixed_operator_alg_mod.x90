@@ -140,9 +140,9 @@ contains
 
     ! LAM Masks
     if ( limited_area ) then
-      w2_mask     => get_mask(W2)
-      w3_mask     => get_mask(W3)
-      wtheta_mask => get_mask(Wtheta)
+      w2_mask     => get_mask(W2, mesh_id)
+      w3_mask     => get_mask(W3, mesh_id)
+      wtheta_mask => get_mask(Wtheta, mesh_id)
     end if
 
     tau_r_dt = tau_r*dt

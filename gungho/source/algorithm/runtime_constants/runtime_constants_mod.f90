@@ -249,10 +249,15 @@ contains
                               panel_id_list,     &
                               label_list, dt     )
 
-    call create_physical_op_constants(mesh_id, chi, panel_id, dt)
+    call create_physical_op_constants(mesh_id_list,  &
+                                      chi_list,      &
+                                      panel_id_list, &
+                                      label_list, dt )
 
     if ( limited_area ) then
-      call create_limited_area_constants(mesh_id, chi)
+      call create_limited_area_constants(mesh_id_list, &
+                                         chi_list,     &
+                                         label_list    )
     end if
 
     if ( moisture_conservation ) then

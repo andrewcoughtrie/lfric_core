@@ -45,7 +45,7 @@ contains
     type(field_type), pointer                  :: boundary_u_driving
     type(field_type), pointer                  :: boundary_u_diff
 
-    mask => get_boundary_mask( W2 )
+    mask => get_boundary_mask( W2, lam_wind_field%get_mesh_id() )
 
     boundary_u_driving => lbc_fields%get_field( 'boundary_u_driving' )
     boundary_u_diff    => lbc_fields%get_field( 'boundary_u_diff' )
@@ -117,14 +117,15 @@ contains
                                                blend_mask    => null(), &
                                                lbc_mask      => null()
     type(field_type)                        :: lam_lbc, driving_lbc, inc
-    integer(i_def)                          :: function_space
+    integer(kind=i_def)                     :: function_space, mesh_id
 
     ! Define the function space required for masks.
     function_space = lam_field%which_function_space()
+    mesh_id = lam_field%get_mesh_id()
 
     driving_field => lbc_fields%get_field( name )
-    blend_mask    => get_blend_mask( function_space )
-    lbc_mask      => get_lbc_mask( function_space )
+    blend_mask    => get_blend_mask( function_space, mesh_id )
+    lbc_mask      => get_lbc_mask( function_space, mesh_id )
 
     ! Setup the temporary fields.
     call lam_field%copy_field_properties( lam_lbc )

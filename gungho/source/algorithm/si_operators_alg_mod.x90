@@ -484,7 +484,7 @@ contains
     ! Compute the Helmholtz operator
     if ( element_order == 0 ) then
       if ( limited_area ) then
-        w2_mask => get_mask(W2)
+        w2_mask => get_mask(W2, mesh_id)
       else
         ! Create dummy mask arrays with 1 in every entry
         call dummy_w2_mask%initialise( vector_space = w2_fs )

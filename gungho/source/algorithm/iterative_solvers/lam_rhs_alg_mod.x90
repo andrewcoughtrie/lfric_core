@@ -49,10 +49,14 @@ contains
     type(field_type), pointer       :: w2_mask     => null(), &
                                        w3_mask     => null(), &
                                        wtheta_mask => null()
+    integer(kind=i_def)             :: mesh_id
+
+    mesh_id = rhs(igh_u)%get_mesh_id()
+
     ! LAM Masks
-    w2_mask     => get_mask(W2)
-    w3_mask     => get_mask(W3)
-    wtheta_mask => get_mask(Wtheta)
+    w2_mask     => get_mask(W2, mesh_id)
+    w3_mask     => get_mask(W3, mesh_id)
+    wtheta_mask => get_mask(Wtheta, mesh_id)
 
     call invoke( inc_X_times_Y( rhs(igh_u),     &
                                 w2_mask),       &
@@ -106,9 +110,9 @@ contains
     boundary_u => lbc_fields%get_field('boundary_u_diff')
 
     ! LAM Masks
-    w2_mask     => get_mask(W2)
-    w3_mask     => get_mask(W3)
-    wtheta_mask => get_mask(Wtheta)
+    w2_mask     => get_mask(W2, mesh_id)
+    w3_mask     => get_mask(W3, mesh_id)
+    wtheta_mask => get_mask(Wtheta, mesh_id)
 
     ! Obtain operators from runtime constants
     mm_w3_inv     => get_inverse_w3_mass_matrix(mesh_id)

@@ -151,7 +151,7 @@ subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,   &
       u1_in_w3          => derived_fields%get_field('u1_in_w3')
       u2_in_w3          => derived_fields%get_field('u2_in_w3')
 
-      dz_wth            => get_dz_at_wtheta()
+      dz_wth            => get_dz_at_wtheta(u1_in_w3%get_mesh_id())
 
       call invoke(sw_rad_tile_kernel_type(tile_sw_direct_albedo, &
            tile_sw_diffuse_albedo, &

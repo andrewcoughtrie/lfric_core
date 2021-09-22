@@ -149,7 +149,7 @@ subroutine smagorinsky_alg(mr, theta, u, visc_m,                   &
       call log_event( 'Using pure Smagorinsky coefficient', LOG_LEVEL_INFO )
       ! Calculate visc_h and visc_m as (mix_factor * delta)**2 * shear
       shear => derived_fields%get_field('shear')
-      delta => get_delta_at_wtheta()
+      delta => get_delta_at_wtheta(mesh_id)
 
       ! Potential temperature:
       call invoke( a_times_X( visc_h, mix_factor, delta ),                    &

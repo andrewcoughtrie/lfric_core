@@ -163,84 +163,86 @@ contains
     class(abstract_vector_type),   intent(in)    :: x
     class(abstract_vector_type),   intent(inout) :: y
 
-    type(operator_type), pointer :: m3_exner_star => null(),   &
-                                    div_star => null(),        &
-                                    compound_div => null(),    &
-                                    ptheta2 => null(),         &
-                                    p3theta => null()
-    real(kind=r_def), parameter  :: one = 1.0_r_def
-    type(field_type),    pointer :: mt_lumped_inv => null(),   &
-                                    u_normalisation => null(), &
-                                    h_diag => null(),          &
-                                    hb_lumped_inv => null()
-    type(field_type),    pointer :: Helmholtz_operator(:) => null()
-    type(field_type), pointer    :: w3_mask => null(), &
-                                    w2_mask => null()
-    integer(kind=i_def)          :: mesh_id
+    type(operator_type),   pointer :: m3_exner_star => null(),   &
+                                      div_star => null(),        &
+                                      compound_div => null(),    &
+                                      ptheta2 => null(),         &
+                                      p3theta => null()
+    type(field_type),      pointer :: mt_lumped_inv => null(),   &
+                                      u_normalisation => null(), &
+                                      h_diag => null(),          &
+                                      hb_lumped_inv => null()
+    type(field_type),      pointer :: Helmholtz_operator(:) => null()
+    type(field_type),      pointer :: w3_mask => null(), &
+                                      w2_mask => null()
+    real(kind=r_def),    parameter :: one = 1.0_r_def
+    integer(kind=i_def), parameter :: one_int = 1_i_def
+    integer(kind=i_def)            :: mesh_id
 
     if ( subroutine_timers ) call timer('helmholtz lhs')
 
     select type (x)
     type is (field_vector_type)
-       select type (y)
-       type is (field_vector_type)
-         ! Compute M3*p + H[ D{\theta*}*p ]
-         if ( element_order == 0 ) then
-           Helmholtz_operator => get_helmholtz_operator(self%level)
-           call invoke( name="apply_H",&
-                        apply_helmholtz_operator_kernel_type(y%vector(1),    &
-                                                             x%vector(1), 1, &
-                                                             Helmholtz_operator) )
-           nullify( Helmholtz_operator )
-         else
-           mesh_id = x%vector(1)%get_mesh_id()
-           m3_exner_star   => get_m3_exner_star(self%level)
-           div_star        => get_div_star(self%level)
-           compound_div    => get_compound_div(self%level)
-           ptheta2         => get_ptheta2v(self%level)
-           mt_lumped_inv   => get_normalisation(Wtheta, mesh_id)
-           p3theta         => get_p3theta(self%level)
-           u_normalisation => get_normalisation(W2, mesh_id)
-           hb_lumped_inv   => get_hb_lumped_inv(self%level)
-           if ( limited_area ) then
-             w2_mask => get_mask(W2)
-             call invoke( setval_c( self%grad_p, 0.0_r_def ),                           &
-                          setval_c( y%vector(1), 0.0_r_def ),                       &
-                          scaled_matrix_vector_kernel_type(self%grad_p, x%vector(1),    &
-                                                           div_star, hb_lumped_inv,     &
-                                                           u_normalisation),            &
-                          enforce_bc_kernel_type( self%grad_p ),                        &
-                          inc_X_times_Y( self%grad_p, w2_mask ),                        &
-                          apply_variable_hx_kernel_type(y%vector(1), self%grad_p,   &
-                                                        mt_lumped_inv, x%vector(1),     &
-                                                        compound_div, p3theta, ptheta2, &
-                                                        m3_exner_star, one) )
-           else
-             call invoke( setval_c( self%grad_p, 0.0_r_def ),                           &
-                          setval_c( y%vector(1), 0.0_r_def ),                       &
-                          scaled_matrix_vector_kernel_type(self%grad_p, x%vector(1),    &
-                                                           div_star, hb_lumped_inv,     &
-                                                           u_normalisation),            &
-                          enforce_bc_kernel_type( self%grad_p ),                        &
-                          apply_variable_hx_kernel_type(y%vector(1), self%grad_p,   &
-                                                        mt_lumped_inv, x%vector(1),     &
-                                                        compound_div, p3theta, ptheta2, &
-                                                        m3_exner_star, one) )
-           end if
-           if ( normalise ) then
-             h_diag => get_helm_diag(self%level)
-             call invoke( inc_X_times_Y(y%vector(1), h_diag) )
-           end if
+      mesh_id = x%vector(1)%get_mesh_id()
+      select type (y)
+      type is (field_vector_type)
+        ! Compute M3*p + H[ D{\theta*}*p ]
+        if ( element_order == 0 ) then
+          Helmholtz_operator => get_helmholtz_operator(self%level)
+          call invoke( name="apply_H",&
+                       apply_helmholtz_operator_kernel_type(y%vector(1), &
+                                                            x%vector(1), &
+                                                            one_int,     &
+                                                            Helmholtz_operator) )
+          nullify( Helmholtz_operator )
+        else
+          m3_exner_star   => get_m3_exner_star(self%level)
+          div_star        => get_div_star(self%level)
+          compound_div    => get_compound_div(self%level)
+          ptheta2         => get_ptheta2v(self%level)
+          mt_lumped_inv   => get_normalisation(Wtheta, mesh_id)
+          p3theta         => get_p3theta(self%level)
+          u_normalisation => get_normalisation(W2, mesh_id)
+          hb_lumped_inv   => get_hb_lumped_inv(self%level)
+          if ( limited_area ) then
+            w2_mask => get_mask(W2, mesh_id)
+            call invoke( setval_c( self%grad_p, 0.0_r_def ),                           &
+                         setval_c( y%vector(1), 0.0_r_def ),                           &
+                         scaled_matrix_vector_kernel_type(self%grad_p, x%vector(1),    &
+                                                          div_star, hb_lumped_inv,     &
+                                                          u_normalisation),            &
+                         enforce_bc_kernel_type( self%grad_p ),                        &
+                         inc_X_times_Y( self%grad_p, w2_mask ),                        &
+                         apply_variable_hx_kernel_type(y%vector(1), self%grad_p,       &
+                                                       mt_lumped_inv, x%vector(1),     &
+                                                       compound_div, p3theta, ptheta2, &
+                                                       m3_exner_star, one) )
+          else
+            call invoke( setval_c( self%grad_p, 0.0_r_def ),                           &
+                         setval_c( y%vector(1), 0.0_r_def ),                           &
+                         scaled_matrix_vector_kernel_type(self%grad_p, x%vector(1),    &
+                                                          div_star, hb_lumped_inv,     &
+                                                          u_normalisation),            &
+                         enforce_bc_kernel_type( self%grad_p ),                        &
+                         apply_variable_hx_kernel_type(y%vector(1), self%grad_p,   &
+                                                       mt_lumped_inv, x%vector(1),     &
+                                                       compound_div, p3theta, ptheta2, &
+                                                       m3_exner_star, one) )
+          end if
+          if ( normalise ) then
+            h_diag => get_helm_diag(self%level)
+            call invoke( inc_X_times_Y(y%vector(1), h_diag) )
+          end if
 
-           nullify( m3_exner_star, div_star, compound_div, ptheta2,  &
-                    p3theta, mt_lumped_inv, u_normalisation, &
-                    h_diag )
-         end if
-         if ( limited_area ) then
-           w3_mask => get_mask(W3)
-           call invoke( inc_X_times_Y( y%vector(1), w3_mask ) )
-           nullify( w3_mask, w2_mask )
-         end if
+          nullify( m3_exner_star, div_star, compound_div, ptheta2,  &
+                   p3theta, mt_lumped_inv, u_normalisation, &
+                   h_diag )
+        end if
+        if ( limited_area ) then
+          w3_mask => get_mask(W3, mesh_id)
+          call invoke( inc_X_times_Y( y%vector(1), w3_mask ) )
+          nullify( w3_mask, w2_mask )
+        end if
 
     if ( subroutine_timers ) call timer('helmholtz lhs')
 

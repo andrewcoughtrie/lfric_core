@@ -149,7 +149,7 @@ contains
     ! This is a temporary method of calculating
     ! the global mean of a field - once psyclone#489 is live,
     ! it should be changed to use the built-in function
-    delta => get_delta_at_wtheta()
+    delta => get_delta_at_wtheta(mesh_id)
     call delta%copy_field_properties(ones)
     call invoke( setval_c(ones, 1.0_r_def), &
                  sum_X(sum_delta, delta)  , &
