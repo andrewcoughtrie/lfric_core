@@ -31,9 +31,10 @@ module conv_gr_kernel_mod
   !>
   type, public, extends(kernel_type) :: conv_gr_kernel_type
     private
-    type(arg_type) :: meta_args(82) = (/                                          &
+    type(arg_type) :: meta_args(83) = (/                                          &
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                                &! outer
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! rho_in_w3
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! rho_in_wth
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! wetrho_in_w3
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! wetrho_in_wth
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! exner_in_w3
@@ -131,6 +132,7 @@ contains
   !> @param[in]     nlayers              Number of layers
   !> @param[in]     outer                Outer loop counter
   !> @param[in]     rho_in_w3            Density field in density space
+  !> @param[in]     rho_in_wth           Density field in wth space
   !> @param[in]     wetrho_in_w3         Wet density field in density space
   !> @param[in]     wetrho_in_wth        Wet density field in wth space
   !> @param[in]     exner_in_w3          Exner pressure field in density space
@@ -226,6 +228,7 @@ contains
   subroutine conv_gr_code(nlayers,                           &
                           outer,                             &
                           rho_in_w3,                         &
+                          rho_in_wth,                        &
                           wetrho_in_w3,                      &
                           wetrho_in_wth,                     &
                           exner_in_w3,                       &
@@ -368,6 +371,7 @@ contains
                                                          cf_liq, cf_bulk,   &
                                                          m_v, m_cl, m_ci,   &
                                                          m_r, m_g,          &
+                                                         rho_in_wth,        &
                                                          wetrho_in_wth,     &
                                                          exner_in_wth,      &
                                                          u3_in_wth,         &
@@ -429,7 +433,8 @@ contains
     ! profile fields from level 1 upwards
     real(r_um), dimension(row_length,rows,nlayers) ::                        &
          p_rho_levels, rho_wet, rho_dry, z_rho, z_theta, cca_3d, rho_wet_tq, &
-         exner_rho_levels, theta_conv, q_conv, qcl_conv, qcf_conv,           &
+         rho_dry_theta, exner_rho_levels,                                    &
+         theta_conv, q_conv, qcl_conv, qcf_conv,                             &
          qrain_conv, qcf2_conv, qgraup_conv, cf_liquid_conv, cf_frozen_conv, &
          bulk_cf_conv, u_conv, v_conv, dq_add, ccw_3d, dthbydt, dqbydt,      &
          dqclbydt, dqcfbydt, dcflbydt, dcffbydt, dbcfbydt, dubydt_p,         &
@@ -475,7 +480,7 @@ contains
     ! if they become set, please move up to be with other variables
     type(scm_convss_dg_type), allocatable :: scm_convss_dg(:)
 
-    real(r_um), dimension(row_length,rows,nlayers) :: rho_dry_theta,         &
+    real(r_um), dimension(row_length,rows,nlayers) ::                        &
          it_mf_congest, it_dt_congest, it_dq_congest, it_du_congest,         &
          it_dv_congest, it_du_dd, it_dv_dd, it_area_ud, it_area_dd,          &
          it_up_flux_half, it_uw_dp, it_vw_dp, it_uw_shall, it_vw_shall,      &
@@ -521,7 +526,8 @@ contains
       ! wet density on theta and rho levels
       rho_wet_tq(1,1,k) = wetrho_in_wth(map_wth(1) + k)
       rho_wet(1,1,k) = wetrho_in_w3(map_w3(1) + k-1)
-      ! dry density on rho levels
+      ! dry density on theta and rho levels
+      rho_dry_theta(1,1,k) = rho_in_wth(map_wth(1) + k)
       rho_dry(1,1,k) = rho_in_w3(map_w3(1) + k-1)
       ! pressure on rho and theta levels
       p_rho_levels(1,1,k) = p_zero*(exner_in_w3(map_w3(1) + k-1))**(1.0_r_def/kappa)
