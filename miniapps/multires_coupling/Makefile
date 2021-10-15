@@ -178,8 +178,9 @@ build: ALWAYS
 #
 .PHONY: unit-tests
 unit-tests: export ADDITIONAL_EXTRACTION = "$(ROOT_DIR)/infrastructure/source \
-                                            $(ROOT_DIR)/components/lfric-xios/source \
-                                            $(ROOT_DIR)/gungho/source"
+                                            $(ROOT_DIR)/gungho/source \
+                                            $(ROOT_DIR)/gungho/unit-test/support \
+                                            $(ROOT_DIR)/components/lfric-xios/source"
 unit-tests: export BIN_DIR ?= $(PROJECT_DIR)/test
 unit-tests: export EXTERNAL_STATIC_LIBRARIES += pfunit
 unit-tests: export FFLAG_GROUPS = DEBUG NO_OPTIMISATION INIT UNIT_WARNINGS

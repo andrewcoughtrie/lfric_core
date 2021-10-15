@@ -15,10 +15,12 @@
 # Operate only on this list of sub-projects. May be overridden from the
 # terminal.
 #
-OPERATE_ON ?= infrastructure                             \
+OPERATE_ON ?= lfric_atm                                  \
+              gungho                                     \
+              infrastructure                             \
               components/lfric-xios                      \
               components/coupler-oasis                   \
-              mesh_tools gungho lfric_atm                \
+              mesh_tools                                 \
               linear                                     \
               miniapps/skeleton                          \
               miniapps/diagnostics                       \
