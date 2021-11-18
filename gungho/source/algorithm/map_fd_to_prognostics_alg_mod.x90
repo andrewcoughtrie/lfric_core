@@ -30,9 +30,7 @@ module map_fd_to_prognostics_alg_mod
                                              get_u_lat_map, &
                                              get_u_up_map
   use fs_continuity_mod,               only: W3, W2
-  use initialization_config_mod,       only: ancil_option,                &
-                                             ancil_option_aquaplanet,     &
-                                             hydro_coriolis
+  use initialization_config_mod,       only: hydro_coriolis
   use planet_config_mod,               only: gravity, p_zero, kappa, rd, cp
   use sort_ref_kernel_mod,             only: sort_ref_kernel_type
   use io_config_mod,                   only: subroutine_timers

@@ -2,7 +2,7 @@
 &io_dev
   field_initialisation  = 'analytic'
   time_variation        = 'analytic'
-  ancil_update_freq     = 1
+  ancil_update_freq     = 'always'
   field_kind            = 'real'
 /
 !==============================================================================

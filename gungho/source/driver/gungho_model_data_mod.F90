@@ -32,9 +32,9 @@ module gungho_model_data_mod
                                                  init_option_fe_start_dump,   &
                                                  ancil_option,                &
                                                  ancil_option_none,           &
-                                                 ancil_option_aquaplanet,     &
-                                                 ancil_option_basic_gal,      &
-                                                 ancil_option_prototype_gal,  &
+                                                 ancil_option_start_dump,     &
+                                                 ancil_option_fixed,          &
+                                                 ancil_option_updating,       &
                                                  lbc_option,                  &
                                                  lbc_option_none,             &
                                                  lbc_option_analytic,         &
@@ -66,10 +66,10 @@ module gungho_model_data_mod
   use init_ancils_mod,                    only : create_fd_ancils
   use process_inputs_alg_mod,             only : process_inputs_alg
   use update_tstar_alg_mod,               only : update_tstar_alg
+  use variable_fields_mod,                only : init_variable_fields
 #endif
   use linked_list_mod,                    only : linked_list_type, &
                                                  linked_list_item_type
-  use variable_fields_mod,                only : init_variable_fields
 
   implicit none
 
@@ -351,7 +351,9 @@ contains
     ! If checkpoint reading has been specified then override these options
     if (checkpoint_read) then
       prognostic_init_choice = init_option_checkpoint_dump
-      ancil_choice = ancil_option_none
+      if (ancil_option /= ancil_option_updating) then
+        ancil_choice = ancil_option_none
+      end if
     end if
 
     !-------------------------------------------------------------------------
@@ -408,7 +410,7 @@ contains
 
       ! Create and populate collection of fields to be read from ancillary files
       select case ( ancil_choice )
-        case ( ancil_option_basic_gal, ancil_option_prototype_gal )
+        case ( ancil_option_fixed, ancil_option_updating )
           call create_fd_ancils( model_data%depository,   &
                                  model_data%ancil_fields, &
                                  mesh_id, twod_mesh_id ,  &
@@ -531,24 +533,25 @@ contains
       select case ( ancil_choice )
         case ( ancil_option_none )
           call log_event( "Gungho: No ancillaries to be read for this run.", LOG_LEVEL_INFO )
-        case ( ancil_option_aquaplanet )
-          call log_event( "Gungho: No ancillaries are read for aquaplanet run ", LOG_LEVEL_INFO )
 #ifdef UM_PHYSICS
+        case ( ancil_option_start_dump )
+          call log_event( "Gungho: Ancillaries are being read from start dump ", LOG_LEVEL_INFO )
           ! Update the tiled surface temperature with the calculated tstar
           call update_tstar_alg(model_data%surface_fields, &
                                 model_data%fd_fields, put_field=.true. )
-#endif
-        case ( ancil_option_basic_gal, ancil_option_prototype_gal )
-          call log_event( "Gungho: Reading basic/proto GAL ancils ", LOG_LEVEL_INFO )
-          call read_state( model_data%ancil_fields )
+        case ( ancil_option_fixed, ancil_option_updating )
           call init_variable_fields( model_data%ancil_times_list, &
                                      clock, model_data%ancil_fields )
-#ifdef UM_PHYSICS
-          call process_inputs_alg( model_data%ancil_fields,   &
-                                   model_data%fd_fields,      &
-                                   model_data%surface_fields, &
-                                   model_data%soil_fields,    &
-                                   model_data%snow_fields)
+          if (.not. checkpoint_read) then
+            ! These parts only need to happen on a new run
+            call log_event( "Gungho: Reading ancillaries from file ", LOG_LEVEL_INFO )
+            call read_state( model_data%ancil_fields )
+            call process_inputs_alg( model_data%ancil_fields,   &
+                                     model_data%fd_fields,      &
+                                     model_data%surface_fields, &
+                                     model_data%soil_fields,    &
+                                     model_data%snow_fields)
+          end if
 #endif
         case default
           ! No valid ancil option selected

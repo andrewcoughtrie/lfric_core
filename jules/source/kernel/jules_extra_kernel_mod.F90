@@ -444,6 +444,7 @@ contains
       fluxes%surf_htf_surft(1, i) = real(surf_heat_flux(map_tile(1)+i-1), r_um)
       fluxes%ecan_surft(1, i)     = real(canopy_evap(map_tile(1)+i-1), r_um)
     end do
+    flandg = min(flandg, 1.0_r_um)
 
     ! Jules requires fractions with respect to the land area
     if (flandg(1, 1) > 0.0_r_um) then

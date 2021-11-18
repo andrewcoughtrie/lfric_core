@@ -31,13 +31,18 @@ module gungho_driver_mod
                                          nodal_output_on_w3
   use io_context_mod,             only : io_context_type
   use initialization_config_mod,  only : lbc_option,     &
-                                         lbc_option_file
+                                         lbc_option_file, &
+                                         ancil_option, &
+                                         ancil_option_updating
   use init_gungho_lbcs_alg_mod,   only : update_lbcs_file_alg
   use log_mod,                    only : log_event,         &
                                          log_scratch_space, &
                                          LOG_LEVEL_ALWAYS,  &
                                          LOG_LEVEL_INFO
+#ifdef UM_PHYSICS
   use variable_fields_mod,        only : update_variable_fields
+  use update_ancils_alg_mod,      only : update_ancils_alg
+#endif
 #ifdef COUPLED
   use esm_couple_config_mod,      only : l_esm_couple_test
   use coupler_mod,                only : l_esm_couple, cpl_snd, cpl_rcv
@@ -143,12 +148,6 @@ contains
     clock => io_context%get_clock()
     do while (clock%tick())
 
-      ! Update time-varying fields
-      ! This call is currently commented out because it does not work correctly
-      ! and will be re-instated in a later ticket
-      !call update_variable_fields( model_data%ancil_times_list, &
-      !                             clock, model_data%ancil_fields )
-
 #ifdef COUPLED
       if(l_esm_couple) then
 
@@ -189,6 +188,21 @@ contains
                                         clock,      &
                                         nodal_output_on_w3 )
       end if
+
+#ifdef UM_PHYSICS
+      ! Update time-varying ancillaries
+      ! This is done last in the timestep, because the time data of the
+      ! ancillaries needs to be that of the start of timestep, but the
+      ! first thing that happens in a timestep is that the clock ticks to the
+      ! end of timestep date.
+      if (ancil_option == ancil_option_updating) then
+        call update_variable_fields( model_data%ancil_times_list, &
+                                     clock, model_data%ancil_fields )
+        call update_ancils_alg( model_data%ancil_times_list, &
+                                clock, model_data%ancil_fields, &
+                                model_data%surface_fields)
+      end if
+#endif
 
     end do ! end ts loop
 

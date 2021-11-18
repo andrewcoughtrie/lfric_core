@@ -39,9 +39,9 @@ module gungho_setup_io_mod
   use initialization_config_mod, only: init_option,               &
                                        init_option_fd_start_dump, &
                                        ancil_option,              &
-                                       ancil_option_aquaplanet,   &
-                                       ancil_option_basic_gal,    &
-                                       ancil_option_prototype_gal,&
+                                       ancil_option_start_dump,   &
+                                       ancil_option_fixed,        &
+                                       ancil_option_updating,     &
                                        lbc_option,                &
                                        lbc_option_file
   use io_config_mod,             only: diagnostic_frequency,      &
@@ -53,6 +53,9 @@ module gungho_setup_io_mod
                                        orog_init_option_ancil
   use time_config_mod,           only: timestep_start,            &
                                        timestep_end
+#ifdef UM_PHYSICS
+  use surface_config_mod,        only: sea_alb_var_chl, albedo_obs
+#endif
 
   implicit none
 
@@ -104,7 +107,7 @@ module gungho_setup_io_mod
 
     ! Setup dump-reading context information
     if( init_option == init_option_fd_start_dump .or. &
-        ancil_option == ancil_option_aquaplanet ) then
+        ancil_option == ancil_option_start_dump ) then
       ! Create dump filename from stem
       write(dump_fname,'(A)') trim(start_dump_directory)//'/'// &
                               trim(start_dump_filename)
@@ -114,9 +117,10 @@ module gungho_setup_io_mod
       call files_list%insert_item(tmp_file)
     end if
 
+#ifdef UM_PHYSICS
     ! Setup ancillary files
-    if( ancil_option == ancil_option_basic_gal .or. &
-        ancil_option == ancil_option_prototype_gal ) then
+    if( ancil_option == ancil_option_fixed .or. &
+        ancil_option == ancil_option_updating ) then
       ! Set land area ancil filename from namelist
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(land_area_ancil_path)
@@ -129,19 +133,21 @@ module gungho_setup_io_mod
       call tmp_file%init_xios_file("soil_ancil", path=ancil_fname)
       call files_list%insert_item(tmp_file)
 
-      ! Set plant func ancil filename from namelist
+      ! Set plant functional type ancil filename from namelist
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(plant_func_ancil_path)
       call tmp_file%init_xios_file("plant_func_ancil", path=ancil_fname)
       call files_list%insert_item(tmp_file)
 
-      ! Set sea ancil filename from namelist
-      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
-                               trim(sea_ancil_path)
-      call tmp_file%init_xios_file("sea_ancil", path=ancil_fname)
-      call files_list%insert_item(tmp_file)
+      ! Set sea chlorophyll ancil filename from namelist
+      if ( sea_alb_var_chl ) then
+        write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                                 trim(sea_ancil_path)
+        call tmp_file%init_xios_file("sea_ancil", path=ancil_fname)
+        call files_list%insert_item(tmp_file)
+      end if
 
-      ! Set sea ancil filename from namelist
+      ! Set sea surface temperature ancil filename from namelist
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(sst_ancil_path)
       call tmp_file%init_xios_file("sst_ancil", path=ancil_fname)
@@ -153,19 +159,21 @@ module gungho_setup_io_mod
       call tmp_file%init_xios_file("sea_ice_ancil", path=ancil_fname)
       call files_list%insert_item(tmp_file)
 
-      ! Set albedo_vis ancil filename from namelist
-      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
-                               trim(albedo_vis_ancil_path)
-      call tmp_file%init_xios_file("albedo_vis_ancil", path=ancil_fname)
-      call files_list%insert_item(tmp_file)
+      if ( albedo_obs ) then
+        ! Set albedo_vis ancil filename from namelist
+        write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                                 trim(albedo_vis_ancil_path)
+        call tmp_file%init_xios_file("albedo_vis_ancil", path=ancil_fname)
+        call files_list%insert_item(tmp_file)
 
-      ! Set albedo_nir ancil filename from namelist
-      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
-                               trim(albedo_nir_ancil_path)
-      call tmp_file%init_xios_file("albedo_nir_ancil", path=ancil_fname)
-      call files_list%insert_item(tmp_file)
+        ! Set albedo_nir ancil filename from namelist
+        write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                                 trim(albedo_nir_ancil_path)
+        call tmp_file%init_xios_file("albedo_nir_ancil", path=ancil_fname)
+        call files_list%insert_item(tmp_file)
+      end if
 
-      ! Set hydtop filename from namelist
+      ! Set topmodel hydrology filename from namelist
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(hydtop_ancil_path)
       call tmp_file%init_xios_file("hydtop_ancil", path=ancil_fname)
@@ -188,12 +196,14 @@ module gungho_setup_io_mod
                                trim(aerosols_ancil_path)
       call tmp_file%init_xios_file("aerosols_ancil", path=ancil_fname)
       call files_list%insert_item(tmp_file)
+
     end if
+#endif
 
     ! Setup orography ancillary file
     if( ( orog_init_option == orog_init_option_ancil ) .or. &
-      ( ancil_option == ancil_option_basic_gal .or. &
-        ancil_option == ancil_option_prototype_gal ) ) then
+      ( ancil_option == ancil_option_fixed .or. &
+        ancil_option == ancil_option_updating ) ) then
 
       ! Set orography ancil filename from namelist
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &

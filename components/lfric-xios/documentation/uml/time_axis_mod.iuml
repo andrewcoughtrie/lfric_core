@@ -15,7 +15,7 @@ class lfric_xios_time_axis_mod::time_axis_type {
   +shift_forward()
   +get_time_window(<<out>>time_window: real[2])
   +get_index_window(<<out>>time_window_index: integer[2])
-  +get_update_frequency(<<out>>update_frequency: integer)
+  +populate_fields(<<out>>pop_fields: logical)
   +align(<<in>>input_time: real)
   +add_field(<<in>>field: field_type)
   +update_fields()

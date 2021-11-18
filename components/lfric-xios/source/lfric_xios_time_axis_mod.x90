@@ -53,9 +53,11 @@ module lfric_xios_time_axis_mod
     logical(l_def) :: yearly = .true.
     !> Flag for interpolation
     logical(l_def) :: does_interpolation = .false.
-    !> Data population frequency in timesteps
-    integer(i_def) :: populate_frequency = 1
-    !> Update frequency in timesteps
+    !> Data population frequency
+    type(xios_duration) :: population_frequency
+    !> XIOS date for next population
+    type(xios_date) :: next_population
+    !> Update frequency
     type(xios_duration) :: update_frequency
     !> XIOS date for next update
     type(xios_date) :: next_update
@@ -77,8 +79,8 @@ module lfric_xios_time_axis_mod
     procedure, public :: step
     !> Returns the window size of the time axis object
     procedure, public :: get_window_size
-    !> Returns population frequency of time axis in timesteps
-    procedure, public :: get_update_frequency
+    !> Returns whether the model fields in the time axis need repopulating
+    procedure, public :: populate_fields
     !> Aligns the active time window with the current model time
     procedure, public :: align
     !> Adds a field to the associated time axis object
@@ -119,7 +121,7 @@ contains
   !> @param[in] yearly       Flag determining if axis is yearly
   !> @param[in] interp_flag  Flag determining if time_axis fields are linearly
   !>                         interpolated before being passed to the model data
-  !> @param[in] pop_freq     The data population frequency of the time axis in timesteps
+  !> @param[in] pop_freq     The data population frequency of the time axis
   subroutine initialise( self, name, file_id, xios_id, yearly, interp_flag, pop_freq )
 
     implicit none
@@ -130,10 +132,10 @@ contains
     character(*),   optional,     intent(in)    :: xios_id
     logical(l_def), optional,     intent(in)    :: yearly
     logical(l_def), optional,     intent(in)    :: interp_flag
-    integer(i_def), optional,     intent(in)    :: pop_freq
+    character(*),   optional,     intent(in)    :: pop_freq
 
     type(field_collection_type) :: init_fields
-    type(xios_date)             :: start_date
+    type(xios_date)             :: start_date, time_origin
 
     ! Name the object
     self%name = name
@@ -154,8 +156,36 @@ contains
     ! Set optional attributes
     if ( present(yearly) ) self%yearly = yearly
     if ( present(interp_flag) ) self%does_interpolation = interp_flag
-    if ( present(pop_freq) ) self%populate_frequency = pop_freq
+    if ( present(pop_freq) .and. .not. trim(pop_freq) == "always" ) then
+      ! Set the population frequency as defined by the string input
+      if (trim(pop_freq) == "daily") then
+        self%population_frequency = xios_duration(0,0,1,0,0,0)
+      else if (trim(pop_freq) == "five_days") then
+        self%population_frequency = xios_duration(0,0,5,0,0,0)
+      else if (trim(pop_freq) == "ten_days") then
+        self%population_frequency = xios_duration(0,0,10,0,0,0)
+      else if (trim(pop_freq) == "monthly") then
+        self%population_frequency = xios_duration(0,1,0,0,0,0)
+      else
+        write( log_scratch_space,'(A,A)' ) "Invalid update freq for "//trim(self%name)// &
+                                           " time axis: "// trim(pop_freq)
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end if
+    else
+      ! Default to smallest update frequency xios can handle
+      self%population_frequency = xios_duration(0,0,0,0,0,1)
+    end if
 
+    ! Find the next population date after the start of this (c)run
+    call xios_get_time_origin(time_origin)
+    self%next_population = time_origin + self%population_frequency
+    do
+      if (start_date < self%next_population) then
+        exit
+      else
+        self%next_population = self%next_population + self%population_frequency
+      end if
+    end do
 
     ! Read time data
     call self%read_time_data()
@@ -334,6 +364,15 @@ contains
     ! Get current date from XIOS calendar
     call xios_get_current_date(model_date)
 
+    ! Find the next population date after the current time
+    do
+      if (model_date <= self%next_population) then
+        exit
+      else
+        self%next_population = self%next_population + self%population_frequency
+      end if
+    end do
+
     if ( self%next_update <= model_date ) then
       call self%update_fields()
       self%next_update = model_date + self%update_frequency
@@ -361,19 +400,28 @@ contains
 
   end function get_window_size
 
-  !> @brief Returns time axis update frequency.
-  !> @return pop_frequency The data population frequency of the time axis in timesteps
-  function get_update_frequency(self) result(pop_frequency)
+  !> @brief Returns whether or not repopulate the model data fields.
+  !> @return pop_fields Logical returning true if fields should be populated
+  function populate_fields(self) result(pop_fields)
 
     implicit none
 
     class(time_axis_type), intent(inout) :: self
 
-    integer(i_def) ::  pop_frequency
+    type(xios_date) :: model_date
 
-    pop_frequency = self%populate_frequency
+    logical(l_def) ::  pop_fields
 
-  end function get_update_frequency
+    ! Get current date from XIOS calendar
+    call xios_get_current_date(model_date)
+
+    if ( self%next_population <= model_date ) then
+      pop_fields = .true.
+    else
+      pop_fields = .false.
+    end if
+
+  end function populate_fields
 
   !> @brief Takes model time and shifts forward through time axis so active
   !>        time window is aligned with model time.
@@ -506,6 +554,10 @@ contains
         model_proxy = model_field%get_proxy()
         data_field => self%fields%get_field(trim(field_next%get_name()))
         data_proxy = data_field%get_proxy()
+
+         call log_event( &
+            'Updating '//trim(adjustl(model_field%get_name())), &
+            LOG_LEVEL_INFO)
 
         ! Populate model fields based on interpolation flag
         if ( self%does_interpolation ) then

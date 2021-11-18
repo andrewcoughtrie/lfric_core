@@ -569,9 +569,6 @@
         <field id="init_svar_bm" name="svar_bm" long_name="variance_of_bimodal_sd_pdf" unit="kg2 kg-2" grid_ref="full_level_face_grid" />
         <field id="init_svar_tb" name="svar_tb" long_name="variance_of_unimodal_sd_pdf" unit="kg2 kg-2" grid_ref="full_level_face_grid" />
         <field id="init_sigma_qcw" name="sigma_qcw" long_name="variability_cloud_condensate"  unit="1" grid_ref="full_level_face_grid" />
-	<field id="init_soil_moisture" name="soil_moisture" long_name="soil_moisture" unit="kg m-2" domain_ref="face" axis_ref="soil_levels"/>
-	<field id="init_unfrozen_soil_moisture" name="unfrozen_soil_moisture" long_name="unfrozen_soil_moisture" unit="kg m-2" domain_ref="face" axis_ref="soil_levels"/>
-	<field id="init_soil_temperature" name="soil_temperature" long_name="soil_temperature" unit="K" domain_ref="face" axis_ref="soil_levels"/>
       </field_group>
 
     </field_definition>

@@ -260,6 +260,22 @@ subroutine sw_rad_tile_code(nlayers,                                &
     ainfo%frac_surft(1, i) = real(tile_fraction(map_tile(1)+i-1), r_um)
   end do
 
+  ! Sea-ice fraction
+  i_sice = 0
+  ainfo%ice_fract_ij = 0.0_r_um
+  do i = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
+    i_sice = i_sice + 1
+    ainfo%ice_fract_ij = ainfo%ice_fract_ij + real(tile_fraction(map_tile(1)+i-1), r_um)
+    ice_fract_cat(1, 1, i_sice) = real(tile_fraction(map_tile(1)+i-1), r_um)
+  end do
+
+  ! Because Jules tests on flandg < 1, we need to ensure this is exactly
+  ! 1 when no sea or sea-ice is present
+  if ( tile_fraction(map_tile(1)+first_sea_tile-1) == 0.0_r_def .and. &
+       ainfo%ice_fract_ij(1,1) == 0.0_r_um) then
+    flandg(1,1) = 1.0_r_um
+  end if
+
   ! Jules requires fractions with respect to the land area
   if (flandg(1, 1) > 0.0_r_um) then
     land_field = 1
@@ -295,23 +311,6 @@ subroutine sw_rad_tile_code(nlayers,                                &
     i_sice = i_sice + 1
     coast%tstar_sice_sicat(1, 1, i_sice) = real(tile_temperature(map_tile(1)+i-1), r_um)
   end do
-
-  ! Sea-ice fraction
-  i_sice = 0
-  ainfo%ice_fract_ij = 0.0_r_um
-  do i = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
-    i_sice = i_sice + 1
-    ainfo%ice_fract_ij = ainfo%ice_fract_ij + real(tile_fraction(map_tile(1)+i-1), r_um)
-    ice_fract_cat(1, 1, i_sice) = real(tile_fraction(map_tile(1)+i-1), r_um)
-  end do
-
-  ! Because Jules tests on flandg < 1, we need to ensure this is exactly
-  ! 1 when no sea or sea-ice is present
-  if (flandg(1,1) < 1.0_r_um .and. &
-       tile_fraction(map_tile(1)+first_sea_tile-1) == 0.0_r_def .and. &
-       ainfo%ice_fract_ij(1,1) == 0.0_r_um) then
-    flandg(1,1) = 1.0_r_um
-  end if
 
   ! Jules requires sea-ice fractions with respect to the sea area
   if (ainfo%ice_fract_ij(1, 1) > 0.0_r_um) then

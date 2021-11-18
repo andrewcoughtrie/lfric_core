@@ -48,7 +48,10 @@ contains
           ! Align time window and populate model data
           call time_axis%align()
           call time_axis%update_fields()
-          call time_axis%populate_model_fields(fields)
+          ! Only populate the fields on a new run
+          if ( clock%is_initialisation() ) then
+            call time_axis%populate_model_fields(fields)
+          end if
 
       end select
 
@@ -90,7 +93,7 @@ contains
           call time_axis%step()
 
           ! Populate the model fields from the time axis data
-          if ( mod(clock%get_step(), time_axis%get_update_frequency()) == 0 ) then
+          if ( time_axis%populate_fields() ) then
             call time_axis%populate_model_fields(fields)
           end if
 

@@ -135,10 +135,6 @@ module init_gungho_lbcs_alg_mod
     call init_variable_fields( lbc_times_list, &
                                clock, lbc_fields )
 
-    call combine_lbc_winds( lbc_fields )
-
-    call define_boundary_u( lbc_fields )
-
   end subroutine init_lbcs_file_alg
 
   !> @brief   Update the time-varying LBCs from a file.

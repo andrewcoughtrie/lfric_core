@@ -24,9 +24,9 @@ module create_fd_prognostics_mod
                                              LOG_LEVEL_ERROR
   use init_ancils_mod,                only : setup_ancil_field
   use initialization_config_mod,      only : ancil_option,                &
-                                             ancil_option_aquaplanet,     &
-                                             ancil_option_basic_gal,      &
-                                             ancil_option_prototype_gal
+                                             ancil_option_start_dump,     &
+                                             ancil_option_fixed,          &
+                                             ancil_option_updating
   use nlsizes_namelist_mod,           only : sm_levels
   use jules_control_init_mod,         only : n_land_tile
   use jules_physics_init_mod,         only : snow_lev_tile
@@ -192,13 +192,13 @@ contains
     call setup_ancil_field("z0msea", depository, fd_field_collection, &
                            mesh_id, twod_mesh_id, twod=.true.)
 
-    if (ancil_option == ancil_option_aquaplanet) then
+    if (ancil_option == ancil_option_start_dump) then
       call setup_ancil_field("tstar", depository, fd_field_collection, &
                              mesh_id, twod_mesh_id, twod=.true.)
       call setup_ancil_field("ozone", depository, fd_field_collection, &
                              mesh_id, twod_mesh_id)
-    else if (ancil_option == ancil_option_basic_gal .or. &
-             ancil_option == ancil_option_prototype_gal) then
+    else if (ancil_option == ancil_option_fixed .or. &
+             ancil_option == ancil_option_updating) then
       ! convection fields
       call setup_ancil_field("dd_mf_cb", depository, fd_field_collection, &
                              mesh_id, twod_mesh_id, twod=.true.)

@@ -721,6 +721,23 @@ contains
       flandg = flandg + real(tile_fraction(map_tile(1)+i-1), r_um)
       frac_surft(1, i) = real(tile_fraction(map_tile(1)+i-1), r_um)
     end do
+
+    ! Sea-ice fraction
+    i_sice = 0
+    ice_fract = 0.0_r_um
+    do i = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
+      i_sice = i_sice + 1
+      ice_fract = ice_fract + real(tile_fraction(map_tile(1)+i-1), r_um)
+      ice_fract_ncat(1, 1, i_sice) = real(tile_fraction(map_tile(1)+i-1), r_um)
+    end do
+
+    ! Because Jules tests on flandg < 1, we need to ensure this is exactly
+    ! 1 when no sea or sea-ice is present
+    if ( tile_fraction(map_tile(1)+first_sea_tile-1) == 0.0_r_def .and. &
+         ice_fract(1,1) == 0.0_r_um) then
+      flandg(1,1) = 1.0_r_um
+    end if
+
     fland(1) = flandg(1,1)
 
     ! Jules requires fractions with respect to the land area
@@ -737,23 +754,6 @@ contains
 
     ! Set type_pts and type_index
     call tilepts(land_field, frac_surft, surft_pts, surft_index,ainfo%l_lice_point)
-
-    ! Sea-ice fraction
-    i_sice = 0
-    ice_fract = 0.0_r_um
-    do i = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
-      i_sice = i_sice + 1
-      ice_fract = ice_fract + real(tile_fraction(map_tile(1)+i-1), r_um)
-      ice_fract_ncat(1, 1, i_sice) = real(tile_fraction(map_tile(1)+i-1), r_um)
-    end do
-
-    ! Because Jules tests on flandg < 1, we need to ensure this is exactly
-    ! 1 when no sea or sea-ice is present
-    if (flandg(1,1) < 1.0_r_um .and. &
-         tile_fraction(map_tile(1)+first_sea_tile-1) == 0.0_r_def .and. &
-         ice_fract(1,1) == 0.0_r_um) then
-      flandg(1,1) = 1.0_r_um
-    end if
 
     ! Jules requires sea-ice fractions with respect to the sea area
     if (ice_fract(1, 1) > 0.0_r_um) then
