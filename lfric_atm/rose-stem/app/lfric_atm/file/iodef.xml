@@ -973,6 +973,98 @@
         <field id="ait_ins_om_data" name="AiInOC_121" long_name="aitken_mode_insoluble_organic_matter_mmr" unit="kg kg-1" operation="instant" grid_ref="3D_monthly_grid"/>
       </file>
 
+    <!-- UKCA emission files -->
+      <file id="emiss_bc_biofuel_ancil" name="emiss_bc_biofuel_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field id="em_bc_bf_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+       <field id="emiss_bc_biofuel_data" name="emissions_BC_biofuel" long_name="BC biofuel surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_axis"/>
+       </file>
+
+      <file id="emiss_bc_fossil_ancil" name="emiss_bc_fossil_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field id="em_bc_ff_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+       <field id="emiss_bc_fossil_data" name="emissions_BC_fossil" long_name="BC fossil fuel surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_axis"/>
+       </file>
+
+      <file id="emiss_bc_biomass_ancil" name="emiss_bc_biomass_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field id="em_bc_bb_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+       <field id="emiss_bc_biomass_data" name="emissions_BC_biomass" long_name="BC biomass 3D emissions" unit="kg m-2 s-1" operation="instant" grid_ref="3D_monthly_grid"/>
+       </file>
+
+      <file id="emiss_dms_land_ancil" name="emiss_dms_land_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field id="em_dms_lnd_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+       <field id="emiss_dms_land_data" name="emissions_DMS" long_name="DMS emissions expressed as sulfur" unit="kg(S) m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_axis"/>
+       </file>
+
+      <file id="dms_conc_ocean_ancil" name="dms_conc_ocean_ancil"  mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field id="dms_ocn_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+       <field id="dms_conc_ocean_data" name="mole_concentration_of_dimethyl_sulfide_in_sea_water" long_name="mole_concentration_of_dimethyl_sulfide_in_sea_water" unit="nmoles l-1" operation="instant" domain_ref="face" axis_ref="monthly_axis"/>
+       </file>
+
+      <file id="emiss_monoterp_ancil" name="emiss_monoterp_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field id="em_mterp_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+       <field id="emiss_monoterp_data" name="emissions_Monoterp" long_name="Monoterpene surf emissions expressed as carbon" unit="kg(C) m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_axis"/>
+       </file>
+
+      <file id="emiss_om_biofuel_ancil" name="emiss_om_biofuel_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field id="em_om_bf_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+       <field id="emiss_om_biofuel_data" name="emissions_OC_biofuel" long_name="OC biofuel surf emissions expressed as carbon" unit="kg(C) m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_axis"/>
+       </file>
+
+      <file id="emiss_om_fossil_ancil" name="emiss_om_fossil_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field id="em_om_ff_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+       <field id="emiss_om_fossil_data" name="emissions_OC_fossil" long_name="OC fossil fuel surf emissions expressed as carbon" unit="kg(C) m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_axis"/>
+       </file>
+
+      <file id="emiss_om_biomass_ancil" name="emiss_om_biomass_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field id="em_om_bb_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+       <field id="emiss_om_biomass_data" name="emissions_OC_biomass" long_name="OC biomass 3D emissions expressed as carbon" unit="kg(C) m-2 s-1" operation="instant" grid_ref="3D_monthly_grid"/>
+       </file>
+
+      <file id="emiss_so2_low_ancil" name="emiss_so2_low_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field id="em_so2_lo_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+       <field id="emiss_so2_low_data" name="emissions_SO2_low" long_name="SO2 low level emissions expressed as sulfur" unit="kg(S) m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_axis"/>
+       </file>
+
+      <file id="emiss_so2_high_ancil" name="emiss_so2_high_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field id="em_so2_hi_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+       <field id="emiss_so2_high_data" name="emissions_SO2_high" long_name="SO2 high level emissions expressed as sulfur" unit="kg(S) m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_axis"/>
+       </file>
+
+      <file id="emiss_so2_nat_ancil" name="emiss_so2_nat_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field id="emiss_so2_nat" name="emissions_SO2_nat" long_name="SO2 natural emissions expressed as sulfur" unit="kg(S) m-2 s-1" operation="once" grid_ref="full_level_face_grid"/>
+       </file>
+
+      <file id="soil_dust_ancil" name="soil_dust_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field id="soil_clay" name="volume_fraction_of_clay_in_soil" long_name="volume_fraction_of_clay_in_soil" unit="m3 m-3" operation="once" domain_ref="face"/>
+       <field id="soil_sand" name="volume_fraction_of_sand_in_soil" long_name="volume_fraction_of_sand_in_soil" unit="m3 m-3" operation="once" domain_ref="face"/>
+       <field id="dust_mrel" name="mass_fraction_of_dust_in_size_bins" long_name="mass_fraction_of_dust_in_size_bins" unit="kg kg-1" operation="once" domain_ref="face" axis_ref="dust_divisions" />
+      </file>
+
+      <!--- UKCA Offline Oxidant ancils -->
+      <file id="h2o2_limit_ancil" name="h2o2_limit_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field id="h2o2_limit_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+       <field id="h2o2_limit_data" name="H2O2" long_name="H2O2 mass mixing ratio" unit="1" operation="instant" grid_ref="3D_monthly_grid"/>
+       </file>
+
+      <file id="ho2_ancil" name="ho2_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field id="ho2_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+       <field id="ho2_data" name="HO2" long_name="HO2 mass mixing ratio" unit="1" operation="instant" grid_ref="3D_monthly_grid"/>
+       </file>
+
+      <file id="no3_ancil" name="no3_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field id="no3_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+       <field id="no3_data" name="NO3" long_name="NO3 mass mixing ratio" unit="1" operation="instant" grid_ref="3D_monthly_grid"/>
+       </file>
+
+      <file id="o3_ancil" name="o3_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field id="o3_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+       <field id="o3_data" name="O3" long_name="O3 mass mixing ratio" unit="1" operation="instant" grid_ref="3D_monthly_grid"/>
+       </file>
+
+      <file id="oh_ancil" name="oh_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field id="oh_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+       <field id="oh_data" name="OH" long_name="OH mass mixing ratio" unit="1" operation="instant" grid_ref="3D_monthly_grid"/>
+       </file>
+
     </file_definition>
 
   </context>

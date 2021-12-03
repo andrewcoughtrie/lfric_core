@@ -24,12 +24,30 @@ module gungho_setup_io_mod
                                        aerosols_ancil_path,       &
                                        albedo_nir_ancil_path,     &
                                        albedo_vis_ancil_path,     &
+                                       emiss_bc_biofuel_ancil_path,&
+                                       emiss_bc_fossil_ancil_path, &
+                                       emiss_bc_biomass_ancil_path,&
+                                       emiss_dms_land_ancil_path,  &
+                                       dms_conc_ocean_ancil_path,  &
+                                       emiss_monoterp_ancil_path,  &
+                                       emiss_om_biofuel_ancil_path,&
+                                       emiss_om_fossil_ancil_path, &
+                                       emiss_om_biomass_ancil_path,&
+                                       emiss_so2_low_ancil_path,  &
+                                       emiss_so2_high_ancil_path, &
+                                       emiss_so2_nat_ancil_path,  &
                                        hydtop_ancil_path,         &
+                                       h2o2_limit_ancil_path,     &
+                                       ho2_ancil_path,            &
+                                       no3_ancil_path,            &
+                                       o3_ancil_path,             &
+                                       oh_ancil_path,             &
                                        ozone_ancil_path,          &
                                        plant_func_ancil_path,     &
                                        sea_ancil_path,            &
                                        sea_ice_ancil_path,        &
                                        soil_ancil_path,           &
+                                       soil_dust_ancil_path,      &
                                        sst_ancil_path,            &
                                        surface_frac_ancil_path,   &
                                        start_dump_filename,       &
@@ -59,6 +77,7 @@ module gungho_setup_io_mod
                                        timestep_end
 #ifdef UM_PHYSICS
   use surface_config_mod,        only: sea_alb_var_chl, albedo_obs
+  use aerosol_config_mod,        only: glomap_mode, glomap_mode_ukca
 #endif
 
   implicit none
@@ -200,6 +219,103 @@ module gungho_setup_io_mod
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(aerosols_ancil_path)
       call tmp_file%init_xios_file("aerosols_ancil", path=ancil_fname)
+      call files_list%insert_item(tmp_file)
+
+    end if
+    if ( glomap_mode == glomap_mode_ukca   .and.            &
+         ancil_option == ancil_option_updating ) then
+
+      ! Set aerosol emission ancil filenames from namelist
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(emiss_bc_biofuel_ancil_path)
+      call tmp_file%init_xios_file("emiss_bc_biofuel_ancil", path=ancil_fname)
+      call files_list%insert_item(tmp_file)
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(emiss_bc_fossil_ancil_path)
+      call tmp_file%init_xios_file("emiss_bc_fossil_ancil", path=ancil_fname)
+      call files_list%insert_item(tmp_file)
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(emiss_bc_biomass_ancil_path)
+      call tmp_file%init_xios_file("emiss_bc_biomass_ancil", path=ancil_fname)
+      call files_list%insert_item(tmp_file)
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(emiss_dms_land_ancil_path)
+      call tmp_file%init_xios_file("emiss_dms_land_ancil", path=ancil_fname)
+      call files_list%insert_item(tmp_file)
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(dms_conc_ocean_ancil_path)
+      call tmp_file%init_xios_file("dms_conc_ocean_ancil", &
+                                    path=ancil_fname)
+      call files_list%insert_item(tmp_file)
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(emiss_monoterp_ancil_path)
+      call tmp_file%init_xios_file("emiss_monoterp_ancil", path=ancil_fname)
+      call files_list%insert_item(tmp_file)
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(emiss_om_biofuel_ancil_path)
+      call tmp_file%init_xios_file("emiss_om_biofuel_ancil", path=ancil_fname)
+      call files_list%insert_item(tmp_file)
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(emiss_om_fossil_ancil_path)
+      call tmp_file%init_xios_file("emiss_om_fossil_ancil", path=ancil_fname)
+      call files_list%insert_item(tmp_file)
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(emiss_om_biomass_ancil_path)
+      call tmp_file%init_xios_file("emiss_om_biomass_ancil", path=ancil_fname)
+      call files_list%insert_item(tmp_file)
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(emiss_so2_low_ancil_path)
+      call tmp_file%init_xios_file("emiss_so2_low_ancil", path=ancil_fname)
+      call files_list%insert_item(tmp_file)
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(emiss_so2_high_ancil_path)
+      call tmp_file%init_xios_file("emiss_so2_high_ancil", path=ancil_fname)
+      call files_list%insert_item(tmp_file)
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(emiss_so2_nat_ancil_path)
+      call tmp_file%init_xios_file("emiss_so2_nat_ancil", path=ancil_fname)
+      call files_list%insert_item(tmp_file)
+
+      ! Setup Offline oxidants ancillary files
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(h2o2_limit_ancil_path)
+      call tmp_file%init_xios_file("h2o2_limit_ancil", path=ancil_fname)
+      call files_list%insert_item(tmp_file)
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(ho2_ancil_path)
+      call tmp_file%init_xios_file("ho2_ancil", path=ancil_fname)
+      call files_list%insert_item(tmp_file)
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(no3_ancil_path)
+      call tmp_file%init_xios_file("no3_ancil", path=ancil_fname)
+      call files_list%insert_item(tmp_file)
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(o3_ancil_path)
+      call tmp_file%init_xios_file("o3_ancil", path=ancil_fname)
+      call files_list%insert_item(tmp_file)
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(oh_ancil_path)
+      call tmp_file%init_xios_file("oh_ancil", path=ancil_fname)
+      call files_list%insert_item(tmp_file)
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(soil_dust_ancil_path)
+      call tmp_file%init_xios_file("soil_dust_ancil", path=ancil_fname)
       call files_list%insert_item(tmp_file)
 
     end if
