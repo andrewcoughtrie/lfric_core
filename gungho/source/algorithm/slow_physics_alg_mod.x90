@@ -393,7 +393,8 @@ contains
                          aer_lw_absorption,aer_lw_scattering,aer_lw_asymmetry )
       end if
 
-      call illuminate_alg( radiation_fields, clock%get_step() )
+      call illuminate_alg( radiation_fields, clock%get_step(), &
+                           clock%get_seconds_per_step() )
 
       call rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,  &
                         tile_lw_albedo, derived_fields,                 &

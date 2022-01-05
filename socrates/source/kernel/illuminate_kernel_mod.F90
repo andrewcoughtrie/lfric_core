@@ -13,7 +13,7 @@ use argument_mod,  only : arg_type,                  &
                           GH_READ, GH_WRITE,         &
                           GH_READWRITE, CELL_COLUMN, &
                           ANY_DISCONTINUOUS_SPACE_1
-use constants_mod, only : r_def, i_def
+use constants_mod, only : r_def, i_def, r_second
 use kernel_mod,    only : kernel_type
 
 implicit none
@@ -30,7 +30,7 @@ public :: illuminate_code
 ! Contains the metadata needed by the PSy layer.
 type, extends(kernel_type) :: illuminate_kernel_type
   private
-  type(arg_type) :: meta_args(10) = (/                                           &
+  type(arg_type) :: meta_args(11) = (/                                           &
        arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1), & ! cos_zenith_angle
        arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1), & ! lit_fraction
        arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! cos_zenith_angle_rts
@@ -40,7 +40,8 @@ type, extends(kernel_type) :: illuminate_kernel_type
        arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! stellar_eqn_of_time_rts
        arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! latitude
        arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! longitude
-       arg_type(GH_SCALAR, GH_INTEGER, GH_READ                                )  & ! timestep
+       arg_type(GH_SCALAR, GH_INTEGER, GH_READ                                ), & ! timestep number
+       arg_type(GH_SCALAR, GH_REAL,    GH_READ                                )  & ! dt
        /)
   integer :: operates_on = CELL_COLUMN
 contains
@@ -63,6 +64,7 @@ contains
 !> @param[in]     latitude                    Latitude field
 !> @param[in]     longitude                   Longitude field
 !> @param[in]     timestep                    Timestep number
+!> @param[in]     dt                          Timestep length
 !> @param[in]     ndf_2d     No. of degrees of freedom per cell for 2D space
 !> @param[in]     undf_2d    No. unique of degrees of freedom for 2D space
 !> @param[in]     map_2d     Dofmap for cell at base of column for 2D space
@@ -75,12 +77,11 @@ subroutine illuminate_code(nlayers,                     &
                            sin_stellar_declination_rts, &
                            stellar_eqn_of_time_rts,     &
                            latitude, longitude,         &
-                           timestep,                    &
+                           timestep, dt,                &
                            ndf_2d, undf_2d, map_2d)
 
   use xios, only: xios_date, xios_get_current_date, &
     xios_date_get_day_of_year, xios_date_get_second_of_day
-  use timestepping_config_mod, only: dt
   use radiation_config_mod, only: n_radstep
   use star_config_mod, only: stellar_constant
   use orbit_config_mod, only:                                                &
@@ -100,6 +101,7 @@ subroutine illuminate_code(nlayers,                     &
 
   ! Arguments
   integer(i_def), intent(in) :: nlayers, timestep
+  real(r_second), intent(in) :: dt
   integer(i_def), intent(in) :: ndf_2d, undf_2d
   integer(i_def), intent(in) :: map_2d(ndf_2d)
 
