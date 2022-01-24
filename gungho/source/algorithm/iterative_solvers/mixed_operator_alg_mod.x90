@@ -213,7 +213,7 @@ contains
 
          case ( eliminate_variables_none )
            ! Compute the action of the full mixed operator on all variables
-           tau_r_dt = tau_r*dt
+           tau_r_dt = tau_r*real(dt, kind=r_def)
            call invoke( name="apply_mixed_lhs",                                                                &
                         setval_c( y_uvw,            0.0_r_def ),                                               &
                         setval_c( y%vector(isol_t), 0.0_r_def ),                                               &

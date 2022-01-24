@@ -22,7 +22,10 @@ module prolong_w2_kernel_mod_test
 contains
   @test
   subroutine test_all( this )
+
+    use, intrinsic :: iso_fortran_env, only : real64
     use prolong_w2_kernel_mod, only : prolong_w2_kernel_code
+
     implicit none
     class(prolong_w2_test_type), intent(inout) :: this
 
@@ -46,6 +49,7 @@ contains
     real(kind=r_def), allocatable, dimension(:) :: coarse_field, fine_field
     real(kind=r_def), allocatable, dimension(:) :: answer, weights
     real(r_def), parameter :: tol = 1.0e-12_r_def
+    real(r_def)            :: use_tol
 
     ! set the scalars by hand
     nlayers = 3
@@ -190,9 +194,16 @@ contains
                                  undf_c,          &
                                  map_c            )
 
+    ! Set tolerance
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing( maxval( fine_field ) )
+    end if
+
     ! Check answer for all DoFs
     do df = 1, undf_f
-      @assertEqual( fine_field(df), answer(df), tol )
+      @assertEqual( fine_field(df), answer(df), use_tol )
     end do
 
     deallocate( cell_map,      &

@@ -8,7 +8,7 @@
 !>
 module compute_dl_matrix_kernel_mod_test
 
-  use constants_mod,            only : i_def, r_def
+  use constants_mod,            only : i_def, r_def, r_second
   use damping_layer_config_mod, only : dl_base, dl_str, dl_type, dl_type_standard
   use extrusion_config_mod,     only : method, domain_top, number_of_layers
   use get_unit_test_m3x3_dofmap_mod, &
@@ -69,11 +69,11 @@ contains
 
     call feign_timestepping_config(                              &
              method=method_semi_implicit,                        &
-             dt=1.0_r_def, alpha=0.5_r_def, tau_u=0.5_r_def,     &
+             dt=1.0_r_second, alpha=0.5_r_def, tau_u=0.5_r_def,  &
              tau_t=0.5_r_def, tau_r=0.5_r_def,                   &
              outer_iterations=4_i_def, inner_iterations=1_i_def, &
              runge_kutta_method=runge_kutta_method_ssp3,         &
-             spinup_period=0.0_r_def, spinup_alpha=.false.,      &
+             spinup_period=0.0_r_second, spinup_alpha=.false.,   &
              spinup_winds=.false. )
 
     call feign_finite_element_config(           &

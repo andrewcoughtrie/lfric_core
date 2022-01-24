@@ -513,7 +513,7 @@ contains
 
     call flux%initialise( vector_space = self%rhs_u%get_function_space() )
 
-    tau_dt = -tau_r*dt
+    tau_dt = -tau_r*real(dt, kind=r_def)
     call invoke( name = "compute_increments",                               &
                  setval_c(ru_inc, 0.0_r_def),                               &
                  setval_c(theta_inc,  0.0_r_def),                           &

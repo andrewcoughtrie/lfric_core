@@ -527,7 +527,7 @@ contains
       div       => get_div(mesh_id)
       rho_at_u  => get_rho_at_u()
       mm_w3_inv => get_inverse_w3_mass_matrix(mesh_id)
-      tau_r_dt = -tau_r*dt
+      tau_r_dt = -tau_r*real(dt, kind=r_def)
       call div_u%initialise( vector_space = rhs(igh_p)%get_function_space() )
       call f_star%initialise( vector_space = rhs(igh_u)%get_function_space() )
       call rhs_tmp%initialise( vector_space = rhs(igh_p)%get_function_space() )

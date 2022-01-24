@@ -7,6 +7,7 @@
 !> Test the weighted W2 mass matrix obtained by eliminating theta
 module eliminated_theta_q22_kernel_mod_test
 
+  use, intrinsic :: iso_fortran_env, only : real64
   use constants_mod, only : i_def, r_def
   use pFUnit_Mod
   use yaxt,          only : xt_initialize, xt_finalize
@@ -84,6 +85,7 @@ contains
     class(eliminated_theta_q22_test_type), intent(inout) :: this
 
     real(kind=r_def), parameter :: tol = 1.0e-12_r_def
+    real(r_def)                 :: use_tol
 
     ! Mesh
     integer(kind=i_def), parameter :: ncell   = 1
@@ -207,10 +209,19 @@ contains
     answer = 0.0_r_def
     do df2 = 3,4
       do df1 = 3,4
-        answer(df1,df2) = 0.25_r_def * const * norm_u(df1) * (exner(2)-exner(1))*(theta(2)-theta(1))/detj
+        answer(df1,df2) = 0.25_r_def * const * norm_u(df1) * &
+                          (exner(2)-exner(1))*(theta(2)-theta(1))/detj
       end do
     end do
-    @assertEqual(answer, q22(:,:,1), tol)
+
+    ! Choose tolerance according to r_def
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = max( 1.0E-7, 10.0_r_def*spacing( maxval( q22(:,:,1) ) ) )
+    end if
+
+    @assertEqual(answer, q22(:,:,1), use_tol)
 
   end subroutine test_all
 

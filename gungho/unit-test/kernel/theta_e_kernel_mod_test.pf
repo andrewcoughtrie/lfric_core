@@ -6,6 +6,7 @@
 !> Test the theta_e_kernel
 module theta_e_kernel_mod_test
 
+  use, intrinsic :: iso_fortran_env,       only : real64
   use constants_mod,                       only : i_def, r_def
   use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_wtheta_m3x3_q3x3x3_size
   use get_unit_test_m3x3_dofmap_mod,       only : get_wtheta_m3x3_dofmap
@@ -67,12 +68,13 @@ contains
 
     class(theta_e_test_type), intent(inout) :: this
 
-    real(kind=r_def),      parameter :: tol = 1.0e-10_r_def
     real(kind=r_def),      parameter :: theta0 = 10.0_r_def
     real(kind=r_def),      parameter :: dtheta = 0.1_r_def
     real(kind=r_def),      parameter :: Lv = 2.501e6_r_def
     real(kind=r_def),      parameter :: cp = 1000.0_r_def
 
+    real(kind=r_def),      parameter :: tol = 1.0e-10_r_def
+    real(kind=r_def)                 :: use_tol
 
     ! Fields
     real(kind=r_def),    allocatable :: theta_e(:)
@@ -135,8 +137,13 @@ contains
                        undf_wt,       &
                        map_wt(:,cell) )
 
+    if ( r_def == real64 ) then
+       use_tol = tol
+    else
+       use_tol = 10.0_r_def*spacing( maxval(answer) )
+    end if
     do k = 0, nlayers
-      @assertEqual(answer(map_wt(1, cell)+k), theta_e(map_wt(1, cell)+k), tol)
+      @assertEqual(answer(map_wt(1, cell)+k), theta_e(map_wt(1, cell)+k), use_tol)
     end do
 
     deallocate( answer )

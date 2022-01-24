@@ -9,6 +9,7 @@ module profile_interp_kernel_mod_test
 
 use constants_mod,       only: i_def, r_def
 
+use, intrinsic :: iso_fortran_env, only: real64
 use profile_interp_kernel_mod, only: profile_size,   &
                                      profile_data,   &
                                      profile_heights
@@ -149,6 +150,7 @@ contains
     integer(i_def)         :: k, kp
     real(r_def)            :: target_value, xi
     real(r_def), parameter :: tol = 1.0e-9_r_def
+    real(r_def)            :: use_tol
 
     ! Interpolate input profile onto model grid
     call profile_interp_code( nlayers,   &
@@ -173,7 +175,12 @@ contains
         target_value = profile_data(3) + (profile_data(4) - profile_data(3)) * xi
       end if
 
-      @assertEqual(target_value, theta(kp), tol)
+      if (r_def == real64) then
+        use_tol = tol
+      else
+        use_tol = 10.0_r_def*spacing(target_value)
+      end if
+      @assertEqual(target_value, theta(kp), use_tol)
     end do
 
   end subroutine test_all

@@ -7,7 +7,7 @@
 module departure_point_kernel_mod_test
 
   use pFUnit_Mod
-  use constants_mod,      only : i_def, r_def
+  use constants_mod,      only : i_def, r_def, r_second
   use yaxt, only : xt_initialize, xt_finalize
   use mpi_mod, only : store_comm, clear_comm
   use mesh_mod,           only : mesh_type
@@ -27,7 +27,7 @@ module departure_point_kernel_mod_test
     procedure test_all
   end type developed_departure_point_test_type
 
-  real(r_def), parameter    :: dt  = 10.0_r_def
+  real(r_second), parameter :: dt  = 10.0_r_second
   real(r_def), parameter    :: alpha   = 0.5_r_def
   real(r_def), parameter    :: tau_u   = 0.5_r_def
   real(r_def), parameter    :: tau_t   = 0.5_r_def
@@ -35,7 +35,7 @@ module departure_point_kernel_mod_test
   integer(i_def), parameter :: inner_iterations = 0
   integer(i_def), parameter :: outer_iterations = 0
   integer(i_def), parameter :: n_dep_pt_iterations = 1
-  real(r_def), parameter    :: spinup_period = 0.0_r_def
+  real(r_second), parameter :: spinup_period = 0.0_r_second
   logical, parameter        :: spinup_winds  = .false.
   logical, parameter        :: spinup_alpha  = .false.
 
@@ -153,7 +153,7 @@ contains
                                     dep_pts,                       &
                                     departure_pt_stencil_length,   &
                                     n_dep_pt_iterations,           &
-                                    dt,                            &
+                                    real(dt, r_def),               &
                                     undf_w2,                       &
                                     ndf_w2,                        &
                                     stencil_map_W2,                &
@@ -187,7 +187,7 @@ contains
                                     dep_pts,                       &
                                     departure_pt_stencil_length,   &
                                     n_dep_pt_iterations,           &
-                                    dt,                            &
+                                    real(dt, r_def),               &
                                     undf_w2,                       &
                                     ndf_w2,                        &
                                     stencil_map_W2,                &
@@ -240,7 +240,7 @@ contains
                                     dep_pts,                       &
                                     departure_pt_stencil_length,   &
                                     n_dep_pt_iterations,           &
-                                    dt,                            &
+                                    real(dt, r_def),               &
                                     undf_w2,                       &
                                     ndf_w2,                        &
                                     stencil_map_W2,                &

@@ -198,16 +198,29 @@ contains
 {%-   for name in enumerations | sort | decorate( 'dummy_' ) %}
 {%-     if loop.first %}{{', &\n'}}{%- endif -%}
 {{' ' * 28}}{{name}}
-{%-     if not loop.last -%}{{', &\n'}}{%- endif -%}
+{%-     if not loop.last %}{{', &\n'}}{%- endif -%}
 {%-   endfor %} )
 {%- else -%}
 {{' )'}}
+{%- endif %}
+
+{%- set ns = namespace(drefvars=false) %}
+{%- for name, parameter in parameters | dictsort %}
+{%-   if parameter.dereferenced_list_vars %}
+{%-     set ns.drefvars = true %}{%- endif %}
+{%- endfor %}
+{{'\n'}}
+{%- if ns.drefvars -%}
+{{'    use constants_mod, only: i_def, r_def'}}
+{%- else -%} 
+{{'    use constants_mod, only: i_def'}}
 {%- endif %}
 
     implicit none
 
     integer(i_native), intent(in) :: file_unit
     integer(i_native), intent(in) :: local_rank
+    integer(i_def)                :: missing_data
 {%- for name in enumerations | sort %}
     integer(i_native), intent(out) :: dummy_{{name}}
 {%- endfor %}
@@ -230,6 +243,7 @@ contains
 
     integer(i_native) :: condition
 
+    missing_data = 0
 {%- if arrays %}
 {{-   '\n'}}
 {%-   for name in arrays %}
@@ -308,16 +322,26 @@ contains
 {%-   endif %}
 {%- endfor %}
 
-{% for name, parameter in parameters | dictsort %}
+{%- for name, parameter in parameters | dictsort %}
+{%-   if loop.first %}{{'\n'}}{% endif %}
 {%-   if parameter.get_configure_type() == 'computed' %}
 {%-     if parameter.dereferenced_list_vars %}
-    if ( any([{{ parameter.dereferenced_list_vars | join(', ') }}] == imdi) .or. &
-         any([{{ parameter.dereferenced_list_vars | join(', ') }}] == rmdi) ) then
-      {{parameter.name}} = {{parameter.missing_data_indicator}}
+   ! Parameter name {{name}}: dereferenced_list_vars are: {{parameter.dereferenced_list_vars}}
+    missing_data = 0
+{%-       for var in parameter.dereferenced_list_vars %}
+    if (kind({{var}}) == r_def) then
+       if (real({{var}}, r_def) == rmdi) missing_data = missing_data + 1
+    else if (kind({{var}}) == i_def) then
+       if (int({{var}}, i_def)  == imdi) missing_data = missing_data + 1
+    end if
+{%-       endfor %}
+    if ( missing_data >=1 ) then
+       {{parameter.name}} = {{parameter.missing_data_indicator}}
     else
-      {{parameter.name}} = {{parameter.computation}}
+       {{parameter.name}} = {{parameter.computation}}
     end if
 {%-     else %}
+   ! Parameter name {{name}}: derived by computation
     {{parameter.name}} = {{parameter.computation}}
 {%-     endif %}
 {%-   endif %}

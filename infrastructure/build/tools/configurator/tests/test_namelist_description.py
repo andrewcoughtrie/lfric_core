@@ -10,6 +10,7 @@ import random
 import os
 from pathlib import Path
 import pytest
+import logging
 from subprocess import Popen
 from textwrap import dedent
 
@@ -193,10 +194,13 @@ contains
   subroutine read_namelist( file_unit, local_rank, &
                             dummy_enum )
 
+    use constants_mod, only: i_def
+
     implicit none
 
     integer(i_native), intent(in) :: file_unit
     integer(i_native), intent(in) :: local_rank
+    integer(i_def)                :: missing_data
     integer(i_native), intent(out) :: dummy_enum
 
     character(str_def) :: buffer_character_str_def(2)
@@ -229,6 +233,8 @@ contains
                     vstr
 
     integer(i_native) :: condition
+
+    missing_data = 0
 
     dint = imdi
     dlog = .false.
@@ -297,7 +303,6 @@ contains
     vint = buffer_integer_i_def(1)
     vreal = buffer_real_r_def(1)
     vstr = buffer_character_str_def(1)
-
 
 
     namelist_loaded = .true.
@@ -443,16 +448,21 @@ contains
   !
   subroutine read_namelist( file_unit, local_rank )
 
+    use constants_mod, only: i_def
+
     implicit none
 
     integer(i_native), intent(in) :: file_unit
     integer(i_native), intent(in) :: local_rank
+    integer(i_def)                :: missing_data
 
     integer(i_def) :: buffer_integer_i_def(1)
 
     namelist /test/ foo
 
     integer(i_native) :: condition
+
+    missing_data = 0
 
     foo = imdi
 
@@ -470,7 +480,6 @@ contains
     call broadcast( buffer_integer_i_def, 1, 0 )
 
     foo = buffer_integer_i_def(1)
-
 
 
     namelist_loaded = .true.
@@ -584,10 +593,13 @@ contains
   !
   subroutine read_namelist( file_unit, local_rank )
 
+    use constants_mod, only: i_def
+
     implicit none
 
     integer(i_native), intent(in) :: file_unit
     integer(i_native), intent(in) :: local_rank
+    integer(i_def)                :: missing_data
 
     integer(i_def) :: buffer_integer_i_def(1)
     real(r_def) :: buffer_real_r_def(1)
@@ -596,6 +608,8 @@ contains
                     foo
 
     integer(i_native) :: condition
+
+    missing_data = 0
 
     bar = rmdi
     foo = imdi
@@ -617,7 +631,6 @@ contains
 
     bar = buffer_real_r_def(1)
     foo = buffer_integer_i_def(1)
-
 
 
     namelist_loaded = .true.
@@ -836,10 +849,13 @@ contains
   subroutine read_namelist( file_unit, local_rank, &
                             dummy_value )
 
+    use constants_mod, only: i_def
+
     implicit none
 
     integer(i_native), intent(in) :: file_unit
     integer(i_native), intent(in) :: local_rank
+    integer(i_def)                :: missing_data
     integer(i_native), intent(out) :: dummy_value
 
     integer(i_native) :: buffer_integer_i_native(1)
@@ -849,6 +865,8 @@ contains
     namelist /enum/ value
 
     integer(i_native) :: condition
+
+    missing_data = 0
 
     value = unset_key
 
@@ -868,7 +886,6 @@ contains
     call broadcast( buffer_integer_i_native, 1, 0 )
 
     dummy_value = buffer_integer_i_native(1)
-
 
 
     namelist_loaded = .true.
@@ -1169,10 +1186,13 @@ contains
                             dummy_first, &
                             dummy_second )
 
+    use constants_mod, only: i_def
+
     implicit none
 
     integer(i_native), intent(in) :: file_unit
     integer(i_native), intent(in) :: local_rank
+    integer(i_def)                :: missing_data
     integer(i_native), intent(out) :: dummy_first
     integer(i_native), intent(out) :: dummy_second
 
@@ -1185,6 +1205,8 @@ contains
                        second
 
     integer(i_native) :: condition
+
+    missing_data = 0
 
     first = unset_key
     second = unset_key
@@ -1208,7 +1230,6 @@ contains
 
     dummy_first = buffer_integer_i_native(1)
     dummy_second = buffer_integer_i_native(2)
-
 
 
     namelist_loaded = .true.
@@ -1335,10 +1356,13 @@ contains
   !
   subroutine read_namelist( file_unit, local_rank )
 
+    use constants_mod, only: i_def, r_def
+
     implicit none
 
     integer(i_native), intent(in) :: file_unit
     integer(i_native), intent(in) :: local_rank
+    integer(i_def)                :: missing_data
 
     real(r_def) :: buffer_real_r_def(2)
 
@@ -1346,6 +1370,8 @@ contains
                       fum
 
     integer(i_native) :: condition
+
+    missing_data = 0
 
     bar = rmdi
     bif = rmdi
@@ -1369,13 +1395,29 @@ contains
     foo = buffer_real_r_def(1)
     fum = buffer_real_r_def(2)
 
-
+   ! Parameter name bar: derived by computation
     bar = foo ** 2
-    if ( any([fum, foo, milk] == imdi) .or. &
-         any([fum, foo, milk] == rmdi) ) then
-      bif = rmdi
+   ! Parameter name bif: dereferenced_list_vars are: ['fum', 'foo', 'milk']
+    missing_data = 0
+    if (kind(fum) == r_def) then
+       if (real(fum, r_def) == rmdi) missing_data = missing_data + 1
+    else if (kind(fum) == i_def) then
+       if (int(fum, i_def)  == imdi) missing_data = missing_data + 1
+    end if
+    if (kind(foo) == r_def) then
+       if (real(foo, r_def) == rmdi) missing_data = missing_data + 1
+    else if (kind(foo) == i_def) then
+       if (int(foo, i_def)  == imdi) missing_data = missing_data + 1
+    end if
+    if (kind(milk) == r_def) then
+       if (real(milk, r_def) == rmdi) missing_data = missing_data + 1
+    else if (kind(milk) == i_def) then
+       if (int(milk, i_def)  == imdi) missing_data = missing_data + 1
+    end if
+    if ( missing_data >=1 ) then
+       bif = rmdi
     else
-      bif = fum + (foo ** 2) / milk
+       bif = fum + (foo ** 2) / milk
     end if
 
     namelist_loaded = .true.
@@ -1508,16 +1550,21 @@ contains
   !
   subroutine read_namelist( file_unit, local_rank )
 
+    use constants_mod, only: i_def
+
     implicit none
 
     integer(i_native), intent(in) :: file_unit
     integer(i_native), intent(in) :: local_rank
+    integer(i_def)                :: missing_data
 
     real(r_def) :: buffer_real_r_def(1)
 
     namelist /cheese/ fred
 
     integer(i_native) :: condition
+
+    missing_data = 0
 
     fred = rmdi
     wilma = rmdi
@@ -1537,7 +1584,7 @@ contains
 
     fred = buffer_real_r_def(1)
 
-
+   ! Parameter name wilma: derived by computation
     wilma = fred * FUDGE
 
     namelist_loaded = .true.
@@ -1672,10 +1719,13 @@ contains
   !
   subroutine read_namelist( file_unit, local_rank )
 
+    use constants_mod, only: i_def
+
     implicit none
 
     integer(i_native), intent(in) :: file_unit
     integer(i_native), intent(in) :: local_rank
+    integer(i_def)                :: missing_data
 
     integer(i_native) :: buffer_integer_i_native(1)
 
@@ -1686,6 +1736,8 @@ contains
                       unknown
 
     integer(i_native) :: condition
+
+    missing_data = 0
 
     allocate( inlist(max_array_size), stat=condition )
     if (condition /= 0) then
@@ -1726,7 +1778,6 @@ contains
     call broadcast( buffer_integer_i_native, 1, 0 )
 
     lsize = buffer_integer_i_native(1)
-
 
 
     call broadcast( absolute, size(absolute, 1)*str_def, 0 )
@@ -2083,10 +2134,13 @@ contains
   subroutine read_namelist( file_unit, local_rank, &
                             dummy_tubbies )
 
+    use constants_mod, only: i_def
+
     implicit none
 
     integer(i_native), intent(in) :: file_unit
     integer(i_native), intent(in) :: local_rank
+    integer(i_def)                :: missing_data
     integer(i_native), intent(out) :: dummy_tubbies
 
     integer(i_native) :: buffer_integer_i_native(1)
@@ -2096,6 +2150,8 @@ contains
     namelist /telly/ tubbies
 
     integer(i_native) :: condition
+
+    missing_data = 0
 
     tubbies = unset_key
 
@@ -2115,7 +2171,6 @@ contains
     call broadcast( buffer_integer_i_native, 1, 0 )
 
     dummy_tubbies = buffer_integer_i_native(1)
-
 
 
     namelist_loaded = .true.

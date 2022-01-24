@@ -8,7 +8,7 @@
 !>
 module held_suarez_kernel_mod_test
 
-  use constants_mod,                 only : i_def, r_def, PI
+  use constants_mod,                 only : i_def, r_def, r_second, PI
   use coord_transform_mod,           only : llr2xyz
   use pFUnit_Mod
   use yaxt,                          only : xt_initialize, xt_finalize
@@ -76,11 +76,11 @@ contains
                               scaling_factor=scaling )
 
     call feign_timestepping_config(method=method_semi_implicit,                       &
-                                   dt=dt, alpha=0.5_r_def, tau_u=0.5_r_def,           &
+                                   dt=real(dt, r_second), alpha=0.5_r_def, tau_u=0.5_r_def, &
                                    tau_t=0.5_r_def, tau_r=0.5_r_def,                  &
                                    outer_iterations=1_i_def, inner_iterations=1_i_def,&
                                    runge_kutta_method=runge_kutta_method_ssp3,        &
-                                   spinup_period=0.0_r_def, spinup_alpha=.false.,     &
+                                   spinup_period=0.0_r_second, spinup_alpha=.false.,     &
                                    spinup_winds=.false.    )
 
     call init_chi_transforms()

@@ -310,24 +310,42 @@
 
 
 
-{#- #########################################################################}
-{%- macro check_compilers( appName, configuration, build, resolution=(''),
-                           precisions=[rdef_default], publish=False ) %}
-
+{# The check_compiler macro allows each app to be compiled either (1) on all #}
+{# available environment compilers (by designating "all" in suite_control.rc #}
+{# entry), or (2) by a single named compiler (e.g. 'intel','gnu', etc.).     #}
+{# If a compiler is named but is not in the environment (e.g. 'cray' in      #}
+{# meto-spice), the call is ignored. This allows suite_control.rc to encode  #}
+{# for different task sets in meto-spice and meto-xc40.                      #}
+{#- ##########################################################################}
+{%- macro check_compilers( appName, configuration, compiler, build, 
+                           resolution=(''), precisions=[rdef_default],
+                           publish=False ) %}
       [[[R1]]]
 {%-   set perform_run = [] %}
+{%-   set compilers = [] %}
 {%-   set appLabel = appName + '_' + configuration %}
 {%-   set science_key = appName + '_' + configuration + '_' + science_label %}
 {%-   set environment = scheduledTasksDict[science_key] %}
 
-{%-   for compiler in compiler_setup.keys() %}
+{%-   if compiler in compiler_setup.keys() %} {# for valid single compilier #}
+{%-     do compilers.append( compiler ) %}
 {%-     for precision in precisions %}
 {%-       set application_key = appName + '_' + configuration + '_'
                               + compiler + '_' + precision + '-bit_'
                               + build %}
 {%-       do scheduledTasksDict.update({application_key: environment}) %}
 {%-     endfor %} {# rdef_precision #}
-{%-   endfor %}
+{%-   elif compiler =='all' %} {# otherwise, do all #}
+{%-     for compiler in compiler_setup.keys() %}
+{%-       do compilers.append( compiler ) %}
+{%-       for precision in precisions %}
+{%-         set application_key = appName + '_' + configuration + '_'
+                                + compiler + '_' + precision + '-bit_'
+                                + build %}
+{%-         do scheduledTasksDict.update({application_key: environment}) %}
+{%-       endfor %} {# rdef_precision #}
+{%-     endfor %}
+{%-   endif %}
 
 {%-   if build == 'fast-debug' %}
 {%-     do perform_run.extend( TARGET_PERFORM_RUN ) %}
@@ -347,7 +365,7 @@
                         mesh_rdef + '-bit_' +
                         mesh_build|lower) %}
 
-{%-   for compiler in compiler_setup.keys() %}
+{%-   for compiler in compilers %}
 {%-     for precision in precisions %}
 
 {%-       set label = (compiler|lower + '_' + precision + '-bit_' + build|lower) %}
@@ -385,4 +403,6 @@
 {%-     endfor %} {# rdef_precision #}
 {%-   endfor %} {# compiler #}
 
-{%- endmacro %}
+{%- endmacro %} {# check_compilers #}
+
+

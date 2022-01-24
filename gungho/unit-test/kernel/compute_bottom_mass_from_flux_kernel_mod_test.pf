@@ -7,7 +7,7 @@
 !>
 module compute_bottom_mass_from_flux_kernel_mod_test
 
-  use constants_mod,                       only : i_def, r_def
+  use constants_mod,                       only : i_def, r_def, r_second
   use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w3_m3x3_q3x3x3_size, &
                                                   get_w2_m3x3_q3x3x3_size, &
                                                   get_w0_m3x3_q3x3x3_size
@@ -54,11 +54,11 @@ contains
     call store_comm(this%getMpiCommunicator())
     call feign_timestepping_config(                                   &
              method=method_semi_implicit,                             &
-             dt=dt, alpha=0.5_r_def, tau_u=0.5_r_def,                 &
+             dt=real(dt, r_second), alpha=0.5_r_def, tau_u=0.5_r_def, &
              tau_t=0.5_r_def, tau_r=0.5_r_def,                        &
              outer_iterations=1_i_def, inner_iterations=1_i_def,      &
              runge_kutta_method=runge_kutta_method_ssp3,              &
-             spinup_period=0.0_r_def, spinup_alpha=.false.,           &
+             spinup_period=0.0_r_second, spinup_alpha=.false.,        &
              spinup_winds=.false.)
 
   end subroutine setUp

@@ -111,10 +111,12 @@ contains
 
     class(calc_directional_detj_at_w2_test_type), intent(inout) :: this
 
-    real(kind=r_def), parameter :: tol = 1.0e-6_r_def
     real(kind=r_def), parameter :: dx = 11.0_r_def
     real(kind=r_def), parameter :: dy = 17.0_r_def
     real(kind=r_def), parameter :: dz = 10.0_r_def
+
+    real(kind=r_def), parameter :: tol = 1.0e-6_r_def
+    real(kind=r_def)            :: use_tol
 
     ! Fields
     real(kind=r_def), allocatable :: detj_w2_p(:)
@@ -230,8 +232,13 @@ contains
 
     ! Check that dof 6 in layer 1 (and 5 in layer 2) is set to 5610
 
-    @assertEqual(5610.0_r_def, detj_w2_p(map_w2(6,cell)+1), tol)
-    @assertEqual(5610.0_r_def, detj_w2_p(map_w2(5,cell)+2), tol)
+    if (r_def == real64) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing(5610.0_r_def)
+    end if
+    @assertEqual(5610.0_r_def, detj_w2_p(map_w2(6,cell)+1), use_tol)
+    @assertEqual(5610.0_r_def, detj_w2_p(map_w2(5,cell)+2), use_tol)
 
     deallocate(detj_w2_p)
     deallocate(chi1)
