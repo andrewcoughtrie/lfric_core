@@ -61,7 +61,7 @@ module um_physics_init_mod
                                         falliceshear_method_real,             &
                                         falliceshear_method_constant,         &
                                         subgrid_qv, ice_width_in => ice_width,&
-                                        use_fsd_eff_res, ez_subcrit
+                                        use_fsd_eff_res, ez_subcrit, ez_max
 
   use convection_config_mod,     only : cv_scheme,                    &
                                         cv_scheme_gregory_rowntree,   &
@@ -183,7 +183,7 @@ contains
          i_pc2_erosion_method, i_pc2_homog_g_method, i_pc2_init_method,    &
          check_run_cloud,                                                  &
          forced_cu_fac, i_pc2_conv_coupling, allicetdegc, starticetkelvin, &
-         l_bm_ez_subcrit_only
+         l_bm_ez_subcrit_only, ez_max_bm
     use cloud_config_mod, only: cld_fsd_hill
     use cv_run_mod, only: icvdiag, cvdiag_inv, cvdiag_sh_wtest,            &
          limit_pert_opt, tv1_sd_opt, iconv_congestus, iconv_deep,          &
@@ -613,6 +613,7 @@ contains
       ice_fraction_method = min_liq_overlap
       ice_width           = real(ice_width_in, r_um)
       l_bm_ez_subcrit_only= ez_subcrit
+      ez_max_bm           = ez_max
       ! l_add_cca_to_mcica is unused in LFRic, its functionality
       ! ... being replaced by the cloud_representation option in
       ! ... the radiation namelist (T=combined, F=liquid_and_ice).
