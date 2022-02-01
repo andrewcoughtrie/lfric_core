@@ -152,6 +152,11 @@ build: ALWAYS
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
 	          SOURCE_DIR=$(ROOT_DIR)/infrastructure/source
 	$(call MESSAGE,========================================)
+	$(call MESSAGE,Extracting LFRic driver model component)
+	$(call MESSAGE,========================================)
+	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
+	          SOURCE_DIR=$(ROOT_DIR)/components/driver/source
+	$(call MESSAGE,========================================)
 	$(call MESSAGE,Extracting LFRic-XIOS model component)
 	$(call MESSAGE,========================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \

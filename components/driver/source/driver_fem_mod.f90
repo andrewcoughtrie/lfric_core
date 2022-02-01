@@ -4,119 +4,116 @@
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
 
-!> @brief init and final for fem specific choices for model
+!> @brief    Initialisation and finalisation for FEM-specific choices for model.
+!> @details  Create and destroy a collection of function spaces and the coordinate
+!!           field (chi).
+module driver_fem_mod
 
-!> @details Create and destroy a collection of function spaces and the coordinate
-!>          field (chi)
-
-module create_fem_mod
-
-  use chi_transform_mod,              only : init_chi_transforms, &
-                                             final_chi_transforms
-  use constants_mod,                  only : i_def, i_native, l_def
-  use base_mesh_config_mod,           only : geometry, geometry_planar
-  use finite_element_config_mod,      only : element_order,    &
-                                             coord_order,      &
-                                             coord_system,     &
-                                             coord_system_xyz
-  use halo_routing_collection_mod,    only : halo_routing_collection_type, &
-                                             halo_routing_collection
-  use field_mod,                      only : field_type
-  use fs_continuity_mod,              only : W0, W1, W2, W3, Wtheta, Wchi, W2v, W2h
-  use function_space_mod,             only : function_space_type
-  use function_space_collection_mod,  only : function_space_collection_type, &
-                                             function_space_collection
-  use function_space_chain_mod,       only : function_space_chain_type,         &
-                                             single_layer_function_space_chain, &
-                                             multigrid_function_space_chain,    &
-                                             W2_multigrid_function_space_chain, &
-                                             W2v_multigrid_function_space_chain, &
-                                             W2h_multigrid_function_space_chain, &
-                                             wtheta_multigrid_function_space_chain
-  use assign_coordinate_field_mod,    only : assign_coordinate_field
-  use log_mod,                        only : log_event,         &
-                                             LOG_LEVEL_INFO,    &
-                                             LOG_LEVEL_ERROR,   &
-                                             log_scratch_space
+  use chi_transform_mod,              only: init_chi_transforms, &
+                                            final_chi_transforms
+  use constants_mod,                  only: i_def, i_native, l_def
+  use base_mesh_config_mod,           only: geometry, geometry_planar
+  use finite_element_config_mod,      only: element_order,    &
+                                            coord_order,      &
+                                            coord_system,     &
+                                            coord_system_xyz
+  use halo_routing_collection_mod,    only: halo_routing_collection_type, &
+                                            halo_routing_collection
+  use field_mod,                      only: field_type
+  use fs_continuity_mod,              only: W0, W1, W2, W3, Wtheta, Wchi, W2v, W2h
+  use function_space_mod,             only: function_space_type
+  use function_space_collection_mod,  only: function_space_collection_type, &
+                                            function_space_collection
+  use function_space_chain_mod,       only: function_space_chain_type,          &
+                                            single_layer_function_space_chain,  &
+                                            multigrid_function_space_chain,     &
+                                            W2_multigrid_function_space_chain,  &
+                                            W2v_multigrid_function_space_chain, &
+                                            W2h_multigrid_function_space_chain, &
+                                            wtheta_multigrid_function_space_chain
+  use driver_coordinates_mod,         only: assign_coordinate_field
+  use log_mod,                        only: log_event,         &
+                                            LOG_LEVEL_INFO,    &
+                                            LOG_LEVEL_ERROR,   &
+                                            log_scratch_space
 
   implicit none
 
   private
   public :: init_fem, final_fem
 
-  contains
-    !==================================================================================
-    !> @brief Initialises the coordinate fields (chi) and FEM components
-    !> @param[in]     mesh_id                        Mesh id used for chi field
-    !> @param[in,out] chi                            Coordinate field
-    !> @param[in,out] panel_id                       Field giving the ID of the mesh panels
-    !> @param[in]     shifted_mesh_id                Optional, mesh id used for shifted chi field
-    !> @param[in,out] shifted_chi                    Optional, coordinates of vertically shifted mesh
-    !> @param[in]     double_level_mesh_id           Optional, mesh id used for double-level chi field
-    !> @param[in,out] double_level_chi               Optional, coordinates of double level mesh
-    !> @param[in]     multigrid_mesh_ids             Optional, mesh id array for multigrid function spaces chain
-    !> @param[in]     multigrid_2d_mesh_ids          Optional, 2d-mesh id array for multigrid function spaces chain
-    !> @param[in,out] chi_mg                         Optional, coordinates for multigrid meshes
-    !> @param[in,out] panel_id_mg                    Optional, Field giving the ID of the mesh panels for multigrid meshes
-    !> @param[in]     use_multigrid                  Optional, Configuration switch for multigrid
-    !> @param[in]     multires_coupling_mesh_ids     Optional, mesh id array for multires_coupling chi fields
-    !> @param[in]     multires_coupling_2d_mesh_ids  Optional, 2d-mesh id array for multires_coupling chi fields
-    !> @param[in,out] chi_multires_coupling          Optional, coordinates for multires_coupling meshes
-    !> @param[in,out] panel_id_multires_coupling     Optional, Field giving the ID of the mesh panels for multires_coupling meshes
-    !> @param[in]     use_multires_coupling          Optional, Logical flag to enable multiresolution atmospheric coupling
+contains
 
-    !==================================================================================
-    subroutine init_fem( mesh_id, chi, panel_id,                       &
-                         shifted_mesh_id, shifted_chi,                 &
-                         double_level_mesh_id,                         &
-                         double_level_chi,                             &
-                         multigrid_mesh_ids, multigrid_2D_mesh_ids,    &
-                         chi_mg, panel_id_mg,                          &
-                         use_multigrid,                                &
-                         multires_coupling_mesh_ids,                   &
-                         multires_coupling_2D_mesh_ids,                &
-                         chi_multires_coupling,                        &
-                         panel_id_multires_coupling,                   &
-                         use_multires_coupling )
+  !> @brief  Initialises the coordinate fields (chi) and FEM components.
+  !>
+  !> @param[in]      mesh_id                        Mesh ID used for chi field
+  !> @param[in,out]  chi                            Coordinate field
+  !> @param[in,out]  panel_id                       Field giving the ID of the mesh panels
+  !> @param[in]      shifted_mesh_id                Optional, mesh ID used for shifted chi field
+  !> @param[in,out]  shifted_chi                    Optional, coordinates of vertically shifted mesh
+  !> @param[in]      double_level_mesh_id           Optional, mesh ID used for double-level chi field
+  !> @param[in,out]  double_level_chi               Optional, coordinates of double level mesh
+  !> @param[in]      multigrid_mesh_ids             Optional, mesh ID array for multigrid function spaces chain
+  !> @param[in]      multigrid_2d_mesh_ids          Optional, 2D-mesh ID array for multigrid function spaces chain
+  !> @param[in,out]  chi_mg                         Optional, coordinates for multigrid meshes
+  !> @param[in,out]  panel_id_mg                    Optional, field giving the ID of the mesh panels for multigrid meshes
+  !> @param[in]      use_multigrid                  Optional, configuration switch for multigrid
+  !> @param[in]      multires_coupling_mesh_ids     Optional, mesh ID array for multires_coupling chi fields
+  !> @param[in]      multires_coupling_2d_mesh_ids  Optional, 2D-mesh ID array for multires_coupling chi fields
+  !> @param[in,out]  chi_multires_coupling          Optional, coordinates for multires_coupling meshes
+  !> @param[in,out]  panel_id_multires_coupling     Optional, field giving the ID of the mesh panels for multires_coupling meshes
+  !> @param[in]      use_multires_coupling          Optional, logical flag to enable multiresolution atmospheric coupling
+  subroutine init_fem( mesh_id, chi, panel_id,                    &
+                       shifted_mesh_id, shifted_chi,              &
+                       double_level_mesh_id,                      &
+                       double_level_chi,                          &
+                       multigrid_mesh_ids, multigrid_2D_mesh_ids, &
+                       chi_mg, panel_id_mg,                       &
+                       use_multigrid,                             &
+                       multires_coupling_mesh_ids,                &
+                       multires_coupling_2D_mesh_ids,             &
+                       chi_multires_coupling,                     &
+                       panel_id_multires_coupling,                &
+                       use_multires_coupling )
 
     implicit none
 
     ! Coordinate field
-    integer(i_def),   intent(in)    :: mesh_id
-    type(field_type), intent(inout) :: chi(:)
-    type(field_type), intent(inout) :: panel_id
+    integer(kind=i_def), intent(in)    :: mesh_id
+    type(field_type),    intent(inout) :: chi(:)
+    type(field_type),    intent(inout) :: panel_id
 
-    integer(i_def),   optional, intent(in)    :: shifted_mesh_id
-    type(field_type), optional, intent(inout) :: shifted_chi(:)
-    integer(i_def),   optional, intent(in)    :: double_level_mesh_id
-    type(field_type), optional, intent(inout) :: double_level_chi(:)
-    integer(i_def),   optional, intent(in)    :: multigrid_mesh_ids(:)
-    integer(i_def),   optional, intent(in)    :: multigrid_2d_mesh_ids(:)
-    type(field_type), optional, intent(inout), allocatable :: chi_mg(:,:)
-    type(field_type), optional, intent(inout), allocatable :: panel_id_mg(:)
-    logical(l_def),   optional, intent(in)    :: use_multigrid
-    integer(i_def),   optional, intent(in)    :: multires_coupling_mesh_ids(:)
-    integer(i_def),   optional, intent(in)    :: multires_coupling_2d_mesh_ids(:)
-    type(field_type), optional, intent(inout), allocatable :: chi_multires_coupling(:,:)
-    type(field_type), optional, intent(inout), allocatable :: panel_id_multires_coupling(:)
-    logical(l_def),   optional, intent(in) :: use_multires_coupling
+    integer(kind=i_def), optional, intent(in)    :: shifted_mesh_id
+    type(field_type),    optional, intent(inout) :: shifted_chi(:)
+    integer(kind=i_def), optional, intent(in)    :: double_level_mesh_id
+    type(field_type),    optional, intent(inout) :: double_level_chi(:)
+    integer(kind=i_def), optional, intent(in)    :: multigrid_mesh_ids(:)
+    integer(kind=i_def), optional, intent(in)    :: multigrid_2d_mesh_ids(:)
+    type(field_type),    optional, intent(inout), allocatable :: chi_mg(:,:)
+    type(field_type),    optional, intent(inout), allocatable :: panel_id_mg(:)
+    logical(kind=l_def), optional, intent(in)    :: use_multigrid
+    integer(kind=i_def), optional, intent(in)    :: multires_coupling_mesh_ids(:)
+    integer(kind=i_def), optional, intent(in)    :: multires_coupling_2d_mesh_ids(:)
+    type(field_type),    optional, intent(inout), allocatable :: chi_multires_coupling(:,:)
+    type(field_type),    optional, intent(inout), allocatable :: panel_id_multires_coupling(:)
+    logical(kind=l_def), optional, intent(in) :: use_multires_coupling
 
-    logical(l_def) :: create_shifted_chi            = .false.
-    logical(l_def) :: create_double_level_chi       = .false.
-    logical(l_def) :: create_multigrid_fs_chain     = .false.
-    logical(l_def) :: create_multires_coupling_chi  = .false.
+    logical(kind=l_def) :: create_shifted_chi            = .false.
+    logical(kind=l_def) :: create_double_level_chi       = .false.
+    logical(kind=l_def) :: create_multigrid_fs_chain     = .false.
+    logical(kind=l_def) :: create_multires_coupling_chi  = .false.
 
-    integer(i_native), parameter :: fs_list(5) = [W0, W1, W2, W3, Wtheta]
+    integer(kind=i_native), parameter :: fs_list(5) = [W0, W1, W2, W3, Wtheta]
 
     type(function_space_type), pointer :: fs => null()
     type(function_space_type), pointer :: shifted_fs => null()
     type(function_space_type), pointer :: double_level_fs => null()
 
-    integer(i_native) :: fs_index
+    integer(kind=i_native) :: fs_index
 
-    integer(i_def) :: chi_space
-    integer(i_def) :: coord
-    integer(i_def) :: mesh_ctr, i
+    integer(kind=i_def) :: chi_space
+    integer(kind=i_def) :: coord
+    integer(kind=i_def) :: mesh_ctr, i
 
     ! Set control flags
     !=================================================================
@@ -337,9 +334,7 @@ module create_fem_mod
 
   end subroutine init_fem
 
-  !==================================================================================
-  !> @brief Finalises the function_space_collection
-  !==================================================================================
+  !> @brief  Finalises the function_space_collection.
   subroutine final_fem()
 
     implicit none
@@ -353,4 +348,4 @@ module create_fem_mod
 
   end subroutine final_fem
 
-end module create_fem_mod
+end module driver_fem_mod

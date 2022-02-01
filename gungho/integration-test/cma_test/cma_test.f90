@@ -45,7 +45,7 @@ program cma_test
   use function_space_collection_mod,  only : function_space_collection
   use configuration_mod,              only : read_configuration, &
                                              ensure_configuration
-  use create_mesh_mod,                only : init_mesh
+  use driver_mesh_mod,                only : init_mesh
   use local_mesh_collection_mod,      only : local_mesh_collection, &
                                              local_mesh_collection_type
   use log_mod,                        only : log_event,         &

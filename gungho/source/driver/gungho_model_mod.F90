@@ -12,8 +12,8 @@ module gungho_model_mod
   use base_mesh_config_mod,       only : prime_mesh_name
   use checksum_alg_mod,           only : checksum_alg
   use clock_mod,                  only : clock_type
-  use create_fem_mod,             only : init_fem, final_fem
-  use create_mesh_mod,            only : init_mesh, final_mesh
+  use driver_fem_mod,             only : init_fem, final_fem
+  use driver_mesh_mod,            only : init_mesh, final_mesh
   use configuration_mod,          only : final_configuration
   use check_configuration_mod,    only : get_required_stencil_depth
   use conservation_algorithm_mod, only : conservation_algorithm
@@ -22,12 +22,14 @@ module gungho_model_mod
   use convert_to_upper_mod,       only : convert_to_upper
   use count_mod,                  only : count_type, halo_calls
   use derived_config_mod,         only : set_derived_config
+  use extrusion_mod,              only : extrusion_type
   use field_mod,                  only : field_type
   use field_parent_mod,           only : write_interface
   use field_collection_mod,       only : field_collection_type
   use formulation_config_mod,     only : l_multigrid,    &
                                          use_moisture,   &
                                          use_physics
+  use gungho_extrusion_mod,       only : create_extrusion
   use gungho_mod,                 only : load_configuration
   use gungho_model_data_mod,      only : model_data_type
   use gungho_setup_io_mod,        only : init_gungho_files
@@ -179,6 +181,8 @@ contains
 
     type(field_type) :: surface_altitude
 
+    class(extrusion_type), allocatable :: extrusion
+
     type(field_type), target :: chi(3)
     type(field_type), target :: panel_id
     type(field_type), target :: shifted_chi(3)
@@ -258,23 +262,24 @@ contains
     ! Initialise aspects of the grid
     !-------------------------------------------------------------------------
 
-    allocate( local_mesh_collection, &
-              source = local_mesh_collection_type() )
-
-    allocate( mesh_collection, &
-              source=mesh_collection_type() )
+    allocate( local_mesh_collection, source=local_mesh_collection_type() )
+    allocate( mesh_collection, source=mesh_collection_type() )
 
     stencil_depth = get_required_stencil_depth()
 
+    ! Generate prime mesh extrusion
+    allocate( extrusion, source=create_extrusion() )
+
     ! Create the mesh
-    call init_mesh( local_rank, total_ranks, stencil_depth,       &
-                    mesh_id,                                      &
-                    twod_mesh_id          = twod_mesh_id,         &
-                    shifted_mesh_id       = shifted_mesh_id,      &
-                    double_level_mesh_id  = double_level_mesh_id, &
-                    multigrid_mesh_ids    = multigrid_mesh_ids,   &
-                    multigrid_2D_mesh_ids = multigrid_2D_mesh_ids,&
-                    use_multigrid         = l_multigrid )
+    call init_mesh( local_rank, total_ranks, stencil_depth,        &
+                    mesh_id,                                       &
+                    twod_mesh_id          = twod_mesh_id,          &
+                    shifted_mesh_id       = shifted_mesh_id,       &
+                    double_level_mesh_id  = double_level_mesh_id,  &
+                    multigrid_mesh_ids    = multigrid_mesh_ids,    &
+                    multigrid_2D_mesh_ids = multigrid_2D_mesh_ids, &
+                    use_multigrid         = l_multigrid,           &
+                    input_extrusion       = extrusion )
 
     call init_fem( mesh_id, chi, panel_id,                        &
                    shifted_mesh_id       = shifted_mesh_id,       &

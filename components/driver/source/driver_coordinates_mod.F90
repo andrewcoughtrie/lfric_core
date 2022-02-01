@@ -3,23 +3,22 @@
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
-!
-!-------------------------------------------------------------------------------
-!> @brief Module to assign the values of the coordinates of the mesh to a field
-module assign_coordinate_field_mod
 
-  use base_mesh_config_mod, only : geometry,                &
-                                   geometry_planar,         &
-                                   geometry_spherical,      &
-                                   topology,                &
-                                   topology_fully_periodic, &
-                                   topology_non_periodic
-  use constants_mod,        only : r_def, i_def, i_native, l_def
-  use log_mod,              only : log_event, LOG_LEVEL_ERROR
-  use planet_config_mod,    only : scaled_radius
-  use mesh_collection_mod,  only : mesh_collection
-  use coord_transform_mod,  only : xyz2llr, llr2xyz, identify_panel, &
-                                   xyz2alphabetar, alphabetar2xyz
+!> @brief  Module to assign the values of the coordinates of the mesh to a field.
+module driver_coordinates_mod
+
+  use base_mesh_config_mod,      only: geometry,                &
+                                       geometry_planar,         &
+                                       geometry_spherical,      &
+                                       topology,                &
+                                       topology_fully_periodic, &
+                                       topology_non_periodic
+  use constants_mod,             only: r_def, i_def, i_native, l_def
+  use log_mod,                   only: log_event, LOG_LEVEL_ERROR
+  use planet_config_mod,         only: scaled_radius
+  use mesh_collection_mod,       only: mesh_collection
+  use coord_transform_mod,       only: xyz2llr, llr2xyz, identify_panel, &
+                                       xyz2alphabetar, alphabetar2xyz
   use finite_element_config_mod, only: coord_system,            &
                                        coord_system_xyz,        &
                                        coord_system_alphabetaz, &
@@ -28,24 +27,32 @@ module assign_coordinate_field_mod
 
   private
 
-  public :: assign_coordinate_field
-  ! Make this public only for unit-testing
-  public :: assign_coordinate_xyz
-  public :: assign_coordinate_lonlatz
-  public :: assign_coordinate_alphabetaz
+  public  :: assign_coordinate_field
+! Make procedures public for unit testing
+#ifdef UNIT_TEST
+  public  :: assign_coordinate_xyz
+  public  :: assign_coordinate_lonlatz
+  public  :: assign_coordinate_alphabetaz
+#else
+  private :: assign_coordinate_xyz
+  private :: assign_coordinate_lonlatz
+  private :: assign_coordinate_alphabetaz
+#endif
 
 contains
 
-!> @brief Subroutine which assigns the values of the coordinates of the mesh
-!! to a field
-!> @details An array of size 3 for the type field is passed in to be populated.
-!! The field proxy is used to break encapsulation and access the function space
-!! and the data attributes of the field so that its values can be assigned.
-!! calls two subroutines, get_cell_coords from the mesh generator and then
-!! assign_coordinate on a column by column basis
-!! @param[in,out] chi      Model coordinate array of size 3 of fields
-!! @param[in]     panel_id Field giving the ID of mesh panels
-!! @param[in]     mesh_id  Id of mesh on which this field is attached
+  !> @brief    Subroutine which assigns the values of the coordinates of the mesh
+  !!           to a field.
+  !> @details  An array of size 3 for the type field is passed in to be populated.
+  !!           The field proxy is used to break encapsulation and access the
+  !!           function space and the data attributes of the field so that its
+  !!           values can be assigned. Calls two subroutines, 'get_cell_coords'
+  !!           from the mesh generator and then 'assign_coordinate' on a column by
+  !!           column basis.
+  !>
+  !> @param[in,out] chi      Model coordinate array of size 3 of fields
+  !> @param[in]     panel_id Field giving the ID of mesh panels
+  !> @param[in]     mesh_id  ID of mesh on which this field is attached
   subroutine assign_coordinate_field(chi, panel_id, mesh_id)
 
     use field_mod,             only: field_type, field_proxy_type
@@ -223,17 +230,18 @@ contains
 
   end subroutine assign_coordinate_field
 
-!> @brief Assigns the cubed sphere panel ID values to the panel_id field
-!> @details A scalar field is passed in and all values are assigned to
-!! be the panel IDs which are calculated from the coordinates. For planar
-!! geometry the ID is just 1 everywhere.
-!! @param[in]     nlayers   Number of layers for the panel_id field
-!! @param[in]     nverts    Number of reference element vertices
-!! @param[in]     ndf_pid   Number of DoFs per cell for the panel_id field
-!! @param[in]     undf_pid  Universal number of DoFs for the panel_id field
-!! @param[in]     map_pid   DoF map for the panel_id field
-!! @param[in]     column_base_coords Coordinates for vertices at base of column
-!! @param[in,out] panel_id  Field (to be calculated) with the ID of cubed sphere panels
+  !> @brief    Assigns the cubed sphere panel ID values to the panel_id field.
+  !> @details  A scalar field is passed in and all values are assigned to
+  !!           be the panel IDs which are calculated from the coordinates.
+  !!           For planar geometry the ID is just 1 everywhere.
+  !>
+  !> @param[in]   nlayers             Number of layers for the panel_id field
+  !> @param[in]   nverts              Number of reference element vertices
+  !> @param[in]   ndf_pid             Number of DoFs per cell for the panel_id field
+  !> @param[in]   undf_pid            Universal number of DoFs for the panel_id field
+  !> @param[in]   map_pid             DoF map for the panel_id field
+  !> @param[in]   column_base_coords  Coordinates for vertices at base of column
+  !> @param[out]  panel_id            Field (to be calculated) with the ID of cubed sphere panels
   subroutine calc_panel_id( nlayers,            &
                             nverts,             &
                             ndf_pid,            &
@@ -244,16 +252,14 @@ contains
 
     implicit none
 
-    integer(kind=i_def), intent(in) :: nlayers, nverts, ndf_pid, undf_pid
-    integer(kind=i_def), intent(in) :: map_pid(ndf_pid)
-
-    real(kind=r_def), intent(in)  :: column_base_coords(3,nverts,1)
-    real(kind=r_def), intent(out) :: panel_id(undf_pid)
+    integer(kind=i_def), intent(in)  :: nlayers, nverts, ndf_pid, undf_pid
+    integer(kind=i_def), intent(in)  :: map_pid(ndf_pid)
+    real(kind=r_def),    intent(in)  :: column_base_coords(3,nverts,1)
+    real(kind=r_def),    intent(out) :: panel_id(undf_pid)
 
     ! Internal variables
     integer(kind=i_def) :: vert, panel
-
-    real(kind=r_def) :: interp_weight, x, y, z
+    real(kind=r_def)    :: interp_weight, x, y, z
 
     if ( geometry == geometry_spherical .and. &
          topology == topology_fully_periodic ) then
@@ -281,25 +287,25 @@ contains
 
   end subroutine calc_panel_id
 
-!> @brief Determines and assigns the (X,Y,Z) coordinates for a single column
-!! @param[in]  nlayers       integer: loop bound
-!! @param[in]  ndf           integer: array size and loop bound
-!! @param[in]  nverts        integer: array size and loop bound
-!! @param[in]  undf          integer: array size and loop bound
-!! @param[in]  map           integer array: indirection map
-!! @param[in]  dz            Mesh layer thickness
-!! @param[out] chi_1         real array: size undf x coord
-!! @param[out] chi_2         real array: size undf y coord
-!! @param[out] chi_3         real array: size undf z coord
-!! @param[in]  column_coords real array: (3,nverts,nlayers)
-!! @param[in]  chi_hat_node  real array: (3,ndf)
-!! @param[in]  chi_hat_vert  real array: (nverts,3)
-!! @param[in]  domain_x      real: domain extent in x direction for planar mesh
-!! @param[in]  domain_y      real: domain extent in y direction for planar mesh
-!! @param[in]  panel_id      real: field giving ID of mesh panel
-!! @param[in]  ndf_pid       integer: number of DoFs per cell for panel_id space
-!! @param[in]  undf_pid      integer: number of universal DoFs for panel_id space
-!! @param[in]  map_pid       integer: DoF map for panel_id space
+  !> @brief Determines and assigns the (X,Y,Z) coordinates for a single column.
+  !>
+  !> @param[in]   nlayers        The number of layers in the mesh
+  !> @param[in]   ndf            Number of DoFs per cell for chi field space
+  !> @param[in]   nverts         Number of vertices per cell
+  !> @param[in]   undf           Number of universal DoFs for chi field space
+  !> @param[in]   map            DoF map for chi field
+  !> @param[out]  chi_1          1st coordinate field
+  !> @param[out]  chi_2          2nd coordinate field
+  !> @param[out]  chi_3          3rd coordinate field
+  !> @param[in]   column_coords  Coordinates at mesh vertices
+  !> @param[in]   chi_hat_node   Reference cell coordinates at the chi space DoFs
+  !> @param[in]   chi_hat_vert   Reference cell coordinates at the cell vertices
+  !> @param[in]   domain_x       Domain extent in x direction for planar mesh
+  !> @param[in]   domain_y       Domain extent in y direction for planar mesh
+  !> @param[in]   panel_id       Field giving IDs of mesh panels
+  !> @param[in]   ndf_pid        Number of DoFs per cell for panel_id space
+  !> @param[in]   undf_pid       Number of universal DoFs for panel_id space
+  !> @param[in]   map_pid        DoF map for panel_id space
   subroutine assign_coordinate_xyz( nlayers,       &
                                     ndf,           &
                                     nverts,        &
@@ -399,22 +405,23 @@ contains
 
   end subroutine assign_coordinate_xyz
 
-!> @brief Determines and assigns the (alpha,beta,height) coordinates for a single column
-!! @param[in]  nlayers       integer: loop bound
-!! @param[in]  ndf           integer: array size and loop bound
-!! @param[in]  nverts        integer: array size and loop bound
-!! @param[in]  undf          integer: array size and loop bound
-!! @param[in]  map           integer array: indirection map
-!! @param[out] chi_1         real array: size undf x coord
-!! @param[out] chi_2         real array: size undf y coord
-!! @param[out] chi_3         real array: size undf z coord
-!! @param[in]  column_coords real array: (3,nverts,nlayers)
-!! @param[in]  chi_hat_node  real array: (3,ndf)
-!! @param[in]  chi_hat_vert  real array: (nverts,3)
-!! @param[in]  panel_id      real: field giving ID of cubed sphere panel
-!! @param[in]  ndf_pid       integer: number of DoFs per cell for panel_id space
-!! @param[in]  undf_pid      integer: number of universal DoFs for panel_id space
-!! @param[in]  map_pid       integer: DoF map for panel_id space
+  !> @brief Determines and assigns the (alpha,beta,height) coordinates for a single column.
+  !>
+  !> @param[in]   nlayers        The number of layers in the mesh
+  !> @param[in]   ndf            Number of DoFs per cell for chi field space
+  !> @param[in]   nverts         Number of vertices per cell
+  !> @param[in]   undf           Number of universal DoFs for chi field space
+  !> @param[in]   map            DoF map for chi field
+  !> @param[out]  chi_1          1st coordinate field
+  !> @param[out]  chi_2          2nd coordinate field
+  !> @param[out]  chi_3          3rd coordinate field
+  !> @param[in]   column_coords  Coordinates at mesh vertices
+  !> @param[in]   chi_hat_node   Reference cell coordinates at the chi space DoFs
+  !> @param[in]   chi_hat_vert   Reference cell coordinates at the cell vertices
+  !> @param[in]   panel_id       Field giving IDs of mesh panels
+  !> @param[in]   ndf_pid        Number of DoFs per cell for panel_id space
+  !> @param[in]   undf_pid       Number of universal DoFs for panel_id space
+  !> @param[in]   map_pid        DoF map for panel_id space
   subroutine assign_coordinate_alphabetaz( nlayers,       &
                                            ndf,           &
                                            nverts,        &
@@ -490,21 +497,22 @@ contains
   end subroutine assign_coordinate_alphabetaz
 
   !> @brief Determines and assigns the (lon,lat,h) coordinates for a single column.
-  !! @param[in]  nlayers       The number of layers in the mesh
-  !! @param[in]  ndf           Number of DoFs per cell for chi field space
-  !! @param[in]  nverts        Number of vertices per cell
-  !! @param[in]  undf          Number of universal DoFs for chi field space
-  !! @param[in]  map           DoF map for chi field
-  !! @param[out] chi_1         1st coordinate field
-  !! @param[out] chi_2         2nd coordinate field
-  !! @param[out] chi_3         3rd coordinate field
-  !! @param[in]  column_coords Coordinates at mesh vertices
-  !! @param[in]  chi_hat_node  Reference cell coordinates at the chi space DoFs
-  !! @param[in]  chi_hat_vert  Reference cell coordinates at the cell vertices
-  !! @param[in]  panel_id      Field giving IDs of mesh panels
-  !! @param[in]  ndf_pid       Number of DoFs per cell for panel_id space
-  !! @param[in]  undf_pid      Number of universal DoFs for panel_id space
-  !! @param[in]  map_pid       DoF map for panel_id space
+  !>
+  !> @param[in]   nlayers        The number of layers in the mesh
+  !> @param[in]   ndf            Number of DoFs per cell for chi field space
+  !> @param[in]   nverts         Number of vertices per cell
+  !> @param[in]   undf           Number of universal DoFs for chi field space
+  !> @param[in]   map            DoF map for chi field
+  !> @param[out]  chi_1          1st coordinate field
+  !> @param[out]  chi_2          2nd coordinate field
+  !> @param[out]  chi_3          3rd coordinate field
+  !> @param[in]   column_coords  Coordinates at mesh vertices
+  !> @param[in]   chi_hat_node   Reference cell coordinates at the chi space DoFs
+  !> @param[in]   chi_hat_vert   Reference cell coordinates at the cell vertices
+  !> @param[in]   panel_id       Field giving IDs of mesh panels
+  !> @param[in]   ndf_pid        Number of DoFs per cell for panel_id space
+  !> @param[in]   undf_pid       Number of universal DoFs for panel_id space
+  !> @param[in]   map_pid        DoF map for panel_id space
   subroutine assign_coordinate_lonlatz( nlayers,       &
                                         ndf,           &
                                         nverts,        &
@@ -575,4 +583,4 @@ contains
 
   end subroutine assign_coordinate_lonlatz
 
-end module assign_coordinate_field_mod
+end module driver_coordinates_mod

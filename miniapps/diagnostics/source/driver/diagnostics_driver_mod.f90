@@ -73,8 +73,8 @@ contains
   subroutine initialise( filename, model_communicator )
 
     use convert_to_upper_mod,       only : convert_to_upper
-    use create_fem_mod,             only : init_fem
-    use create_mesh_mod,            only : init_mesh
+    use driver_fem_mod,             only : init_fem
+    use driver_mesh_mod,            only : init_mesh
     use derived_config_mod,         only : set_derived_config
     use fieldspec_xml_parser_mod,   only : populate_fieldspec_collection
     use init_diagnostics_mod,       only : init_diagnostics

@@ -14,8 +14,8 @@ module transport_driver_mod
   use configuration_mod,                only: final_configuration
   use constants_mod,                    only: i_def, i_native, r_def
   use convert_to_upper_mod,             only: convert_to_upper
-  use create_fem_mod,                   only: init_fem
-  use create_mesh_mod,                  only: init_mesh
+  use driver_fem_mod,                   only: init_fem
+  use driver_mesh_mod,                  only: init_mesh
   use derived_config_mod,               only: set_derived_config
   use diagnostics_io_mod,               only: write_scalar_diagnostic, &
                                               write_vector_diagnostic

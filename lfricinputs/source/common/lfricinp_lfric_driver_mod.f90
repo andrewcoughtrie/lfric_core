@@ -14,11 +14,13 @@ USE log_mod,                    ONLY: log_event, log_scratch_space,            &
 ! LFRic Modules
 USE lfric_xios_io_mod,          ONLY: initialise_xios
 USE clock_mod,                  ONLY: clock_type
-USE create_mesh_mod,            ONLY: init_mesh
-USE create_fem_mod,             ONLY: init_fem
+USE driver_mesh_mod,            ONLY: init_mesh
+use driver_fem_mod,             ONLY: init_fem
 USE derived_config_mod,         ONLY: set_derived_config
+USE extrusion_mod,              ONLY: extrusion_type
 USE field_collection_mod,       ONLY: field_collection_type
 USE field_mod,                  ONLY: field_type
+USE gungho_extrusion_mod,       ONLY: create_extrusion
 USE io_context_mod,             ONLY: io_context_type
 USE mod_wait,                   ONLY: init_wait
 USE lfric_xios_context_mod,     ONLY: filelist_populator
@@ -97,6 +99,9 @@ CHARACTER(LEN=10) :: char_first_step, char_last_step
 
 INTEGER(KIND=i_def) :: stencil_depth
 
+CLASS(extrusion_type), ALLOCATABLE :: extrusion
+
+
 ! Set module variables
 program_name = program_name_arg
 xios_id = TRIM(program_name) // "_client"
@@ -139,7 +144,11 @@ ALLOCATE(mesh_collection, source=mesh_collection_type() )
 ! LFricInputs does not contain science, hard code to the default
 stencil_depth = 1
 
-CALL init_mesh(local_rank, total_ranks, stencil_depth, mesh_id, twod_mesh_id)
+! Generate prime mesh extrusion
+ALLOCATE(extrusion, source=create_extrusion())
+
+CALL init_mesh(local_rank, total_ranks, stencil_depth, mesh_id, twod_mesh_id, &
+               input_extrusion=extrusion)
 
 ! Create FEM specifics (function spaces and chi field)
 CALL log_event('Creating function spaces and chi', LOG_LEVEL_INFO)

@@ -51,8 +51,8 @@ module io_dev_model_mod
   use io_dev_mod,                 only : load_configuration
   use io_dev_init_files_mod,      only : init_io_dev_files
   ! GungHo driver modules
-  use create_fem_mod,             only : init_fem, final_fem
-  use create_mesh_mod,            only : init_mesh, final_mesh
+  use driver_fem_mod,             only : init_fem, final_fem
+  use driver_mesh_mod,            only : init_mesh, final_mesh
   ! External libraries
   use xios,                       only : xios_context_finalize
   use yaxt,                       only : xt_initialize, xt_finalize

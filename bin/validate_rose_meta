@@ -33,6 +33,8 @@
 #-----------------------------------------------------------------------------
 
 default_project_names=( infrastructure  \
+                        lfric-xios      \
+                        driver          \
                         gungho          \
                         lfric_atm       \
                         mesh_tools      \
@@ -46,6 +48,8 @@ default_project_names=( infrastructure  \
                         multires_coupling  )
 
 default_app_names=( infrastructure:none            \
+                    lfric-xios:none                \
+                    driver:none                    \
                     gungho:gungho                  \
                     gungho:mesh                    \
                     lfric_atm:lfric_atm            \
@@ -91,6 +95,8 @@ fi
 
 project_folder_location=(                  \
   [infrastructure]=infrastructure          \
+  [lfric-xios]=components/lfric-xios       \
+  [driver]=components/driver               \
   [gungho]=gungho                          \
   [lfric_atm]=lfric_atm                    \
   [mesh_tools]=mesh_tools                  \
@@ -107,6 +113,8 @@ project_folder_location=(                  \
 declare -A project_primary_app
 project_primary_app=(             \
   [infrastructure]=none           \
+  [lfric-xios]=none               \
+  [driver]=none                   \
   [gungho]=gungho                 \
   [lfric_atm]=lfric_atm           \
   [mesh_tools]=mesh               \

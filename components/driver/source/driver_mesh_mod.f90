@@ -3,16 +3,27 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used
 !-----------------------------------------------------------------------------
-!> @brief Set up and destroy partitioned 3D mesh(es)
-!> @details Contains routines to:
-!>           i) Read global ugrid meshes and set up partitioned 3D mesh(es)
-!>          ii) Destroy partitioned mesh(es)
-module create_mesh_mod
 
-  use constants_mod,              only: i_def, str_def, l_def, &
-                                        r_def, imdi, i_native
-  use extrusion_mod,              only: extrusion_type, &
-                                        uniform_extrusion_type
+!> @brief    Set up and destroy partitioned 3D mesh(es).
+!> @details  Contains routines to:
+!!            i) Read global UGRID meshes and set up partitioned 3D mesh(es),
+!!           ii) Destroy partitioned mesh(es).
+module driver_mesh_mod
+
+  use constants_mod,              only: i_def, l_def, r_def, str_def, imdi, &
+                                        i_native
+  use extrusion_config_mod,       only: method,           &
+                                        method_uniform,   &
+                                        method_geometric, &
+                                        method_quadratic, &
+                                        domain_top, number_of_layers
+  use extrusion_mod,              only: extrusion_type,              &
+                                        uniform_extrusion_type,      &
+                                        geometric_extrusion_type,    &
+                                        quadratic_extrusion_type,    &
+                                        shifted_extrusion_type,      &
+                                        double_level_extrusion_type, &
+                                        PRIME_EXTRUSION
   use global_mesh_collection_mod, only: global_mesh_collection, &
                                         global_mesh_collection_type
   use global_mesh_mod,            only: global_mesh_type
@@ -27,10 +38,10 @@ module create_mesh_mod
   use ncdf_quad_mod,              only: ncdf_quad_type
   use partition_mod,              only: partition_type, &
                                         partitioner_interface
+  use planet_config_mod,          only: scaled_radius
   use ugrid_2d_mod,               only: ugrid_2d_type
   use ugrid_mesh_data_mod,        only: ugrid_mesh_data_type
   use ugrid_file_mod,             only: ugrid_file_type
-
   use base_mesh_config_mod,       only: filename, prime_mesh_name, &
                                         offline_partitioning,      &
                                         key_from_geometry,         &
@@ -57,44 +68,38 @@ module create_mesh_mod
 
 contains
 
-
-!===============================================================================
-!> @brief Generates a mesh and determines the basis functions and dofmaps
-!> @details This will be replaced with code that reads the information in
+!> @brief  Generates a mesh and determines the basis functions and dofmaps.
 !>
-!> @param[in]  local_rank   Number of the MPI rank of this process
-!> @param[in]  total_ranks  Total number of MPI ranks in this job
-!===============================================================================
-!> @brief Generates a mesh and determines the basis functions and dofmaps
-!> @details This will be replaced with code that reads the information in
-!> @param[in]  local_rank                    Number of the MPI rank of this process
-!> @param[in]  total_ranks                   Total number of MPI ranks in this job
-!> @param[in]  stencil_depth                 Stencil depth that local meshes should support
-!> @param[out] mesh_id                       Mesh id of partitioned prime mesh
-!> @param[out] twod_mesh_id                  Mesh id of the 2D (surface) mesh
-!> @param[out] shifted_mesh_id               Mesh id of vertically shifted mesh
-!>                                           with an extra level
-!> @param[out] double_level_mesh_id          Mesh id of vertically double level mesh
-!> @param[out] multigrid_mesh_ids            Gungho multigrid chain mesh ids
-!> @param[out] multigrid_2D_mesh_ids         Gungho multigrid chain 2D_mesh ids
-!> @param[in]  use_multigrid                 Optional, Configuration switch for multigrid
-!> @param[out] multires_coupling_mesh_ids    Multiresolution Coupling miniapp mesh ids
-!> @param[out] multires_coupling_2D_mesh_ids Multiresolution Coupling miniapp 2D_mesh ids
-!> @param[in]  multires_coupling_mesh_tags   Multiresolution Coupling miniapp mesh names
-!> @param[in]  use_multires_coupling         Logical flag to enable multiresolution atmospheric coupling
-
-subroutine init_mesh( local_rank, total_ranks,       &
-                      stencil_depth, mesh_id,        &
-                      twod_mesh_id,                  &
-                      shifted_mesh_id,               &
-                      double_level_mesh_id,          &
-                      multigrid_mesh_ids,            &
-                      multigrid_2D_mesh_ids,         &
-                      use_multigrid,                 &
-                      multires_coupling_mesh_ids,    &
-                      multires_coupling_2D_mesh_ids, &
-                      multires_coupling_mesh_tags,   &
-                      use_multires_coupling )
+!> @param[in]   local_rank                     Number of the MPI rank of this process
+!> @param[in]   total_ranks                    Total number of MPI ranks in this job
+!> @param[in]   stencil_depth                  Stencil depth that local meshes should support
+!> @param[out]  mesh_id                        Mesh ID of partitioned prime mesh
+!> @param[out]  twod_mesh_id                   Optional, mesh ID of the 2D (surface) mesh
+!> @param[out]  shifted_mesh_id                Optional, mesh ID of vertically shifted mesh
+!!                                             with an extra level
+!> @param[out]  double_level_mesh_id           Optional, mesh ID of vertically double level mesh
+!> @param[out]  multigrid_mesh_ids             Optional, multigrid chain mesh IDs
+!> @param[out]  multigrid_2D_mesh_ids          Optional, multigrid chain 2D-mesh IDs
+!> @param[in]   use_multigrid                  Optional, configuration switch for multigrid
+!> @param[out]  multires_coupling_mesh_ids     Optional, multiresolution coupling miniapp mesh IDs
+!> @param[out]  multires_coupling_2D_mesh_ids  Optional, multiresolution coupling miniapp 2D-mesh IDs
+!> @param[in]   multires_coupling_mesh_tags    Optional, multiresolution coupling miniapp mesh names
+!> @param[in]   use_multires_coupling          Optional, logical flag to enable
+!!                                             multiresolution atmospheric coupling
+!> @param[in]   input_extrusion                Optional, mesh extrusion object to create prime 3D mesh
+subroutine init_mesh( local_rank, total_ranks,        &
+                      stencil_depth,                  &
+                      mesh_id, twod_mesh_id,          &
+                      shifted_mesh_id,                &
+                      double_level_mesh_id,           &
+                      multigrid_mesh_ids,             &
+                      multigrid_2D_mesh_ids,          &
+                      use_multigrid,                  &
+                      multires_coupling_mesh_ids,     &
+                      multires_coupling_2D_mesh_ids,  &
+                      multires_coupling_mesh_tags,    &
+                      use_multires_coupling,          &
+                      input_extrusion )
 
   use finite_element_config_mod,  only: cellshape,          &
                                         key_from_cellshape, &
@@ -104,55 +109,58 @@ subroutine init_mesh( local_rank, total_ranks,       &
 
   implicit none
 
-  integer(i_def), intent(in)  :: local_rank
-  integer(i_def), intent(in)  :: total_ranks
+  integer(kind=i_def), intent(in)  :: local_rank
+  integer(kind=i_def), intent(in)  :: total_ranks
+  integer(kind=i_def), intent(in)  :: stencil_depth
+  integer(kind=i_def), intent(out) :: mesh_id
 
-  ! stencil_depth is the requested depth (of cells outside the cell over
-  ! which the stencil is based) of the stencil to be used on fields with
-  ! this partition.
-  !
-  ! A single cell stencil will, therefore, have a stencil_depth=0.
-  ! A nine-point square region stencil will have stencil_depth=1
-  integer(i_def), intent(in)  :: stencil_depth
+  integer(kind=i_def), intent(out), optional :: twod_mesh_id
+  integer(kind=i_def), intent(out), optional :: shifted_mesh_id
+  integer(kind=i_def), intent(out), optional :: double_level_mesh_id
+  integer(kind=i_def), intent(out), optional, allocatable :: multigrid_mesh_ids(:)
+  integer(kind=i_def), intent(out), optional, allocatable :: multigrid_2d_mesh_ids(:)
+  integer(kind=i_def), intent(out), optional, allocatable :: multires_coupling_mesh_ids(:)
+  integer(kind=i_def), intent(out), optional, allocatable :: multires_coupling_2d_mesh_ids(:)
 
-  integer(i_def), intent(out) :: mesh_id
+  character(len=str_def), intent(in), optional :: multires_coupling_mesh_tags(:)
+  logical(kind=l_def),    intent(in), optional :: use_multigrid
+  logical(kind=l_def),    intent(in), optional :: use_multires_coupling
 
-  integer(i_def), intent(out), optional :: twod_mesh_id
-  integer(i_def), intent(out), optional :: shifted_mesh_id
-  integer(i_def), intent(out), optional :: double_level_mesh_id
-  integer(i_def), intent(out), optional, allocatable :: multigrid_mesh_ids(:)
-  integer(i_def), intent(out), optional, allocatable :: multigrid_2d_mesh_ids(:)
-  integer(i_def), intent(out), optional, allocatable :: multires_coupling_mesh_ids(:)
-  integer(i_def), intent(out), optional, allocatable :: multires_coupling_2d_mesh_ids(:)
-
-  character(str_def), intent(in), optional :: multires_coupling_mesh_tags(:)
-
-  logical(l_def), intent(in), optional :: use_multigrid
-  logical(l_def), intent(in), optional :: use_multires_coupling
+  ! Optional prime extrusion can be passed in for model-specific cases
+  class(extrusion_type), intent(in), optional :: input_extrusion
 
   ! Parameters
-  integer(i_def), parameter :: max_factor_iters = 10000
+  integer(kind=i_def), parameter :: max_factor_iters = 10000
 
   ! Local variables
-  integer(i_def) :: xproc  ! Processor ranks in mesh panel x-direction
-  integer(i_def) :: yproc  ! Processor ranks in mesh panel y-direction
+  integer(kind=i_def) :: xproc  ! Processor ranks in mesh panel x-direction
+  integer(kind=i_def) :: yproc  ! Processor ranks in mesh panel y-direction
 
   procedure(partitioner_interface), pointer :: partitioner_ptr => null()
 
-  logical(l_def) :: create_2d_mesh                     = .false.
-  logical(l_def) :: create_shifted_mesh                = .false.
-  logical(l_def) :: create_double_level_mesh           = .false.
-  logical(l_def) :: create_multigrid_meshes            = .false.
-  logical(l_def) :: create_multigrid_2d_meshes         = .false.
-  logical(l_def) :: create_multires_coupling_meshes    = .false.
-  logical(l_def) :: create_multires_coupling_2d_meshes = .false.
-  logical(l_def) :: create_multigrid                   = .false.
+  logical(kind=l_def) :: create_2d_mesh                     = .false.
+  logical(kind=l_def) :: create_shifted_mesh                = .false.
+  logical(kind=l_def) :: create_double_level_mesh           = .false.
+  logical(kind=l_def) :: create_multigrid_meshes            = .false.
+  logical(kind=l_def) :: create_multigrid_2d_meshes         = .false.
+  logical(kind=l_def) :: create_multires_coupling_meshes    = .false.
+  logical(kind=l_def) :: create_multires_coupling_2d_meshes = .false.
+  logical(kind=l_def) :: create_multigrid                   = .false.
 
-  integer(i_def) :: i, j, n_coupling_meshes, n_chain_meshes
+  integer(kind=i_def) :: i, j, n_coupling_meshes, n_chain_meshes
 
-  character(str_def) :: mesh_name
-  character(str_def) :: mesh_name_A
-  character(str_def) :: mesh_name_B
+  character(len=str_def) :: mesh_name
+  character(len=str_def) :: mesh_name_A
+  character(len=str_def) :: mesh_name_B
+
+  class(extrusion_type), allocatable :: prime_extrusion
+
+  ! Sort out prime mesh extrusion
+  if (present(input_extrusion)) then
+    allocate( prime_extrusion, source=input_extrusion )
+  else
+    allocate( prime_extrusion, source=create_prime_extrusion() )
+  end if
 
   ! Currently only quad elements are fully functional
   if (cellshape /= cellshape_quadrilateral) then
@@ -173,12 +181,12 @@ subroutine init_mesh( local_rank, total_ranks,       &
       if ( present(multigrid_mesh_ids) ) then
         create_multigrid_meshes    = .true.
         if (allocated(multigrid_mesh_ids)) deallocate(multigrid_mesh_ids)
-        allocate( multigrid_mesh_ids(n_chain_meshes) )
+        allocate(multigrid_mesh_ids(n_chain_meshes))
       end if
       if ( present(multigrid_2d_mesh_ids) )then
         create_multigrid_2d_meshes = .true.
         if (allocated(multigrid_2d_mesh_ids)) deallocate(multigrid_2d_mesh_ids)
-        allocate( multigrid_2d_mesh_ids(n_chain_meshes) )
+        allocate(multigrid_2d_mesh_ids(n_chain_meshes))
       end if
     end if
   end if
@@ -234,17 +242,19 @@ subroutine init_mesh( local_rank, total_ranks,       &
   end if
 
 
-  ! 5.0 Extrude all neshes into 3D local meshes
+  ! 5.0 Extrude all meshes into 3D local meshes
   !=================================================================
   if (present(multires_coupling_mesh_tags)) then
-    call create_all_3d_meshes( create_2d_mesh,                  &
+    call create_all_3d_meshes( prime_extrusion,                 &
+                               create_2d_mesh,                  &
                                create_shifted_mesh,             &
                                create_double_level_mesh,        &
                                create_multigrid_meshes ,        &
                                create_multires_coupling_meshes, &
                                multires_coupling_mesh_tags )
   else
-    call create_all_3d_meshes( create_2d_mesh,           &
+    call create_all_3d_meshes( prime_extrusion,          &
+                               create_2d_mesh,           &
                                create_shifted_mesh,      &
                                create_double_level_mesh, &
                                create_multigrid_meshes , &
@@ -309,7 +319,7 @@ subroutine init_mesh( local_rank, total_ranks,       &
   end if
 
 
-  ! 7.0 Extract out mesh ids
+  ! 7.0 Extract out mesh IDs
   !=================================================================
   mesh_name = prime_mesh_name
   mesh_id = mesh_collection%get_mesh_id(mesh_name)
@@ -333,18 +343,16 @@ subroutine init_mesh( local_rank, total_ranks,       &
   !     (They should not be used past this point in the code)
   !=================================================================
   if (allocated(global_mesh_collection)) deallocate(global_mesh_collection)
+  if (allocated(prime_extrusion)) deallocate(prime_extrusion)
 
 end subroutine init_mesh
 
-!===============================================================================
 !> @brief Sets common partition parameters to be applied to global meshes.
-!         (private subroutine)
 !>
-!> @param[in]   total_ranks  Total number of MPI ranks in this job
-!> @param[out]  xproc              Number of ranks in mesh panel x-direction
-!> @param[out]  yproc              Number of ranks in mesh panel y-direction
-!> @param[out]  partitioner_ptr    Mesh partitioning strategy
-!===============================================================================
+!> @param[in]   total_ranks      Total number of MPI ranks in this job
+!> @param[out]  xproc            Number of ranks in mesh panel x-direction
+!> @param[out]  yproc            Number of ranks in mesh panel y-direction
+!> @param[out]  partitioner_ptr  Mesh partitioning strategy
 subroutine set_partition_parameters( total_ranks,       &
                                      xproc, yproc,      &
                                      partitioner_ptr )
@@ -362,23 +370,23 @@ subroutine set_partition_parameters( total_ranks,       &
 
   implicit none
 
-  integer(i_def), intent(in)  :: total_ranks
-  integer(i_def), intent(out) :: xproc
-  integer(i_def), intent(out) :: yproc
+  integer(kind=i_def), intent(in)  :: total_ranks
+  integer(kind=i_def), intent(out) :: xproc
+  integer(kind=i_def), intent(out) :: yproc
 
   procedure(partitioner_interface), &
                   intent(out), pointer :: partitioner_ptr
 
   ! Locals
-  integer(i_def) :: ranks_per_panel
-  integer(i_def) :: start_factor
-  integer(i_def) :: end_factor
-  integer(i_def) :: fact_count
-  logical(l_def) :: found_factors
+  integer(kind=i_def) :: ranks_per_panel
+  integer(kind=i_def) :: start_factor
+  integer(kind=i_def) :: end_factor
+  integer(kind=i_def) :: fact_count
+  logical(kind=l_def) :: found_factors
 
-  character(str_def) :: domain_desc
+  character(len=str_def) :: domain_desc
 
-  integer(i_def), parameter :: max_factor_iters = 10000
+  integer(kind=i_def), parameter :: max_factor_iters = 10000
 
   partitioner_ptr => null()
 
@@ -486,20 +494,17 @@ subroutine set_partition_parameters( total_ranks,       &
 
 end subroutine set_partition_parameters
 
-
-!===============================================================================
-!> @brief   Reads in global meshes from ugrid file, partitions them
-!>          and creates local meshes.
-!           (private subroutine)
-!> @param[in]   local_rank         Number of the local MPI rank
-!> @param[in]   total_ranks        Total number of MPI ranks in this job
-!> @param[in]   xproc              Number of ranks in mesh panel x-direction
-!> @param[in]   yproc              Number of ranks in mesh panel y-direction
-!> @param[in]   stencil_depth      Depth of cells outside the base cell
-!>                                 of stencil.
-!> @param[out]  partitioner_ptr    Mesh partitioning strategy
-!> @param[in]   multires_coupling_mesh_tags  Multiresolution Coupling miniapp mesh names
-!===============================================================================
+!> @brief  Reads in global meshes from UGRID file, partitions them
+!!         and creates local meshes.
+!>
+!> @param[in]  local_rank                   Number of the local MPI rank
+!> @param[in]  total_ranks                  Total number of MPI ranks in this job
+!> @param[in]  xproc                        Number of ranks in mesh panel x-direction
+!> @param[in]  yproc                        Number of ranks in mesh panel y-direction
+!> @param[in]  stencil_depth                Depth of cells outside the base cell
+!!                                          of stencil
+!> @param[in]  partitioner_ptr              Mesh partitioning strategy
+!> @param[in]  multires_coupling_mesh_tags  Multiresolution Coupling miniapp mesh names
 subroutine create_all_base_meshes( local_rank, total_ranks,     &
                                    xproc, yproc,                &
                                    stencil_depth,               &
@@ -511,16 +516,16 @@ subroutine create_all_base_meshes( local_rank, total_ranks,     &
 
   implicit none
 
-  integer(i_def), intent(in) :: local_rank
-  integer(i_def), intent(in) :: total_ranks
-  integer(i_def), intent(in) :: xproc
-  integer(i_def), intent(in) :: yproc
-  integer(i_def), intent(in) :: stencil_depth
-  procedure(partitioner_interface), intent(in), pointer :: partitioner_ptr
-  logical(l_def), intent(in) :: create_multigrid
-  character(str_def), intent(in), optional :: multires_coupling_mesh_tags(:)
+  integer(kind=i_def),                       intent(in) :: local_rank
+  integer(kind=i_def),                       intent(in) :: total_ranks
+  integer(kind=i_def),                       intent(in) :: xproc
+  integer(kind=i_def),                       intent(in) :: yproc
+  integer(kind=i_def),                       intent(in) :: stencil_depth
+  procedure(partitioner_interface), pointer, intent(in) :: partitioner_ptr
+  logical(kind=l_def),                       intent(in) :: create_multigrid
+  character(len=str_def),          optional, intent(in) :: multires_coupling_mesh_tags(:)
 
-  integer(i_def) :: n_panels
+  integer(kind=i_def) :: n_panels
 
   if (geometry == geometry_spherical .and. &
       topology == topology_fully_periodic) then
@@ -564,22 +569,19 @@ subroutine create_all_base_meshes( local_rank, total_ranks,     &
                                                  partitioner_ptr )
 end subroutine create_all_base_meshes
 
-!===============================================================================
-!> @brief Loads the given list of global meshes, partitions them
-!>        and creates local meshes from them
-!         (private subroutine).
+!> @brief  Loads the given list of global meshes, partitions them
+!!         and creates local meshes from them.
 !>
 !> @param[in]  mesh_names[:]      Array of requested mesh names to load
-!>                                from the mesh input file.
+!!                                from the mesh input file
 !> @param[in]  n_panels           Number of panel domains in global mesh
 !> @param[in]  local_rank         Number of the local MPI rank
 !> @param[in]  total_ranks        Total number of MPI ranks in this job
 !> @param[in]  xproc              Number of ranks in mesh panel x-direction
 !> @param[in]  yproc              Number of ranks in mesh panel y-direction
 !> @param[in]  stencil_depth      Depth of cells outside the base cell
-!>                                of stencil.
+!!                                of stencil.
 !> @param[in]  partitioner_ptr    Mesh partitioning strategy
-!===============================================================================
 subroutine create_base_meshes( mesh_names, n_panels,    &
                                local_rank, total_ranks, &
                                xproc, yproc,            &
@@ -588,13 +590,13 @@ subroutine create_base_meshes( mesh_names, n_panels,    &
 
   implicit none
 
-  character(str_def), intent(in) :: mesh_names(:)
-  integer(i_def),     intent(in) :: n_panels
-  integer(i_def),     intent(in) :: local_rank
-  integer(i_def),     intent(in) :: total_ranks
-  integer(i_def),     intent(in) :: xproc
-  integer(i_def),     intent(in) :: yproc
-  integer(i_def),     intent(in) :: stencil_depth
+  character(len=str_def), intent(in) :: mesh_names(:)
+  integer(kind=i_def),    intent(in) :: n_panels
+  integer(kind=i_def),    intent(in) :: local_rank
+  integer(kind=i_def),    intent(in) :: total_ranks
+  integer(kind=i_def),    intent(in) :: xproc
+  integer(kind=i_def),    intent(in) :: yproc
+  integer(kind=i_def),    intent(in) :: stencil_depth
 
   procedure(partitioner_interface), intent(in), pointer :: partitioner_ptr
 
@@ -603,12 +605,8 @@ subroutine create_base_meshes( mesh_names, n_panels,    &
   type(global_mesh_type), pointer :: global_mesh_ptr
   type(partition_type)            :: partition
   type(local_mesh_type)           :: local_mesh
-  integer(i_def)                  :: local_mesh_id
-  integer(i_def)                  :: i
-
-  logical(l_def) :: valid_geometry
-  logical(l_def) :: valid_topology
-
+  integer(kind=i_def)             :: local_mesh_id, i
+  logical(kind=l_def)             :: valid_geometry, valid_topology
 
   do i=1, size(mesh_names)
     if (.not. global_mesh_collection%check_for(mesh_names(i))) then
@@ -684,39 +682,34 @@ subroutine create_base_meshes( mesh_names, n_panels,    &
 
 end subroutine create_base_meshes
 
-!===============================================================================
-!> @brief   Reads in and assigns available global intergrid maps from file.
-!           (private subroutine)
-!> @details Global meshes which have been read into the models global mesh
-!>          collection will have a list of target mesh names. These target mesh
-!>          names (if any) indicate the valid intergrid maps avaiable in the
-!>          mesh file.
-!>
-!>          This routine will read in in the appropriate intergrid maps and
-!>          assign them to the correct global mesh object.
-!===============================================================================
+!> @brief    Reads in and assigns available global intergrid maps from file.
+!> @details  Global meshes which have been read into the model's global mesh
+!!           collection will have a list of target mesh names. These target mesh
+!!           names (if any) indicate the valid intergrid maps avaiable in the
+!!           mesh file. This routine will read in the appropriate intergrid
+!!           maps and assign them to the correct global mesh object.
 subroutine create_mesh_maps()
 
   implicit none
 
   type(ncdf_quad_type) :: file_handler
 
-  character(str_def), allocatable :: source_mesh_names(:)
-  character(str_def), allocatable :: target_mesh_names(:)
-  integer(i_def),     allocatable :: gid_mesh_map(:,:,:)
-  integer(i_def),     allocatable :: lid_mesh_map(:,:,:)
+  character(len=str_def), allocatable :: source_mesh_names(:)
+  character(len=str_def), allocatable :: target_mesh_names(:)
+  integer(kind=i_def),    allocatable :: gid_mesh_map(:,:,:)
+  integer(kind=i_def),    allocatable :: lid_mesh_map(:,:,:)
 
-  integer(i_def) :: i, j, n, x, y
-  integer(i_def) :: n_meshes
+  integer(kind=i_def) :: i, j, n, x, y
+  integer(kind=i_def) :: n_meshes
 
   type(global_mesh_type), pointer :: source_global_mesh => null()
 
   type(local_mesh_type), pointer :: source_local_mesh => null()
   type(local_mesh_type), pointer :: target_local_mesh => null()
 
-  integer(i_def) :: ntarget_per_source_cell_x, ntarget_per_source_cell_y
-  integer(i_def) :: ncells
-  integer(i_def) :: target_local_mesh_id
+  integer(kind=i_def) :: ntarget_per_source_cell_x, ntarget_per_source_cell_y
+  integer(kind=i_def) :: ncells
+  integer(kind=i_def) :: target_local_mesh_id
 
   ! Read in the maps for each global mesh
   !=================================================================
@@ -752,8 +745,8 @@ subroutine create_mesh_maps()
           allocate( lid_mesh_map( ntarget_per_source_cell_x, &
                                   ntarget_per_source_cell_y, &
                                   ncells ) )
-          ! Convert global cell ids in the global mesh map
-          ! into local cell ids in a local mesh map
+          ! Convert global cell IDs in the global mesh map
+          ! into local cell IDs in a local mesh map
           do x=1, ntarget_per_source_cell_x
             do y=1, ntarget_per_source_cell_y
               do n=1, ncells
@@ -784,21 +777,19 @@ subroutine create_mesh_maps()
   return
 end subroutine create_mesh_maps
 
-!===============================================================================
-!> @brief Generates the 3D-meshes required by the model configuration.
-!         (private subroutine)
+!> @brief    Generates the 3D-meshes required by the model configuration.
+!> @details  The extrusion types are set up for the required configuration
+!!           before 3D-meshes are instantiated.
 !>
-!> @details The extrusion types are setup for the required configuration
-!>          before 3D-meshes are instantiated.
-!>
-!> @param[in] create_2d_mesh           Create 2D mesh based on prime mesh
-!> @param[in] create_shifted_mesh      Create shifted mesh based on prime mesh
-!> @param[in] create_double_level_mesh Create double-level mesh based on prime mesh
-!> @param[in] create_multigrid_meshes  Create meshes to support multigrid
-!> @param[in] create_multires_coupling_meshes Create meshes for multires_coupling miniapp
-!> @param[in] multires_coupling_mesh_tags     Multiresolution Coupling miniapp mesh names
-!===============================================================================
-subroutine create_all_3D_meshes( create_2d_mesh,                  &
+!> @param[in]  extrusion                       The prime vertical mesh extrusion
+!> @param[in]  create_2d_mesh                  Create 2D-mesh based on prime mesh
+!> @param[in]  create_shifted_mesh             Create shifted mesh based on prime mesh
+!> @param[in]  create_double_level_mesh        Create double-level mesh based on prime mesh
+!> @param[in]  create_multigrid_meshes         Create meshes to support multigrid
+!> @param[in]  create_multires_coupling_meshes Create meshes for multires_coupling miniapp
+!> @param[in]  multires_coupling_mesh_tags     Multiresolution Coupling miniapp mesh names
+subroutine create_all_3D_meshes( extrusion,                       &
+                                 create_2d_mesh,                  &
                                  create_shifted_mesh,             &
                                  create_double_level_mesh,        &
                                  create_multigrid_meshes,         &
@@ -807,39 +798,33 @@ subroutine create_all_3D_meshes( create_2d_mesh,                  &
 
   use extrusion_mod,           only: TWOD, SHIFTED, DOUBLE_LEVEL
   use extrusion_config_mod,    only: domain_top
-  use gungho_extrusion_mod,    only: create_extrusion,         &
-                                     create_shifted_extrusion, &
-                                     create_double_level_extrusion
   use multigrid_config_mod,    only: chain_mesh_tags
 
   implicit none
 
-  logical(l_def), intent(in) :: create_2d_mesh
-  logical(l_def), intent(in) :: create_shifted_mesh
-  logical(l_def), intent(in) :: create_double_level_mesh
-  logical(l_def), intent(in) :: create_multigrid_meshes
-  logical(l_def), intent(in) :: create_multires_coupling_meshes
+  class(extrusion_type),  intent(in) :: extrusion
+  logical(kind=l_def),    intent(in) :: create_2d_mesh
+  logical(kind=l_def),    intent(in) :: create_shifted_mesh
+  logical(kind=l_def),    intent(in) :: create_double_level_mesh
+  logical(kind=l_def),    intent(in) :: create_multigrid_meshes
+  logical(kind=l_def),    intent(in) :: create_multires_coupling_meshes
 
-  character(str_def), intent(in), optional :: multires_coupling_mesh_tags(:)
+  character(len=str_def), intent(in), &
+                            optional :: multires_coupling_mesh_tags(:)
 
-  class(extrusion_type), allocatable :: extrusion
   class(extrusion_type), allocatable :: extrusion_shifted
   class(extrusion_type), allocatable :: extrusion_double
   type(uniform_extrusion_type)       :: extrusion_2d
 
-  character(str_def) :: mesh_name
+  character(len=str_def) :: mesh_name
 
-  integer(i_native) :: i
+  integer(kind=i_native) :: i
 
-  integer(i_def), parameter :: one_layer = 1_i_def
-  real(r_def),    parameter :: atmos_bottom = 0.0_r_def
+  integer(kind=i_def), parameter :: one_layer = 1_i_def
+  real(kind=r_def),    parameter :: atmos_bottom = 0.0_r_def
 
   ! 1.0 Prime Mesh
   !===================================================================
-  ! 1.1 Always generate the prime 3D mesh
-  allocate( extrusion, &
-            source=create_extrusion() )
-
   call create_3d_mesh( prime_mesh_name, &
                        extrusion )
 
@@ -863,8 +848,9 @@ subroutine create_all_3D_meshes( create_2d_mesh,                  &
   !     based on the prime mesh.
   if (create_shifted_mesh) then
 
+    if (allocated(extrusion_shifted)) deallocate(extrusion_shifted)
     allocate( extrusion_shifted, &
-              source=create_shifted_extrusion(extrusion) )
+              source=shifted_extrusion_type(extrusion) )
 
     mesh_name = trim(prime_mesh_name)//'_shifted'
 
@@ -878,8 +864,7 @@ subroutine create_all_3D_meshes( create_2d_mesh,                  &
   if (create_double_level_mesh) then
 
     allocate( extrusion_double, &
-              source=create_double_level_extrusion(extrusion) )
-
+              source=double_level_extrusion_type(extrusion) )
     mesh_name = trim(prime_mesh_name)//'_double'
 
     call create_3d_mesh( prime_mesh_name,  &
@@ -920,25 +905,21 @@ subroutine create_all_3D_meshes( create_2d_mesh,                  &
 
   end if
 
-  if (allocated(extrusion))         deallocate( extrusion )
   if (allocated(extrusion_shifted)) deallocate( extrusion_shifted )
   if (allocated(extrusion_double))  deallocate( extrusion_double )
 
   return
 end subroutine create_all_3D_meshes
 
-!===============================================================================
-!> @brief   Generates a single (partitioned) 3D-mesh.
-!           (private subroutine)
-!> @details Instantiates a 3d-mesh partition and adds it to the model's
-!>          mesh collection. Multiple meshes may be generated in the model
-!>          based on the same global mesh but with differing extrusions.
+!> @brief    Generates a single (partitioned) 3D-mesh.
+!> @details  Instantiates a 3D-mesh partition and adds it to the model's
+!!           mesh collection. Multiple meshes may be generated in the model
+!!           based on the same global mesh but with differing extrusions.
 !>
-!> @param[in] base_mesh_name  Name of base 2D-mesh
-!> @param[in] extrusion       Extrusion type for this 3D-mesh
-!> @param[in] mesh_name       Optional, Name of local 3D-mesh,
-!>                            defaults to base_mesh_name
-!===============================================================================
+!> @param[in]  base_mesh_name  Name of base 2D-mesh
+!> @param[in]  extrusion       Extrusion type for this 3D-mesh
+!> @param[in]  mesh_name       Optional, Name of local 3D-mesh,
+!>                             defaults to base_mesh_name
 subroutine create_3d_mesh( base_mesh_name, &
                            extrusion,      &
                            mesh_name )
@@ -947,16 +928,16 @@ subroutine create_3d_mesh( base_mesh_name, &
 
   implicit none
 
-  character(str_def),    intent(in) :: base_mesh_name
-  class(extrusion_type), intent(in) :: extrusion
-  character(str_def),    intent(in), &
-                         optional   :: mesh_name
+  character(len=str_def),    intent(in) :: base_mesh_name
+  class(extrusion_type),     intent(in) :: extrusion
+  character(len=str_def),    intent(in), &
+                             optional   :: mesh_name
 
   type(local_mesh_type), pointer :: local_mesh_ptr => null()
 
-  type(mesh_type)    :: mesh
-  integer(i_def)     :: mesh_id
-  character(str_def) :: name
+  type(mesh_type)        :: mesh
+  integer(kind=i_def)    :: mesh_id
+  character(len=str_def) :: name
 
   if (.not. present(mesh_name)) then
     name = base_mesh_name
@@ -994,24 +975,66 @@ subroutine create_3d_mesh( base_mesh_name, &
   return
 end subroutine create_3d_mesh
 
-!===============================================================================
-!> @brief   Assigns intergrid maps to 3D-mesh partitions
-!           (private subroutine).
-!> @details Adds local ID integrid mappings 3D-mesh parititons.
-!>          Local integrid maps are assign to to source (source-> target)
-!>          and target (target -> source) meshes. A number of
-!>          of assumptions are made.
+
+!> @brief  Creates the prime vertical mesh extrusion.
+!> @return  Resulting extrusion object
+function create_prime_extrusion() result(new)
+
+  implicit none
+
+  class(extrusion_type), allocatable :: new
+
+  real(kind=r_def) :: domain_bottom
+
+  if (allocated(new)) deallocate(new)
+
+  select case (geometry)
+    case (geometry_planar)
+      domain_bottom = 0.0_r_def
+    case (geometry_spherical)
+      domain_bottom = scaled_radius
+    case default
+      call log_event("Invalid geometry for mesh initialisation", LOG_LEVEL_ERROR)
+  end select
+
+  select case (method)
+    case (method_uniform)
+      allocate( new, source=uniform_extrusion_type( domain_bottom,    &
+                                                    domain_top,       &
+                                                    number_of_layers, &
+                                                    PRIME_EXTRUSION ) )
+    case (method_quadratic)
+      allocate( new, source=quadratic_extrusion_type( domain_bottom,    &
+                                                      domain_top,       &
+                                                      number_of_layers, &
+                                                      PRIME_EXTRUSION ) )
+    case (method_geometric)
+      allocate( new, source=geometric_extrusion_type( domain_bottom,    &
+                                                      domain_top,       &
+                                                      number_of_layers, &
+                                                      PRIME_EXTRUSION ) )
+    case default
+      call log_event("Invalid method for simple extrusion", LOG_LEVEL_ERROR)
+  end select
+
+end function create_prime_extrusion
+
+
+!> @brief    Assigns intergrid maps to 3D-mesh partitions.
+!> @details  Adds local ID intergrid mappings 3D-mesh partitions.
+!!           Local intergrid maps are assigned to source (source -> target)
+!!           and target (target -> source) meshes. A number of
+!!           of assumptions are made.
+!!
+!!           *  The base global meshes of source/target 3D-mesh
+!!              are present in the global_mesh_collection.
+!!           *  Intergrid maps for the base global meshes were read in
+!!              and assigned.
+!!           *  Partitioned 3D-mesh is present in the
+!!              mesh_collection.
 !>
-!>          *  The base global meshes of source/target 3D-mesh
-!>             are present in the global_mesh_collection.
-!>          *  Integrid maps for the base global meshes where
-!>             where read in and assigned.
-!>          *  Partitioned 3D-mesh are present in the
-!>             mesh_collection.
-!>
-!> @param[in] source_mesh_name   Name of source 3D mesh partition
-!> @param[in] target_mesh_name   Name of target 3D mesh partition
-!===============================================================================
+!> @param[in]  source_mesh_name  Name of source 3D mesh partition
+!> @param[in]  target_mesh_name  Name of target 3D mesh partition
 subroutine add_mesh_maps( source_mesh_name, &
                           target_mesh_name )
 
@@ -1019,8 +1042,8 @@ subroutine add_mesh_maps( source_mesh_name, &
 
   implicit none
 
-  character(str_def), intent(in) :: source_mesh_name
-  character(str_def), intent(in) :: target_mesh_name
+  character(len=str_def), intent(in) :: source_mesh_name
+  character(len=str_def), intent(in) :: target_mesh_name
 
   type(mesh_type), pointer :: source_mesh => null()
   type(mesh_type), pointer :: target_mesh => null()
@@ -1035,12 +1058,12 @@ subroutine add_mesh_maps( source_mesh_name, &
        associated(target_mesh) ) then
 
     ! Mesh tag names may be different but "could point to the same mesh
-    ! So check the ids are not the same
+    ! So check the IDs are not the same
     if (source_mesh%get_id() == target_mesh%get_id()) then
       write(log_scratch_space,'(A)')                  &
           'Unable to create intergrid map: Source('// &
           trim(source_mesh_name)//' and target('//    &
-          trim(target_mesh_name)//') mesh ids are the same'
+          trim(target_mesh_name)//') mesh IDs are the same'
       call log_event( log_scratch_space, LOG_LEVEL_ERROR)
     end if
 
@@ -1065,9 +1088,7 @@ subroutine add_mesh_maps( source_mesh_name, &
   return
 end subroutine add_mesh_maps
 
-!===============================================================================
-!> @brief Finalises the mesh_collection
-!===============================================================================
+!> @brief  Finalises the mesh_collection.
 subroutine final_mesh()
 
   use mesh_collection_mod, only: mesh_collection
@@ -1082,4 +1103,4 @@ subroutine final_mesh()
   return
 end subroutine final_mesh
 
-end module create_mesh_mod
+end module driver_mesh_mod

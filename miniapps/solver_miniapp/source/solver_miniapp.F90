@@ -14,8 +14,8 @@ program solver_miniapp
   use constants_mod,                    only : i_def, PRECISION_REAL
   use convert_to_upper_mod,             only : convert_to_upper
   use cli_mod,                          only : get_initial_filename
-  use create_mesh_mod,                  only : init_mesh
-  use create_fem_mod,                   only : init_fem
+  use driver_mesh_mod,                  only : init_mesh
+  use driver_fem_mod,                   only : init_fem
   use init_solver_miniapp_mod,          only : init_solver_miniapp
   use yaxt,                             only : xt_initialize, xt_finalize
   use mpi_mod,                          only : initialise_comm, store_comm, &

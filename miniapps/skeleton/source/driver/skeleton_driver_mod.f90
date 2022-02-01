@@ -17,8 +17,8 @@ module skeleton_driver_mod
   use constants_mod,              only : i_def, i_native, &
                                          PRECISION_REAL, r_def
   use convert_to_upper_mod,       only : convert_to_upper
-  use create_mesh_mod,            only : init_mesh
-  use create_fem_mod,             only : init_fem
+  use driver_mesh_mod,            only : init_mesh
+  use driver_fem_mod,             only : init_fem
   use derived_config_mod,         only : set_derived_config
   use diagnostics_io_mod,         only : write_scalar_diagnostic
   use field_mod,                  only : field_type
@@ -48,6 +48,7 @@ module skeleton_driver_mod
   use mpi_mod,                    only : store_comm,    &
                                          get_comm_size, &
                                          get_comm_rank
+  use planet_config_mod,          only : scaled_radius
   use simple_io_mod,              only : initialise_simple_io
   use simple_io_context_mod,      only : simple_io_context_type
   use skeleton_mod,               only : load_configuration, program_name
@@ -99,8 +100,8 @@ contains
     integer(i_def)    :: total_ranks, local_rank, stencil_depth
     integer(i_native) :: log_level
 
-    class(clock_type), pointer :: clock
-    real(r_def)                :: dt_model
+    class(clock_type), pointer         :: clock
+    real(r_def)                        :: dt_model
 
     !Store the MPI communicator for later use
     call store_comm( model_communicator )

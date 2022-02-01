@@ -7,9 +7,9 @@
 !-------------------------------------------------------------------------------
 module assign_coordinate_alphabetaz_mod_test
 
-  use constants_mod,     only : r_def, i_def, PI
-  use yaxt,              only : xt_initialize, xt_finalize
-  use mpi_mod,           only : store_comm, clear_comm
+  use constants_mod, only : r_def, i_def, PI
+  use yaxt,          only : xt_initialize, xt_finalize
+  use mpi_mod,       only : store_comm, clear_comm
   use pFUnit_Mod
 
   implicit none
@@ -26,21 +26,15 @@ module assign_coordinate_alphabetaz_mod_test
     procedure test_all
   end type assign_coordinate_alphabetaz_test_type
 
-  real(r_def), parameter :: gravity  = 10.0_r_def
-  real(r_def), parameter :: radius   = 104.0_r_def
-  real(r_def), parameter :: omega    = 8.0E-5_r_def
-  real(r_def), parameter :: p_zero   = 100000.0_r_def
-  real(r_def), parameter :: rd       = 300.0_r_def
-  real(r_def), parameter :: cp       = 1000.0_r_def
-  real(r_def), parameter :: scaling  = 1.0_r_def
-  real(r_def), parameter :: lat_c    = 0.0_r_def
+  real(kind=r_def), parameter :: radius   = 104.0_r_def
+  real(kind=r_def), parameter :: scaling  = 1.0_r_def
 
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
 
-    use feign_config_mod,          only : feign_planet_config
+    use feign_config_mod, only : feign_planet_config
 
     implicit none
 
@@ -51,16 +45,14 @@ contains
     ! Store the MPI communicator for later use
     call store_comm(this%getMpiCommunicator())
 
-    call feign_planet_config( gravity=gravity, radius=radius, omega=omega, &
-                              rd=rd, cp=cp, p_zero=p_zero,                 &
-                              scaling_factor=scaling )
+    call feign_planet_config( radius=radius, scaling_factor=scaling )
 
   end subroutine setUp
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
-    use configuration_mod,        only: final_configuration
+    use configuration_mod, only : final_configuration
 
     implicit none
 
@@ -79,7 +71,7 @@ contains
   @Test( npes=[1] )
   subroutine test_all( this )
 
-    use assign_coordinate_field_mod, only : assign_coordinate_alphabetaz
+    use driver_coordinates_mod, only : assign_coordinate_alphabetaz
 
     implicit none
 

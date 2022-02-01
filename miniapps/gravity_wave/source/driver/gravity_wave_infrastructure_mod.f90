@@ -35,8 +35,8 @@ module gravity_wave_infrastructure_mod
                                          mesh_collection_type
   use local_mesh_collection_mod,  only : local_mesh_collection, &
                                          local_mesh_collection_type
-  use create_fem_mod,             only : init_fem
-  use create_mesh_mod,            only : init_mesh
+  use driver_fem_mod,             only : init_fem
+  use driver_mesh_mod,            only : init_mesh
   use runtime_constants_mod,      only : create_runtime_constants
   use gravity_wave_io_mod,        only : initialise_io
   use formulation_config_mod,     only : l_multigrid

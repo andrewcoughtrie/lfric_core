@@ -11,8 +11,8 @@ module multires_coupling_model_mod
   use assign_orography_field_mod, only : assign_orography_field
   use checksum_alg_mod,           only : checksum_alg
   use clock_mod,                  only : clock_type
-  use create_fem_mod,             only : init_fem, final_fem
-  use create_mesh_mod,            only : init_mesh, final_mesh
+  use driver_fem_mod,             only : init_fem, final_fem
+  use driver_mesh_mod,            only : init_mesh, final_mesh
   use configuration_mod,          only : final_configuration
   use conservation_algorithm_mod, only : conservation_algorithm
   use constants_mod,              only : i_def, i_native,          &

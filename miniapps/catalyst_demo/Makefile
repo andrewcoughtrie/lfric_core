@@ -188,6 +188,7 @@ build: ALWAYS
 #
 .PHONY: unit-tests
 unit-tests: export ADDITIONAL_EXTRACTION = "$(ROOT_DIR)/infrastructure/source \
+                                            $(ROOT_DIR)/components/driver/source \
                                             $(ROOT_DIR)/gungho/source \
                                             $(ROOT_DIR)/gungho/unit-test/support \
                                             $(ROOT_DIR)/components/lfric-xios/source \

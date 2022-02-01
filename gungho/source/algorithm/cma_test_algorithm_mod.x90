@@ -51,7 +51,7 @@ module cma_test_algorithm_mod
   use operator_mod,                   only : operator_type, &
                                              columnwise_operator_type
   use fs_continuity_mod,              only : W0,W1,W2,W2V,W2H,W3,Wchi
-  use assign_coordinate_field_mod,    only : assign_coordinate_field
+  use driver_coordinates_mod,         only : assign_coordinate_field
   use finite_element_config_mod,      only : element_order, &
                                              coord_order
   ! Kernels for field assignment and manipulation

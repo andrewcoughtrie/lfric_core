@@ -13,8 +13,8 @@ module cell_locator_driver_mod
   use constants_mod,                  only : i_def, i_native, r_def
   use cli_mod,                        only : get_initial_filename
   use cell_locator_mod,               only : load_configuration
-  use create_mesh_mod,                only : init_mesh
-  use create_fem_mod,                 only : init_fem
+  use driver_mesh_mod,                only : init_mesh
+  use driver_fem_mod,                 only : init_fem
   use yaxt,                           only : xt_initialize, xt_finalize
   use field_mod,                      only : field_type
   use runtime_constants_mod,          only : create_runtime_constants

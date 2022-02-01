@@ -10,7 +10,7 @@
 
 module init_catalyst_demo_mod
 
-  use assign_coordinate_field_mod,    only : assign_coordinate_field
+  use driver_coordinates_mod,         only : assign_coordinate_field
   use constants_mod,                  only : i_def
   use field_mod,                      only : field_type, &
                                              write_diag_interface
