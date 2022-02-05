@@ -26,7 +26,8 @@ module create_physics_prognostics_mod
   use radiation_config_mod,           only : n_radstep, cloud_representation,  &
                                              cloud_representation_combined,    &
                                              cloud_representation_conv_strat_liq_ice, &
-                                             cloud_representation_split
+                                             cloud_representation_split,       &
+                                             l_inc_radstep
   use aerosol_config_mod,             only : glomap_mode,                      &
                                              glomap_mode_climatology,          &
                                              glomap_mode_ukca
@@ -341,6 +342,48 @@ contains
       'sw_up_tile_rts', surft_space, checkpoint_flag=checkpoint_flag, twod=.true. )
     call add_physics_field( radiation_fields, depository, prognostic_fields,   &
       'sw_up_blue_tile_rts', surft_space, checkpoint_flag=checkpoint_flag, twod=.true. )
+
+
+    ! Fields which need checkpointing for radiation incremental timestepping
+    checkpoint_flag = checkpoint_flag .and. l_inc_radstep
+
+    ! 2D fields
+    call add_physics_field( radiation_fields, depository, prognostic_fields,   &
+      'lw_down_surf_rtsi', twod_space, checkpoint_flag=checkpoint_flag, twod=.true. )
+    call add_physics_field( radiation_fields, depository, prognostic_fields,   &
+      'sw_down_surf_rtsi', twod_space, checkpoint_flag=checkpoint_flag, twod=.true. )
+    call add_physics_field( radiation_fields, depository, prognostic_fields,   &
+      'sw_direct_surf_rtsi', twod_space, checkpoint_flag=checkpoint_flag, twod=.true. )
+    call add_physics_field( radiation_fields, depository, prognostic_fields,   &
+      'sw_down_blue_surf_rtsi', twod_space, checkpoint_flag=checkpoint_flag, twod=.true.)
+    call add_physics_field( radiation_fields, depository, prognostic_fields,   &
+      'sw_direct_blue_surf_rtsi', twod_space, checkpoint_flag=checkpoint_flag,  &
+      twod=.true. )
+    call add_physics_field( radiation_fields, depository, prognostic_fields,   &
+      'lw_up_surf_rtsi', twod_space, checkpoint_flag=checkpoint_flag, twod=.true. )
+    call add_physics_field( radiation_fields, depository, prognostic_fields,   &
+      'sw_up_surf_rtsi', twod_space, checkpoint_flag=checkpoint_flag, twod=.true. )
+    call add_physics_field( radiation_fields, depository, prognostic_fields,   &
+      'lw_up_toa_rtsi', twod_space, checkpoint_flag=checkpoint_flag, twod=.true. )
+    call add_physics_field( radiation_fields, depository, prognostic_fields,   &
+      'sw_up_toa_rtsi', twod_space, checkpoint_flag=checkpoint_flag, twod=.true. )
+    call add_physics_field( radiation_fields, depository, prognostic_fields,   &
+      'sw_direct_toa_rtsi', twod_space, checkpoint_flag=checkpoint_flag, twod=.true. )
+
+    ! 3D fields
+    call add_physics_field( radiation_fields, depository, prognostic_fields,   &
+      'sw_heating_rate_rtsi', wtheta_space, checkpoint_flag=checkpoint_flag )
+    call add_physics_field( radiation_fields, depository, prognostic_fields,   &
+      'lw_heating_rate_rtsi', wtheta_space, checkpoint_flag=checkpoint_flag )
+
+    ! Fields on surface tiles
+    call add_physics_field( radiation_fields, depository, prognostic_fields,   &
+      'lw_up_tile_rtsi', surft_space, checkpoint_flag=checkpoint_flag, twod=.true. )
+    call add_physics_field( radiation_fields, depository, prognostic_fields,   &
+      'sw_up_tile_rtsi', surft_space, checkpoint_flag=checkpoint_flag, twod=.true. )
+    call add_physics_field( radiation_fields, depository, prognostic_fields,   &
+      'sw_up_blue_tile_rtsi', surft_space, checkpoint_flag=checkpoint_flag, twod=.true. )
+
 
     !========================================================================
     ! Fields owned by the microphysics scheme

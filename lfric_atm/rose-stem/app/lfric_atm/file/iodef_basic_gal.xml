@@ -227,6 +227,22 @@
 	<field id="checkpoint_stellar_irradiance_rts" name="stellar_irradiance_rts" long_name="stellar_irradiance" unit="1" domain_ref="face" />
 	<field id="checkpoint_sin_stellar_declination_rts" name="sin_stellar_declination_rts" long_name="sin_stellar_declination" unit="1" domain_ref="face" />
 	<field id="checkpoint_stellar_eqn_of_time_rts" name="stellar_eqn_of_time_rts" long_name="stellar_equation_of_time" unit="1" domain_ref="face" />
+	<!-- radiation fields for increment timestepping -->
+	<field id="checkpoint_lw_down_surf_rtsi" name="lw_down_surf_rtsi" long_name="surface_downward_longwave_flux" unit="W m-2" domain_ref="face" />
+	<field id="checkpoint_sw_down_surf_rtsi" name="sw_down_surf_rtsi" long_name="surface_downward_shortwave_flux" unit="W m-2" domain_ref="face" />
+	<field id="checkpoint_sw_direct_surf_rtsi" name="sw_direct_surf_rtsi" long_name="surface_direct_shortwave_flux" unit="W m-2" domain_ref="face" />
+	<field id="checkpoint_sw_down_blue_surf_rtsi" name="sw_down_blue_surf_rtsi" long_name="surface_downward_0-690nm_flux" unit="W m-2" domain_ref="face" />
+	<field id="checkpoint_sw_direct_blue_surf_rtsi" name="sw_direct_blue_surf_rtsi" long_name="surface_direct_0-690nm_flux" unit="W m-2" domain_ref="face" />
+        <field id="checkpoint_lw_up_tile_rtsi" name="lw_up_tile_rtsi" long_name="surface_upward_longwave_flux_on_tiles" unit="W m-2" domain_ref="face" axis_ref="surface_tiles" />
+        <field id="checkpoint_sw_up_tile_rtsi" name="sw_up_tile_rtsi" long_name="surface_upward_shortwave_flux_on_tiles" unit="W m-2" domain_ref="face" axis_ref="surface_tiles" />
+        <field id="checkpoint_sw_up_blue_tile_rtsi" name="sw_up_blue_tile_rtsi" long_name="surface_upward_0-690nm_flux_on_tiles" unit="W m-2" domain_ref="face" axis_ref="surface_tiles" />
+	<field id="checkpoint_lw_up_surf_rtsi" name="lw_up_surf_rtsi" long_name="surface_upward_longwave_flux" unit="W m-2" domain_ref="face" />
+	<field id="checkpoint_sw_up_surf_rtsi" name="sw_up_surf_rtsi" long_name="surface_upward_shortwave_flux" unit="W m-2" domain_ref="face" />
+	<field id="checkpoint_lw_up_toa_rtsi" name="lw_up_toa_rtsi" long_name="toa_upward_longwave_flux" unit="W m-2" domain_ref="face" />
+	<field id="checkpoint_sw_up_toa_rtsi" name="sw_up_toa_rtsi" long_name="toa_upward_shortwave_flux" unit="W m-2" domain_ref="face" />
+	<field id="checkpoint_sw_direct_toa_rtsi" name="sw_direct_toa_rtsi" long_name="toa_direct_shortwave_flux" unit="W m-2" domain_ref="face" />
+	<field id="checkpoint_sw_heating_rate_rtsi" name="sw_heating_rate_rtsi" long_name="shortwave_heating_rate" unit="K s-1" grid_ref="full_level_face_grid" />
+	<field id="checkpoint_lw_heating_rate_rtsi" name="lw_heating_rate_rtsi" long_name="longwave_heating_rate" unit="K s-1" grid_ref="full_level_face_grid" />
 	<!-- snow fields -->
 	<field id="checkpoint_tile_snow_mass" name="tile_snow_mass" long_name="tile_snow_mass" unit="kg m-2" domain_ref="face" axis_ref="surface_tiles" />
 	<field id="checkpoint_tile_snow_rgrain" name="tile_snow_rgrain" long_name="tile_snow_grain_size" unit="microns" domain_ref="face" axis_ref="surface_tiles" />
@@ -972,6 +988,22 @@
 	<field id="restart_stellar_irradiance_rts" name="stellar_irradiance_rts" long_name="stellar_irradiance" unit="1" operation="instant" domain_ref="face" />
 	<field id="restart_sin_stellar_declination_rts" name="sin_stellar_declination_rts" long_name="sin_stellar_declination" unit="1" operation="instant" domain_ref="face" />
 	<field id="restart_stellar_eqn_of_time_rts" name="stellar_eqn_of_time_rts" long_name="stellar_equation_of_time" unit="1" operation="instant" domain_ref="face" />
+	<!-- radiation fields for increment timestepping -->
+	<field id="restart_lw_down_surf_rtsi" name="lw_down_surf_rtsi" long_name="surface_downward_longwave_flux" unit="W m-2" operation="instant" domain_ref="face" />
+	<field id="restart_sw_down_surf_rtsi" name="sw_down_surf_rtsi" long_name="surface_downward_shortwave_flux" unit="W m-2" operation="instant" domain_ref="face" />
+	<field id="restart_sw_direct_surf_rtsi" name="sw_direct_surf_rtsi" long_name="surface_direct_shortwave_flux" unit="W m-2" operation="instant" domain_ref="face" />
+	<field id="restart_sw_down_blue_surf_rtsi" name="sw_down_blue_surf_rtsi" long_name="surface_downward_0-690nm_flux" unit="W m-2" operation="instant" domain_ref="face" />
+	<field id="restart_sw_direct_blue_surf_rtsi" name="sw_direct_blue_surf_rtsi" long_name="surface_direct_0-690nm_flux" unit="W m-2" operation="instant" domain_ref="face" />
+        <field id="restart_lw_up_tile_rtsi" name="lw_up_tile_rtsi" long_name="surface_upward_longwave_flux_on_tiles" unit="W m-2" operation="instant" domain_ref="face" axis_ref="surface_tiles" />
+        <field id="restart_sw_up_tile_rtsi" name="sw_up_tile_rtsi" long_name="surface_upward_shortwave_flux_on_tiles" unit="W m-2" operation="instant" domain_ref="face" axis_ref="surface_tiles" />
+        <field id="restart_sw_up_blue_tile_rtsi" name="sw_up_blue_tile_rtsi" long_name="surface_upward_0-690nm_flux_on_tiles" unit="W m-2" operation="instant" domain_ref="face" axis_ref="surface_tiles" />
+	<field id="restart_lw_up_surf_rtsi" name="lw_up_surf_rtsi" long_name="surface_upward_longwave_flux" unit="W m-2" operation="instant" domain_ref="face" />
+	<field id="restart_sw_up_surf_rtsi" name="sw_up_surf_rtsi" long_name="surface_upward_shortwave_flux" unit="W m-2" operation="instant" domain_ref="face" />
+	<field id="restart_lw_up_toa_rtsi" name="lw_up_toa_rtsi" long_name="toa_upward_longwave_flux" unit="W m-2" operation="instant" domain_ref="face" />
+	<field id="restart_sw_up_toa_rtsi" name="sw_up_toa_rtsi" long_name="toa_upward_shortwave_flux" unit="W m-2" operation="instant" domain_ref="face" />
+	<field id="restart_sw_direct_toa_rtsi" name="sw_direct_toa_rtsi" long_name="toa_direct_shortwave_flux" unit="W m-2" operation="instant" domain_ref="face" />
+	<field id="restart_sw_heating_rate_rtsi" name="sw_heating_rate_rtsi" long_name="shortwave_heating_rate" unit="K s-1" operation="instant" grid_ref="full_level_face_grid" />
+	<field id="restart_lw_heating_rate_rtsi" name="lw_heating_rate_rtsi" long_name="longwave_heating_rate" unit="K s-1" operation="instant" grid_ref="full_level_face_grid" />
 	<!-- snow fields -->
 	<field id="restart_tile_snow_mass" name="tile_snow_mass" long_name="tile_snow_mass" unit="kg m-2" operation="instant" domain_ref="face" axis_ref="surface_tiles" />
 	<field id="restart_tile_snow_rgrain" name="tile_snow_rgrain" long_name="tile_snow_grain_size" unit="microns" operation="instant" domain_ref="face" axis_ref="surface_tiles" />

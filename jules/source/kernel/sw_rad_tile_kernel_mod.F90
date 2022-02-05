@@ -8,7 +8,8 @@
 module sw_rad_tile_kernel_mod
 
 use argument_mod,      only : arg_type,                  &
-                              GH_FIELD, GH_REAL,         &
+                              GH_FIELD, GH_SCALAR,       &
+                              GH_REAL, GH_INTEGER,       &
                               GH_READ, GH_WRITE,         &
                               ANY_DISCONTINUOUS_SPACE_1, &
                               ANY_DISCONTINUOUS_SPACE_2, &
@@ -35,32 +36,33 @@ public :: sw_rad_tile_code
 ! Contains the metadata needed by the PSy layer.
 type, extends(kernel_type) :: sw_rad_tile_kernel_type
   private
-  type(arg_type) :: meta_args(24) = (/                                   &
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! tile_sw_direct_albedo
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! tile_sw_diffuse_albedo
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_2), & ! tile_fraction
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), & ! leaf_area_index
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), & ! canopy_height
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! sd_orog
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! soil_albedo
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! soil_roughness
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! albedo_obs_vis
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! albedo_obs_nir
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5), & ! albedo_obs_scaling
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_2), & ! tile_temperature
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_2), & ! tile_snow_mass
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_2), & ! tile_snow_rgrain
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_2), & ! snow_depth
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_2), & ! snowpack_density
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! snow_soot
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! chloro_sea
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_6), & ! sea_ice_thickness
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                        & ! u1_in_w3
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                        & ! u2_in_w3
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    & ! dz_wth
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! z0msea
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_4)  & ! cos_zenith_angle_rts
-       /)
+  type(arg_type) :: meta_args(25) = (/                                &
+    arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! tile_sw_direct_albedo
+    arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! tile_sw_diffuse_albedo
+    arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_2), & ! tile_fraction
+    arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), & ! leaf_area_index
+    arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), & ! canopy_height
+    arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! sd_orog
+    arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! soil_albedo
+    arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! soil_roughness
+    arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! albedo_obs_vis
+    arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! albedo_obs_nir
+    arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5), & ! albedo_obs_scaling
+    arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_2), & ! tile_temperature
+    arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_2), & ! tile_snow_mass
+    arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_2), & ! tile_snow_rgrain
+    arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_2), & ! snow_depth
+    arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_2), & ! snowpack_density
+    arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! snow_soot
+    arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! chloro_sea
+    arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_6), & ! sea_ice_thickness
+    arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                        & ! u1_in_w3
+    arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                        & ! u2_in_w3
+    arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    & ! dz_wth
+    arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! z0msea
+    arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! cos_zenith_angle_rts
+    arg_type(GH_SCALAR, GH_INTEGER, GH_READ)                          & ! n_band
+    /)
   integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: sw_rad_tile_code
@@ -96,6 +98,7 @@ contains
 !> @param[in]     dz_wth                 Delta z at wtheta levels
 !> @param[in]     z0msea                 Roughness length of sea
 !> @param[in]     cos_zenith_angle_rts   Cosine of the stellar zenith angle
+!> @param[in]     n_band                 Number of spectral bands
 !> @param[in]     ndf_sw_tile            DOFs per cell for tiles and sw bands
 !> @param[in]     undf_sw_tile           Total DOFs for tiles and sw bands
 !> @param[in]     map_sw_tile            Dofmap for cell at the base of the column
@@ -145,6 +148,7 @@ subroutine sw_rad_tile_code(nlayers,                                &
                             dz_wth,                                 &
                             z0msea,                                 &
                             cos_zenith_angle_rts,                   &
+                            n_band,                                 &
                             ndf_sw_tile, undf_sw_tile, map_sw_tile, &
                             ndf_tile, undf_tile, map_tile,          &
                             ndf_pft, undf_pft, map_pft,             &
@@ -154,8 +158,7 @@ subroutine sw_rad_tile_code(nlayers,                                &
                             ndf_w3, undf_w3, map_w3,                &
                             ndf_wth, undf_wth, map_wth)
 
-  use socrates_init_mod, only: &
-    n_sw_band, sw_wavelength_short, sw_wavelength_long, sw_weight_blue
+  use socrates_init_mod, only: wavelength_short, wavelength_long, weight_blue
   use jules_control_init_mod, only: &
     n_surf_tile, n_land_tile, n_sea_tile, n_sea_ice_tile, &
     first_sea_tile, first_sea_ice_tile
@@ -181,7 +184,7 @@ subroutine sw_rad_tile_code(nlayers,                                &
   implicit none
 
   ! Arguments
-  integer(i_def), intent(in) :: nlayers
+  integer(i_def), intent(in) :: nlayers, n_band
   integer(i_def), intent(in) :: ndf_sw_tile, undf_sw_tile
   integer(i_def), intent(in) :: map_sw_tile(ndf_sw_tile)
   integer(i_def), intent(in) :: ndf_tile, undf_tile
@@ -250,7 +253,7 @@ subroutine sw_rad_tile_code(nlayers,                                &
     sea_ice_albedo
   real(r_um), dimension(row_length, rows, ntiles, 2) :: &
     albobs_sc
-  real(r_um), dimension(row_length, rows, 2, n_sw_band) :: &
+  real(r_um), dimension(row_length, rows, 2, n_band) :: &
     open_sea_albedo
 
   ! Land tile fractions
@@ -294,7 +297,7 @@ subroutine sw_rad_tile_code(nlayers,                                &
   end if
 
   ! Set type_pts and type_index
-  call tilepts(land_field, ainfo%frac_surft, type_pts, ainfo%surft_index,     &
+  call tilepts(land_field, ainfo%frac_surft, type_pts, ainfo%surft_index, &
        ainfo%l_lice_point)
 
   ! Land tile temperatures
@@ -411,49 +414,47 @@ subroutine sw_rad_tile_code(nlayers,                                &
   ! Snow soot content
   progs%soot_ij = real(snow_soot(map_2d(1)), r_um)
 
-  call surf_couple_radiation(                                   &
-                                ! Misc INTENT(IN)
-       ws_10m_sea, chloro,                                         &
-       n_sw_band, n_sw_band,                                       &
-       sw_wavelength_short, sw_wavelength_long,                    &
-                                ! Misc INTENT(OUT)
-       sea_ice_albedo,                                             &
-                                ! (ancil_info mod)
-       ntiles, land_field, type_pts, row_length, rows,             &
-                                ! (coastal mod)
-       flandg,                                                     &
-                                ! (prognostics mod)
-       snow_surft, &
-                                ! UM-only args: INTENT(OUT)
-       albobs_sc, open_sea_albedo,                                 &
-                                ! JULES types
-       psparms, ainfo, urban_param, progs, coast, jules_vars,      &
-       fluxes,                                                     &
-       lake_vars &
-                                !forcing, &
-                                !rivers, &
-                                !veg3_parm, &
-                                !veg3_field, &
-                                !chemvars, &
-       )
+  call surf_couple_radiation( &
+    ! Misc INTENT(IN)
+    ws_10m_sea, chloro, &
+    n_band, n_band, wavelength_short, wavelength_long, &
+    ! Misc INTENT(OUT)
+    sea_ice_albedo, &
+    ! (ancil_info mod)
+    ntiles, land_field, type_pts, row_length, rows, &
+    ! (coastal mod)
+    flandg, &
+    ! (prognostics mod)
+    snow_surft, &
+    ! UM-only args: INTENT(OUT)
+    albobs_sc, open_sea_albedo, &
+    ! JULES types
+    psparms, ainfo, urban_param, progs, coast, jules_vars, &
+    fluxes, lake_vars &
+    !forcing, &
+    !rivers, &
+    !veg3_parm, &
+    !veg3_field, &
+    !chemvars, &
+    )
 
   df_rtile = 0
-  do i_band = 1, n_sw_band
+  do i_band = 1, n_band
     ! Land tile albedos
     df_rtile = n_surf_tile*(i_band-1)
     do i_tile = 1, n_land_tile
       df_rtile = df_rtile + 1
       if (tile_fraction(map_tile(1)+i_tile-1) > 0.0_r_def) then
         tile_sw_direct_albedo(map_sw_tile(1)+df_rtile-1) &
-             = sw_weight_blue(i_band) &
-             * real(fluxes%alb_surft(1, i_tile, 1), r_def)  & ! visible direct albedo
-             + (1.0_r_def - sw_weight_blue(i_band)) &
-             * real(fluxes%alb_surft(1, i_tile, 3), r_def)    ! near-ir direct albedo
+             = weight_blue(i_band) &
+             * real(fluxes%alb_surft(1, i_tile, 1), r_def) & ! visible direct albedo
+             + (1.0_r_def - weight_blue(i_band)) &
+             * real(fluxes%alb_surft(1, i_tile, 3), r_def)   ! near-ir direct albedo
         tile_sw_diffuse_albedo(map_sw_tile(1)+df_rtile-1) &
-             = sw_weight_blue(i_band) &
-             * real(fluxes%alb_surft(1, i_tile, 2), r_def)  & ! visible diffuse albedo
-             + (1.0_r_def - sw_weight_blue(i_band)) &
-             * real(fluxes%alb_surft(1, i_tile, 4), r_def)    ! near-ir diffuse albedo
+             = weight_blue(i_band) &
+             * real(fluxes%alb_surft(1, i_tile, 2), r_def) & ! visible diffuse albedo
+             + (1.0_r_def - weight_blue(i_band)) &
+             * real(fluxes%alb_surft(1, i_tile, 4), r_def)   ! near-ir diffuse albedo
       else
         tile_sw_direct_albedo(map_sw_tile(1)+df_rtile-1) = 0.0_r_def
         tile_sw_diffuse_albedo(map_sw_tile(1)+df_rtile-1) = 0.0_r_def
@@ -481,14 +482,14 @@ subroutine sw_rad_tile_code(nlayers,                                &
       df_rtile = df_rtile + 1
       if (tile_fraction(map_tile(1)+i_tile-1) > 0.0_r_def) then
         tile_sw_direct_albedo(map_sw_tile(1)+df_rtile-1) &
-             = sw_weight_blue(i_band) &
+             = weight_blue(i_band) &
              * real(sea_ice_albedo(1, 1, 1), r_def) &
-             + (1.0_r_def - sw_weight_blue(i_band)) &
+             + (1.0_r_def - weight_blue(i_band)) &
              * real(sea_ice_albedo(1, 1, 3), r_def)
         tile_sw_diffuse_albedo(map_sw_tile(1)+df_rtile-1) &
-             = sw_weight_blue(i_band) &
+             = weight_blue(i_band) &
              * real(sea_ice_albedo(1, 1, 2), r_def) &
-             + (1.0_r_def - sw_weight_blue(i_band)) &
+             + (1.0_r_def - weight_blue(i_band)) &
              * real(sea_ice_albedo(1, 1, 4), r_def)
       else
         tile_sw_direct_albedo(map_sw_tile(1)+df_rtile-1) = 0.0_r_def

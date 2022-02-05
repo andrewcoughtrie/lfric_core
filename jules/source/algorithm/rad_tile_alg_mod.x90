@@ -12,15 +12,22 @@ use field_collection_mod,          only: field_collection_type
 use function_space_collection_mod, only: function_space_collection
 use function_space_mod,            only: function_space_type
 use constants_mod,                 only: r_def, i_def
+use empty_data_mod,                only: empty_real_data
 use io_config_mod,                 only: subroutine_timers
 use timer_mod,                     only: timer
-use jules_control_init_mod,        only: sw_band_tile, lw_band_tile
+use jules_control_init_mod,        only: n_surf_tile
 use physical_op_constants_mod,     only: get_dz_at_wtheta
 use fs_continuity_mod,             only: W3, Wtheta
 use radiation_config_mod,          only: l_planet_grey_surface, &
                                          planet_emissivity, planet_albedo, &
-                                         n_radstep
+                                         n_radstep, &
+                                         l_inc_radstep, n_inc_radstep
 use section_choice_config_mod,     only: surface, surface_jules
+
+use socrates_init_mod, only: wavelength_short, wavelength_long, weight_blue, &
+  n_sw_band, sw_wavelength_short, sw_wavelength_long, sw_weight_blue, &
+  n_swinc_band, swinc_wavelength_short, swinc_wavelength_long, &
+  swinc_weight_blue, n_lw_band, n_lwinc_band
 
 use sw_rad_tile_kernel_mod, only: sw_rad_tile_kernel_type
 use lw_rad_tile_kernel_mod, only: lw_rad_tile_kernel_type
@@ -37,7 +44,10 @@ contains
 
 ! @param[in,out] tile_sw_direct_albedo  Tile SW direct albedos
 ! @param[in,out] tile_sw_diffuse_albedo Tile SW diffuse albedos
+! @param[in,out] tile_swinc_direct_albedo  Tile SWINC direct albedos
+! @param[in,out] tile_swinc_diffuse_albedo Tile SWINC diffuse albedos
 ! @param[in,out] tile_lw_albedo         Tile LW albedos (1 - emissivity)
+! @param[in,out] tile_lwinc_albedo      Tile LWINC albedos (1 - emissivity)
 ! @param[in]     derived_fields         Derived fields
 ! @param[in,out] radition_fields        Fields for radiation scheme
 ! @param[in]     orography_fields       Fields for orog drag scheme
@@ -46,17 +56,21 @@ contains
 ! @param[in]     snow_fields            Fields for snow scheme
 ! @param[in]     twod_mesh_id           Identifier given to current 2d mesh
 ! @param[in]     timestep               Current timestep number
-subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,   &
-                        tile_lw_albedo, derived_fields,                  &
-                        radiation_fields, orography_fields,              &
-                        surface_fields, soil_fields, snow_fields,        &
+subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
+                        tile_swinc_direct_albedo, tile_swinc_diffuse_albedo, &
+                        tile_lw_albedo, tile_lwinc_albedo, derived_fields,   &
+                        radiation_fields, orography_fields,                  &
+                        surface_fields, soil_fields, snow_fields,            &
                         twod_mesh_id, timestep)
 
   implicit none
 
   type( field_type ), intent( inout ) :: tile_sw_direct_albedo
   type( field_type ), intent( inout ) :: tile_sw_diffuse_albedo
+  type( field_type ), intent( inout ) :: tile_swinc_direct_albedo
+  type( field_type ), intent( inout ) :: tile_swinc_diffuse_albedo
   type( field_type ), intent( inout ) :: tile_lw_albedo
+  type( field_type ), intent( inout ) :: tile_lwinc_albedo
   type( field_collection_type ), intent(in)    :: derived_fields
   type( field_collection_type ), intent(inout) :: radiation_fields
   type( field_collection_type ), intent(in)    :: orography_fields
@@ -104,12 +118,34 @@ subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,   &
 
   if ( subroutine_timers ) call timer('rad_tile_alg')
 
-  vector_space=>function_space_collection%get_fs(twod_mesh_id,0,W3,sw_band_tile)
+  vector_space => function_space_collection%get_fs( &
+                    twod_mesh_id, 0, W3, n_sw_band * n_surf_tile )
   call tile_sw_direct_albedo%initialise(vector_space)
   call tile_sw_diffuse_albedo%initialise(vector_space)
 
-  vector_space=>function_space_collection%get_fs(twod_mesh_id,0,W3,lw_band_tile)
+  vector_space => function_space_collection%get_fs( &
+                    twod_mesh_id, 0, W3, n_lw_band * n_surf_tile )
   call tile_lw_albedo%initialise(vector_space)
+
+  if (l_inc_radstep) then
+    ! Radiation increments use different spectral files with fewer bands
+    vector_space => function_space_collection%get_fs( &
+                      twod_mesh_id, 0, W3, n_swinc_band * n_surf_tile )
+    call tile_swinc_direct_albedo%initialise(vector_space)
+    call tile_swinc_diffuse_albedo%initialise(vector_space)
+
+    vector_space => function_space_collection%get_fs( &
+                      twod_mesh_id, 0, W3, n_lwinc_band * n_surf_tile )
+    call tile_lwinc_albedo%initialise(vector_space)
+  else
+    vector_space => function_space_collection%get_fs( twod_mesh_id, 0, W3, 1)
+    call tile_swinc_direct_albedo%initialise( &
+      vector_space, override_data = empty_real_data )
+    call tile_swinc_diffuse_albedo%initialise( &
+      vector_space, override_data = empty_real_data )
+    call tile_lwinc_albedo%initialise( &
+      vector_space, override_data = empty_real_data )
+  end if
 
   if (l_planet_grey_surface) then
 
@@ -117,72 +153,86 @@ subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,   &
     call invoke(setval_c(tile_sw_direct_albedo,  planet_albedo), &
                 setval_c(tile_sw_diffuse_albedo, planet_albedo), &
                 setval_c(tile_lw_albedo,         planet_lw_albedo))
+    if (l_inc_radstep) then
+     call invoke(setval_c(tile_swinc_direct_albedo,  planet_albedo), &
+                 setval_c(tile_swinc_diffuse_albedo, planet_albedo), &
+                 setval_c(tile_lwinc_albedo,         planet_lw_albedo))
+    end if
 
   else if (surface == surface_jules) then
 
+    sd_orog           => orography_fields%get_field('sd_orog')
+
     tile_fraction     => surface_fields%get_field('tile_fraction')
+    leaf_area_index   => surface_fields%get_field('leaf_area_index')
+    canopy_height     => surface_fields%get_field('canopy_height')
+    tile_temperature  => surface_fields%get_field('tile_temperature')
+    albedo_obs_scaling => surface_fields%get_field('albedo_obs_scaling')
+    chloro_sea        => surface_fields%get_field('chloro_sea')
+    sea_ice_thickness => surface_fields%get_field('sea_ice_thickness')
+    z0msea            => surface_fields%get_field('z0msea')
+
+    soil_albedo       => soil_fields%get_field('soil_albedo')
+    soil_roughness    => soil_fields%get_field('soil_roughness')
+
+    albedo_obs_vis    => radiation_fields%get_field('albedo_obs_vis')
+    albedo_obs_nir    => radiation_fields%get_field('albedo_obs_nir')
+    cos_zenith_angle_rts => radiation_fields%get_field('cos_zenith_angle_rts')
+
+    tile_snow_mass    => snow_fields%get_field('tile_snow_mass')
+    tile_snow_rgrain  => snow_fields%get_field('tile_snow_rgrain')
+    snow_depth        => snow_fields%get_field('snow_depth')
+    snowpack_density  => snow_fields%get_field('snowpack_density')
+    snow_soot         => snow_fields%get_field('snow_soot')
+
+    u1_in_w3          => derived_fields%get_field('u1_in_w3')
+    u2_in_w3          => derived_fields%get_field('u2_in_w3')
+
+    dz_wth            => get_dz_at_wtheta(u1_in_w3%get_mesh_id())
 
     ! SW albedos only required on radiation timesteps
     if (mod(timestep-1_i_def, n_radstep) == 0) then
+      ! Scalar arrays passed through module scope until kernels can handle them
+      wavelength_short => sw_wavelength_short
+      wavelength_long => sw_wavelength_long
+      weight_blue => sw_weight_blue
+      call invoke(sw_rad_tile_kernel_type( &
+        tile_sw_direct_albedo, tile_sw_diffuse_albedo, &
+        tile_fraction, leaf_area_index, canopy_height, &
+        sd_orog, soil_albedo, soil_roughness, &
+        albedo_obs_vis, albedo_obs_nir, albedo_obs_scaling, &
+        tile_temperature, tile_snow_mass, tile_snow_rgrain, &
+        snow_depth, snowpack_density, snow_soot, &
+        chloro_sea, sea_ice_thickness, &
+        u1_in_w3, u2_in_w3, dz_wth, z0msea, &
+        cos_zenith_angle_rts, n_sw_band))
+    end if
 
-      sd_orog           => orography_fields%get_field('sd_orog')
+    if (l_inc_radstep) then
+      ! Albedos required on different bands for the radiation increments
+      if (mod(timestep-1_i_def, n_inc_radstep) == 0) then
+        wavelength_short => swinc_wavelength_short
+        wavelength_long => swinc_wavelength_long
+        weight_blue => swinc_weight_blue
+        call invoke(sw_rad_tile_kernel_type( &
+          tile_swinc_direct_albedo, tile_swinc_diffuse_albedo, &
+          tile_fraction, leaf_area_index, canopy_height, &
+          sd_orog, soil_albedo, soil_roughness, &
+          albedo_obs_vis, albedo_obs_nir, albedo_obs_scaling, &
+          tile_temperature, tile_snow_mass, tile_snow_rgrain, &
+          snow_depth, snowpack_density, snow_soot, &
+          chloro_sea, sea_ice_thickness, &
+          u1_in_w3, u2_in_w3, dz_wth, z0msea, &
+          cos_zenith_angle_rts, n_swinc_band))
 
-      leaf_area_index   => surface_fields%get_field('leaf_area_index')
-      canopy_height     => surface_fields%get_field('canopy_height')
-      tile_temperature  => surface_fields%get_field('tile_temperature')
-      albedo_obs_scaling => surface_fields%get_field('albedo_obs_scaling')
-      chloro_sea        => surface_fields%get_field('chloro_sea')
-      sea_ice_thickness => surface_fields%get_field('sea_ice_thickness')
-      z0msea            => surface_fields%get_field('z0msea')
-
-      soil_albedo       => soil_fields%get_field('soil_albedo')
-      soil_roughness    => soil_fields%get_field('soil_roughness')
-
-      albedo_obs_vis    => radiation_fields%get_field('albedo_obs_vis')
-      albedo_obs_nir    => radiation_fields%get_field('albedo_obs_nir')
-      cos_zenith_angle_rts => radiation_fields%get_field('cos_zenith_angle_rts')
-
-      tile_snow_mass    => snow_fields%get_field('tile_snow_mass')
-      tile_snow_rgrain  => snow_fields%get_field('tile_snow_rgrain')
-      snow_depth        => snow_fields%get_field('snow_depth')
-      snowpack_density  => snow_fields%get_field('snowpack_density')
-      snow_soot         => snow_fields%get_field('snow_soot')
-
-      u1_in_w3          => derived_fields%get_field('u1_in_w3')
-      u2_in_w3          => derived_fields%get_field('u2_in_w3')
-
-      dz_wth            => get_dz_at_wtheta(u1_in_w3%get_mesh_id())
-
-      call invoke(sw_rad_tile_kernel_type(tile_sw_direct_albedo, &
-           tile_sw_diffuse_albedo, &
-           tile_fraction, &
-           leaf_area_index, &
-           canopy_height, &
-           sd_orog, &
-           soil_albedo, &
-           soil_roughness, &
-           albedo_obs_vis, &
-           albedo_obs_nir, &
-           albedo_obs_scaling, &
-           tile_temperature, &
-           tile_snow_mass, &
-           tile_snow_rgrain, &
-           snow_depth, &
-           snowpack_density, &
-           snow_soot, &
-           chloro_sea, &
-           sea_ice_thickness, &
-           u1_in_w3, &
-           u2_in_w3, &
-           dz_wth, &
-           z0msea, &
-           cos_zenith_angle_rts))
-
+        call invoke(lw_rad_tile_kernel_type(tile_lwinc_albedo, &
+                                            tile_fraction, n_lwinc_band))
+      end if
     end if
 
     ! LW albedos always required
     call invoke(lw_rad_tile_kernel_type(tile_lw_albedo, &
-                                        tile_fraction))
+                                        tile_fraction, n_lw_band))
 
   end if
 

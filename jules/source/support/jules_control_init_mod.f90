@@ -10,7 +10,6 @@ module jules_control_init_mod
 
   ! LFRic namelists which have been read
   use well_mixed_gases_config_mod, only : co2_mix_ratio
-  use socrates_init_mod,           only : n_sw_band, n_lw_band
 
   ! Other LFRic modules used
   use constants_mod,        only : r_um, rmdi, i_def
@@ -29,14 +28,12 @@ module jules_control_init_mod
   integer(kind=i_def), protected :: n_surf_tile
   integer(kind=i_def), protected :: first_sea_tile
   integer(kind=i_def), protected :: first_sea_ice_tile
-  integer(kind=i_def), protected :: sw_band_tile
-  integer(kind=i_def), protected :: lw_band_tile
   integer(kind=i_def), protected :: soil_lev_tile
 
   private
   public :: n_land_tile, n_sea_tile, n_sea_ice_tile, n_surf_tile, &
        first_sea_tile, first_sea_ice_tile, jules_control_init,    &
-       sw_band_tile, lw_band_tile, soil_lev_tile, n_surf_interp
+       soil_lev_tile, n_surf_interp
 
 contains
 
@@ -78,10 +75,6 @@ contains
     ! order is always land, sea, sea-ice
     first_sea_tile = n_land_tile + 1
     first_sea_ice_tile = n_land_tile + n_sea_tile + 1
-
-    ! Product of radiation bands and surface tiles for albedo
-    sw_band_tile = n_surf_tile * n_sw_band
-    lw_band_tile = n_surf_tile * n_lw_band
 
     ! ----------------------------------------------------------------
     ! Model dimensions - in each case, the first variable is

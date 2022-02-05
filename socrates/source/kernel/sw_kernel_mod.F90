@@ -9,7 +9,7 @@ module sw_kernel_mod
 
 use argument_mod,      only : arg_type,                  &
                               GH_FIELD, GH_SCALAR,       &
-                              GH_REAL, GH_INTEGER,       &
+                              GH_REAL, GH_LOGICAL,       &
                               GH_READ, GH_WRITE,         &
                               GH_READWRITE, CELL_COLUMN, &
                               ANY_DISCONTINUOUS_SPACE_1, &
@@ -17,7 +17,8 @@ use argument_mod,      only : arg_type,                  &
                               ANY_DISCONTINUOUS_SPACE_3, &
                               ANY_DISCONTINUOUS_SPACE_4, &
                               ANY_DISCONTINUOUS_SPACE_5, &
-                              ANY_DISCONTINUOUS_SPACE_6
+                              ANY_DISCONTINUOUS_SPACE_6, &
+                              ANY_DISCONTINUOUS_SPACE_7
 use fs_continuity_mod, only : W3, Wtheta
 use constants_mod,     only : r_def, i_def
 use kernel_mod,        only : kernel_type
@@ -36,7 +37,7 @@ public :: sw_code
 ! Contains the metadata needed by the PSy layer.
 type, extends(kernel_type) :: sw_kernel_type
   private
-  type(arg_type) :: meta_args(66) = (/ &
+  type(arg_type) :: meta_args(79) = (/ &
     arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     Wtheta),                    & ! sw_heating_rate
     arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1), & ! sw_down_surf
     arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1), & ! sw_direct_surf
@@ -57,6 +58,16 @@ type, extends(kernel_type) :: sw_kernel_type
     arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! sw_direct_toa_rts
     arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), & ! sw_up_tile_rts
     arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), & ! sw_up_blue_tile_rts
+    arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, Wtheta),                    & ! sw_heating_rate_rtsi
+    arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! sw_down_surf_rtsi
+    arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! sw_direct_surf_rtsi
+    arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! sw_down_blue_surf_rtsi
+    arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! sw_direct_blue_surf_rtsi
+    arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! sw_up_surf_rtsi
+    arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! sw_up_toa_rtsi
+    arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! sw_direct_toa_rtsi
+    arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), & ! sw_up_tile_rtsi
+    arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), & ! sw_up_blue_tile_rtsi
     arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_6), & ! sw_direct_rts
     arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_6), & ! sw_down_rts
     arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_6), & ! sw_up_rts
@@ -84,6 +95,8 @@ type, extends(kernel_type) :: sw_kernel_type
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_2), & ! tile_fraction
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_3), & ! tile_sw_direct_albedo
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_3), & ! tile_sw_diffuse_albedo
+    arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_7), & ! tile_swinc_direct_albedo
+    arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_7), & ! tile_swinc_diffuse_albedo
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      Wtheta),                    & ! sulphuric
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_4), & ! aer_mix_ratio
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_5), & ! aer_sw_absorption
@@ -91,7 +104,8 @@ type, extends(kernel_type) :: sw_kernel_type
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_5), & ! aer_sw_asymmetry
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! latitude
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! longitude
-    arg_type(GH_SCALAR, GH_INTEGER, GH_READ                                ), & ! timestep
+    arg_type(GH_SCALAR, GH_LOGICAL, GH_READ                                ), & ! rad_this_tstep
+    arg_type(GH_SCALAR, GH_LOGICAL, GH_READ                                ), & ! rad_inc_this_tstep
     ! Diagnostics (section radiation__)
     arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1), & ! cloud_top_re_rts
     arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1), & ! cloud_top_weight_rts
@@ -136,6 +150,16 @@ contains
 ! @param[in,out] sw_direct_toa_rts         SW unscattered top-of-atmosphere flux
 ! @param[in,out] sw_up_tile_rts            SW upward tiled surface flux
 ! @param[in,out] sw_up_blue_tile_rts       SW blue upward tiled surface flux
+! @param[in,out] sw_heating_rate_rtsi      SWINC heating rate
+! @param[in,out] sw_down_surf_rtsi         SWINC downward surface flux
+! @param[in,out] sw_direct_surf_rtsi       SWINC unscattered surface flux
+! @param[in,out] sw_down_blue_surf_rtsi    SWINC blue downward surface flux
+! @param[in,out] sw_direct_blue_surf_rtsi  SWINC blue unscattered surface flux
+! @param[in,out] sw_up_surf_rtsi           SWINC upward surface flux
+! @param[in,out] sw_up_toa_rtsi            SWINC upward top-of-atmosphere flux
+! @param[in,out] sw_direct_toa_rtsi        SWINC unscattered top-of-atmosphere flux
+! @param[in,out] sw_up_tile_rtsi           SWINC upward tiled surface flux
+! @param[in,out] sw_up_blue_tile_rtsi      SWINC blue upward tiled surface flux
 ! @param[in,out] sw_direct_rts             SW direct flux on radiation levels
 ! @param[in,out] sw_down_rts               SW downwards flux on radiation levels
 ! @param[in,out] sw_up_rts                 SW upwards flux on radiation levels
@@ -163,6 +187,8 @@ contains
 ! @param[in]     tile_fraction             Surface tile fractions
 ! @param[in]     tile_sw_direct_albedo     SW direct tile albedos
 ! @param[in]     tile_sw_diffuse_albedo    SW diffuse tile albedos
+! @param[in]     tile_swinc_direct_albedo  SWINC direct tile albedos
+! @param[in]     tile_swinc_diffuse_albedo SWINC diffuse tile albedos
 ! @param[in]     sulphuric                 Sulphuric acid aerosol
 ! @param[in]     aer_mix_ratio             MODE aerosol mixing ratios
 ! @param[in]     aer_sw_absorption         MODE aerosol SW absorption
@@ -170,7 +196,8 @@ contains
 ! @param[in]     aer_sw_asymmetry          MODE aerosol SW asymmetry
 ! @param[in]     latitude                  Latitude field
 ! @param[in]     longitude                 Longitude field
-! @param[in]     timestep                  Timestep number
+! @param[in]     rad_this_tstep            Full radiation call this timestep
+! @param[in]     rad_inc_this_tstep        Increment radiation call this timestep
 ! @param[in,out] cloud_top_re_rts          Diagnostic: Cloud top effective radius
 ! @param[in,out] cloud_top_weight_rts      Diagnostic: Cloud top weight
 ! @param[in,out] warm_cloud_top_re_rts     Diagnostic: Warm cloud top effective radius
@@ -200,6 +227,9 @@ contains
 ! @param[in]     ndf_rtile                 No. of DOFs per cell for rtile space
 ! @param[in]     undf_rtile                No. unique of DOFs for rtile space
 ! @param[in]     map_rtile                 Dofmap for rtile space column base cell
+! @param[in]     ndf_itile                 No. of DOFs per cell for itile space
+! @param[in]     undf_itile                No. unique of DOFs for itile space
+! @param[in]     map_itile                 Dofmap for itile space column base cell
 ! @param[in]     ndf_mode                  No. of DOFs per cell for mode space
 ! @param[in]     undf_mode                 No. unique of DOFs for mode space
 ! @param[in]     map_mode                  Dofmap for mode space column base cell
@@ -215,6 +245,10 @@ subroutine sw_code(nlayers,                                                    &
                    sw_down_blue_surf_rts, sw_direct_blue_surf_rts,             &
                    sw_up_surf_rts, sw_up_toa_rts, sw_direct_toa_rts,           &
                    sw_up_tile_rts, sw_up_blue_tile_rts,                        &
+                   sw_heating_rate_rtsi,sw_down_surf_rtsi,sw_direct_surf_rtsi, &
+                   sw_down_blue_surf_rtsi, sw_direct_blue_surf_rtsi,           &
+                   sw_up_surf_rtsi, sw_up_toa_rtsi, sw_direct_toa_rtsi,        &
+                   sw_up_tile_rtsi, sw_up_blue_tile_rtsi,                      &
                    sw_direct_rts, sw_down_rts, sw_up_rts,                      &
                    theta, exner, exner_in_wth, rho_in_wth, dz_in_wth,          &
                    cos_zenith_angle, lit_fraction,                             &
@@ -225,9 +259,10 @@ subroutine sw_code(nlayers,                                                    &
                    sigma_qcw, cca, ccw, cloud_drop_no_conc,                    &
                    tile_fraction,                                              &
                    tile_sw_direct_albedo, tile_sw_diffuse_albedo,              &
+                   tile_swinc_direct_albedo, tile_swinc_diffuse_albedo,        &
                    sulphuric, aer_mix_ratio,                                   &
                    aer_sw_absorption, aer_sw_scattering, aer_sw_asymmetry,     &
-                   latitude, longitude, timestep,                              &
+                   latitude, longitude, rad_this_tstep, rad_inc_this_tstep,    &
                    cloud_top_re_rts, cloud_top_weight_rts,                     &
                    warm_cloud_top_re_rts, warm_cloud_top_weight_rts,           &
                    sw_aer_optical_depth_rts,                                   &
@@ -240,38 +275,44 @@ subroutine sw_code(nlayers,                                                    &
                    ndf_flux, undf_flux, map_flux,                              &
                    ndf_w3, undf_w3, map_w3,                                    &
                    ndf_rtile, undf_rtile, map_rtile,                           &
+                   ndf_itile, undf_itile, map_itile,                           &
                    ndf_mode, undf_mode, map_mode,                              &
                    ndf_rmode, undf_rmode, map_rmode)
 
   use well_mixed_gases_config_mod, only: &
     co2_mix_ratio, n2o_mix_ratio, ch4_mix_ratio, o2_mix_ratio
-  use radiation_config_mod, only: n_radstep,  &
-    l_rayleigh_sw, l_trans_zen_correction,    &
+  use radiation_config_mod, only: n_radstep, &
+    l_rayleigh_sw, l_trans_zen_correction, &
     i_cloud_ice_type_sw, i_cloud_liq_type_sw, &
+    i_cloud_ice_type_swinc, i_cloud_liq_type_swinc, &
     cloud_vertical_decorr
   use aerosol_config_mod, only: l_radaer, sulphuric_strat_climatology
   use set_thermodynamic_mod, only: set_thermodynamic
   use set_cloud_field_mod, only: set_cloud_field
-  use jules_control_init_mod, only: n_surf_tile, sw_band_tile
+  use jules_control_init_mod, only: n_surf_tile
+  use socrates_init_mod, only: n_sw_band, n_swinc_band
   use um_physics_init_mod, only: n_aer_mode, mode_dimen, sw_band_mode
-  use socrates_runes, only: runes, ip_source_illuminate, StrDiag
+  use socrates_runes, only: runes, StrDiag, &
+    ip_source_illuminate, ip_inhom_scaling, ip_inhom_mcica
   use socrates_bones, only: bones
   use empty_data_mod, only: empty_real_data
 
   implicit none
 
   ! Arguments
-  integer(i_def), intent(in) :: nlayers, timestep
+  integer(i_def), intent(in) :: nlayers
   integer(i_def), intent(in) :: ndf_wth, ndf_w3, ndf_2d, ndf_flux
   integer(i_def), intent(in) :: ndf_tile, ndf_rtile, ndf_mode, ndf_rmode
   integer(i_def), intent(in) :: undf_wth, undf_w3, undf_2d, undf_flux
   integer(i_def), intent(in) :: undf_tile, undf_rtile, undf_mode, undf_rmode
+  integer(i_def), intent(in) :: ndf_itile, undf_itile
 
   integer(i_def), dimension(ndf_wth),   intent(in) :: map_wth
   integer(i_def), dimension(ndf_w3),    intent(in) :: map_w3
   integer(i_def), dimension(ndf_2d),    intent(in) :: map_2d
   integer(i_def), dimension(ndf_tile),  intent(in) :: map_tile
   integer(i_def), dimension(ndf_rtile), intent(in) :: map_rtile
+  integer(i_def), dimension(ndf_itile), intent(in) :: map_itile
   integer(i_def), dimension(ndf_mode),  intent(in) :: map_mode
   integer(i_def), dimension(ndf_rmode), intent(in) :: map_rmode
   integer(i_def), dimension(ndf_flux),  intent(in) :: map_flux
@@ -292,6 +333,17 @@ subroutine sw_code(nlayers,                                                    &
     sw_down_blue_surf_rts, sw_direct_blue_surf_rts
   real(r_def), dimension(undf_tile), intent(inout), target :: &
     sw_up_tile_rts, sw_up_blue_tile_rts
+
+  real(r_def), dimension(undf_wth),  intent(inout), target :: &
+    sw_heating_rate_rtsi
+  real(r_def), dimension(undf_2d),   intent(inout) :: &
+    sw_down_surf_rtsi, sw_direct_surf_rtsi, &
+    sw_up_surf_rtsi, sw_up_toa_rtsi, sw_direct_toa_rtsi
+  real(r_def), dimension(undf_2d),   intent(inout), target :: &
+    sw_down_blue_surf_rtsi, sw_direct_blue_surf_rtsi
+  real(r_def), dimension(undf_tile), intent(inout), target :: &
+    sw_up_tile_rtsi, sw_up_blue_tile_rtsi
+
   real(r_def), dimension(undf_flux), intent(inout), target :: &
     sw_direct_rts, sw_down_rts, sw_up_rts
 
@@ -306,11 +358,15 @@ subroutine sw_code(nlayers,                                                    &
   real(r_def), dimension(undf_tile),  intent(in) :: tile_fraction
   real(r_def), dimension(undf_rtile), intent(in) :: &
     tile_sw_direct_albedo, tile_sw_diffuse_albedo
+  real(r_def), dimension(undf_itile), intent(in) :: &
+    tile_swinc_direct_albedo, tile_swinc_diffuse_albedo
   real(r_def), dimension(undf_wth),   intent(in) :: sulphuric
   real(r_def), dimension(undf_mode),  intent(in) :: aer_mix_ratio
   real(r_def), dimension(undf_rmode), intent(in) :: &
     aer_sw_absorption, aer_sw_scattering, aer_sw_asymmetry
   real(r_def), dimension(undf_2d), intent(in) :: latitude, longitude
+
+  logical, intent(in) :: rad_this_tstep, rad_inc_this_tstep
 
   ! Conditional Diagnostics
   real(r_def), pointer, dimension(:), intent(inout) :: & ! 2d
@@ -325,10 +381,12 @@ subroutine sw_code(nlayers,                                                    &
   ! Local variables for the kernel
   integer(i_def), parameter :: n_profile = 1
   integer(i_def) :: i_cloud_representation, i_overlap, i_inhom, i_drop_re
+  integer(i_def) :: i_inhom_inc
   integer(i_def) :: rand_seed(n_profile)
   integer(i_def) :: n_cloud_layer
   integer(i_def) :: wth_0, wth_1, wth_nlayers, w3_1, w3_nlayers
   integer(i_def) :: tile_1, tile_last, rtile_1, rtile_last
+  integer(i_def) :: itile_1, itile_last
   integer(i_def) :: mode_1, mode_last, rmode_1, rmode_last
   integer(i_def) :: flux_0, flux_nlayers
   real(r_def), dimension(nlayers) :: layer_heat_capacity
@@ -342,7 +400,7 @@ subroutine sw_code(nlayers,                                                    &
   real(r_def), dimension(nlayers) :: conv_frac, &
     liq_conv_frac, ice_conv_frac, liq_conv_mmr, ice_conv_mmr, liq_conv_dim
     ! Convective cloud fields
-  type(StrDiag) :: sw_diag
+  type(StrDiag) :: sw_diag, swinc_diag
 
 
   ! Set indexing
@@ -354,7 +412,9 @@ subroutine sw_code(nlayers,                                                    &
   tile_1 = map_tile(1)
   tile_last = map_tile(1)+n_surf_tile-1
   rtile_1 = map_rtile(1)
-  rtile_last = map_rtile(1)+sw_band_tile-1
+  rtile_last = map_rtile(1)+n_sw_band*n_surf_tile-1
+  itile_1 = map_itile(1)
+  itile_last = map_itile(1)+n_swinc_band*n_surf_tile-1
   mode_1 = map_mode(1)+1
   mode_last = map_mode(1)+(nlayers+1)*mode_dimen-1
   rmode_1 = map_rmode(1)+1
@@ -362,9 +422,7 @@ subroutine sw_code(nlayers,                                                    &
   flux_0 = map_flux(1)
   flux_nlayers = map_flux(1)+nlayers
 
-  if (mod(timestep-1_i_def, n_radstep) == 0) then
-    ! Radiation time-step: full calculation of radiative fluxes
-
+  if (rad_this_tstep .or. rad_inc_this_tstep) then
     ! Set up pressures, temperatures, masses and heat capacities
     call set_thermodynamic(nlayers, &
       exner(w3_1:w3_nlayers), exner_in_wth(wth_0:wth_nlayers), &
@@ -380,6 +438,10 @@ subroutine sw_code(nlayers,                                                    &
       i_cloud_representation, i_overlap, i_inhom, i_drop_re, &
       rand_seed, n_cloud_layer, cloud_frac, liq_dim, conv_frac, &
       liq_conv_frac, ice_conv_frac, liq_conv_mmr, ice_conv_mmr, liq_conv_dim)
+  end if
+
+  if (rad_this_tstep) then
+    ! Radiation time-step: full calculation of radiative fluxes
 
     ! Set pointers for diagnostic output (using pointer bound remapping)
     ! Always required:
@@ -511,6 +573,169 @@ subroutine sw_code(nlayers,                                                    &
     if (.not. associated(sw_up_clear_toa_rts, empty_real_data)) &
       sw_up_clear_toa_rts(map_2d(1)) = sw_up_clear_rts(flux_nlayers)
 
+  end if
+
+
+  if (rad_inc_this_tstep) then
+    ! Radiation increment time-step: simple calculation of radiative fluxes
+
+    ! Increment radiation calls should not use MCICA as there will not
+    ! be enough k-terms to sample the cloud field.
+    if (i_inhom == ip_inhom_mcica) then
+      i_inhom_inc = ip_inhom_scaling
+    else
+      i_inhom_inc = i_inhom
+    end if
+
+    ! Set pointers for diagnostic output
+    allocate( swinc_diag%flux_direct(1:1,0:nlayers) )
+    allocate( swinc_diag%flux_down(1:1,0:nlayers) )
+    allocate( swinc_diag%flux_up(1:1,0:nlayers) )
+    if (rad_this_tstep) then
+      swinc_diag%heating_rate(1:1,1:nlayers) => &
+        sw_heating_rate_rtsi(wth_1:wth_nlayers)
+      
+      swinc_diag%flux_up_tile(1:1,1:n_surf_tile) => &
+        sw_up_tile_rtsi(tile_1:tile_last)
+      swinc_diag%flux_up_blue_tile(1:1,1:n_surf_tile) => &
+        sw_up_blue_tile_rtsi(tile_1:tile_last)
+      
+      swinc_diag%flux_direct_blue_surf(1:1) => &
+        sw_direct_blue_surf_rtsi(map_2d(1):map_2d(1))
+      swinc_diag%flux_down_blue_surf(1:1) => &
+        sw_down_blue_surf_rtsi(map_2d(1):map_2d(1))
+    else
+      allocate( swinc_diag%heating_rate(1:1,1:nlayers) )
+      allocate( swinc_diag%flux_up_tile(1:1,1:n_surf_tile) )
+      allocate( swinc_diag%flux_up_blue_tile(1:1,1:n_surf_tile) )
+      allocate( swinc_diag%flux_direct_blue_surf(1:1) )
+      allocate( swinc_diag%flux_down_blue_surf(1:1) )
+    end if
+
+    ! Calculate the SW increment fluxes
+    call runes(n_profile, nlayers, swinc_diag,                                 &
+      spectrum_name          = 'swinc',                                        &
+      i_source               = ip_source_illuminate,                           &
+      n_cloud_layer          = n_cloud_layer,                                  &
+      p_layer_1d             = p_layer,                                        &
+      t_layer_1d             = t_layer,                                        &
+      mass_1d                = d_mass,                                         &
+      density_1d             = rho_in_wth(wth_1:wth_nlayers),                  &
+      h2o_1d                 = mv(wth_1:wth_nlayers),                          &
+      o3_1d                  = ozone(wth_1:wth_nlayers),                       &
+      co2_mix_ratio          = co2_mix_ratio,                                  &
+      n2o_mix_ratio          = n2o_mix_ratio,                                  &
+      ch4_mix_ratio          = ch4_mix_ratio,                                  &
+      o2_mix_ratio           = o2_mix_ratio,                                   &
+      cos_zenith_angle       = cos_zenith_angle_rts(map_2d(1):map_2d(1)),      &
+      solar_irrad            = stellar_irradiance_rts(map_2d(1):map_2d(1)),    &
+      n_tile                 = n_surf_tile,                                    &
+      frac_tile_1d           = tile_fraction(tile_1:tile_last),                &
+      albedo_diff_tile_1d    = tile_swinc_diffuse_albedo(itile_1:itile_last),  &
+      albedo_dir_tile_1d     = tile_swinc_direct_albedo(itile_1:itile_last),   &
+      cloud_frac_1d          = cloud_frac,                                     &
+      liq_frac_1d            = liquid_fraction(wth_1:wth_nlayers),             &
+      ice_frac_1d            = ice_fraction(wth_1:wth_nlayers),                &
+      liq_mmr_1d             = mcl(wth_1:wth_nlayers),                         &
+      ice_mmr_1d             = mci(wth_1:wth_nlayers),                         &
+      liq_dim_1d             = liq_dim,                                        &
+      liq_nc_1d              = cloud_drop_no_conc(wth_1:wth_nlayers),          &
+      conv_frac_1d           = conv_frac,                                      &
+      liq_conv_frac_1d       = liq_conv_frac,                                  &
+      ice_conv_frac_1d       = ice_conv_frac,                                  &
+      liq_conv_mmr_1d        = liq_conv_mmr,                                   &
+      ice_conv_mmr_1d        = ice_conv_mmr,                                   &
+      liq_conv_dim_1d        = liq_conv_dim,                                   &
+      liq_conv_nc_1d         = cloud_drop_no_conc(wth_1:wth_nlayers),          &
+      liq_rsd_1d             = sigma_qcw(wth_1:wth_nlayers),                   &
+      ice_rsd_1d             = sigma_qcw(wth_1:wth_nlayers),                   &
+      cloud_vertical_decorr  = cloud_vertical_decorr,                          &
+      conv_vertical_decorr   = cloud_vertical_decorr,                          &
+      rand_seed              = rand_seed,                                      &
+      layer_heat_capacity_1d = layer_heat_capacity,                            &
+      l_rayleigh             = l_rayleigh_sw,                                  &
+      l_mixing_ratio         = .true.,                                         &
+      i_cloud_representation = i_cloud_representation,                         &
+      i_overlap              = i_overlap,                                      &
+      i_inhom                = i_inhom_inc,                                    &
+      i_drop_re              = i_drop_re,                                      &
+      i_st_water             = i_cloud_liq_type_swinc,                         &
+      i_st_ice               = i_cloud_ice_type_swinc,                         &
+      i_cnv_water            = i_cloud_liq_type_swinc,                         &
+      i_cnv_ice              = i_cloud_ice_type_swinc,                         &
+      l_sulphuric            = sulphuric_strat_climatology,                    &
+      sulphuric_1d           = sulphuric(wth_1:wth_nlayers),                   &
+      l_invert               = .true.)
+
+    if (rad_this_tstep) then
+      ! Set surface and top-of-atmosphere fluxes
+      sw_down_surf_rtsi(map_2d(1))   = swinc_diag%flux_down(1, 0)
+      sw_up_surf_rtsi(map_2d(1))     = swinc_diag%flux_up(1, 0)
+      sw_direct_surf_rtsi(map_2d(1)) = swinc_diag%flux_direct(1, 0)
+      sw_up_toa_rtsi(map_2d(1))      = swinc_diag%flux_up(1, nlayers)
+      sw_direct_toa_rtsi(map_2d(1))  = swinc_diag%flux_direct(1, nlayers)
+    else
+      ! Apply increments to radiative timestep fluxes and heating rates
+      sw_heating_rate_rts(wth_1:wth_nlayers) = max( &
+          sw_heating_rate_rts(wth_1:wth_nlayers) &
+        - sw_heating_rate_rtsi(wth_1:wth_nlayers) &
+        + swinc_diag%heating_rate(1, 1:nlayers), &
+        spread(0.0_r_def, 1, nlayers) )
+      
+      sw_up_tile_rts(tile_1:tile_last) = max( &
+          sw_up_tile_rts(tile_1:tile_last) &
+        - sw_up_tile_rtsi(tile_1:tile_last) &
+        + swinc_diag%flux_up_tile(1, 1:n_surf_tile), &
+        spread(0.0_r_def, 1, n_surf_tile) )
+
+      sw_up_blue_tile_rts(tile_1:tile_last) = max( &
+          sw_up_blue_tile_rts(tile_1:tile_last) &
+        - sw_up_blue_tile_rtsi(tile_1:tile_last) &
+        + swinc_diag%flux_up_blue_tile(1, 1:n_surf_tile), &
+        spread(0.0_r_def, 1, n_surf_tile) )
+
+      sw_direct_blue_surf_rts(map_2d(1)) = max( &
+          sw_direct_blue_surf_rts(map_2d(1)) &
+        - sw_direct_blue_surf_rtsi(map_2d(1)) &
+        + swinc_diag%flux_direct_blue_surf(1), &
+        0.0_r_def )
+
+      sw_down_blue_surf_rts(map_2d(1)) = max( &
+          sw_down_blue_surf_rts(map_2d(1)) &
+        - sw_down_blue_surf_rtsi(map_2d(1)) &
+        + swinc_diag%flux_down_blue_surf(1), &
+        0.0_r_def )
+
+      deallocate( swinc_diag%flux_down_blue_surf )
+      deallocate( swinc_diag%flux_direct_blue_surf )
+      deallocate( swinc_diag%flux_up_blue_tile )
+      deallocate( swinc_diag%flux_up_tile )
+      deallocate( swinc_diag%heating_rate )
+
+      sw_down_surf_rts(map_2d(1)) = max( sw_down_surf_rts(map_2d(1)) &
+        - sw_down_surf_rtsi(map_2d(1)) + swinc_diag%flux_down(1, 0), &
+        0.0_r_def )
+
+      sw_up_surf_rts(map_2d(1)) = max( sw_up_surf_rts(map_2d(1)) &
+        - sw_up_surf_rtsi(map_2d(1)) + swinc_diag%flux_up(1, 0), &
+        0.0_r_def )
+
+      sw_direct_surf_rts(map_2d(1)) = max( sw_direct_surf_rts(map_2d(1)) &
+        - sw_direct_surf_rtsi(map_2d(1)) + swinc_diag%flux_direct(1, 0), &
+        0.0_r_def )
+
+      sw_up_toa_rts(map_2d(1)) = max( sw_up_toa_rts(map_2d(1)) &
+        - sw_up_toa_rtsi(map_2d(1)) + swinc_diag%flux_up(1, nlayers), &
+        0.0_r_def )
+
+      sw_direct_toa_rts(map_2d(1)) = max( sw_direct_toa_rts(map_2d(1)) &
+        - sw_direct_toa_rtsi(map_2d(1)) + swinc_diag%flux_direct(1, nlayers), &
+        0.0_r_def )
+    end if
+
+    deallocate( swinc_diag%flux_up )
+    deallocate( swinc_diag%flux_down )
+    deallocate( swinc_diag%flux_direct )
   end if
 
   if (n_radstep == 1) then

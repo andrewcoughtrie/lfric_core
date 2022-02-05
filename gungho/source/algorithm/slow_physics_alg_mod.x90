@@ -8,7 +8,7 @@ module slow_physics_alg_mod
 
   use clock_mod,                 only: clock_type
   use timestepping_config_mod,   only: outer_iterations
-  use cloud_config_mod,          only: scheme, scheme_pc2, scheme_bimodal,     &
+  use cloud_config_mod,          only: scheme, scheme_pc2, scheme_bimodal, &
                                        pc2ini, pc2ini_bimodal,cld_fsd_hill
   use convection_config_mod,     only: cv_scheme, cv_scheme_lambert_lewis, &
                                        cv_scheme_gregory_rowntree
@@ -181,7 +181,9 @@ contains
     type( field_type ) :: aer_sw_absorption, aer_sw_scattering, aer_sw_asymmetry
     type( field_type ) :: aer_lw_absorption, aer_lw_scattering, aer_lw_asymmetry
     type( field_type ) :: tile_lw_albedo
+    type( field_type ) :: tile_lwinc_albedo
     type( field_type ) :: tile_sw_diffuse_albedo, tile_sw_direct_albedo
+    type( field_type ) :: tile_swinc_diffuse_albedo, tile_swinc_direct_albedo
 #endif
     ! ...for spectral GWD
     type( field_type ) :: du_tot_spectral_gwd, dtheta_spectral_gwd
@@ -377,22 +379,24 @@ contains
       call illuminate_alg( radiation_fields, clock%get_step(), &
                            clock%get_seconds_per_step() )
 
-      call rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,  &
-                        tile_lw_albedo, derived_fields,                 &
-                        radiation_fields, orography_fields,             &
-                        surface_fields, soil_fields, snow_fields,       &
+      call rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
+                        tile_swinc_direct_albedo, tile_swinc_diffuse_albedo, &
+                        tile_lw_albedo, tile_lwinc_albedo, derived_fields,   &
+                        radiation_fields, orography_fields,                  &
+                        surface_fields, soil_fields, snow_fields,            &
                         twod_mesh_id, clock%get_step())
 
       dtheta_rad => radiation_fields%get_field('dtheta_rad')
       dmv_pc2_rad => radiation_fields%get_field('dmv_pc2_rad')
-      call radiation_alg( dtheta_rad, theta, exner, mr_n,                    &
-                          derived_fields, radiation_fields, cloud_fields,    &
-                          convection_fields, aerosol_fields, surface_fields, &
-                          clock%get_step(),                                  &
-                          tile_sw_direct_albedo, tile_sw_diffuse_albedo,     &
-                          tile_lw_albedo, aer_mix_ratio,                     &
-                          aer_sw_absorption, aer_lw_absorption,              &
-                          aer_sw_scattering, aer_lw_scattering,              &
+      call radiation_alg( dtheta_rad, theta, exner, mr_n,                      &
+                          derived_fields, radiation_fields, cloud_fields,      &
+                          convection_fields, aerosol_fields, surface_fields,   &
+                          clock%get_step(),                                    &
+                          tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
+                          tile_swinc_direct_albedo, tile_swinc_diffuse_albedo, &
+                          tile_lw_albedo, tile_lwinc_albedo, aer_mix_ratio,    &
+                          aer_sw_absorption, aer_lw_absorption,                &
+                          aer_sw_scattering, aer_lw_scattering,                &
                           aer_sw_asymmetry,  aer_lw_asymmetry )
       radiation_done = .true. ! Collect this increment later on
 
