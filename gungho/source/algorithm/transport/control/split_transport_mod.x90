@@ -18,6 +18,7 @@ module split_transport_mod
                                               splitting_vh,          &
                                               direction_h,           &
                                               direction_v,           &
+                                              split_method_null,     &
                                               split_method_mol,      &
                                               split_method_ffsl,     &
                                               split_method_sl,       &
@@ -182,6 +183,12 @@ contains
     ! Choose method, and then choose equation
     ! -------------------------------------------------------------------------!
     select case ( method )
+
+    ! -------------------------------------------------------------------------!
+    ! Null step
+    ! -------------------------------------------------------------------------!
+    case ( split_method_null )
+      call invoke( setval_X( field_np1, field_n ) )
 
     ! -------------------------------------------------------------------------!
     ! Method of Lines step

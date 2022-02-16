@@ -40,6 +40,8 @@
                                                       'sbr_hori_cosine_mol',
                                                       'sbr_hori_cosine_ffsl',
                                                       'sbr_hori_cosine_split',
+                                                      'sbr_hori_cos_phi_mol',
+                                                      'sbr_hori_cos_phi_ffsl',
                                                       'cylinder_xz_mol',
                                                       'cylinder_xz_ffsl',
                                                       'cylinder_xz_split',
@@ -137,7 +139,15 @@
                      env={"crun": 1, "nrun":256,
                           "directives":{"default":{"mpi_parts":12,"threads":1,"wallclock":"01:00:00","use_xios":"False" } } },
                      plotstr="slices.py ' + appDiagStemName + ' $NODAL_DATA_DIR rho:theta:tracer T000000:T000128:T000256 -1 -91 0 $PLOT_DIR",
-                     checkkgo=False)'
+                     checkkgo=False)',
+    'run_application("transport", "sbr_hori_cos_phi_mol",
+                     env={"nrun":288, "directives":{"default":{"mpi_parts":6, "wallclock":"00:20:00"}}},
+                     resolutions=[("C32",4050.0)],
+                     plotstr="slices.py ' + appDiagStemName + ' $NODAL_DATA_DIR rho:theta:tracer:m_v T000288 -1 -91 0 $PLOT_DIR" )',
+    'run_application("transport", "sbr_hori_cos_phi_ffsl",
+                     env={"nrun":288, "directives":{"default":{"mpi_parts":6, "wallclock":"00:20:00"}}},
+                     resolutions=[("C32",4050.0)],
+                     plotstr="slices.py ' + appDiagStemName + ' $NODAL_DATA_DIR rho:theta:tracer:m_v T000288 -1 -91 0 $PLOT_DIR" )'
 ]
 } %}
 
