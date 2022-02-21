@@ -31,6 +31,7 @@ module tl_test_project_pressure_mod
   use log_mod,                        only: log_event,         &
                                             log_scratch_space, &
                                             LOG_LEVEL_INFO
+  use mesh_mod,                       only: mesh_type
   use project_pressure_kernel_mod, &
                                       only: project_pressure_kernel_type
   use tl_project_pressure_kernel_mod, &
@@ -46,15 +47,16 @@ module tl_test_project_pressure_mod
 
   !> @brief Test the tangent linear for the project_pressure kernel.
   !> @param[in] model_data    The working data set for a model run
-  !> @param[in] mesh_id       The identifier given to the current 3d mesh
-  !> @param[in] twod_mesh_id  The identifier given to the current 2d mesh
-  subroutine test_project_pressure( model_data,    &
-                                    mesh_id,       &
-                                    twod_mesh_id )
+  !> @param[in] mesh          The current 3d mesh
+  !> @param[in] twod_mesh     The current 2d mesh
+  subroutine test_project_pressure( model_data, &
+                                    mesh,       &
+                                    twod_mesh )
     implicit none
 
-    integer(i_def),                intent(in) :: mesh_id
-    integer(i_def),                intent(in) :: twod_mesh_id
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(mesh_type), pointer, intent(in) :: twod_mesh
+
     type(model_data_type), target, intent(in) :: model_data
 
     character(str_def) :: label = "project_pressure"
@@ -98,10 +100,10 @@ module tl_test_project_pressure_mod
     call log_event( "TL Test: " // trim(label), &
                      LOG_LEVEL_INFO )
 
-    chi => get_coordinates(mesh_id)
-    panel_id => get_panel_id(mesh_id)
+    chi => get_coordinates(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
     qr => get_qr()
-    m3_inv => get_inverse_w3_mass_matrix(mesh_id)
+    m3_inv => get_inverse_w3_mass_matrix(mesh%get_id())
 
     prognostic_fields => model_data%prognostic_fields
     ls_fields         => model_data%ls_fields
@@ -110,31 +112,31 @@ module tl_test_project_pressure_mod
     n_rho => prognostic_fields%get_field('rho')
     ls_rho => ls_fields%get_field('ls_rho')
     call p_rho%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, W3) )
+      function_space_collection%get_fs(mesh, element_order, W3) )
     n_theta => prognostic_fields%get_field('theta')
     ls_theta => ls_fields%get_field('ls_theta')
     call p_theta%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, Wtheta) )
+      function_space_collection%get_fs(mesh, element_order, Wtheta) )
     n_moist_dyn => model_data%moist_dyn
     ls_moist_dyn => model_data%ls_moist_dyn
     call clone_bundle(n_moist_dyn, p_moist_dyn, num_moist_factors)
 
     ! Output fields
     call n1_exner%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, W3) )
+      function_space_collection%get_fs(mesh, element_order, W3) )
     call n2_exner%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, W3) )
+      function_space_collection%get_fs(mesh, element_order, W3) )
     call p_exner%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, W3) )
+      function_space_collection%get_fs(mesh, element_order, W3) )
 
     ! Test fields
     call random_rho%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, W3) )
+      function_space_collection%get_fs(mesh, element_order, W3) )
     call random_theta%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, Wtheta) )
+      function_space_collection%get_fs(mesh, element_order, Wtheta) )
     call clone_bundle(n_moist_dyn, random_moist_dyn, num_moist_factors)
     call diff%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, W3) )
+      function_space_collection%get_fs(mesh, element_order, W3) )
 
     ! Taylor Remainder Convergence Test
     call invoke( setval_C( n1_exner, 0.0_r_def ) )

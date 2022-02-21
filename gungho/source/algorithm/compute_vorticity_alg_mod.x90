@@ -42,6 +42,7 @@ contains
     use function_space_collection_mod,  only: function_space_collection
     use w2_to_w1_projection_kernel_mod, only: w2_to_w1_projection_kernel_type
     use function_space_mod,             only: function_space_type
+    use mesh_mod,                       only: mesh_type
     use quadrature_xyoz_mod,            only: quadrature_xyoz_type
     use strong_curl_kernel_mod,         only: strong_curl_kernel_type
 
@@ -55,10 +56,11 @@ contains
     type(field_type),           pointer :: m1_lumped_inv => null()
     type(operator_type),        pointer :: curl => null()
     type(function_space_type) , pointer :: w1_fs => null()
-    integer(kind=i_def)                 :: mesh_id
     type(quadrature_xyoz_type), pointer :: qr => null()
 
-    mesh_id = u%get_mesh_id()
+    type(mesh_type), pointer :: mesh => null()
+
+    mesh => u%get_mesh()
 
     if ( weak_form_u ) then
       ! Advect u^* = M^-1 * <v,{u + beta*dt*[coriolis + pgf + grad(phi+K)]}>
@@ -72,8 +74,8 @@ contains
 
     if ( vorticity_in_w1 ) then
       ! Compute vorticity in W1 as the weak curl of the W2 winds
-      m1_lumped_inv => get_inverse_lumped_mass_matrix(W1, mesh_id)
-      curl          => get_curl(mesh_id)
+      m1_lumped_inv => get_inverse_lumped_mass_matrix(W1, mesh%get_id())
+      curl          => get_curl(mesh%get_id())
       call r_xi%initialise( vector_space = xi%get_function_space() )
       call invoke ( setval_c(r_xi, 0.0_r_def),                                   &
                     transpose_matrix_vector_kernel_type(r_xi, advected_u, curl), &
@@ -83,7 +85,7 @@ contains
     else
       ! Compute vorticity in W2 as the strong curl of the projected W1 winds
       qr => get_qr()
-      w1_fs => function_space_collection%get_fs( mesh_id, element_order, W1 )
+      w1_fs => function_space_collection%get_fs( mesh, element_order, W1 )
       call u_in_w1%initialise( vector_space = w1_fs )
       call r_u%initialise( vector_space = w1_fs )
       call invoke( setval_c(r_u, 0.0_r_def),                                   &
@@ -93,7 +95,7 @@ contains
       call invoke( strong_curl_kernel_type(xi, u_in_w1) )
     end if
 
-    nullify( m1_lumped_inv, curl, w1_fs, qr )
+    nullify( m1_lumped_inv, curl, w1_fs, qr, mesh )
 
   end subroutine compute_vorticity_alg
 

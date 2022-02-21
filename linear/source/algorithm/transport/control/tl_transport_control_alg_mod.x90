@@ -101,7 +101,6 @@ contains
     type(field_type)    :: dry_flux, temp_inc
     type(field_type)    :: fields_np1(bundle_size)
     logical(kind=l_def) :: any_ffsl
-    integer(kind=i_def) :: shifted_mesh_id
     type(operator_type), pointer :: mm_wt => null()
     type(mesh_type),     pointer :: primary_mesh => null()
     type(mesh_type),     pointer :: shifted_mesh => null()
@@ -122,12 +121,11 @@ contains
     if ( moisture_eqn == moisture_eqn_conservative .or. any_ffsl ) then
       primary_mesh => ls_wind_n%get_mesh()
       shifted_mesh => mesh_collection%get_mesh(primary_mesh, SHIFTED)
-      shifted_mesh_id = shifted_mesh%get_id()
 
       transport_runtime = transport_runtime_type(ls_wind_n, ls_wind_np1, model_dt, &
-                                                 shifted_mesh_id)
-      tl_transport_runtime = transport_runtime_type(wind_n, wind_np1, model_dt, &
-                                                    shifted_mesh_id)
+                                                 shifted_mesh )
+      tl_transport_runtime = transport_runtime_type( wind_n, wind_np1, model_dt, &
+                                                     shifted_mesh )
 
       nullify(primary_mesh, shifted_mesh)
     else

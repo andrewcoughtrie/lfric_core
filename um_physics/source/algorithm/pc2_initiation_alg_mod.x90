@@ -9,8 +9,10 @@ module pc2_initiation_alg_mod
 
    use field_mod,               only: field_type
    use field_collection_mod,    only: field_collection_type
-   use geometric_constants_mod, only: get_height
    use fs_continuity_mod,       only: Wtheta
+   use geometric_constants_mod, only: get_height
+   use mesh_mod,                only: mesh_type
+
    use io_config_mod,           only: write_diag, use_xios_io
 
    implicit none
@@ -101,11 +103,12 @@ contains
     type( field_type ), pointer :: svar_bm    => null()
     type( field_type ), pointer :: svar_tb    => null()
 
-
     type( field_type ), pointer :: zlcl_mixed      => null()
     type( field_type ), pointer :: r_cumulus       => null()
 
     type( field_type ), pointer :: height_wth => null()
+
+    type( mesh_type ),  pointer :: mesh => null()
 
     if ( subroutine_timers ) call timer("pc2_initiation_alg")
 
@@ -137,7 +140,8 @@ contains
     inv_depth       => turbulence_fields%get_field('inv_depth')
     bl_type_ind     => turbulence_fields%get_field('bl_type_ind')
 
-    height_wth      => get_height(Wtheta, theta%get_mesh_id())
+    mesh       => theta%get_mesh()
+    height_wth => get_height(Wtheta, mesh%get_id())
 
     call theta%copy_field_properties(dqv_pc2_inc)
     call theta%copy_field_properties(dqcl_pc2_inc)
@@ -213,6 +217,8 @@ contains
       call dbcf_pc2_inc%write_field('cloud__dbcf_pc2_initiation')
       if ( subroutine_timers ) call timer("pc2_initiation_xios")
     end if
+
+    nullify( mesh )
 
   end subroutine pc2_initiation_alg
 

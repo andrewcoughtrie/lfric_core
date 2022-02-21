@@ -38,6 +38,7 @@ module linear_driver_mod
                                   only : linear_diagnostics_driver
   use linear_step_mod,            only : linear_step
   use linear_data_algorithm_mod,  only : update_ls_file_alg
+  use mesh_mod,                   only : mesh_type
   use initialization_config_mod,  only : ls_option, &
                                          ls_option_file
 
@@ -49,10 +50,10 @@ module linear_driver_mod
   ! Model run working data set
   type (model_data_type) :: model_data
 
-  integer(i_def) :: mesh_id              = imdi
-  integer(i_def) :: twod_mesh_id         = imdi
-  integer(i_def) :: shifted_mesh_id      = imdi
-  integer(i_def) :: double_level_mesh_id = imdi
+  type( mesh_type ), pointer :: mesh         => null()
+  type( mesh_type ), pointer :: twod_mesh    => null()
+  type( mesh_type ), pointer :: shifted_mesh => null()
+  type( mesh_type ), pointer :: double_level_mesh => null()
 
   class(io_context_type), allocatable :: io_context
 
@@ -72,62 +73,62 @@ contains
     class(clock_type), pointer :: clock
 
     ! Initialise infrastructure and setup constants
-    call initialise_infrastructure( model_communicator,   &
-                                    filename,             &
-                                    program_name,         &
-                                    io_context,           &
-                                    mesh_id,              &
-                                    twod_mesh_id,         &
-                                    shifted_mesh_id,      &
-                                    double_level_mesh_id, &
+    call initialise_infrastructure( model_communicator,         &
+                                    filename,                   &
+                                    program_name,               &
+                                    io_context,                 &
+                                    mesh,                       &
+                                    twod_mesh,                  &
+                                    shifted_mesh,               &
+                                    double_level_mesh,          &
                                     model_data )
 
     clock => io_context%get_clock()
     ! Instantiate the fields stored in model_data
-    call create_model_data( model_data,   &
-                            mesh_id,      &
-                            twod_mesh_id, &
+    call create_model_data( model_data, &
+                            mesh,       &
+                            twod_mesh,  &
                             clock )
 
     ! Instantiate the linearisation state
-    call linear_create_ls( model_data,   &
-                           mesh_id,      &
-                           twod_mesh_id )
+    call linear_create_ls( model_data, &
+                           mesh,       &
+                           twod_mesh )
 
     ! Initialise the fields stored in the model_data
     call initialise_model_data( model_data, clock )
 
     ! Model configuration initialisation
-    call initialise_model( clock,   &
-                           mesh_id, &
+    call initialise_model( clock, &
+                           mesh,  &
                            model_data )
 
     ! Initialise the linearisation state
-    call linear_init_ls( mesh_id,      &
-                         twod_mesh_id, &
-                         model_data,   &
+    call linear_init_ls( mesh,       &
+                         twod_mesh,  &
+                         model_data, &
                          clock )
 
     ! Initialise the linear model perturbation state
-    call linear_init_pert( mesh_id,      &
-                           twod_mesh_id, &
+    call linear_init_pert( mesh,      &
+                           twod_mesh, &
                            model_data )
 
     ! Linear model configuration initialisation
-    call initialise_linear_model( clock,   &
-                                  mesh_id, &
+    call initialise_linear_model( clock, &
+                                  mesh,  &
                                   model_data )
 
     ! Initial output
     if ( clock%is_initialisation() .and. write_diag ) then
         ! Calculation and output of diagnostics
-        call gungho_diagnostics_driver( mesh_id,      &
-                                        twod_mesh_id, &
-                                        model_data,   &
-                                        clock,        &
+        call gungho_diagnostics_driver( mesh,       &
+                                        twod_mesh,  &
+                                        model_data, &
+                                        clock,      &
                                         nodal_output_on_w3 )
 
-        call linear_diagnostics_driver( mesh_id,    &
+        call linear_diagnostics_driver( mesh,       &
                                         model_data, &
                                         clock,      &
                                         nodal_output_on_w3 )
@@ -160,22 +161,22 @@ contains
                                  model_data%ls_moist_dyn )
       end if
 
-      call linear_step( mesh_id,      &
-                        twod_mesh_id, &
-                        model_data,   &
+      call linear_step( mesh,       &
+                        twod_mesh,  &
+                        model_data, &
                         clock )
 
       if ( ( mod(clock%get_step(), diagnostic_frequency) == 0 ) &
            .and. ( write_diag ) ) then
 
         ! Calculation and output diagnostics
-        call gungho_diagnostics_driver( mesh_id,      &
-                                        twod_mesh_id, &
-                                        model_data,   &
-                                        clock,        &
+        call gungho_diagnostics_driver( mesh,       &
+                                        twod_mesh,  &
+                                        model_data, &
+                                        clock,      &
                                         nodal_output_on_w3 )
 
-        call linear_diagnostics_driver( mesh_id,    &
+        call linear_diagnostics_driver( mesh,       &
                                         model_data, &
                                         clock,      &
                                         nodal_output_on_w3 )
@@ -201,8 +202,7 @@ contains
     call output_model_data( model_data, clock )
 
     ! Model configuration finalisation
-    call finalise_model( mesh_id,    &
-                         model_data, &
+    call finalise_model( model_data, &
                          program_name )
 
     call finalise_linear_model( )

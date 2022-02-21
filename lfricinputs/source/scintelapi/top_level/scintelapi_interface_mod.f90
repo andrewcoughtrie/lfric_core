@@ -104,10 +104,11 @@ SUBROUTINE scintelapi_add_field(field_id, func_space, field_dim, write_name)
 USE finite_element_config_mod,      ONLY: element_order
 USE function_space_collection_mod , ONLY: function_space_collection
 USE fs_continuity_mod,              ONLY: W3, Wtheta
-USE lfricinp_lfric_driver_mod,      ONLY: mesh_id, twod_mesh_id
+USE lfricinp_lfric_driver_mod,      ONLY: mesh, twod_mesh
 USE field_mod,                      ONLY: field_type
 USE field_list_mod,                 ONLY: no_fields, field_list,               &
                                           field_io_id_list
+USE mesh_mod,                       ONLY: mesh_type
 
 IMPLICIT NONE
 
@@ -129,8 +130,8 @@ CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: write_name
 !
 ! Local variables
 !
-! Mesh id to use
-INTEGER :: m_id
+! Mesh to use
+TYPE(mesh_type), pointer :: tmp_mesh => null()
 
 ! Function space to use
 INTEGER :: Fspace
@@ -213,9 +214,9 @@ END IF
 IF (l_field_dim_present) THEN
 
   IF (TRIM(field_dim) == '3D') THEN
-    m_id = mesh_id
+   tmp_mesh => mesh
   ELSE IF (TRIM(field_dim) == '2D') THEN
-    m_id = twod_mesh_id
+   tmp_mesh => twod_mesh
   ELSE
     WRITE(log_scratch_space,'(A,A)') "Unrecognised field dimension for field ",&
                                      field_id
@@ -262,7 +263,7 @@ l = no_fields + 1
 ! Set new field
 CALL field_list(l) % initialise(vector_space =                                 &
                                 function_space_collection%get_fs(              &
-                                                                m_id,          &
+                                                                tmp_mesh,      &
                                                                 element_order, &
                                                                 Fspace         &
                                                                 ),             &
@@ -277,6 +278,8 @@ END IF
 no_fields = no_fields + 1
 
 CALL log_event('Field successfully added', LOG_LEVEL_INFO)
+
+NULLIFY (tmp_mesh)
 
 END SUBROUTINE scintelapi_add_field
 

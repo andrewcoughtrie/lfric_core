@@ -183,13 +183,15 @@ contains
     type(field_type), intent(in) :: mr(nummr)
 
     ! Internal variables
-    integer(kind=i_def)          :: mesh_id, mesh_index
-    integer(kind=i_def)          :: shifted_mesh_id
+    integer(kind=i_def)          :: mesh_index
+
     type(mesh_type), pointer     :: primary_mesh => null()
     type(mesh_type), pointer     :: shifted_mesh => null()
 
-    mesh_id = rho%get_mesh_id()
-    mesh_index = find_mesh_index(mesh_id)
+    primary_mesh => rho%get_mesh()
+    shifted_mesh => mesh_collection%get_mesh(primary_mesh, SHIFTED)
+
+    mesh_index = find_mesh_index(primary_mesh%get_id())
 
     ! Store initial values for computing errors
     call rho%copy_field(rho0(mesh_index))
@@ -198,12 +200,9 @@ contains
     call mr(1)%copy_field(mr0(1,mesh_index))
 
     ! Initialise any necessary transport fields or coefficients
-    primary_mesh => rho%get_mesh()
-    shifted_mesh => mesh_collection%get_mesh(primary_mesh, SHIFTED)
-    shifted_mesh_id = shifted_mesh%get_id()
-    call reconstruct_w3_field_alg_init(mesh_id)
-    call wt_advective_update_alg_init(mesh_id)
-    call reconstruct_w3_field_alg_init(shifted_mesh_id)
+    call reconstruct_w3_field_alg_init(primary_mesh)
+    call wt_advective_update_alg_init(primary_mesh)
+    call reconstruct_w3_field_alg_init(shifted_mesh)
 
     nullify(primary_mesh, shifted_mesh)
 
@@ -245,7 +244,7 @@ contains
     real(kind=r_def)             :: current_time
     type(field_type)             :: dry_flux, rho_n, theta_n
     type(field_type)             :: tracer_n, mr_n(nummr)
-    integer(kind=i_def)          :: shifted_mesh_id
+
     type(transport_runtime_type) :: transport_runtime
     type(mesh_type),     pointer :: primary_mesh => null()
     type(mesh_type),     pointer :: shifted_mesh => null()
@@ -261,12 +260,9 @@ contains
 
     primary_mesh => wind%get_mesh()
     shifted_mesh => mesh_collection%get_mesh(primary_mesh, SHIFTED)
-    shifted_mesh_id = shifted_mesh%get_id()
-
-    nullify(primary_mesh, shifted_mesh)
 
     ! Create transport_runtime object (advecting wind etc)
-    transport_runtime = transport_runtime_type(wind, wind, model_dt, shifted_mesh_id)
+    transport_runtime = transport_runtime_type(wind, wind, model_dt, shifted_mesh)
     call set_transport_runtime(transport_runtime)
 
     call dry_flux%initialise(vector_space = wind%get_function_space())
@@ -303,6 +299,8 @@ contains
     call moist_mr_transport_alg(mr, mr_n, nummr_to_transport, &
                                 model_dt, transport_metadata)
 
+    nullify(primary_mesh, shifted_mesh)
+
   end subroutine transport_step
 
 
@@ -327,12 +325,14 @@ contains
     type(field_type), intent(in) :: mr(nummr)
 
     ! Internal variables
-    integer(kind=i_def) :: mesh_id, mesh_index
+    integer(kind=i_def) :: mesh_index
     real(kind=r_def)    :: l2_error_rho, l2_error_theta
     real(kind=r_def)    :: l2_error_tracer, l2_error_mr
 
-    mesh_id = rho%get_mesh_id()
-    mesh_index = find_mesh_index(mesh_id)
+    type(mesh_type), pointer :: mesh => null()
+
+    mesh => rho%get_mesh()
+    mesh_index = find_mesh_index(mesh%get_id())
 
     ! TODO: #2829 should make us call write_transport_stats here to compute
     ! various error measures. For now just compute them here
@@ -356,6 +356,8 @@ contains
 
     call reconstruct_w3_field_alg_final()
     call wt_advective_update_alg_final()
+
+    nullify( mesh )
 
   end subroutine transport_final
 

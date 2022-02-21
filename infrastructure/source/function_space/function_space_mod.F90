@@ -1012,7 +1012,11 @@ contains
     class(function_space_type), intent(in) :: self
     type(mesh_type), pointer :: mesh
 
-    mesh => self%mesh
+    if ( associated (self%mesh) ) then
+      mesh => self%mesh
+    else
+      call log_event('Function space has null pointer to mesh!!!', log_level_error)
+    end if
 
   end function get_mesh
 

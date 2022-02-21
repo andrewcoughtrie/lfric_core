@@ -36,6 +36,8 @@ module driver_fem_mod
                                             LOG_LEVEL_INFO,    &
                                             LOG_LEVEL_ERROR,   &
                                             log_scratch_space
+  use mesh_mod,                       only: mesh_type
+  use mesh_collection_mod,            only: mesh_collection
 
   implicit none
 
@@ -46,12 +48,12 @@ contains
 
   !> @brief  Initialises the coordinate fields (chi) and FEM components.
   !>
-  !> @param[in]      mesh_id                        Mesh ID used for chi field
+  !> @param[in]      mesh                           Mesh used for chi field
   !> @param[in,out]  chi                            Coordinate field
   !> @param[in,out]  panel_id                       Field giving the ID of the mesh panels
-  !> @param[in]      shifted_mesh_id                Optional, mesh ID used for shifted chi field
+  !> @param[in]      shifted_mesh                   Optional, mesh used for shifted chi field
   !> @param[in,out]  shifted_chi                    Optional, coordinates of vertically shifted mesh
-  !> @param[in]      double_level_mesh_id           Optional, mesh ID used for double-level chi field
+  !> @param[in]      double_level_mesh              Optional, mesh used for double-level chi field
   !> @param[in,out]  double_level_chi               Optional, coordinates of double level mesh
   !> @param[in]      multigrid_mesh_ids             Optional, mesh ID array for multigrid function spaces chain
   !> @param[in]      multigrid_2d_mesh_ids          Optional, 2D-mesh ID array for multigrid function spaces chain
@@ -63,9 +65,9 @@ contains
   !> @param[in,out]  chi_multires_coupling          Optional, coordinates for multires_coupling meshes
   !> @param[in,out]  panel_id_multires_coupling     Optional, field giving the ID of the mesh panels for multires_coupling meshes
   !> @param[in]      use_multires_coupling          Optional, logical flag to enable multiresolution atmospheric coupling
-  subroutine init_fem( mesh_id, chi, panel_id,                    &
-                       shifted_mesh_id, shifted_chi,              &
-                       double_level_mesh_id,                      &
+  subroutine init_fem( mesh, chi, panel_id,                       &
+                       shifted_mesh, shifted_chi,                 &
+                       double_level_mesh,                         &
                        double_level_chi,                          &
                        multigrid_mesh_ids, multigrid_2D_mesh_ids, &
                        chi_mg, panel_id_mg,                       &
@@ -79,13 +81,14 @@ contains
     implicit none
 
     ! Coordinate field
-    integer(kind=i_def), intent(in)    :: mesh_id
-    type(field_type),    intent(inout) :: chi(:)
-    type(field_type),    intent(inout) :: panel_id
+    type(mesh_type),  intent(in), pointer :: mesh
+    type(field_type), intent(inout)       :: chi(:)
+    type(field_type), intent(inout)       :: panel_id
 
-    integer(kind=i_def), optional, intent(in)    :: shifted_mesh_id
+    type( mesh_type ),   optional, intent(in), pointer :: shifted_mesh
+    type( mesh_type ),   optional, intent(in), pointer :: double_level_mesh
+
     type(field_type),    optional, intent(inout) :: shifted_chi(:)
-    integer(kind=i_def), optional, intent(in)    :: double_level_mesh_id
     type(field_type),    optional, intent(inout) :: double_level_chi(:)
     integer(kind=i_def), optional, intent(in)    :: multigrid_mesh_ids(:)
     integer(kind=i_def), optional, intent(in)    :: multigrid_2d_mesh_ids(:)
@@ -115,6 +118,9 @@ contains
     integer(kind=i_def) :: coord
     integer(kind=i_def) :: mesh_ctr, i
 
+    type( mesh_type ),           pointer :: mesh_ptr => null()
+    type( function_space_type ), pointer :: fs_ptr   => null()
+
     ! Set control flags
     !=================================================================
     if ( present(use_multigrid) ) then
@@ -132,10 +138,10 @@ contains
            present(panel_id_multires_coupling) ) create_multires_coupling_chi = .true.
     end if
 
-    if ( present(shifted_mesh_id) .and. &
+    if ( present(shifted_mesh) .and. &
          present(shifted_chi) ) create_shifted_chi = .true.
 
-    if ( present(double_level_mesh_id) .and. &
+    if ( present(double_level_mesh) .and. &
          present(double_level_chi) ) create_double_level_chi = .true.
 
 
@@ -151,7 +157,7 @@ contains
     ! Create function spaces from W0 to Wtheta
     ! =========================================
     do fs_index = 1, size(fs_list)
-      fs => function_space_collection%get_fs( mesh_id,       &
+      fs => function_space_collection%get_fs( mesh,          &
                                               element_order, &
                                               fs_list(fs_index) )
     end do
@@ -163,7 +169,7 @@ contains
     ! Initialise coordinate transformations
     call init_chi_transforms()
 
-    fs => function_space_collection%get_fs(mesh_id, 0, W3)
+    fs => function_space_collection%get_fs(mesh, 0, W3)
     call panel_id%initialise(vector_space = fs )
 
     if ( coord_order == 0 ) then
@@ -173,7 +179,7 @@ contains
       chi_space = Wchi
       call log_event( "FEM specifics: Computing Wchi coordinate fields", LOG_LEVEL_INFO )
     end if
-    fs => function_space_collection%get_fs(mesh_id, coord_order, chi_space)
+    fs => function_space_collection%get_fs(mesh, coord_order, chi_space)
 
     ! Check that the geometry is compatible with the coordinate system
     if ( (geometry == geometry_planar) .and. &
@@ -185,7 +191,7 @@ contains
       call chi(coord)%initialise(vector_space = fs )
     end do
 
-    call assign_coordinate_field(chi, panel_id, mesh_id)
+    call assign_coordinate_field(chi, panel_id, mesh)
 
     ! Create shifted mesh coordinate field.
     ! =========================================
@@ -193,14 +199,14 @@ contains
       call log_event( "FEM specifics: Making shifted level mesh spaces",     &
                       LOG_LEVEL_INFO )
 
-      shifted_fs => function_space_collection%get_fs( shifted_mesh_id, &
-                                                      coord_order,     &
+      shifted_fs => function_space_collection%get_fs( shifted_mesh, &
+                                                      coord_order,  &
                                                       chi_space )
       do coord = 1, size(chi)
         call shifted_chi(coord)%initialise(vector_space = shifted_fs)
       end do
 
-      call assign_coordinate_field(shifted_chi, panel_id, shifted_mesh_id)
+      call assign_coordinate_field(shifted_chi, panel_id, shifted_mesh)
 
       nullify(shifted_fs)
     end if
@@ -211,16 +217,16 @@ contains
       call log_event( "FEM specifics: Making double level mesh spaces", &
                       LOG_LEVEL_INFO )
 
-      double_level_fs =>                                           &
-          function_space_collection%get_fs( double_level_mesh_id,  &
-                                            coord_order,           &
+      double_level_fs =>                                       &
+          function_space_collection%get_fs( double_level_mesh, &
+                                            coord_order,       &
                                             chi_space )
       do coord = 1, size(chi)
         call double_level_chi(coord)%initialise(vector_space = double_level_fs)
       end do
 
       call assign_coordinate_field(double_level_chi, panel_id, &
-                                   double_level_mesh_id)
+                                   double_level_mesh)
 
       nullify( double_level_fs )
     end if
@@ -237,21 +243,24 @@ contains
       allocate(panel_id_multires_coupling(size(multires_coupling_mesh_ids)))
 
       do mesh_ctr = 1, size(multires_coupling_mesh_ids)
+
+        mesh_ptr => mesh_collection%get_mesh( multires_coupling_mesh_ids(mesh_ctr) )
+        fs_ptr   => function_space_collection%get_fs( mesh_ptr, coord_order, chi_space)
+
         ! Set up the coordinate fields for non-primary multires_coupling meshes
         do i = 1, 3
-          call chi_multires_coupling( i, mesh_ctr )%initialise( vector_space =    &
-            function_space_collection%get_fs( multires_coupling_mesh_ids(mesh_ctr),   &
-                                              coord_order, chi_space) )
+          call chi_multires_coupling( i, mesh_ctr )%initialise( vector_space = fs_ptr )
         end do
 
         call panel_id_multires_coupling(mesh_ctr)%initialise(vector_space =  &
-          function_space_collection%get_fs( multires_coupling_mesh_ids(mesh_ctr), 0, W3) )
+          function_space_collection%get_fs( mesh_ptr, 0, W3) )
 
         call assign_coordinate_field( chi_multires_coupling(:,mesh_ctr),     &
                                       panel_id_multires_coupling(mesh_ctr),  &
-                                      multires_coupling_mesh_ids(mesh_ctr) )
-
+                                      mesh_ptr )
       end do
+
+      nullify( mesh_ptr, fs_ptr )
 
     end if
 
@@ -281,50 +290,49 @@ contains
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
       do mesh_ctr = 1, size(multigrid_mesh_ids)
+
+        mesh_ptr => mesh_collection%get_mesh( multigrid_mesh_ids(mesh_ctr) )
+
         ! Make sure this function_space is in the collection
-        fs => function_space_collection%get_fs( multigrid_mesh_ids(mesh_ctr), &
-             0, W3 )
+        fs => function_space_collection%get_fs( mesh_ptr, 0, W3 )
         call multigrid_function_space_chain%add( fs )
 
-        fs => function_space_collection%get_fs( multigrid_mesh_ids(mesh_ctr), &
-                                                0, W2 )
+        fs => function_space_collection%get_fs( mesh_ptr, 0, W2 )
         call w2_multigrid_function_space_chain%add( fs )
 
-        fs => function_space_collection%get_fs( multigrid_mesh_ids(mesh_ctr), &
-                                                0, W2v )
+        fs => function_space_collection%get_fs( mesh_ptr, 0, W2v )
         call w2v_multigrid_function_space_chain%add( fs )
 
-        fs => function_space_collection%get_fs( multigrid_mesh_ids(mesh_ctr), &
-                                                0, W2h )
+        fs => function_space_collection%get_fs( mesh_ptr, 0, W2h )
         call w2h_multigrid_function_space_chain%add( fs )
 
-        fs => function_space_collection%get_fs( multigrid_mesh_ids(mesh_ctr), &
-                                                0, Wtheta )
+        fs => function_space_collection%get_fs( mesh_ptr, 0, Wtheta )
         call wtheta_multigrid_function_space_chain%add( fs )
 
         ! Set up the coordinate fields for multigrid levels greater than 1
         if (mesh_ctr > 1) then
           do i = 1, 3
-            call chi_mg( i, mesh_ctr )%initialise( vector_space =               &
-              function_space_collection%get_fs( multigrid_mesh_ids(mesh_ctr),   &
-                                                coord_order, chi_space) )
+            call chi_mg( i, mesh_ctr )%initialise( vector_space = &
+              function_space_collection%get_fs( mesh_ptr, coord_order, chi_space) )
           end do
 
-          call panel_id_mg(mesh_ctr)%initialise(vector_space =                  &
-            function_space_collection%get_fs( multigrid_mesh_ids(mesh_ctr), 0, W3) )
+          call panel_id_mg(mesh_ctr)%initialise(vector_space = &
+            function_space_collection%get_fs( mesh_ptr, 0, W3) )
 
           call assign_coordinate_field( chi_mg(:,mesh_ctr),          &
                                         panel_id_mg(mesh_ctr),       &
-                                        multigrid_mesh_ids(mesh_ctr) )
+                                        mesh_ptr )
         end if
 
+        nullify(mesh_ptr)
       end do
 
       single_layer_function_space_chain = function_space_chain_type()
       do mesh_ctr = 1, size(multigrid_2d_mesh_ids)
-        fs => function_space_collection%get_fs( multigrid_2d_mesh_ids(mesh_ctr), &
-                                                0, W3 )
+        mesh_ptr => mesh_collection%get_mesh( multigrid_2d_mesh_ids(mesh_ctr) )
+        fs => function_space_collection%get_fs( mesh_ptr, 0, W3 )
         call single_layer_function_space_chain%add( fs )
+        nullify(mesh_ptr)
       end do
 
     end if ! create_multigrid_fs_chain

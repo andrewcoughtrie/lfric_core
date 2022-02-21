@@ -18,6 +18,8 @@ module halo_routing_collection_mod
   use halo_routing_mod,   only: halo_routing_type
   use linked_list_mod,    only: linked_list_type, &
                                 linked_list_item_type
+  use mesh_mod,           only: mesh_type
+
   implicit none
 
   private
@@ -64,8 +66,7 @@ end function halo_routing_collection_constructor
 
 !> Function to get an instance of a halo_routing object from the linked list
 !> or create it if it doesn't exist (and return the newly created one)
-!> @param [in] mesh_id Id of the mesh for which this information will
-!>                     be valid for
+!> @param [in] mesh     Mesh for which this information will be valid for
 !> @param [in] element_order The element order for which this information
 !>                           will be valid
 !> @param [in] lfric_fs The function space continuity type for which this
@@ -78,7 +79,7 @@ end function halo_routing_collection_constructor
 !>                      information will be valid
 !> @return The halo_routing object that matches the input parameters
 function get_halo_routing( self, &
-                           mesh_id, &
+                           mesh, &
                            element_order, &
                            lfric_fs, &
                            ndata, &
@@ -90,7 +91,8 @@ function get_halo_routing( self, &
 
   type(halo_routing_type), pointer :: halo_routing
 
-  integer(i_def), intent(in) :: mesh_id
+  type(mesh_type), intent(in), pointer :: mesh
+
   integer(i_def), intent(in) :: element_order
   integer(i_def), intent(in) :: lfric_fs
   integer(i_def), intent(in) :: ndata
@@ -98,7 +100,7 @@ function get_halo_routing( self, &
   integer(i_def), intent(in) :: fortran_kind
 
   halo_routing => get_halo_routing_from_list( self, &
-                                              mesh_id, &
+                                              mesh, &
                                               element_order, &
                                               lfric_fs, &
                                               ndata, &
@@ -107,7 +109,7 @@ function get_halo_routing( self, &
 
   if (.not. associated(halo_routing)) then
 
-    call self%halo_routing_list%insert_item( halo_routing_type( mesh_id, &
+    call self%halo_routing_list%insert_item( halo_routing_type( mesh, &
                                                                 element_order, &
                                                                 lfric_fs, &
                                                                 ndata, &
@@ -115,7 +117,7 @@ function get_halo_routing( self, &
                                                                 fortran_kind ) )
 
     halo_routing => get_halo_routing_from_list( self, &
-                                                mesh_id, &
+                                                mesh, &
                                                 element_order, &
                                                 lfric_fs, &
                                                 ndata, &
@@ -134,7 +136,7 @@ end function get_halo_routing
 ! A null pointer is returned if the requested halo_routing object does not exist.
 !
 function get_halo_routing_from_list(self, &
-                                    mesh_id, &
+                                    mesh, &
                                     element_order, &
                                     lfric_fs, &
                                     ndata, &
@@ -145,17 +147,22 @@ function get_halo_routing_from_list(self, &
   implicit none
 
   class(halo_routing_collection_type), intent(inout) :: self
-  integer(i_def), intent(in) :: mesh_id
-  integer(i_def), intent(in) :: element_order
-  integer(i_def), intent(in) :: lfric_fs
-  integer(i_def), intent(in) :: ndata
-  integer(i_def), intent(in) :: fortran_type
-  integer(i_def), intent(in) :: fortran_kind
+
+  type(mesh_type), intent(in), pointer :: mesh
+
+  integer(i_def),  intent(in) :: element_order
+  integer(i_def),  intent(in) :: lfric_fs
+  integer(i_def),  intent(in) :: ndata
+  integer(i_def),  intent(in) :: fortran_type
+  integer(i_def),  intent(in) :: fortran_kind
 
   type(halo_routing_type),   pointer  :: instance
 
   type(linked_list_item_type), pointer  :: loop
 
+  integer(i_def) :: mesh_id
+
+  mesh_id = mesh%get_id()
   ! Point to head of the function space linked list
   loop => self%halo_routing_list%get_head()
 

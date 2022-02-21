@@ -23,6 +23,7 @@ module gungho_model_data_mod
                                                  LOG_LEVEL_INFO,  &
                                                  LOG_LEVEL_ERROR, &
                                                  log_scratch_space
+  use mesh_mod,                           only : mesh_type
   use files_config_mod,                   only : checkpoint_stem_name
   use formulation_config_mod,             only : use_physics
   use initialization_config_mod,          only : init_option,                 &
@@ -326,19 +327,19 @@ contains
 
   !> @brief Create the fields contained in model_data
   !> @param[inout] model_data The working data set for a model run
-  !> @param[in]    mesh_id The identifier given to the current 3d mesh
-  !> @param[in]    twod_mesh_id The identifier given to the current 2d mesh
+  !> @param[in]    mesh      The current 3d mesh
+  !> @param[in]    twod_mesh The current 2d mesh
   subroutine create_model_data( model_data, &
-                                mesh_id,    &
-                                twod_mesh_id, &
+                                mesh,       &
+                                twod_mesh,  &
                                 clock )
 
     implicit none
 
     type( model_data_type ), intent(inout) :: model_data
-    integer(i_def),          intent(in)    :: mesh_id
-    integer(i_def),          intent(in)    :: twod_mesh_id
-    class(clock_type),       intent(in)    :: clock
+    type( mesh_type ), intent(in), pointer :: mesh
+    type( mesh_type ), intent(in), pointer :: twod_mesh
+    class(clock_type), intent(in)          :: clock
 
     !-------------------------------------------------------------------------
     ! Select how to initialize model prognostic fields
@@ -371,14 +372,14 @@ contains
     allocate(model_data%ls_mr(nummr))
 
     ! Create gungho prognostics and auxilliary (diagnostic) fields
-    call create_gungho_prognostics( mesh_id,                        &
+    call create_gungho_prognostics( mesh,                           &
                                     model_data%depository,          &
                                     model_data%prognostic_fields,   &
                                     model_data%diagnostic_fields,   &
                                     model_data%mr,                  &
                                     model_data%moist_dyn )
 
-    if (limited_area) call create_lbc_fields( mesh_id,                      &
+    if (limited_area) call create_lbc_fields( mesh,                         &
                                               model_data%depository,        &
                                               model_data%prognostic_fields, &
                                               model_data%lbc_fields,        &
@@ -386,7 +387,7 @@ contains
 
     ! Create prognostics used by physics
     if (use_physics) then
-      call create_physics_prognostics( mesh_id, twod_mesh_id,          &
+      call create_physics_prognostics( mesh, twod_mesh,                &
                                        clock,                          &
                                        model_data%depository,          &
                                        model_data%prognostic_fields,   &
@@ -407,7 +408,7 @@ contains
       ! Create FD prognostic fields
       select case ( prognostic_init_choice )
         case ( init_option_fd_start_dump )
-          call create_fd_prognostics(mesh_id, twod_mesh_id, &
+          call create_fd_prognostics(mesh, twod_mesh,       &
                                      model_data%fd_fields,  &
                                      model_data%depository)
       end select
@@ -417,7 +418,7 @@ contains
         case ( ancil_option_fixed, ancil_option_updating )
           call create_fd_ancils( model_data%depository,   &
                                  model_data%ancil_fields, &
-                                 mesh_id, twod_mesh_id ,  &
+                                 mesh, twod_mesh ,        &
                                  model_data%ancil_times_list )
       end select
 #endif

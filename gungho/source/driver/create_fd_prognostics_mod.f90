@@ -22,6 +22,7 @@ module create_fd_prognostics_mod
   use log_mod,                        only : log_event,      &
                                              LOG_LEVEL_INFO, &
                                              LOG_LEVEL_ERROR
+  use mesh_mod,                       only : mesh_type
   use init_ancils_mod,                only : setup_ancil_field
   use initialization_config_mod,      only : ancil_option,                &
                                              ancil_option_start_dump,     &
@@ -38,17 +39,18 @@ module create_fd_prognostics_mod
 contains
   !>@brief Routine to create a field collection for finite difference
   !>       prognostic fields
-  !> @param[in] mesh_id Identifier of the mesh
-  !> @param[in] twod_mesh_id The identifier given to the current 2d mesh
+  !> @param[in] mesh        The mesh
+  !> @param[in] twod_mesh   The current 2d mesh
   !> @param[in,out] fd_field_collection The collection object to store fields in
   !> @param[in,out] depository The depository field collection
-  subroutine create_fd_prognostics(mesh_id, twod_mesh_id, fd_field_collection, &
-                                   depository)
+  subroutine create_fd_prognostics( mesh, twod_mesh, fd_field_collection, &
+                                    depository)
 
     implicit none
 
-    integer(i_def), intent(in)                 :: mesh_id
-    integer(i_def), intent(in)                 :: twod_mesh_id
+    type( mesh_type ), intent(in), pointer     :: mesh
+    type( mesh_type ), intent(in), pointer     :: twod_mesh
+
     type(field_collection_type), intent(inout) :: fd_field_collection
     type(field_collection_type), intent(inout) :: depository
 
@@ -89,7 +91,7 @@ contains
     !========================================================================
 
     call ew_wind_in_w3%initialise( vector_space = &
-         function_space_collection%get_fs(mesh_id, element_order, W3), &
+         function_space_collection%get_fs(mesh, element_order, W3), &
          name='ew_wind_in_w3')
 
     call ew_wind_in_w3%set_read_behaviour(tmp_read_ptr)
@@ -98,7 +100,7 @@ contains
     call fd_field_collection%add_field(ew_wind_in_w3)
 
     call ns_wind_in_w3%initialise( vector_space = &
-         function_space_collection%get_fs(mesh_id, element_order, W3), &
+         function_space_collection%get_fs(mesh, element_order, W3), &
          name='ns_wind_in_w3')
 
     call ns_wind_in_w3%set_read_behaviour(tmp_read_ptr)
@@ -107,7 +109,7 @@ contains
     call fd_field_collection%add_field(ns_wind_in_w3)
 
     call dry_rho_in_w3%initialise( vector_space = &
-         function_space_collection%get_fs(mesh_id, element_order, W3), &
+         function_space_collection%get_fs(mesh, element_order, W3), &
          name='dry_rho_in_w3')
 
     call dry_rho_in_w3%set_read_behaviour(tmp_read_ptr)
@@ -120,7 +122,7 @@ contains
     !========================================================================
 
     call upward_wind_in_wtheta%initialise( vector_space = &
-         function_space_collection%get_fs(mesh_id, element_order, Wtheta), &
+         function_space_collection%get_fs(mesh, element_order, Wtheta), &
          name='upward_wind_in_wtheta')
 
     call upward_wind_in_wtheta%set_read_behaviour(tmp_read_ptr)
@@ -129,7 +131,7 @@ contains
     call fd_field_collection%add_field(upward_wind_in_wtheta)
 
     call theta_in_wtheta%initialise( vector_space =        &
-         function_space_collection%get_fs(mesh_id, element_order, Wtheta), &
+         function_space_collection%get_fs(mesh, element_order, Wtheta), &
          name='theta_in_wtheta')
 
     call theta_in_wtheta%set_read_behaviour(tmp_read_ptr)
@@ -138,7 +140,7 @@ contains
     call fd_field_collection%add_field(theta_in_wtheta)
 
     call mv_in_wtheta%initialise( vector_space =           &
-         function_space_collection%get_fs(mesh_id, element_order, Wtheta), &
+         function_space_collection%get_fs(mesh, element_order, Wtheta), &
          name='mv_in_wtheta')
 
     call mv_in_wtheta%set_read_behaviour(tmp_read_ptr)
@@ -147,7 +149,7 @@ contains
     call fd_field_collection%add_field(mv_in_wtheta)
 
     call mcl_in_wtheta%initialise( vector_space =          &
-         function_space_collection%get_fs(mesh_id, element_order, Wtheta), &
+         function_space_collection%get_fs(mesh, element_order, Wtheta), &
          name='mcl_in_wtheta')
 
     call mcl_in_wtheta%set_read_behaviour(tmp_read_ptr)
@@ -156,7 +158,7 @@ contains
     call fd_field_collection%add_field(mcl_in_wtheta)
 
     call mcf_in_wtheta%initialise( vector_space =          &
-         function_space_collection%get_fs(mesh_id, element_order, Wtheta), &
+         function_space_collection%get_fs(mesh, element_order, Wtheta), &
          name='mcf_in_wtheta')
 
     call mcf_in_wtheta%set_read_behaviour(tmp_read_ptr)
@@ -165,7 +167,7 @@ contains
     call fd_field_collection%add_field(mcf_in_wtheta)
 
     call mr_in_wtheta%initialise( vector_space =          &
-         function_space_collection%get_fs(mesh_id, element_order, Wtheta), &
+         function_space_collection%get_fs(mesh, element_order, Wtheta), &
          name='mr_in_wtheta')
 
     call mr_in_wtheta%set_read_behaviour(tmp_read_ptr)
@@ -177,97 +179,97 @@ contains
     ! Physics fields
     !========================================================================
     ! turbulence fields
-    call setup_ancil_field("zh", depository, fd_field_collection, mesh_id, &
-                           twod_mesh_id, twod=.true.)
+    call setup_ancil_field("zh", depository, fd_field_collection, mesh, &
+                           twod_mesh, twod=.true.)
     ! cloud fields
     call setup_ancil_field("area_fraction", depository, &
-                           fd_field_collection, mesh_id, twod_mesh_id)
+                           fd_field_collection, mesh, twod_mesh)
     call setup_ancil_field("bulk_fraction", depository, &
-                           fd_field_collection, mesh_id, twod_mesh_id)
+                           fd_field_collection, mesh, twod_mesh)
     call setup_ancil_field("liquid_fraction", depository, &
-                           fd_field_collection, mesh_id, twod_mesh_id)
+                           fd_field_collection, mesh, twod_mesh)
     call setup_ancil_field("ice_fraction", depository, &
-                           fd_field_collection, mesh_id, twod_mesh_id)
+                           fd_field_collection, mesh, twod_mesh)
     ! surface fields
     call setup_ancil_field("z0msea", depository, fd_field_collection, &
-                           mesh_id, twod_mesh_id, twod=.true.)
+                           mesh, twod_mesh, twod=.true.)
 
     if (ancil_option == ancil_option_start_dump) then
       call setup_ancil_field("tstar", depository, fd_field_collection, &
-                             mesh_id, twod_mesh_id, twod=.true.)
+                             mesh, twod_mesh, twod=.true.)
       call setup_ancil_field("ozone", depository, fd_field_collection, &
-                             mesh_id, twod_mesh_id)
+                             mesh, twod_mesh)
     else if (ancil_option == ancil_option_fixed .or. &
              ancil_option == ancil_option_updating) then
       ! convection fields
       call setup_ancil_field("dd_mf_cb", depository, fd_field_collection, &
-                             mesh_id, twod_mesh_id, twod=.true.)
+                             mesh, twod_mesh, twod=.true.)
       ! soil fields
       call setup_ancil_field("soil_sat_frac", depository, fd_field_collection, &
-                             mesh_id, twod_mesh_id, twod=.true.)
+                             mesh, twod_mesh, twod=.true.)
       call setup_ancil_field("water_table", depository, fd_field_collection, &
-                             mesh_id, twod_mesh_id, twod=.true.)
+                             mesh, twod_mesh, twod=.true.)
       call setup_ancil_field("wetness_under_soil", depository, &
-                             fd_field_collection, mesh_id, twod_mesh_id, &
+                             fd_field_collection, mesh, twod_mesh, &
                              twod=.true.)
       call setup_ancil_field("soil_temperature", depository, &
-                             fd_field_collection, mesh_id, twod_mesh_id, &
+                             fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=sm_levels)
       call setup_ancil_field("soil_moisture", depository, &
-                             fd_field_collection, mesh_id, twod_mesh_id, &
+                             fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=sm_levels)
       ! surface fields
       call setup_ancil_field("surface_conductance", depository, &
-                             fd_field_collection, mesh_id, twod_mesh_id, &
+                             fd_field_collection, mesh, twod_mesh, &
                              twod=.true.)
       call setup_ancil_field("can_water_in", depository, &
-                             fd_field_collection, mesh_id, twod_mesh_id, &
+                             fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=n_land_tile)
       call setup_ancil_field("land_tile_temp", depository, &
-                             fd_field_collection, mesh_id, twod_mesh_id, &
+                             fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=n_land_tile)
       call setup_ancil_field("tstar_sea_ice", depository, &
-                             fd_field_collection, mesh_id, twod_mesh_id, &
+                             fd_field_collection, mesh, twod_mesh, &
                              twod=.true.)
       call setup_ancil_field("sea_ice_temperature", depository, &
-                             fd_field_collection, mesh_id, twod_mesh_id, &
+                             fd_field_collection, mesh, twod_mesh, &
                              twod=.true.)
       ! snow fields
       call setup_ancil_field("tile_snow_mass_in", depository, &
-                             fd_field_collection, mesh_id, twod_mesh_id, &
+                             fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=n_land_tile)
       call setup_ancil_field("n_snow_layers_in", depository, &
-                             fd_field_collection, mesh_id, twod_mesh_id, &
+                             fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=n_land_tile)
       call setup_ancil_field("snow_depth_in", depository, &
-                             fd_field_collection, mesh_id, twod_mesh_id, &
+                             fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=n_land_tile)
       call setup_ancil_field("tile_snow_rgrain_in", depository, &
-                             fd_field_collection, mesh_id, twod_mesh_id, &
+                             fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=n_land_tile)
       call setup_ancil_field("snow_soot", depository, &
-                             fd_field_collection, mesh_id, twod_mesh_id, &
+                             fd_field_collection, mesh, twod_mesh, &
                              twod=.true.)
       call setup_ancil_field("snow_under_canopy_in", depository, &
-                             fd_field_collection, mesh_id, twod_mesh_id, &
+                             fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=n_land_tile)
       call setup_ancil_field("snowpack_density_in", depository, &
-                             fd_field_collection, mesh_id, twod_mesh_id, &
+                             fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=n_land_tile)
       call setup_ancil_field("snow_layer_thickness", depository, &
-                             fd_field_collection, mesh_id, twod_mesh_id, &
+                             fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=snow_lev_tile)
       call setup_ancil_field("snow_layer_ice_mass", depository, &
-                             fd_field_collection, mesh_id, twod_mesh_id, &
+                             fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=snow_lev_tile)
       call setup_ancil_field("snow_layer_liq_mass", depository, &
-                             fd_field_collection, mesh_id, twod_mesh_id, &
+                             fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=snow_lev_tile)
       call setup_ancil_field("snow_layer_temp", depository, &
-                             fd_field_collection, mesh_id, twod_mesh_id, &
+                             fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=snow_lev_tile)
       call setup_ancil_field("snow_layer_rgrain", depository, &
-                             fd_field_collection, mesh_id, twod_mesh_id, &
+                             fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=snow_lev_tile)
     end if
 

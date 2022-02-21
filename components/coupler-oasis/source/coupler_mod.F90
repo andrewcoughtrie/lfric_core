@@ -40,6 +40,7 @@ module coupler_mod
                                             LOG_LEVEL_ERROR, &
                                             log_scratch_space
   use mesh_collection_mod,            only: mesh_collection
+  use mesh_mod,                       only: mesh_type
   use field_parent_mod,               only: write_interface, read_interface,  &
                                             checkpoint_write_interface,       &
                                             checkpoint_read_interface
@@ -140,15 +141,15 @@ module coupler_mod
 
    do k = 1, nlev
       svar_id = sfield%get_cpl_id(k)
-      if(svar_id /= imdi) then
+      if (svar_id /= imdi) then
          !oasis put on this timestep
          call oasis_put_inquire(svar_id, mtime, ierror)
-         if(ierror == oasis_sent .or. ierror == oasis_sentout) then
+         if (ierror == oasis_sent .or. ierror == oasis_sentout) then
             call oasis_get_ncpl(svar_id, ncpl, kinfo)
             !coupling frequency
             call oasis_get_freqs(svar_id, oasis_out, ncpl, cpl_freqs(1:ncpl), &
                                                                        kinfo)
-            if(ncpl > nmax) then
+            if (ncpl > nmax) then
               write(log_scratch_space, '(3A)' ) &
                                  "PROBLEM cpl_field_send: field ", &
                                  trim(sname), &
@@ -157,7 +158,7 @@ module coupler_mod
             endif
             !can handle only cases when coupling frequency is the same for all
             !components
-            if(maxval(cpl_freqs(1:ncpl)) == minval(cpl_freqs(1:ncpl))) then
+            if (maxval(cpl_freqs(1:ncpl)) == minval(cpl_freqs(1:ncpl))) then
               !mean value for sending
               wdata(:) = sfield_proxy%data(k:nlev*icpl_size:nlev)/cpl_freqs(1)
               do i = 1, icpl_size
@@ -234,9 +235,9 @@ module coupler_mod
 
    do k = 1, nlev
       rvar_id = rfield%get_cpl_id(k)
-      if(rvar_id /= imdi) then
+      if (rvar_id /= imdi) then
          call oasis_get(rvar_id, mtime, rdata(:), ierror)
-         if(ierror == oasis_recvd .or. ierror == oasis_recvout) then
+         if (ierror == oasis_recvd .or. ierror == oasis_recvout) then
             do i = 1, icpl_size
                wdata(slocal_index(i)) = rdata(i)
             enddo
@@ -260,7 +261,7 @@ module coupler_mod
       endif
    enddo
 
-   if(.not.ldfail) call rfield_proxy%set_dirty()
+   if (.not.ldfail) call rfield_proxy%set_dirty()
 #else
    write(log_scratch_space, '(A)' ) &
                 "cpl_field_receive: to use OASIS cpp directive MCT must be set"
@@ -317,7 +318,7 @@ module coupler_mod
    lfail = .false.
    call iter%initialise(dcpl_rcv)
    do
-     if(.not.iter%has_next())exit
+     if (.not.iter%has_next())exit
      cfield_iter => iter%next()
      select type(cfield_iter)
        type is (field_type)
@@ -338,25 +339,27 @@ module coupler_mod
 
    nullify(cfield_iter)
 
-   if(lfail) call log_event("Errors in cpl_snd", LOG_LEVEL_ERROR )
+   if (lfail) call log_event("Errors in cpl_snd", LOG_LEVEL_ERROR )
 
   end subroutine cpl_init_fields
 
   !>@brief Defines grid for coupling and initializes lfric component in OASIS
   !>
-  !> @param [in]    mesh_id    2D mesh on which fields are defined (W3)
+  !> @param [in]    twod_mesh  2D mesh on which fields are defined (W3)
   !> @param [in]    chi        Input coordinate field
   !> @param [in]    depository model depository with all fields
   !> @param [in,out] dcpl_snd   field collection with fields to receive
   !> @param [in,out] dcpl_rcv   field collection with fields to send
   !
-  subroutine cpl_define(mesh_id, chi, depository, dcpl_snd, dcpl_rcv)
+  subroutine cpl_define( twod_mesh, chi, depository, dcpl_snd, dcpl_rcv )
    implicit none
-   integer(i_def), intent(in)                  :: mesh_id
+
+   type( mesh_type ),  intent(in), pointer     :: twod_mesh
    type( field_type ), intent(in)              :: chi(:)
    type( field_collection_type ), intent(inout):: dcpl_snd
    type( field_collection_type ), intent(inout):: dcpl_rcv
    type( field_collection_type ), intent(in)   :: depository
+
 #ifdef MCT
    !index for different do loops
    integer(i_def)                              :: i
@@ -366,8 +369,6 @@ module coupler_mod
    type( field_type )                          :: coord_output(3)
    !function space for coupling field
    type(function_space_type), pointer          :: fld_cpld_fs   => null()
-   !pointer to the mesh (which must be a 2D mesh for coupling purposes)
-   type(mesh_type), pointer                    :: coupled_mesh
    !global index for the mesh
    integer(i_halo_index), allocatable          :: global_index(:)
    !global index for the first mesh level
@@ -421,17 +422,17 @@ module coupler_mod
    !iterator
    type( field_collection_iterator_type)       :: iter
 
-   !lon and lat for faces
-   coupled_mesh =>  mesh_collection%get_mesh( mesh_id )
-   num_levels = coupled_mesh%get_nlayers()
+   num_levels = twod_mesh%get_nlayers()
 
-   if(num_levels > 1) then
+   if (num_levels > 1) then
       write(log_scratch_space,'(2A)') "cpl_define: only 2D mesh can be used", &
          " to define grid for OASIS"
          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
    endif
 
-   fld_cpld_fs => function_space_collection%get_fs(mesh_id, element_order, W3)
+   fld_cpld_fs => function_space_collection%get_fs( twod_mesh,     &
+                                                    element_order, &
+                                                    W3 )
 
    !fields holding output coordinates
    do i = 1,3
@@ -451,7 +452,7 @@ module coupler_mod
 
    call fld_cpld_fs%get_global_dof_id(global_index)
 
-   if(maxval(global_index) > int(huge(i_def), i_halo_index)) then
+   if (maxval(global_index) > int(huge(i_def), i_halo_index)) then
       write(log_scratch_space,'(3A)') "cpl_define: global index", &
          " outside default intager ragne"
          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
@@ -472,7 +473,7 @@ module coupler_mod
    ig_paral(2) = icpl_size
 
    do i = 1, icpl_size
-      ig_paral(i + 2) = sglobal_index(i) + 1
+     ig_paral(i + 2) = sglobal_index(i) + 1
    enddo
 
    var_shape(1) = 1
@@ -483,10 +484,10 @@ module coupler_mod
    !add fields to cpl_snd and cpl_rcv collection
    do nv = 1, nnamcpl
       inds = index(namsrcfld(nv), cpl_prefix)
-      if(inds > 0) then
+      if (inds > 0) then
         indc = index(namsrcfld(nv), cpl_cat)
         islgth = len(trim(namsrcfld(nv)))
-        if(indc > 0 .and. &
+        if (indc > 0 .and. &
                  (indc - 1 + len(cpl_cat) + len(cpl_flev) .ne. islgth)) then
            !has _cat in name, but no number after it
            write(log_scratch_space,'(3A)') &
@@ -495,9 +496,9 @@ module coupler_mod
                                                       trim(namsrcfld(nv))
            call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         endif
-        if(indc > 0) then  ! multiple category
+        if (indc > 0) then  ! multiple category
            ind01 = index(namsrcfld(nv), cpl_flev)
-           if(ind01 > 0) then
+           if (ind01 > 0) then
               rvar_name = trim(namsrcfld(nv))
               field => depository%get_field(rvar_name(1:indc-1))
               call dcpl_snd%add_reference_to_field(field)
@@ -509,10 +510,10 @@ module coupler_mod
       endif
 
       indr = index(namdstfld(nv), cpl_prefix)
-      if(indr > 0) then
+      if (indr > 0) then
         indc = index(namdstfld(nv), cpl_cat)
         islgth = len(trim(namdstfld(nv)))
-        if(indc > 0 .and. &
+        if (indc > 0 .and. &
            (indc - 1 + len(cpl_cat) + len(cpl_flev) .ne. islgth)) then
            !has _cat in name, but no number after it
            write(log_scratch_space,'(3A)') " cpl_define :", &
@@ -520,9 +521,9 @@ module coupler_mod
                                                            trim(namdstfld(nv))
            call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         endif
-        if(indc > 0) then  ! multiple category
+        if (indc > 0) then  ! multiple category
            ind01 = index(namdstfld(nv), cpl_flev)
-           if(ind01 > 0) then
+           if (ind01 > 0) then
               svar_name = trim(namdstfld(nv))
               field => depository%get_field(svar_name(1:indc-1))
               call dcpl_rcv%add_reference_to_field(field)
@@ -536,13 +537,13 @@ module coupler_mod
 
    call iter%initialise(dcpl_rcv)
    do
-      if(.not.iter%has_next())exit
+      if (.not.iter%has_next())exit
       field_itr => iter%next()
       rvar_name     = trim(adjustl(field_itr%get_name()))
       field_ptr => dcpl_rcv%get_field(rvar_name)
       field_proxy = field_ptr%get_proxy()
       ndata = field_proxy%vspace%get_ndata()
-      if(ndata > 1) then
+      if (ndata > 1) then
         do i = 1, ndata
             write(cpl_lev, cpl_fmt) i
             rvar_name_lev = trim(rvar_name)//cpl_cat//cpl_lev
@@ -572,13 +573,13 @@ module coupler_mod
 
    call iter%initialise(dcpl_snd)
    do
-      if(.not.iter%has_next())exit
+      if (.not.iter%has_next())exit
       field_itr => iter%next()
       svar_name     = trim(adjustl(field_itr%get_name()))
       field_ptr => dcpl_snd%get_field(svar_name)
       field_proxy = field_ptr%get_proxy()
       ndata = field_proxy%vspace%get_ndata()
-      if(ndata > 1) then
+      if (ndata > 1) then
          do i = 1, ndata
             write(cpl_lev, cpl_fmt) i
             svar_name_lev = trim(svar_name)//cpl_cat//cpl_lev
@@ -625,13 +626,14 @@ module coupler_mod
 
   !>@brief Adds coupling fields used in the model to depository and prognosic fields
   !> collection
-  !> @param [in]  twod_mesh_id mesh on which coupling fields are defined (W3)
+  !> @param [in]  twod_mesh    mesh on which coupling fields are defined (W3)
   !> @param [out] depository   field collection - all fields
   !> @param [out] prognostic_fields field collection - prognostic fields
   !
-  subroutine cpl_fields(twod_mesh_id, depository, prognostic_fields)
+  subroutine cpl_fields( twod_mesh, depository, prognostic_fields )
    implicit none
-   integer(i_def),                intent(in)    :: twod_mesh_id
+
+   type( mesh_type ),             intent(in), pointer :: twod_mesh
    type( field_collection_type ), intent(out)   :: depository
    type( field_collection_type ), intent(out)   :: prognostic_fields
    !
@@ -646,7 +648,7 @@ module coupler_mod
    call depository%initialise(name='depository')
    call prognostic_fields%initialise(name="prognostics")
 
-   vector_space=> function_space_collection%get_fs(twod_mesh_id, 0, W3)
+   vector_space=> function_space_collection%get_fs( twod_mesh, 0, W3 )
    !coupling fields
    !sending-depository
    checkpoint_restart_flag = .false.
@@ -671,7 +673,7 @@ module coupler_mod
    call add_cpl_field(depository, prognostic_fields, &
         'lf_w10',   vector_space, checkpoint_restart_flag, twod=.true.)
    !receiving - depository
-   vector_space => function_space_collection%get_fs( twod_mesh_id, 0, W3, ndata=1 )
+   vector_space => function_space_collection%get_fs( twod_mesh, 0, W3, ndata=1 )
 
    call add_cpl_field(depository, prognostic_fields, &
         'r_lf_dummy_t',   vector_space, checkpoint_restart_flag, twod=.true.)
@@ -679,7 +681,7 @@ module coupler_mod
    call add_cpl_field(depository, prognostic_fields, &
         'lf_ti',   vector_space, checkpoint_restart_flag, twod=.true.)
    !
-   vector_space => function_space_collection%get_fs( twod_mesh_id, 0, W3, ndata=5 )
+   vector_space => function_space_collection%get_fs( twod_mesh, 0, W3, ndata=5 )
    call add_cpl_field(depository, prognostic_fields, &
         'lf_ti_cat', vector_space, checkpoint_restart_flag, twod=.true.)
 
@@ -691,7 +693,7 @@ module coupler_mod
    implicit none
    integer(i_def) :: ierror           ! error flag from OASIS
    ! finalize OASIS only if coupled configuration
-   if( l_esm_couple ) then
+   if ( l_esm_couple ) then
 #ifdef MCT
       ierror = prism_ok
       call oasis_terminate(ierror)
@@ -723,27 +725,31 @@ module coupler_mod
   !> @param [in]    istep model timestep
   !
   subroutine cpl_snd(dcpl_snd, depository, clock, istep)
-   implicit none
-   type( field_collection_type ), intent(in)    :: dcpl_snd
-   type( field_collection_type ), intent(in)    :: depository
-   class(clock_type),             intent(in)    :: clock
-   integer(i_def),                intent(in)    :: istep
-   !local variables
-   !pointer to a field (parent)
-   class( field_parent_type ), pointer          :: field   => null()
-   !pointer to a field
-   type( field_type ), pointer                  :: field_ptr   => null()
-   !failure flag
-   logical(l_def)                               :: lfail
-   !iterator
-   type( field_collection_iterator_type)        :: iter
 
-   lfail = .false.
+    implicit none
 
-   call iter%initialise(dcpl_snd)
-   do
-      if(.not.iter%has_next())exit
+    type( field_collection_type ), intent(in)    :: dcpl_snd
+    type( field_collection_type ), intent(in)    :: depository
+    class(clock_type),             intent(in)    :: clock
+    integer(i_def),                intent(in)    :: istep
+
+    !local variables
+    !pointer to a field (parent)
+    class( field_parent_type ), pointer          :: field   => null()
+    !pointer to a field
+    type( field_type ), pointer                  :: field_ptr   => null()
+    !failure flag
+    logical(l_def)                               :: lfail
+    !iterator
+    type( field_collection_iterator_type)        :: iter
+
+    lfail = .false.
+
+    call iter%initialise(dcpl_snd)
+    do
+      if ( .not. iter%has_next() ) exit
       field => iter%next()
+
       select type(field)
         type is (field_type)
           field_ptr => dcpl_snd%get_field(trim(field%get_name()))
@@ -752,15 +758,16 @@ module coupler_mod
           call field_ptr%write_field(trim(field%get_name()))
         class default
           write(log_scratch_space, '(2A)' ) "PROBLEM cpl_snd: field ", &
-                         trim(field%get_name())//" is NOT field_type"
+                trim(field%get_name())//" is NOT field_type"
           call log_event( log_scratch_space, LOG_LEVEL_INFO )
           lfail = .true.
-        end select
-   end do
+      end select
 
-   nullify(field)
+    end do
 
-   if(lfail) call log_event("Errors in cpl_snd", LOG_LEVEL_ERROR )
+    nullify(field)
+
+    if (lfail) call log_event("Errors in cpl_snd", LOG_LEVEL_ERROR )
 
   end subroutine cpl_snd
 
@@ -793,7 +800,7 @@ module coupler_mod
 
    call iter%initialise(dcpl_rcv)
    do
-      if(.not.iter%has_next())exit
+      if (.not.iter%has_next())exit
       field => iter%next()
       select type(field)
         type is (field_type)
@@ -810,7 +817,7 @@ module coupler_mod
 
    nullify(field)
 
-   if(lfail) call log_event("Errors in cpl_rcv", LOG_LEVEL_ERROR )
+   if (lfail) call log_event("Errors in cpl_rcv", LOG_LEVEL_ERROR )
 
   end subroutine cpl_rcv
 

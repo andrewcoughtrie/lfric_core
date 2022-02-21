@@ -19,6 +19,7 @@ module function_space_collection_mod
   use fs_continuity_mod,  only : fs_enumerator, fs_name, name_from_functionspace
   use log_mod,            only : log_event, log_scratch_space,    &
                                  LOG_LEVEL_ERROR, LOG_LEVEL_TRACE
+  use mesh_mod,           only : mesh_type
   use linked_list_mod,    only : linked_list_type,                &
                                  linked_list_item_type
 
@@ -41,6 +42,7 @@ module function_space_collection_mod
     integer(i_def), allocatable :: dummy_for_gnu
 
   contains
+
     procedure, public :: get_fs
     procedure, public :: get_fs_collection_size
     procedure, public :: clear
@@ -79,12 +81,12 @@ contains
   !-----------------------------------------------------------------------------
   !> Function to get an instance of a function space from the linked list
   !> or create it if it doesn't exist
-  !> @param[in] mesh_id  ID of mesh object
+  !> @param[in] mesh           mesh object
   !> @param[in] element_order  function space order
   !> @param[in] lfric_fs       lfric id code for given supported function space
   !> @param[in] ndata   The number of data values to be held at each dof location
   function get_fs( self,          &
-                   mesh_id,       &
+                   mesh,          &
                    element_order, &
                    lfric_fs,      &
                    ndata )  result(fs)
@@ -92,14 +94,16 @@ contains
     implicit none
 
     class(function_space_collection_type), intent(inout) :: self
-    integer(i_def), intent(in) :: mesh_id
-    integer(i_def), intent(in) :: element_order
-    integer(i_def), intent(in) :: lfric_fs
-    integer(i_def), optional, intent(in) :: ndata
+
+    type(mesh_type), intent(in), pointer  :: mesh
+    integer(i_def),  intent(in)           :: element_order
+    integer(i_def),  intent(in)           :: lfric_fs
+    integer(i_def),  intent(in), optional :: ndata
 
     type(function_space_type), pointer :: fs
 
     integer(i_def) :: ndata_sz, i_fs_name
+    integer(i_def) :: mesh_id
 
     nullify(fs)
 
@@ -123,6 +127,8 @@ contains
       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
     end if
 
+    mesh_id = mesh%get_id()
+
     fs => get_existing_fs( self,          &
                            mesh_id,       &
                            element_order, &
@@ -131,10 +137,11 @@ contains
 
     if (.not. associated(fs)) then
 
-      call self%fs_list%insert_item(function_space_type(mesh_id, &
-      element_order, &
-      lfric_fs, &
-      ndata_sz))
+      call self%fs_list%insert_item(               &
+               function_space_type( mesh_id,       &
+                                    element_order, &
+                                    lfric_fs,      &
+                                    ndata_sz) )
 
       write(log_scratch_space, '(A,I0,A)')              &
       'Generated order-', element_order,                &

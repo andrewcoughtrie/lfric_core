@@ -27,8 +27,6 @@ module diagnostics_calc_mod
                                            write_field_edge
   use diagnostics_io_mod,            only: write_scalar_diagnostic,     &
                                            write_vector_diagnostic
-  use mesh_mod,                      only: mesh_type
-  use mesh_collection_mod,           only: mesh_collection
   use field_mod,                     only: field_type
   use field_parent_mod,              only: write_interface
   use fs_continuity_mod,             only: W3
@@ -40,6 +38,7 @@ module diagnostics_calc_mod
                                            LOG_LEVEL_INFO,    &
                                            LOG_LEVEL_DEBUG,   &
                                            LOG_LEVEL_TRACE
+  use mesh_mod,                      only: mesh_type
 
   implicit none
   private
@@ -56,15 +55,15 @@ contains
 !!
 !!> @param[in] u_field     The u field
 !!> @param[in] ts          Timestep
-!!> @param[in] mesh_id     Mesh_id
+!!> @param[in] mesh        Mesh
 !-------------------------------------------------------------------------------
 
-subroutine write_divergence_diagnostic(u_field, clock, mesh_id)
+subroutine write_divergence_diagnostic(u_field, clock, mesh)
   implicit none
 
   type(field_type),  intent(in)    :: u_field
   class(clock_type), intent(in)    :: clock
-  integer(i_def),    intent(in)    :: mesh_id
+  type(mesh_type),   intent(in), pointer :: mesh
 
   type(field_type)                :: div_field
   real(r_def)                     :: l2_norm
@@ -73,7 +72,7 @@ subroutine write_divergence_diagnostic(u_field, clock, mesh_id)
   procedure(write_interface), pointer  :: tmp_write_ptr
 
   ! Create the divergence diagnostic
-  call divergence_diagnostic_alg(div_field, l2_norm, u_field, mesh_id)
+  call divergence_diagnostic_alg( div_field, l2_norm, u_field, mesh )
 
   write( log_scratch_space, '(A,E16.8)' )  &
        'L2 of divergence =',l2_norm
@@ -86,7 +85,7 @@ subroutine write_divergence_diagnostic(u_field, clock, mesh_id)
   end if
 
   call write_scalar_diagnostic( 'divergence', div_field, &
-                                clock, mesh_id, .false. )
+                                clock, mesh, .false. )
 
   nullify(tmp_write_ptr)
 
@@ -99,23 +98,23 @@ end subroutine write_divergence_diagnostic
 !!
 !!> @param[in] theta_field   The theta field
 !!> @param[in] exner_field   The exner field
-!!> @param[in] mesh_id       Mesh_id
+!!> @param[in] mesh          Mesh
 !-------------------------------------------------------------------------------
 
-subroutine write_hydbal_diagnostic(theta_field, moist_dyn_field, exner_field,  &
-                                   mesh_id)
+subroutine write_hydbal_diagnostic( theta_field, moist_dyn_field, exner_field,  &
+                                    mesh )
 
   implicit none
 
   type(field_type), intent(in)    :: theta_field
   type(field_type), intent(in)    :: moist_dyn_field(num_moist_factors)
   type(field_type), intent(in)    :: exner_field
-  integer(i_def),   intent(in)    :: mesh_id
+  type(mesh_type),  intent(in), pointer :: mesh
 
   real(r_def)                     :: l2_norm = 0.0_r_def
 
   call hydbal_diagnostic_alg(l2_norm, theta_field, moist_dyn_field,            &
-                             exner_field, mesh_id)
+                             exner_field, mesh)
 
   write( log_scratch_space, '(A,E16.8)' )  &
        'L2 of hydrostatic imbalance =', l2_norm
@@ -145,7 +144,7 @@ subroutine write_vorticity_diagnostic(u_field, clock)
   call vorticity_diagnostic_alg(vorticity, u_field)
 
   call write_vector_diagnostic('xi', vorticity, clock, &
-                               vorticity%get_mesh_id(), nodal_output_on_w3)
+                               vorticity%get_mesh(), nodal_output_on_w3)
 
 end subroutine write_vorticity_diagnostic
 

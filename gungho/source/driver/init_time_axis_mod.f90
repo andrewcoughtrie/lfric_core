@@ -23,6 +23,7 @@ module init_time_axis_mod
                                          log_scratch_space,          &
                                          LOG_LEVEL_INFO,             &
                                          LOG_LEVEL_ERROR
+  use mesh_mod,                   only : mesh_type
 
   implicit none
 
@@ -38,13 +39,13 @@ module init_time_axis_mod
   !> @param[in,out] prognostic_fields        Prognostic field collection
   !> @param[in]     name                     Name of the LBC field to be added
   !> @param[in]     fs                       Function space of the field
-  !> @param[in]     mesh_id                  Identifier for the primary mesh
+  !> @param[in]     mesh                     The primary mesh
   !> @param[in]     checkpoint_restart_flag  Flag to set checkpoint behaviour
   !> @param[in,out] time_axis                The operable time axis object
   !> @param[in,out] mr                       The array of moisture mixing ratios
   !> @param[in]     imr                      The moisture mixing ratio array index
   subroutine setup_field( collection, depository, prognostic_fields, &
-                          name, fs, mesh_id, checkpoint_restart_flag, &
+                          name, fs, mesh, checkpoint_restart_flag,   &
                           time_axis, mr, imr )
 
     use fs_continuity_mod,    only : W0
@@ -62,13 +63,13 @@ module init_time_axis_mod
     type(field_collection_type),        intent(inout) :: collection
     type(field_collection_type),        intent(inout) :: depository
     type(field_collection_type),        intent(inout) :: prognostic_fields
-    integer(i_def),                     intent(in)    :: mesh_id
+    type(mesh_type), pointer,           intent(in)    :: mesh
     character(*),                       intent(in)    :: name
     integer(i_def),                     intent(in)    :: fs
     logical(l_def),                     intent(in)    :: checkpoint_restart_flag
     type(time_axis_type), optional,     intent(inout) :: time_axis
-    type(field_type), optional,         intent(inout) :: mr(:)
-    integer(i_def), optional,           intent(in)    :: imr
+    type(field_type),     optional,     intent(inout) :: mr(:)
+    integer(i_def),       optional,     intent(in)    :: imr
 
     type(function_space_type),       pointer :: field_space => null()
     class(pure_abstract_field_type), pointer :: field_ptr => null()
@@ -87,7 +88,7 @@ module init_time_axis_mod
     ! Initialise
     if (present(time_axis)) then
       field_space => function_space_collection%get_fs( &
-                     mesh_id, element_order, fs, time_axis%get_window_size() )
+                     mesh, element_order, fs, time_axis%get_window_size() )
 
       if ( present(imr) ) then
         call mr(imr)%initialise( field_space, name=trim(name) )
@@ -99,7 +100,7 @@ module init_time_axis_mod
 
       ! Now just a single time level
       field_space => function_space_collection%get_fs( &
-                     mesh_id, element_order, fs )
+                     mesh, element_order, fs )
 
       if ( present(imr) ) then
         call mr(imr)%initialise( field_space, name=trim(name) )
@@ -110,7 +111,7 @@ module init_time_axis_mod
     else
 
       field_space => function_space_collection%get_fs( &
-                                        mesh_id, element_order, fs )
+                                        mesh, element_order, fs )
 
       if ( present(imr) ) then
         call mr(imr)%initialise( field_space, name=trim(name) )

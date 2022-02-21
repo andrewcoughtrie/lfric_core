@@ -39,7 +39,9 @@ module create_gravity_wave_prognostics_mod
   use log_mod,                        only : log_event, &
                                              LOG_LEVEL_INFO, &
                                              LOG_LEVEL_ERROR
+  use mesh_mod,                       only : mesh_type
   use pure_abstract_field_mod,        only : pure_abstract_field_type
+
   implicit none
 
   private
@@ -48,14 +50,14 @@ module create_gravity_wave_prognostics_mod
 contains
 
   !> @brief Create the prognostic fields and place them in the depository
-  !> @param [in] mesh_id The identifier of the primary mesh
+  !> @param [in]    mesh The primary mesh
   !> @param [inout] wind prognostic field
   !> @param [inout] pressure prognostic field
   !> @param [inout] buoyancy prognostic field
-  subroutine create_gravity_wave_prognostics(mesh_id, wind, pressure, buoyancy)
+  subroutine create_gravity_wave_prognostics(mesh, wind, pressure, buoyancy)
 
     implicit none
-    integer(i_def), intent(in)                   :: mesh_id
+    type( mesh_type ), intent(in), pointer :: mesh
 
     type( field_type), intent(inout) :: wind
     type( field_type), intent(inout) :: pressure
@@ -83,13 +85,13 @@ contains
     end select
 
     call wind%initialise( vector_space = &
-                       function_space_collection%get_fs(mesh_id, element_order, W2), &
+                       function_space_collection%get_fs(mesh, element_order, W2), &
                        name="wind" )
     call buoyancy%initialise( vector_space = &
-               function_space_collection%get_fs(mesh_id, element_order, buoyancy_space), &
+               function_space_collection%get_fs(mesh, element_order, buoyancy_space), &
                name="buoyancy" )
     call pressure%initialise( vector_space = &
-                       function_space_collection%get_fs(mesh_id, element_order, W3), &
+                       function_space_collection%get_fs(mesh, element_order, W3), &
                        name="pressure" )
 
 

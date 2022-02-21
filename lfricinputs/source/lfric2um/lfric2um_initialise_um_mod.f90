@@ -49,14 +49,12 @@ SUBROUTINE lfric2um_initialise_um()
 !  Create UM file object using shumlib Populates metadata using
 !  information from UM grid object
 USE lfricinp_um_grid_mod, ONLY: um_grid
-USE lfricinp_lfric_driver_mod, ONLY: mesh_id
-USE mesh_collection_mod, ONLY: mesh_collection
+USE lfricinp_lfric_driver_mod, ONLY: mesh
 USE lfricinp_stashmaster_mod, ONLY: lfricinp_read_stashmaster
 USE lfric2um_namelists_mod, ONLY: lfric2um_config
 
 IMPLICIT NONE
 
-TYPE(mesh_type), POINTER :: lfric_mesh
 CHARACTER(LEN=*), PARAMETER :: routinename='lfric2um_initialise_um'
 INTEGER(KIND=int64) :: num_lookup
 ! Create UM file
@@ -69,13 +67,11 @@ CALL shumlib(routinename//'::open_file', &
 
 CALL lfric2um_set_fixed_length_header(um_output_file, um_grid)
 
-lfric_mesh => mesh_collection%get_mesh(mesh_id)
+CALL lfric2um_set_integer_constants(um_output_file, um_grid, mesh)
 
-CALL lfric2um_set_integer_constants(um_output_file, um_grid, lfric_mesh)
+CALL lfric2um_set_real_constants(um_output_file, um_grid, mesh)
 
-CALL lfric2um_set_real_constants(um_output_file, um_grid, lfric_mesh)
-
-CALL lfric2um_set_level_dep_constants(um_output_file, lfric_mesh)
+CALL lfric2um_set_level_dep_constants(um_output_file, mesh)
 
 ! Write output header
 CALL shumlib(routinename//'::write_header', &
@@ -154,7 +150,7 @@ IMPLICIT NONE
 
 TYPE(shum_file_type), INTENT(IN OUT) :: um_output_file
 TYPE(lfricinp_grid_type), INTENT(IN) :: um_grid
-TYPE(mesh_type), POINTER, INTENT(IN OUT) :: lfric_mesh
+TYPE(mesh_type), POINTER, INTENT(IN) :: lfric_mesh
 CHARACTER(LEN=*), PARAMETER :: routinename = 'lfric2um_set_integer_constants'
 ! Dumps and fieldsfiles have int consts length 46
 INTEGER(KIND=int64) :: int_constants(46) = um_imdi
@@ -191,7 +187,7 @@ IMPLICIT NONE
 
 TYPE(shum_file_type), INTENT(IN OUT) :: um_output_file
 TYPE(lfricinp_grid_type), INTENT(IN) :: um_grid
-TYPE(mesh_type), POINTER, INTENT(IN OUT) :: lfric_mesh
+TYPE(mesh_type), POINTER, INTENT(IN) :: lfric_mesh
 CHARACTER(LEN=*), PARAMETER :: routinename = 'lfric2um_set_real_constants'
 ! Dumps and fieldsfiles have real consts length 38
 REAL(KIND=real64) :: real_constants(38) = um_rmdi
@@ -216,7 +212,7 @@ SUBROUTINE lfric2um_set_level_dep_constants(um_output_file, lfric_mesh)
 IMPLICIT NONE
 
 TYPE(shum_file_type), INTENT(IN OUT) :: um_output_file
-TYPE(mesh_type), POINTER, INTENT(IN OUT) :: lfric_mesh
+TYPE(mesh_type), POINTER, INTENT(IN) :: lfric_mesh
 CHARACTER(LEN=*), PARAMETER :: routinename = 'lfric2um_set_level_dep_constants'
 REAL(KIND=real64), ALLOCATABLE :: level_dep_constants(:,:)
 REAL(KIND=real64) :: model_height

@@ -22,21 +22,24 @@ module init_solver_miniapp_mod
                                              LOG_LEVEL_INFO, &
                                              LOG_LEVEL_ERROR, &
                                              log_scratch_space
+  use mesh_mod,                       only : mesh_type
   use init_solver_fields_alg_mod,     only : init_solver_fields_alg
+
   implicit none
 
 
 contains
   !> initialise the fields and field vector for the miniapp.
-  !> @param[in] mesh_id The id of the mesh
-  !> @param[in] twod_mesh_id The id of the twod mesh
-  !> @param[inout] chi An size 3 array of fields holding the coordinates of the mesh
-  !> @param[inout] The field vector which is to be initialised.
-  subroutine init_solver_miniapp(mesh_id, chi, panel_id, fv )
+  !> @param[in]    mesh  The primary mesh
+  !> @param[inout] chi   An size 3 array of fields holding the coordinates of the mesh
+  !> @param[inout]       The field vector which is to be initialised.
+  subroutine init_solver_miniapp( mesh, chi, panel_id, fv )
+
     implicit none
-    integer(i_def), intent(in)             :: mesh_id
-    type( field_type ), intent(inout)      :: chi(:)
-    type( field_type ), intent(inout)      :: panel_id
+
+    type( mesh_type ),  intent(in), pointer :: mesh
+    type( field_type ), intent(inout)       :: chi(:)
+    type( field_type ), intent(inout)       :: panel_id
     ! prognostic fields
     type( field_vector_type ), intent(inout) :: fv
     type( field_type )                       :: f1, f2
@@ -48,10 +51,10 @@ contains
     ! Create prognostic fields
     ! Create a field in the W0 function space (fully continuous field)
     call f1%initialise( vector_space = &
-         function_space_collection%get_fs(mesh_id, element_order, W0) )
+         function_space_collection%get_fs(mesh, element_order, W0) )
     ! Create a field in the W3 function space (fully discontinuous field)
     call f2%initialise( vector_space = &
-         function_space_collection%get_fs(mesh_id, element_order, W3) )
+         function_space_collection%get_fs(mesh, element_order, W3) )
 
     ! Initialise the fields
     call init_solver_fields_alg(f1, f2)

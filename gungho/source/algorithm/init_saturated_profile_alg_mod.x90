@@ -24,6 +24,7 @@ use log_mod,                         only: LOG_LEVEL_ERROR,  &
                                            LOG_LEVEL_INFO,   &
                                            log_event,        &
                                            log_scratch_space
+use mesh_mod,                        only: mesh_type
 use moist_dyn_factors_alg_mod,       only: moist_dyn_factors_alg
 use moist_dyn_mod,                   only: num_moist_factors
 use mr_indices_mod,                  only: nummr, imr_v, imr_cl
@@ -86,7 +87,8 @@ subroutine init_saturated_profile_alg( theta, mr, exner, rho, moist_dyn )
   type(field_type),          pointer :: panel_id => null()
   type(function_space_type), pointer :: wt_fs => null()
 
-  integer(kind=i_def) :: mesh_id
+  type(mesh_type), pointer :: mesh => null()
+
   integer(kind=i_def) :: outer_count, theta_count, inner_count
   real(kind=r_def)    :: initial_time, errornorm, one_minus_delta
 
@@ -110,10 +112,10 @@ subroutine init_saturated_profile_alg( theta, mr, exner, rho, moist_dyn )
   initial_time = 0.0_r_def
   one_minus_delta = 1.0_r_def - delta
 
-  mesh_id = theta%get_mesh_id()
-  wt_fs => theta%get_function_space()
-  chi => get_coordinates(mesh_id)
-  panel_id => get_panel_id(mesh_id)
+  mesh     => theta%get_mesh()
+  chi      => get_coordinates( mesh%get_id() )
+  panel_id => get_panel_id( mesh%get_id() )
+  wt_fs    => theta%get_function_space()
 
   call specified_theta_e%initialise( vector_space = wt_fs )
   call latest_theta_e%initialise( vector_space = wt_fs )
@@ -275,7 +277,8 @@ subroutine init_saturated_profile_alg( theta, mr, exner, rho, moist_dyn )
   call mr_t%field_final()
   call theta_pert%field_final()
   if (allocated(latest_mr)) deallocate(latest_mr)
-  nullify( wt_fs, chi, panel_id )
+
+  nullify( wt_fs, chi, panel_id, mesh )
 
 end subroutine init_saturated_profile_alg
 

@@ -65,9 +65,6 @@ program cma_test
   ! MPI communicator
   integer(kind=i_def) :: comm
 
-  ! Meshes index
-  integer(kind=i_def) :: mesh_id
-
   ! Number of processes and local rank
   integer(kind=i_def) :: total_ranks, local_rank, stencil_depth
 
@@ -83,7 +80,7 @@ program cma_test
   ! The following variables are required for checking that the mesh
   ! has a suitable size (i.e. \f$dx \approx dz\f$)
   ! Pointer to mesh
-  type(mesh_type), pointer :: mesh
+  type(mesh_type), pointer :: mesh => null()
   ! Number of cells of 2d mesh (local and global),
   integer(kind=i_def) :: ncells_2d_local, ncells_2d
   ! Number of vertical layers
@@ -246,10 +243,9 @@ program cma_test
 
   stencil_depth = get_required_stencil_depth()
 
-  call init_mesh( local_rank, total_ranks, stencil_depth, mesh_id )
+  call init_mesh( local_rank, total_ranks, stencil_depth, mesh )
 
   ! Work out grid spacing, which should be of order 1
-  mesh => mesh_collection%get_mesh( mesh_id )
   ncells_2d_local = mesh%get_ncells_2d()
 
   ! Ensure that a spherical geometry is used (otherwise tests are too simple)
@@ -284,7 +280,7 @@ program cma_test
   call log_event( 'Initialising test', LOG_LEVEL_INFO )
 
   ! Initialise CMA test module
-  call cma_test_init(mesh_id)
+  call cma_test_init( mesh )
 
   ! Run all requested tests
   if (do_test_apply_mass_p)             call test_cma_apply_mass_p(tolerance)

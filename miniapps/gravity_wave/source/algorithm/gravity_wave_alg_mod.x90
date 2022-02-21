@@ -35,6 +35,7 @@ module gravity_wave_alg_mod
   use derived_config_mod,             only: bundle_size
   use function_space_mod,             only: function_space_type
   use operator_mod,                   only: operator_type
+  use mesh_mod,                       only: mesh_type
 
   ! Algorithms
   use gw_mixed_operator_alg_mod,      only: gw_mixed_operator_type
@@ -98,18 +99,16 @@ contains
 
   !> @details Initialisation procedure for the timestepping algorithm
   !>          Initialises various internal fields from the prognostic fields
-  !> @param[in] mesh_id  ID of mesh object on which the model runs
+  !> @param[in] mesh     Mesh on which the model runs
   !> @param[in] wind     The 3D wind field
   !> @param[in] pressure The pressure field
   !> @param[in] buoyancy The buoyancy field
-  subroutine gravity_wave_alg_init( mesh_id, wind, pressure, buoyancy)
+  subroutine gravity_wave_alg_init( mesh, wind, pressure, buoyancy)
 
     use quadrature_xyoz_mod,           only: quadrature_xyoz_type
     use quadrature_rule_gaussian_mod,  only: quadrature_rule_gaussian_type
     use compute_q_operator_kernel_mod, only: compute_q_operator_type, &
                                              compute_q_operator_init
-    use mesh_mod,                      only: mesh_type
-    use mesh_collection_mod,           only: mesh_collection
     use mixed_solver_config_mod,       only: si_maximum_iterations,      &
                                              si_tolerance,               &
                                              si_method,                  &
@@ -145,7 +144,7 @@ contains
     implicit none
 
     ! Mesh
-    integer(i_def), intent(in) :: mesh_id
+    type(mesh_type), intent(in), pointer :: mesh
 
     ! Prognostic fields
     type( field_type ), intent( in ) :: wind, pressure, buoyancy
@@ -157,7 +156,6 @@ contains
     type(quadrature_rule_gaussian_type) :: quadrature_rule
 
     real(kind=r_def), allocatable       :: dz(:)
-    type(mesh_type),           pointer  :: mesh => null()
     integer(kind=i_def)                 :: nlayers
 
     type(gw_pressure_preconditioner_type) :: gw_Hz_preconditioner
@@ -186,7 +184,6 @@ contains
     ! Create Q operator
     Q = operator_type( u_fs, b_fs)
     qr = quadrature_xyoz_type(element_order+2, quadrature_rule)
-    mesh => mesh_collection%get_mesh( mesh_id )
     nlayers = mesh%get_nlayers()
     allocate ( dz(nlayers) )
     call mesh%get_dz(dz)
@@ -449,16 +446,18 @@ contains
     type(field_type), pointer    :: w2_mask => null()
     type(field_type), pointer    :: w3_mask => null()
     type(field_type), pointer    :: wtheta_mask => null()
-    integer(i_def)               :: buoyancy_space, mesh_id
+    integer(i_def)               :: buoyancy_space
+
+    type(mesh_type), pointer     :: mesh => null()
 
     ! Auxiliary constants to group invokes
     real(kind=r_def)             :: const1, const2
 
     if ( subroutine_timers ) call timer('gravity_wave_alg')
     !=== Do a single timestep ==============================================!
-    mesh_id = wind%get_mesh_id()
-    div => get_div(mesh_id)
-    m3_inv => get_inverse_w3_mass_matrix(mesh_id)
+    mesh => wind%get_mesh()
+    div => get_div(mesh%get_id())
+    m3_inv => get_inverse_w3_mass_matrix(mesh%get_id())
 
     if ( limited_area ) then
       select case(b_space)
@@ -472,9 +471,9 @@ contains
           call log_event( 'gravity_wave, gravity_wave_alg_mod: '//    &
                           'Invalid buoyancy space', LOG_LEVEL_ERROR )
       end select
-      w2_mask => get_mask(W2, mesh_id)
-      w3_mask => get_mask(W3, mesh_id)
-      wtheta_mask => get_mask(buoyancy_space, mesh_id)
+      w2_mask => get_mask(W2, mesh%get_id())
+      w3_mask => get_mask(W3, mesh%get_id())
+      wtheta_mask => get_mask(buoyancy_space, mesh%get_id())
     endif
 
     call state%import_field(wind,     igw_u)
@@ -536,6 +535,8 @@ contains
       nullify(w2_mask)
       nullify(wtheta_mask)
     endif
+
+    nullify( mesh )
 
     if ( subroutine_timers ) call timer('gravity_wave_alg')
 

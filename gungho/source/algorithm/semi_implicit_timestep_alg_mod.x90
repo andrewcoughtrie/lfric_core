@@ -8,12 +8,13 @@
 !!        3D equations.
 module semi_implicit_timestep_alg_mod
 
-  use clock_mod,                  only: clock_type
-  use constants_mod,              only: i_def, r_def, l_def
-  use log_mod,                    only: log_event,         &
-                                        log_scratch_space, &
-                                        LOG_LEVEL_INFO
-  use reference_element_mod,      only: T
+  use clock_mod,                 only: clock_type
+  use constants_mod,             only: i_def, r_def, l_def
+  use log_mod,                   only: log_event,         &
+                                       log_scratch_space, &
+                                       LOG_LEVEL_INFO
+  use mesh_mod,                  only: mesh_type
+  use reference_element_mod,     only: T
 
   ! Configuration options
   use section_choice_config_mod,  only: cloud, cloud_um,                &
@@ -156,18 +157,18 @@ contains
 
   !> @details Initialisation procedure for the timestepping algorithm
   !>          Initialises various internal fields
-  !> @param[in]    mesh_id Mesh id of the mesh object on which the model runs
-  !> @param[in,out] u  3D wind field
-  !> @param[in,out] rho Density
+  !> @param[in]     mesh  Mesh  on which the model runs
+  !> @param[in,out] u     3D wind field
+  !> @param[in,out] rho   Density
   !> @param[in,out] theta Potential temperature
   !> @param[in,out] exner Exner pressure
-  !> @param[in,out] mr Mixing ratios
-  subroutine semi_implicit_alg_init( mesh_id, u, rho, theta, exner, mr)
+  !> @param[in,out] mr    Mixing ratios
+  subroutine semi_implicit_alg_init( mesh, u, rho, theta, exner, mr)
 
     implicit none
 
     ! Mesh
-    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type), intent(in), pointer :: mesh
 
     ! Prognostic fields
     type( field_type ), intent( inout ) :: u, rho, theta, exner
@@ -245,7 +246,7 @@ contains
     !--------------------------------------------------------------------
     ! Operators for si solves
     !--------------------------------------------------------------------
-    call create_si_operators(mesh_id)
+    call create_si_operators( mesh )
 
     !--------------------------------------------------------------------
     ! Copy prognostic field data to state arrays
@@ -255,7 +256,7 @@ contains
                  setval_X(state(igh_t), theta),      &
                  setval_X(state(igh_d), rho  ),      &
                  setval_X(state(igh_p), exner) )
-    call gungho_transport_control_alg_init(mesh_id)
+    call gungho_transport_control_alg_init( mesh )
 
     ! Construct semi-implicit solver
     call semi_implicit_solver_alg_init( state )
@@ -298,8 +299,8 @@ contains
   !> @param[in,out] lbc_fields             Fields for lateral boundaries
   !> @param[in]     clock                  Model time
   !> @param[in]     dt                     The model timestep length
-  !> @param[in]     mesh_id                Identifier given to current mesh
-  !> @param[in]     twod_mesh_id           Identifier given to current 2d mesh
+  !> @param[in]     mesh                   The current mesh
+  !> @param[in]     twod_mesh              The current 2d mesh
   subroutine semi_implicit_alg_step(u, rho, theta, exner, mr, moist_dyn,       &
                                     derived_fields, radiation_fields,          &
                                     microphysics_fields, orography_fields,     &
@@ -307,7 +308,7 @@ contains
                                     cloud_fields, surface_fields, soil_fields, &
                                     snow_fields, chemistry_fields,             &
                                     aerosol_fields, lbc_fields,                &
-                                    clock, dt, mesh_id, twod_mesh_id)
+                                    clock, dt, mesh, twod_mesh)
 
     implicit none
 
@@ -333,8 +334,8 @@ contains
     class(clock_type), intent(in) :: clock
     real(kind=r_def),  intent(in) :: dt
 
-    integer(kind=i_def), intent(in) :: mesh_id
-    integer(kind=i_def), intent(in) :: twod_mesh_id
+    type(mesh_type), intent(in), pointer :: mesh
+    type(mesh_type), intent(in), pointer :: twod_mesh
 
     ! Quadrature object
     type( quadrature_xyoz_type ), pointer :: qr => null()
@@ -360,12 +361,12 @@ contains
 
     qr => get_qr()
 
-    mm_wt    => get_mass_matrix(Wtheta, mesh_id)
+    mm_wt    => get_mass_matrix(Wtheta, mesh%get_id())
     ! Using modified velocity mass matrix if using damping layer
     if (dlayer_on) then
-      mm_vel => get_dl_mass_matrix(mesh_id)
+      mm_vel => get_dl_mass_matrix(mesh%get_id())
     else
-      mm_vel => get_w2_si_mass_matrix(mesh_id)
+      mm_vel => get_w2_si_mass_matrix(mesh%get_id())
     end if
 
     ! Density predictor used for moisture conservation diagnostics
@@ -424,7 +425,7 @@ contains
                         microphysics_fields, orography_fields,                 &
                         turbulence_fields, convection_fields, cloud_fields,    &
                         surface_fields, soil_fields, snow_fields,              &
-                        aerosol_fields, clock, dt, mesh_id, twod_mesh_id )
+                        aerosol_fields, clock, dt, mesh, twod_mesh )
       call invoke(name="update_from_slow_physics",                             &
                   inc_X_plus_Y(state_after_slow(igh_t), dtheta),               &
                   inc_X_plus_Y(state_after_slow(igh_u), du)                    &

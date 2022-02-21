@@ -26,6 +26,7 @@ module linear_step_mod
                                              LOG_LEVEL_INFO,  &
                                              LOG_LEVEL_TRACE, &
                                              LOG_LEVEL_ERROR
+  use mesh_mod,                       only : mesh_type
   use minmax_tseries_mod,             only : minmax_tseries
   use mr_indices_mod,                 only : nummr
   use moist_dyn_mod,                  only : num_moist_factors
@@ -45,21 +46,21 @@ module linear_step_mod
   contains
 
   !> @brief Steps the linear app through one timestep
-  !> @param[in] mesh_id The identifier of the primary mesh
-  !> @param[in] twod_mesh_id The identifier of the two-dimensional mesh
+  !> @param[in] mesh      The identifier of the primary mesh
+  !> @param[in] twod_mesh The identifier of the two-dimensional mesh
   !> @param[inout] model_data The working data set for the model run
   !> @param[in] clock The model time
-  subroutine linear_step( mesh_id,      &
-                          twod_mesh_id, &
-                          model_data,   &
+  subroutine linear_step( mesh,       &
+                          twod_mesh,  &
+                          model_data, &
                           clock )
 
     implicit none
 
-    integer(i_def),                  intent(in)    :: mesh_id
-    integer(i_def),                  intent(in)    :: twod_mesh_id
+    type( mesh_type ), pointer,      intent(in)    :: mesh
+    type( mesh_type ), pointer,      intent(in)    :: twod_mesh
     type( model_data_type ), target, intent(inout) :: model_data
-    class(clock_type),               intent(in)    :: clock
+    class( clock_type ),             intent(in)    :: clock
 
     type( field_collection_type ), pointer :: prognostic_fields => null()
     type( field_collection_type ), pointer :: diagnostic_fields => null()
@@ -111,7 +112,7 @@ module linear_step_mod
     ls_u => ls_fields%get_field('ls_u')
     ls_rho => ls_fields%get_field('ls_rho')
     ls_exner => ls_fields%get_field('ls_exner')
-    dA => get_da_at_w2(mesh_id)
+    dA => get_da_at_w2( mesh%get_id() )
 
     ! Get timestep parameters from clock
     dt = real(clock%get_seconds_per_step(), r_def)
@@ -124,7 +125,7 @@ module linear_step_mod
                                        ls_exner, ls_mr, ls_moist_dyn,     &
                                        derived_fields,                    &
                                        cloud_fields,                      &
-                                       clock, dt, mesh_id, twod_mesh_id)
+                                       clock, dt, mesh, twod_mesh)
       case( method_rk )             ! RK
         call tl_rk_alg_step(u, rho, theta, moist_dyn, exner, mr,  &
                             cloud_fields, ls_u, ls_rho, ls_theta, &
@@ -147,7 +148,7 @@ module linear_step_mod
         end if
       end if
 
-      if (write_minmax_tseries) call minmax_tseries(u, 'u', mesh_id)
+      if (write_minmax_tseries) call minmax_tseries(u, 'u', mesh)
 
       call u%log_minmax(LOG_LEVEL_INFO, ' u')
       call theta%log_minmax(LOG_LEVEL_INFO, 'theta')

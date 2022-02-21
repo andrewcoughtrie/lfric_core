@@ -39,6 +39,8 @@ module gungho_driver_mod
                                          log_scratch_space, &
                                          LOG_LEVEL_ALWAYS,  &
                                          LOG_LEVEL_INFO
+  use mesh_collection_mod,        only : mesh_collection
+  use mesh_mod,                   only : mesh_type
 #ifdef UM_PHYSICS
   use variable_fields_mod,        only : update_variable_fields
   use update_ancils_alg_mod,      only : update_ancils_alg
@@ -56,10 +58,10 @@ module gungho_driver_mod
   ! Model run working data set
   type (model_data_type) :: model_data
 
-  integer(i_def) :: mesh_id              = imdi
-  integer(i_def) :: twod_mesh_id         = imdi
-  integer(i_def) :: shifted_mesh_id      = imdi
-  integer(i_def) :: double_level_mesh_id = imdi
+  type(mesh_type), pointer :: mesh              => null()
+  type(mesh_type), pointer :: twod_mesh         => null()
+  type(mesh_type), pointer :: shifted_mesh      => null()
+  type(mesh_type), pointer :: double_level_mesh => null()
 
   class(io_context_type), allocatable :: io_context
 
@@ -81,34 +83,34 @@ contains
 
     class(clock_type), pointer :: clock
 
-    ! Initialise infrastructure and setup constants
+   ! Initialise infrastructure and setup constants
     call initialise_infrastructure( model_communicator,   &
                                     filename,             &
                                     program_name,         &
                                     io_context,           &
-                                    mesh_id,              &
-                                    twod_mesh_id,         &
-                                    shifted_mesh_id,      &
-                                    double_level_mesh_id, &
+                                    mesh,                 &
+                                    twod_mesh,            &
+                                    shifted_mesh,         &
+                                    double_level_mesh,    &
                                     model_data            )
 
     clock => io_context%get_clock()
     ! Instantiate the fields stored in model_data
-    call create_model_data( model_data,   &
-                            mesh_id,      &
-                            twod_mesh_id, &
+    call create_model_data( model_data, mesh, twod_mesh, &
                             clock )
 
     ! Initialise the fields stored in the model_data
     call initialise_model_data( model_data, clock )
 
+
+
     ! Initial output
-    call write_initial_output( mesh_id, twod_mesh_id, model_data, &
+    call write_initial_output( mesh, twod_mesh, model_data, &
                                io_context, nodal_output_on_w3 )
 
     ! Model configuration initialisation
-    call initialise_model( clock,   &
-                           mesh_id, &
+    call initialise_model( clock, &
+                           mesh,  &
                            model_data )
 
 #ifdef COUPLED
@@ -171,9 +173,7 @@ contains
 
 
       ! Perform a timestep
-      call gungho_step( mesh_id,      &
-                        twod_mesh_id, &
-                        model_data,   &
+      call gungho_step( mesh, twod_mesh, model_data, &
                         clock )
 
       ! Use diagnostic output frequency to determine whether to write
@@ -183,10 +183,10 @@ contains
            .and. ( write_diag ) ) then
 
         ! Calculation and output diagnostics
-        call gungho_diagnostics_driver( mesh_id,      &
-                                        twod_mesh_id, &
-                                        model_data,   &
-                                        clock,        &
+        call gungho_diagnostics_driver( mesh,       &
+                                        twod_mesh,  &
+                                        model_data, &
+                                        clock,      &
                                         nodal_output_on_w3 )
       end if
 
@@ -226,8 +226,7 @@ contains
     call output_model_data( model_data, clock )
 
     ! Model configuration finalisation
-    call finalise_model( mesh_id,    &
-                         model_data, &
+    call finalise_model( model_data, &
                          program_name )
 
     ! Destroy the fields stored in model_data

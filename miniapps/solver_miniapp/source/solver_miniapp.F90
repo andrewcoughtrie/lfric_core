@@ -48,6 +48,7 @@ program solver_miniapp
                                                RUN_LOG_LEVEL_WARNING
   use mesh_collection_mod,              only : mesh_collection, &
                                                mesh_collection_type
+  use mesh_mod,                         only : mesh_type
   use checksum_alg_mod,                 only : checksum_alg
 
   implicit none
@@ -58,13 +59,14 @@ program solver_miniapp
   integer(i_def) :: log_level
   integer(i_def) :: comm = -999
 
-  integer(i_def) :: mesh_id
-
   ! prognostic fields
   type( field_type ), target, dimension(3) :: chi
   type( field_type ), target :: panel_id
   type( field_type ) :: field_1, field_2
   type( field_vector_type) :: fv_1
+
+  type(mesh_type), pointer :: mesh => null()
+
 
   !-----------------------------------------------------------------------------
   ! Driver layer init
@@ -128,15 +130,16 @@ program solver_miniapp
   ! have the same config modules as gungho
   stencil_depth = 1
 
-  call init_mesh( local_rank, total_ranks, stencil_depth, mesh_id )
+  call init_mesh( local_rank, total_ranks, stencil_depth, mesh )
 
-  call init_fem( mesh_id, chi, panel_id )
+  call init_fem( mesh, chi, panel_id )
+
 
   ! Create and initialise prognostic fields
-  call init_solver_miniapp(mesh_id, chi, panel_id, fv_1)
+  call init_solver_miniapp( mesh, chi, panel_id, fv_1 )
 
   ! Call an algorithm
-  call solver_miniapp_alg(fv_1, chi, panel_id)
+  call solver_miniapp_alg( fv_1, chi, panel_id )
 
   ! Write out output file
   call log_event(program_name//": writing diagnostic output", LOG_LEVEL_INFO)

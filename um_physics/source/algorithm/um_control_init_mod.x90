@@ -33,10 +33,10 @@ contains
   !>          of LFRic (but cannot be made a parameter because it is required
   !>          to be variable in the UM and therefore declared as such in the
   !>          UM modules which contains it).
-  !> @param[in] mesh_id        Mesh_id
+  !> @param[in] mesh    Mesh
   !> @param[in] ncells  The number of cells in the horizontal domain that
   !>                    the UM code should loop over (i.e. not including halos)
-  subroutine um_control_init(mesh_id, ncells)
+  subroutine um_control_init( mesh, ncells)
 
     ! UM modules containing things that need setting
     use atm_fields_bounds_mod, only: atm_fields_bounds_init
@@ -51,16 +51,15 @@ contains
     use timestep_mod, only: timestep
     use trignometric_mod, only: cos_theta_latitude
 
-    use mesh_mod,                      only: mesh_type
-    use mesh_collection_mod,           only: mesh_collection
+    use mesh_mod, only: mesh_type
+
 
     implicit none
 
-    integer(i_def),   intent(in)    :: mesh_id
-    integer(i_def),   intent(in)    :: ncells
+    type(mesh_type),  intent(in), pointer :: mesh
+    integer(i_def),   intent(in)          :: ncells
 
     ! Local variables
-    type(mesh_type),  pointer       :: mesh => null()
     type(field_type), pointer       :: delta => null() ! Horizontal edge length
     type(field_type)                :: ones
 
@@ -128,8 +127,7 @@ contains
     if(allocated(eta_theta_levels))deallocate(eta_theta_levels)
     allocate(eta_theta_levels(0:number_of_layers), source=rmdi)
 
-    ! get pointer to local mesh
-    mesh => mesh_collection%get_mesh( mesh_id )
+
     call mesh%get_eta(eta_theta_levels)
 
     ! The following are used in the calculation of grid-box size in
@@ -142,7 +140,8 @@ contains
     ! This is a temporary method of calculating
     ! the global mean of a field - once psyclone#489 is live,
     ! it should be changed to use the built-in function
-    delta => get_delta_at_wtheta(mesh_id)
+
+    delta => get_delta_at_wtheta( mesh%get_id() )
     call delta%copy_field_properties(ones)
     call invoke( setval_c(ones, 1.0_r_def), &
                  sum_X(sum_delta, delta)  , &

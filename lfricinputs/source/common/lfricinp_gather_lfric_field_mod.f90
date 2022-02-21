@@ -15,7 +15,6 @@ USE mpi
 USE field_mod, ONLY: field_type, field_proxy_type
 USE constants_mod, ONLY: r_def, i_def
 USE mesh_mod, ONLY: mesh_type
-USE mesh_collection_mod,  ONLY: mesh_collection
 USE function_space_mod, ONLY: function_space_type
 USE mpi_mod, ONLY: get_comm_rank, get_comm_size
 USE log_mod, ONLY: log_scratch_space, log_event, LOG_LEVEL_INFO, LOG_LEVEL_ERROR
@@ -26,8 +25,8 @@ PUBLIC :: lfricinp_gather_lfric_field
 
 CONTAINS
 
-SUBROUTINE lfricinp_gather_lfric_field(lfric_field, global_field_array, comm, &
-     num_levels, level, twod_mesh_id)
+SUBROUTINE lfricinp_gather_lfric_field( lfric_field, global_field_array, comm, &
+                                        num_levels, level, twod_mesh )
 
 IMPLICIT NONE
 !
@@ -37,17 +36,15 @@ IMPLICIT NONE
 !  and puts into correct location using the global id (gid) map
 !
 ! Arguments
-TYPE(field_type), INTENT(INOUT) :: lfric_field
-REAL(KIND=real64), INTENT(OUT)  :: global_field_array(:)
-INTEGER(KIND=i_def), INTENT(IN) :: comm
-INTEGER(KIND=int64), INTENT(IN) :: num_levels
-INTEGER(KIND=int64), INTENT(IN) :: level
-INTEGER(KIND=i_def), INTENT(IN) :: twod_mesh_id
+TYPE(field_type),    INTENT(INOUT) :: lfric_field
+REAL(KIND=real64),   INTENT(OUT)   :: global_field_array(:)
+INTEGER(KIND=i_def), INTENT(IN)    :: comm
+INTEGER(KIND=int64), INTENT(IN)    :: num_levels
+INTEGER(KIND=int64), INTENT(IN)    :: level
+TYPE(mesh_type),     INTENT(IN), POINTER :: twod_mesh
 
 ! Local variables
-
-TYPE(mesh_type), POINTER :: mesh
-TYPE(mesh_type), POINTER :: twod_mesh
+TYPE(mesh_type), POINTER :: mesh => null()
 TYPE(field_proxy_type) :: field_proxy
 INTEGER(KIND=int32), ALLOCATABLE :: rank_sizes(:)
 INTEGER(KIND=int32), ALLOCATABLE :: displacements(:)
@@ -66,7 +63,7 @@ INTEGER(KIND=int32), ALLOCATABLE :: global_gid_map(:)
 
 ! Get objects
 mesh => lfric_field%get_mesh()
-twod_mesh => mesh_collection%get_mesh(twod_mesh_id)
+
 field_proxy = lfric_field%get_proxy()
 
 ! Get number of layers from function space, as we have W3, Wtheta and W3 2d
@@ -158,6 +155,8 @@ IF (local_rank == rank_0) THEN
     global_field_array(global_gid_map(i)) = temp_global_data(i)
   END DO
 END IF
+
+NULLIFY(mesh)
 
 END SUBROUTINE lfricinp_gather_lfric_field
 

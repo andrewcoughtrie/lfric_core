@@ -19,6 +19,7 @@ module multires_coupling_diagnostics_driver_mod
   use gungho_model_data_mod,              only : model_data_type
   use gungho_diagnostics_driver_mod,      only : gungho_diagnostics_driver
   use map_physics_fields_alg_mod,         only : map_physics_fields_alg
+  use mesh_mod,                           only : mesh_type
 
   implicit none
 
@@ -28,23 +29,23 @@ module multires_coupling_diagnostics_driver_mod
 contains
 
   !> @brief Outputs the diagnostics from the multires_coupling miniapp.
-  !> @param [in] dynamics_mesh_id The identifier of the dynamics mesh
-  !> @param [in] dynamics_2D_mesh_id The identifier of the dynamics 2D mesh
-  !> @param [in,out] dynamics_model_data A collection containing the fields on the
-  !>                dynamics mesh
+  !> @param [in] dynamics_mesh    The dynamics mesh
+  !> @param [in] dynamics_2D_mesh The dynamics 2D mesh
+  !> @param [in,out] dynamics_model_data A collection containing the fields
+  !>                                     on the dynamics mesh
   !> @param [in] clock Model time.
   !> @param [in] W3_project Flag that determines if vector fields should be
   !>                        projected to W3
-  subroutine multires_coupling_diagnostics_driver( dynamics_mesh_id,       &
-                                                   dynamics_2D_mesh_id,    &
-                                                   dynamics_model_data,    &
+  subroutine multires_coupling_diagnostics_driver( dynamics_mesh,       &
+                                                   dynamics_2D_mesh,    &
+                                                   dynamics_model_data, &
                                                    clock, W3_project )
 
     implicit none
 
+    type(mesh_type),       intent(in), pointer     :: dynamics_mesh
+    type(mesh_type),       intent(in), pointer     :: dynamics_2D_mesh
     type(model_data_type), intent(inout), target   :: dynamics_model_data
-    integer(kind=i_def),   intent(in)              :: dynamics_mesh_id
-    integer(kind=i_def),   intent(in)              :: dynamics_2D_mesh_id
     class(clock_type),     intent(in)              :: clock
     logical,               intent(in)              :: W3_project
 
@@ -77,7 +78,7 @@ contains
                                   dynamics_moist_dyn, dynamics_derived_fields)
     end if
 
-    call gungho_diagnostics_driver( dynamics_mesh_id, dynamics_2D_mesh_id, &
+    call gungho_diagnostics_driver( dynamics_mesh, dynamics_2D_mesh, &
                                     dynamics_model_data, clock, W3_project )
 
   end subroutine multires_coupling_diagnostics_driver

@@ -239,7 +239,7 @@ USE function_space_mod,            ONLY: function_space_type
 USE fs_continuity_mod,             ONLY: W2H
 USE finite_element_config_mod,     ONLY: element_order
 USE reference_element_mod,         ONLY: W, S, E, N
-USE lfricinp_lfric_driver_mod,     ONLY: mesh_id
+USE lfricinp_lfric_driver_mod,     ONLY: mesh
 USE lfricinp_um_grid_mod,          ONLY: um_grid
 
 IMPLICIT NONE
@@ -298,7 +298,7 @@ grid_v_to_w2h_map % num_points_src = INT(um_grid % num_v_points_x *            &
 grid_v_to_w2h_map % num_points_dst = grid_v_to_w2h_map % num_points_src
 
 ! Get whole W2H dofmap
-fs_w2h => function_space_collection % get_fs(mesh_id, element_order, W2H)
+fs_w2h => function_space_collection % get_fs(mesh, element_order, W2H)
 map_w2h => fs_w2h % get_whole_dofmap()
 no_layers = fs_w2h % get_nlayers()
 base_last_dof_owned =  (fs_w2h % get_last_dof_owned() / no_layers ) + 1
@@ -421,12 +421,10 @@ SUBROUTINE partition_weights(weights)
   USE, INTRINSIC :: iso_fortran_env, ONLY : int32, real64
 
   ! LFRic modules
-  USE mesh_collection_mod, ONLY: mesh_collection
-  USE mesh_mod,            ONLY: mesh_type
-  USE local_mesh_mod,      ONLY: local_mesh_type
+  USE local_mesh_mod, ONLY: local_mesh_type
 
   ! LFRic Inputs modules
-  USE lfricinp_lfric_driver_mod, ONLY: mesh_id
+  USE lfricinp_lfric_driver_mod, ONLY: mesh
 
   IMPLICIT NONE
 
@@ -435,7 +433,6 @@ SUBROUTINE partition_weights(weights)
   TYPE(lfricinp_regrid_weights_type), INTENT(INOUT) :: weights
 
   ! Local variables
-  TYPE(mesh_type),       POINTER :: mesh => NULL()
   TYPE(local_mesh_type), POINTER :: local_mesh => NULL()
 
   ! Local local_mesh versions of weights arrays
@@ -447,7 +444,6 @@ SUBROUTINE partition_weights(weights)
   INTEGER(KIND=int32) :: local_links, i_link, w
 
   ! Set up pointer to LFRic mesh
-  mesh => mesh_collection%get_mesh(mesh_id)
   local_mesh => mesh % get_local_mesh()
 
   ! Initially allocate to be the same size as global arrays
@@ -505,7 +501,6 @@ SUBROUTINE partition_weights(weights)
   DEALLOCATE(src_address_local_2D_tmp)
   DEALLOCATE(remap_matrix_local_tmp)
   NULLIFY(local_mesh)
-  NULLIFY(mesh)
 
 END SUBROUTINE partition_weights
 

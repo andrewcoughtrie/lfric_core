@@ -23,6 +23,7 @@ module limited_area_constants_mod
   use io_config_mod,                     only: subroutine_timers
   use log_mod,                           only: log_event, LOG_LEVEL_INFO, &
                                                LOG_LEVEL_ERROR
+  use mesh_collection_mod,               only: mesh_collection
   use mesh_mod,                          only: mesh_type
   use runtime_tools_mod,                 only: primary_mesh_label
   use timer_mod,                         only: timer
@@ -102,9 +103,10 @@ contains
     type(field_type)         :: w2parallel_mask
     type(field_type)         :: w2perp_mask
     type(field_type)         :: w2interior_mask
-    integer(kind=i_def)      :: num_meshes, mesh_id, i
+    integer(kind=i_def)      :: num_meshes, i
     character(len=str_short) :: mesh_number
     character(len=str_def)   :: field_name
+    type(mesh_type), pointer :: mesh => null()
 
     if ( subroutine_timers ) call timer('limited_area_constants_alg')
     call log_event( "Gungho: creating limited_area_constants", LOG_LEVEL_INFO )
@@ -130,13 +132,13 @@ contains
     ! TODO: #2790 should change this structure to avoid looping through meshes
     do i = 1, num_meshes
 
-      mesh_id = mesh_id_list(i)
+      mesh => mesh_collection%get_mesh( mesh_id_list(i) )
       ! Convert mesh id to character
-      write(mesh_number, '(I8)') mesh_id
+      write(mesh_number, '(I8)') mesh%get_id()
 
-      w2_fs     => function_space_collection%get_fs( mesh_id, element_order, W2 )
-      w3_fs     => function_space_collection%get_fs( mesh_id, element_order, W3 )
-      wtheta_fs => function_space_collection%get_fs( mesh_id, element_order, Wtheta )
+      w2_fs     => function_space_collection%get_fs( mesh, element_order, W2 )
+      w3_fs     => function_space_collection%get_fs( mesh, element_order, W3 )
+      wtheta_fs => function_space_collection%get_fs( mesh, element_order, Wtheta )
 
       !============================ Create masks ==============================!
 

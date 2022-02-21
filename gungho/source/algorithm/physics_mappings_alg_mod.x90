@@ -17,6 +17,7 @@ module physics_mappings_alg_mod
   use geometric_constants_mod,               only: get_height
   use log_mod,                               only: LOG_LEVEL_ERROR, log_event, &
                                                    LOG_LEVEL_DEBUG
+  use mesh_mod,                              only: mesh_type
   use quadrature_xyoz_mod,                   only: quadrature_xyoz_type
   use quadrature_rule_gaussian_mod,          only: quadrature_rule_gaussian_type
   use physics_config_mod,                    only: sample_physics_scalars, &
@@ -43,18 +44,19 @@ contains
     ! Prognostic fields
     type( field_type ), intent( inout ) :: target_field
     type( field_type ), intent( in )    :: source_field
+
     ! quadrature rule
     type( quadrature_xyoz_type )          :: qr
     type( quadrature_rule_gaussian_type ) :: quadrature_rule
     type( field_type )                    :: projected_field(1)
     type( field_type ), pointer           :: height_w3 => null()
     type( field_type ), pointer           :: height_wt => null()
-    integer( kind=i_def )                 :: mesh_id
+    type( mesh_type ),  pointer           :: mesh => null()
     integer( kind=i_def )                 :: space_dim
 
     call source_field%log_minmax(LOG_LEVEL_DEBUG, 'source field')
 
-    mesh_id =  source_field%get_mesh_id() ! Currently only coded for fields on the same mesh
+    mesh => source_field%get_mesh() ! Currently only coded for fields on the same mesh
 
     if ( sample_physics_scalars ) then
       ! Determine situation from number of DoFs
@@ -69,8 +71,8 @@ contains
       if (( target_field%which_function_space() == WTHETA ) &
            .and. ( source_field%which_function_space() == W3 ) ) then
         ! Target is lowest order Wtheta, source is lowest order W3
-        height_w3 => get_height(W3, mesh_id)
-        height_wt => get_height(WTHETA, mesh_id)
+        height_w3 => get_height(W3, mesh%get_id() )
+        height_wt => get_height(WTHETA, mesh%get_id() )
         call invoke( sample_w3_to_wtheta_kernel_type(target_field, source_field, &
                                                      height_wt, height_w3 ) )
         nullify(height_w3, height_wt)
@@ -89,8 +91,8 @@ contains
       space_dim = 1_i_def
       qr = quadrature_xyoz_type(nqp_exact, quadrature_rule)
       call projected_field(1)%initialise( vector_space = target_field%get_function_space() )
-      call galerkin_projection_algorithm(projected_field, source_field, mesh_id, &
-                                         space_dim, qr)
+      call galerkin_projection_algorithm( projected_field, source_field, mesh, &
+                                          space_dim, qr )
       call invoke( setval_X(target_field, projected_field(1)) )
     end if
 
@@ -126,14 +128,14 @@ contains
     type( quadrature_xyoz_type )          :: qr
     type( quadrature_rule_gaussian_type ) :: quadrature_rule
     type( field_type )                    :: projected_field(3)
-    integer( kind=i_def )                 :: mesh_id
+    type( mesh_type ), pointer            :: mesh
     integer( kind=i_def )                 :: space_dim
 
-    mesh_id =  source_field%get_mesh_id()
+    mesh =>  source_field%get_mesh()
 
     ! get chi field
-    chi => get_coordinates(mesh_id)
-    panel_id => get_panel_id(mesh_id)
+    chi      => get_coordinates( mesh%get_id() )
+    panel_id => get_panel_id( mesh%get_id() )
 
     if (sample_physics_winds) then
 
@@ -169,8 +171,8 @@ contains
       call projected_field(1)%initialise( vector_space = u1_field%get_function_space() )
       call projected_field(2)%initialise( vector_space = u2_field%get_function_space() )
       call projected_field(3)%initialise( vector_space = u3_field%get_function_space() )
-      call galerkin_projection_algorithm(projected_field, source_field, mesh_id, &
-                                         space_dim, qr)
+      call galerkin_projection_algorithm( projected_field, source_field, &
+                                          mesh, space_dim, qr )
       call invoke( name = "Copy wind fields2",             &
                    setval_X(u1_field, projected_field(1)), &
                    setval_X(u2_field, projected_field(2)), &

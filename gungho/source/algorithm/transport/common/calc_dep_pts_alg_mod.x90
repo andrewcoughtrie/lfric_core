@@ -44,6 +44,7 @@ module calc_dep_pts_alg_mod
   use log_mod,                           only: log_event,                    &
                                                LOG_LEVEL_INFO,               &
                                                LOG_LEVEL_ERROR
+  use mesh_mod,                          only: mesh_type
   use ffsl_divergence_alg_mod,           only: ffsl_divergence_alg
 
   implicit none
@@ -108,14 +109,14 @@ contains
     type( function_space_type ), pointer :: w2_fs => null()
     type( function_space_type ), pointer :: w3_fs => null()
 
-    integer( kind=i_def ) ::  mesh_id
+    type(mesh_type), pointer :: mesh => null()
 
     w2_fs => dep_pts_x%get_function_space()
-    mesh_id = wind_n%get_mesh_id()
-    w3_fs   => function_space_collection%get_fs( mesh_id, element_order, W3 )
+    mesh  => wind_n%get_mesh()
+    w3_fs => function_space_collection%get_fs( mesh, element_order, W3 )
 
-    chi => get_coordinates(mesh_id)
-    panel_id => get_panel_id(mesh_id)
+    chi => get_coordinates(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
 
     call u_x_fem_n%initialise( vector_space = w2_fs )
     call u_y_fem_n%initialise( vector_space = w2_fs )
@@ -216,7 +217,7 @@ contains
     call dep_pts_y%log_minmax( LOG_LEVEL_INFO, 'dep_pts_y' )
     call dep_pts_z%log_minmax( LOG_LEVEL_INFO, 'dep_pts_z' )
 
-    nullify( w2_fs )
+    nullify( w2_fs, mesh )
 
     if ( subroutine_timers ) call timer( 'calc_dep_pts' )
 
@@ -268,14 +269,14 @@ contains
     type( function_space_type ), pointer :: w2_fs => null()
     type( function_space_type ), pointer :: w3_fs => null()
 
-    integer( kind=i_def ) ::  mesh_id
+    type(mesh_type), pointer ::  mesh => null()
 
     w2_fs => dep_pts_x%get_function_space()
-    mesh_id = wind_n%get_mesh_id()
-    w3_fs   => function_space_collection%get_fs( mesh_id, element_order, W3 )
+    mesh  => wind_n%get_mesh()
+    w3_fs => function_space_collection%get_fs( mesh, element_order, W3 )
 
-    chi => get_coordinates(mesh_id)
-    panel_id => get_panel_id(mesh_id)
+    chi => get_coordinates(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
 
     call u_x_fem_n%initialise( vector_space = w2_fs )
     call u_y_fem_n%initialise( vector_space = w2_fs )
@@ -339,7 +340,7 @@ contains
     call dep_pts_x%log_minmax( LOG_LEVEL_INFO, 'dep_pts_x' )
     call dep_pts_y%log_minmax( LOG_LEVEL_INFO, 'dep_pts_y' )
 
-    nullify( w2_fs )
+    nullify( w2_fs, mesh )
 
     if ( subroutine_timers ) call timer( 'calc_hori_dep_pts' )
 
@@ -381,14 +382,14 @@ contains
     type( function_space_type ), pointer :: w2_fs => null()
     type( function_space_type ), pointer :: w3_fs => null()
 
-    integer( kind=i_def ) ::  mesh_id
+    type( mesh_type ), pointer ::  mesh => null()
 
     w2_fs => dep_pts_z%get_function_space()
-    mesh_id = wind_n%get_mesh_id()
-    w3_fs   => function_space_collection%get_fs( mesh_id, element_order, W3 )
+    mesh  => wind_n%get_mesh()
+    w3_fs => function_space_collection%get_fs( mesh, element_order, W3 )
 
-    chi => get_coordinates(mesh_id)
-    panel_id => get_panel_id(mesh_id)
+    chi => get_coordinates( mesh%get_id() )
+    panel_id => get_panel_id( mesh%get_id() )
 
     call departure_wind_n%initialise( vector_space = w2_fs )
     call departure_wind_np1%initialise( vector_space = w2_fs )
@@ -412,7 +413,7 @@ contains
                                              vertical_method, dt )  )
     call dep_pts_z%log_minmax( LOG_LEVEL_INFO, 'dep_pts_z' )
 
-    nullify( w2_fs )
+    nullify( w2_fs, mesh )
 
     if ( subroutine_timers ) call timer( 'calc_vert_dep_pts' )
 

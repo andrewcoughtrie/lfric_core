@@ -11,6 +11,7 @@ use field_mod,                     only: field_type
 use field_collection_mod,          only: field_collection_type
 use function_space_collection_mod, only: function_space_collection
 use function_space_mod,            only: function_space_type
+use mesh_mod,                      only: mesh_type
 use constants_mod,                 only: r_def, i_def
 use empty_data_mod,                only: empty_real_data
 use io_config_mod,                 only: subroutine_timers
@@ -54,14 +55,14 @@ contains
 ! @param[in]     surface_fields         Fields for surface scheme
 ! @param[in]     soil_fields            Fields for soil hydrology scheme
 ! @param[in]     snow_fields            Fields for snow scheme
-! @param[in]     twod_mesh_id           Identifier given to current 2d mesh
+! @param[in]     twod_mesh              Current 2d mesh
 ! @param[in]     timestep               Current timestep number
 subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
                         tile_swinc_direct_albedo, tile_swinc_diffuse_albedo, &
                         tile_lw_albedo, tile_lwinc_albedo, derived_fields,   &
                         radiation_fields, orography_fields,                  &
                         surface_fields, soil_fields, snow_fields,            &
-                        twod_mesh_id, timestep)
+                        twod_mesh, timestep)
 
   implicit none
 
@@ -77,7 +78,8 @@ subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
   type( field_collection_type ), intent(in)    :: surface_fields
   type( field_collection_type ), intent(in)    :: soil_fields
   type( field_collection_type ), intent(in)    :: snow_fields
-  integer( kind=i_def ), intent(in) :: twod_mesh_id, timestep
+  type( mesh_type ), pointer,    intent(in)    :: twod_mesh
+  integer( kind=i_def ),         intent(in)    :: timestep
 
   ! Unpacked fields from collections
   type( field_type ), pointer :: sd_orog           => null()
@@ -119,26 +121,26 @@ subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
   if ( subroutine_timers ) call timer('rad_tile_alg')
 
   vector_space => function_space_collection%get_fs( &
-                    twod_mesh_id, 0, W3, n_sw_band * n_surf_tile )
+                    twod_mesh, 0, W3, n_sw_band * n_surf_tile )
   call tile_sw_direct_albedo%initialise(vector_space)
   call tile_sw_diffuse_albedo%initialise(vector_space)
 
   vector_space => function_space_collection%get_fs( &
-                    twod_mesh_id, 0, W3, n_lw_band * n_surf_tile )
+                    twod_mesh, 0, W3, n_lw_band * n_surf_tile )
   call tile_lw_albedo%initialise(vector_space)
 
   if (l_inc_radstep) then
     ! Radiation increments use different spectral files with fewer bands
     vector_space => function_space_collection%get_fs( &
-                      twod_mesh_id, 0, W3, n_swinc_band * n_surf_tile )
+                      twod_mesh, 0, W3, n_swinc_band * n_surf_tile )
     call tile_swinc_direct_albedo%initialise(vector_space)
     call tile_swinc_diffuse_albedo%initialise(vector_space)
 
     vector_space => function_space_collection%get_fs( &
-                      twod_mesh_id, 0, W3, n_lwinc_band * n_surf_tile )
+                      twod_mesh, 0, W3, n_lwinc_band * n_surf_tile )
     call tile_lwinc_albedo%initialise(vector_space)
   else
-    vector_space => function_space_collection%get_fs( twod_mesh_id, 0, W3, 1)
+    vector_space => function_space_collection%get_fs( twod_mesh, 0, W3, 1)
     call tile_swinc_direct_albedo%initialise( &
       vector_space, override_data = empty_real_data )
     call tile_swinc_diffuse_albedo%initialise( &

@@ -76,8 +76,7 @@ module halo_routing_mod
 contains
 
 !> @brief Constructor for a halo_routing object
-!> @param [in] mesh_id Id of the mesh for which this information will
-!>                     be valid
+!> @param [in] mesh    Mesh for which this information will be valid
 !> @param [in] element_order The element order for which this information
 !>                           will be valid
 !> @param [in] lfric_fs The function space continuity type for which this
@@ -89,7 +88,7 @@ contains
 !> @param [in] fortran_kind The Fortran kind of the data for which this
 !>                      information will be valid
 !> @return The new halo_routing object
-function halo_routing_constructor( mesh_id, &
+function halo_routing_constructor( mesh, &
                                    element_order, &
                                    lfric_fs, &
                                    ndata, &
@@ -99,7 +98,8 @@ function halo_routing_constructor( mesh_id, &
 
   implicit none
 
-  integer(i_def), intent(in) :: mesh_id
+  type(mesh_type), intent(in), pointer :: mesh
+
   integer(i_def), intent(in) :: element_order
   integer(i_def), intent(in) :: lfric_fs
   integer(i_def), intent(in) :: ndata
@@ -109,19 +109,19 @@ function halo_routing_constructor( mesh_id, &
   type(halo_routing_type) :: self
 
   type(function_space_type), pointer :: function_space => null()
-  type(mesh_type), pointer :: mesh => null()
+
   integer(i_halo_index), allocatable :: global_dof_id(:)
   integer(i_def) :: idepth
   integer(i_def) :: halo_start, halo_finish
 
-  self%mesh_id = mesh_id
+  self%mesh_id = mesh%get_id()
   self%element_order = element_order
   self%lfric_fs = lfric_fs
   self%ndata = ndata
   self%fortran_type = fortran_type
   self%fortran_kind = fortran_kind
 
-  function_space => function_space_collection%get_fs( mesh_id, &
+  function_space => function_space_collection%get_fs( mesh, &
                                                       element_order, &
                                                       lfric_fs, &
                                                       ndata = ndata )
@@ -129,8 +129,6 @@ function halo_routing_constructor( mesh_id, &
   ! set up the global dof index array
   allocate( global_dof_id( function_space%get_ndof_glob()*ndata ) )
   call function_space%get_global_dof_id(global_dof_id)
-
-  mesh => function_space%get_mesh()
 
   ! Set up YAXT redistribution map for halo exchanges
   allocate( self%redist(mesh%get_halo_depth()) )
@@ -141,7 +139,7 @@ function halo_routing_constructor( mesh_id, &
     halo_finish = function_space%get_last_dof_halo(idepth)
     ! If this is a serial run (no halos), halo_start will be out of bounds,
     ! so re-initialise halo_start and halo_finish specifically for a serial run
-    if(halo_start > function_space%get_last_dof_halo(idepth))then
+    if ( halo_start > function_space%get_last_dof_halo(idepth) ) then
       halo_start  = function_space%get_last_dof_halo(idepth)
       halo_finish = function_space%get_last_dof_halo(idepth)-1
     end if
@@ -152,7 +150,9 @@ function halo_routing_constructor( mesh_id, &
                      global_dof_id( halo_start:halo_finish ), &
                      get_mpi_datatype( fortran_type, fortran_kind ) )
   end do
+
   deallocate( global_dof_id )
+
 end function halo_routing_constructor
 
 !> @brief Gets the mesh_id for which this object is valid

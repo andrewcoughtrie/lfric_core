@@ -37,6 +37,7 @@ module io_dev_model_mod
                                          LOG_LEVEL_TRACE
   use mesh_collection_mod,        only : mesh_collection, &
                                          mesh_collection_type
+  use mesh_mod,                   only : mesh_type
   use mpi_mod,                    only : store_comm,    &
                                          get_comm_size, &
                                          get_comm_rank
@@ -80,8 +81,8 @@ contains
   !> @param[in]     program_name An identifier given to the model run
   !> @param[in]     communicator The MPI communicator for use within the model
   !>                              (not XIOS' communicator)
-  !> @param[in,out] mesh_id      The identifier given to the current 3d mesh
-  !> @param[in,out] twod_mesh_id The identifier given to the current 2d mesh
+  !> @param[in,out] mesh         The current 3d mesh
+  !> @param[in,out] twod_mesh    The current 2d mesh
   !> @param[in,out] chi          A size 3 array of fields holding the
   !>                             coordinates of the mesh
   !> @param[in,out] panel_id     A 2D field holding the cubed sphere panel id
@@ -90,8 +91,8 @@ contains
   subroutine initialise_infrastructure( filename,     &
                                         program_name, &
                                         communicator, &
-                                        mesh_id,      &
-                                        twod_mesh_id, &
+                                        mesh,         &
+                                        twod_mesh,    &
                                         chi,          &
                                         panel_id,     &
                                         io_context )
@@ -110,8 +111,10 @@ contains
     character(*),           intent(in)    :: filename
     character(*),           intent(in)    :: program_name
     integer(i_native),      intent(in)    :: communicator
-    integer(i_def),         intent(inout) :: mesh_id
-    integer(i_def),         intent(inout) :: twod_mesh_id
+
+    type(mesh_type),        intent(inout), pointer :: mesh
+    type(mesh_type),        intent(inout), pointer :: twod_mesh
+
     type(field_type),       intent(inout) :: chi(3)
     type(field_type),       intent(inout) :: panel_id
     class(io_context_type), intent(out), &
@@ -182,10 +185,11 @@ contains
     stencil_depth = get_required_stencil_depth()
 
     call init_mesh( local_rank, total_ranks, stencil_depth, &
-                    mesh_id, twod_mesh_id )
+                    mesh, twod_mesh )
 
     ! Create FEM specifics (function spaces and chi field)
-    call init_fem( mesh_id, chi, panel_id )
+    call init_fem( mesh, chi, panel_id )
+
 
     ! Set up XIOS domain and context
     files_init_ptr => init_io_dev_files
@@ -193,8 +197,8 @@ contains
     call initialise_xios( io_context,                       &
                           xios_context_id,                  &
                           communicator,                     &
-                          mesh_id,                          &
-                          twod_mesh_id,                     &
+                          mesh,                             &
+                          twod_mesh,                        &
                           chi,                              &
                           panel_id,                         &
                           timestep_start,                   &

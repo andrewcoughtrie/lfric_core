@@ -73,11 +73,11 @@ contains
 !> @param[in]   local_rank                     Number of the MPI rank of this process
 !> @param[in]   total_ranks                    Total number of MPI ranks in this job
 !> @param[in]   stencil_depth                  Stencil depth that local meshes should support
-!> @param[out]  mesh_id                        Mesh ID of partitioned prime mesh
-!> @param[out]  twod_mesh_id                   Optional, mesh ID of the 2D (surface) mesh
-!> @param[out]  shifted_mesh_id                Optional, mesh ID of vertically shifted mesh
+!> @param[out]  mesh                           Mesh of partitioned prime mesh
+!> @param[out]  twod_mesh                      Optional, mesh of the 2D (surface) mesh
+!> @param[out]  shifted_mesh                   Optional, mesh of vertically shifted mesh
 !!                                             with an extra level
-!> @param[out]  double_level_mesh_id           Optional, mesh ID of vertically double level mesh
+!> @param[out]  double_level_mesh              Optional, mesh of vertically double level mesh
 !> @param[out]  multigrid_mesh_ids             Optional, multigrid chain mesh IDs
 !> @param[out]  multigrid_2D_mesh_ids          Optional, multigrid chain 2D-mesh IDs
 !> @param[in]   use_multigrid                  Optional, configuration switch for multigrid
@@ -89,9 +89,9 @@ contains
 !> @param[in]   input_extrusion                Optional, mesh extrusion object to create prime 3D mesh
 subroutine init_mesh( local_rank, total_ranks,        &
                       stencil_depth,                  &
-                      mesh_id, twod_mesh_id,          &
-                      shifted_mesh_id,                &
-                      double_level_mesh_id,           &
+                      mesh, twod_mesh,                &
+                      shifted_mesh,                   &
+                      double_level_mesh,              &
                       multigrid_mesh_ids,             &
                       multigrid_2D_mesh_ids,          &
                       use_multigrid,                  &
@@ -112,11 +112,12 @@ subroutine init_mesh( local_rank, total_ranks,        &
   integer(kind=i_def), intent(in)  :: local_rank
   integer(kind=i_def), intent(in)  :: total_ranks
   integer(kind=i_def), intent(in)  :: stencil_depth
-  integer(kind=i_def), intent(out) :: mesh_id
 
-  integer(kind=i_def), intent(out), optional :: twod_mesh_id
-  integer(kind=i_def), intent(out), optional :: shifted_mesh_id
-  integer(kind=i_def), intent(out), optional :: double_level_mesh_id
+  type(mesh_type), intent(out), pointer           :: mesh
+  type(mesh_type), intent(out), pointer, optional :: twod_mesh
+  type(mesh_type), intent(out), pointer, optional :: shifted_mesh
+  type(mesh_type), intent(out), pointer, optional :: double_level_mesh
+
   integer(kind=i_def), intent(out), optional, allocatable :: multigrid_mesh_ids(:)
   integer(kind=i_def), intent(out), optional, allocatable :: multigrid_2d_mesh_ids(:)
   integer(kind=i_def), intent(out), optional, allocatable :: multires_coupling_mesh_ids(:)
@@ -170,9 +171,9 @@ subroutine init_mesh( local_rank, total_ranks,        &
 
   ! 1.0 Use input args to determine which meshes to create
   !=================================================================
-  if ( present(twod_mesh_id) )         create_2d_mesh           = .true.
-  if ( present(shifted_mesh_id) )      create_shifted_mesh      = .true.
-  if ( present(double_level_mesh_id) ) create_double_level_mesh = .true.
+  if ( present(twod_mesh) )         create_2d_mesh           = .true.
+  if ( present(shifted_mesh) )      create_shifted_mesh      = .true.
+  if ( present(double_level_mesh) ) create_double_level_mesh = .true.
 
   if ( present(use_multigrid) ) then
     create_multigrid = use_multigrid
@@ -322,21 +323,21 @@ subroutine init_mesh( local_rank, total_ranks,        &
   ! 7.0 Extract out mesh IDs
   !=================================================================
   mesh_name = prime_mesh_name
-  mesh_id = mesh_collection%get_mesh_id(mesh_name)
+  mesh => mesh_collection%get_mesh(mesh_name)
 
   if ( create_2d_mesh ) then
     mesh_name = trim(prime_mesh_name)//'_2d'
-    twod_mesh_id = mesh_collection%get_mesh_id(mesh_name)
+    twod_mesh => mesh_collection%get_mesh(mesh_name)
   end if
 
   if ( create_shifted_mesh ) then
     mesh_name = trim(prime_mesh_name)//'_shifted'
-    shifted_mesh_id = mesh_collection%get_mesh_id(mesh_name)
+    shifted_mesh => mesh_collection%get_mesh(mesh_name)
   end if
 
   if ( create_double_level_mesh ) then
     mesh_name = trim(prime_mesh_name)//'_double'
-    double_level_mesh_id = mesh_collection%get_mesh_id(mesh_name)
+    double_level_mesh => mesh_collection%get_mesh(mesh_name)
   end if
 
   ! 8.0 Discard global mesh collection and all meshes in it.

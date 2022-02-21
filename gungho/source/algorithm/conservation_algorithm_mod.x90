@@ -23,6 +23,7 @@ module conservation_algorithm_mod
   use log_mod,                         only: log_event,         &
                                              log_scratch_space, &
                                              LOG_LEVEL_INFO
+  use mesh_mod,                        only: mesh_type
   use quadrature_xyoz_mod,             only: quadrature_xyoz_type
   use quadrature_rule_gaussian_mod,    only: quadrature_rule_gaussian_type
   use physical_op_constants_mod,       only: get_geopotential
@@ -74,18 +75,18 @@ contains
     type( field_type ) :: mass, aam, energy
 
     real(kind=r_def) :: total_mass, total_aam, total_energy
-    integer(i_def)   :: mesh
+    type(mesh_type), pointer :: mesh => null()
 
     if ( subroutine_timers ) call timer('conservation_alg')
 
     ! Get a quadrature rule
     qr = quadrature_xyoz_type(nqp_exact, quadrature_rule)
-    mesh = rho%get_mesh_id()
+    mesh => rho%get_mesh()
     w3_fs => function_space_collection%get_fs( mesh, element_order, W3)
 
-    geopotential => get_geopotential(mesh)
-    chi          => get_coordinates(mesh)
-    panel_id     => get_panel_id(mesh)
+    geopotential => get_geopotential(mesh%get_id())
+    chi          => get_coordinates(mesh%get_id())
+    panel_id     => get_panel_id(mesh%get_id())
 
     ! Initialise Mass, Energy and Axial Angular Momentum fields
     call mass%initialise( vector_space = w3_fs )
@@ -122,7 +123,7 @@ contains
 
 
     nullify( geopotential )
-    nullify( chi, panel_id, w3_fs )
+    nullify( chi, panel_id, w3_fs, mesh )
 
     if ( subroutine_timers ) call timer('conservation_alg')
 

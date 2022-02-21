@@ -11,7 +11,7 @@ USE, INTRINSIC :: iso_fortran_env, ONLY: int64, real64
 ! lfric2um modules
 USE lfric2um_namelists_mod, ONLY: lfric2um_config
 USE lfricinp_lfric_driver_mod, ONLY: lfric_fields, local_rank, comm, &
-     twod_mesh_id
+     twod_mesh
 USE lfric2um_initialise_um_mod, ONLY: um_output_file
 USE lfricinp_um_grid_mod, ONLY: um_grid
 USE lfric2um_regrid_weights_mod, ONLY: get_weights
@@ -77,8 +77,8 @@ DO i_stash = 1, lfric2um_config%num_fields
   DO level = 1, num_levels
     global_field_array(:) = 0.0
     ! Gather local lfric fields into global array on base rank
-    CALL lfricinp_gather_lfric_field(lfric_field, global_field_array, comm, &
-         num_levels, level, twod_mesh_id)
+    CALL lfricinp_gather_lfric_field( lfric_field, global_field_array, comm, &
+         num_levels, level, twod_mesh )
     IF (local_rank == 0 ) THEN
       ! Create UM field in output file
       CALL lfricinp_add_um_field_to_file(um_output_file, stashcode, &

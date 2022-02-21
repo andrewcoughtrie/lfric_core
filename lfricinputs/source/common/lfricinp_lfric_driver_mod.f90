@@ -30,6 +30,7 @@ USE local_mesh_collection_mod,  ONLY: local_mesh_collection,                   &
                                       local_mesh_collection_type
 USE mesh_collection_mod,        ONLY: mesh_collection,                         &
                                       mesh_collection_type
+USE mesh_mod,                   ONLY: mesh_type
 
 ! Interface to mpi
 USE mpi_mod,                    ONLY: initialise_comm, store_comm,             &
@@ -63,8 +64,8 @@ INTEGER(KIND=i_def), PUBLIC :: comm = -999
 TYPE(field_type), TARGET :: chi(3)
 TYPE(field_type), TARGET :: panel_id
 
-INTEGER(KIND=i_def), PUBLIC :: mesh_id      = imdi
-INTEGER(KIND=i_def), PUBLIC :: twod_mesh_id = imdi
+TYPE(mesh_type), PUBLIC, pointer :: mesh      => null()
+TYPE(mesh_type), PUBLIC, pointer :: twod_mesh => null()
 
 ! Container for all input fields
 TYPE(field_collection_type) :: lfric_fields
@@ -147,12 +148,12 @@ stencil_depth = 1
 ! Generate prime mesh extrusion
 ALLOCATE(extrusion, source=create_extrusion())
 
-CALL init_mesh(local_rank, total_ranks, stencil_depth, mesh_id, twod_mesh_id, &
+CALL init_mesh(local_rank, total_ranks, stencil_depth, mesh, twod_mesh, &
                input_extrusion=extrusion)
 
 ! Create FEM specifics (function spaces and chi field)
 CALL log_event('Creating function spaces and chi', LOG_LEVEL_INFO)
-CALL init_fem(mesh_id, chi, panel_id)
+CALL init_fem(mesh, chi, panel_id)
 
 ! XIOS domain initialisation
 WRITE(char_first_step,'(I8)') first_step
@@ -161,8 +162,8 @@ populate_pointer => init_lfricinp_files
 CALL initialise_xios( io_context,                                              &
                       xios_ctx,                                                &
                       comm,                                                    &
-                      mesh_id,                                                 &
-                      twod_mesh_id,                                            &
+                      mesh,                                                    &
+                      twod_mesh,                                               &
                       chi,                                                     &
                       panel_id,                                                &
                       TRIM(ADJUSTL(char_first_step)),                          &

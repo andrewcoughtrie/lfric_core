@@ -36,6 +36,7 @@ module gw_pressure_operator_alg_mod
                                                 LOG_LEVEL_ERROR, &
                                                 LOG_LEVEL_INFO,  &
                                                 log_scratch_space
+  use mesh_mod,                           only: mesh_type
   use gravity_wave_constants_config_mod,  only: cs_square,  &
                                                 b_space,    &
                                                 b_space_w0, &
@@ -114,7 +115,8 @@ contains
     integer(kind=i_def), intent(in)     :: level
     type(function_space_type), pointer  :: wu => null(), &
                                            wb => null()
-    integer(i_def)                      :: order, mesh_id
+    integer(i_def)                      :: order
+    type(mesh_type), pointer            :: mesh => null()
     real(kind=r_def)                    :: const1
     type(field_type)                    :: ones, M_lumped, &
                                            ones_u, M_lumped_u, &
@@ -134,16 +136,17 @@ contains
     self%fs_id = wp%get_id()
 
     ! Get needed function spaces
-    order = wp%get_element_order()
-    mesh_id = wp%get_mesh_id()
-    wu => function_space_collection%get_fs( mesh_id, order, W2 )
+    order =  wp%get_element_order()
+    mesh  => wp%get_mesh()
+
+    wu => function_space_collection%get_fs( mesh, order, W2 )
     select case(b_space)
       case(b_space_w0)
-         wb => function_space_collection%get_fs( mesh_id, order, W0 )
+         wb => function_space_collection%get_fs( mesh, order, W0 )
       case(b_space_w3)
-         wb => function_space_collection%get_fs( mesh_id, order, W3 )
+         wb => function_space_collection%get_fs( mesh, order, W3 )
       case(b_space_wtheta)
-         wb => function_space_collection%get_fs( mesh_id, order, Wtheta )
+         wb => function_space_collection%get_fs( mesh, order, Wtheta )
     end select
 
     ! Temporaries required in operator application
@@ -156,11 +159,11 @@ contains
     call Mb_lumped_inv%initialise( vector_space = wb )
     select case(b_space)
       case(b_space_w0)
-        Mb => get_mass_matrix(W0, mesh_id)
+        Mb => get_mass_matrix(W0, mesh%get_id())
       case(b_space_w3)
-        Mb => get_mass_matrix(W3, mesh_id)
+        Mb => get_mass_matrix(W3, mesh%get_id())
       case(b_space_wtheta)
-        Mb => get_mass_matrix(Wtheta, mesh_id)
+        Mb => get_mass_matrix(Wtheta, mesh%get_id())
     end select
     call invoke( setval_c( ones,     1.0_r_def ),               &
                  setval_c( M_lumped, 0.0_r_def ),               &
@@ -177,7 +180,7 @@ contains
     call M_lumped_u%initialise( vector_space = wu )
     call QT1%initialise( vector_space = wb )
     call self%Hb_lumped_inv%initialise( vector_space = wu )
-    Mu => get_mass_matrix(W2, mesh_id)
+    Mu => get_mass_matrix(W2, mesh%get_id())
 
     const1 = self%alpha**2*dt**2*bvf_square
     call invoke( setval_c(ones_u,     1.0_r_def),                        &
@@ -192,6 +195,8 @@ contains
 
 
     call log_event( 'done', LOG_LEVEL_INFO )
+
+    nullify(mesh)
 
   end function gw_pressure_operator_constructor
 
@@ -245,7 +250,8 @@ contains
     class(abstract_vector_type), intent(in)      :: x
     class(abstract_vector_type), intent(inout)   :: y
     real(kind=r_def)    :: const
-    integer(kind=i_def) :: mesh_id
+
+    type(mesh_type), pointer :: mesh => null()
 
     type(operator_type), pointer :: div => null(), M3_inv => null()
 
@@ -253,9 +259,9 @@ contains
     type is (field_vector_type)
        select type (y)
        type is (field_vector_type)
-          mesh_id = x%vector(1)%get_mesh_id()
-          div    => get_div(mesh_id)
-          M3_inv => get_inverse_w3_mass_matrix(mesh_id)
+          mesh   => x%vector(1)%get_mesh()
+          div    => get_div(mesh%get_id())
+          M3_inv => get_inverse_w3_mass_matrix(mesh%get_id())
           const = self%alpha**2*dt**2*cs_square
           call invoke( setval_c(self%grad_p, 0.0_r_def),                &
                        transpose_matrix_vector_kernel_type(self%grad_p, &
@@ -283,6 +289,8 @@ contains
              "gw_pressure_operator_alg_mod: incorrect vector_type argument x"
        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
     end select
+
+    nullify( mesh )
 
   end subroutine apply_gw_pressure_operator
 

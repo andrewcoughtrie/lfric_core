@@ -14,6 +14,7 @@ module limited_area_lbc_alg_mod
   use field_collection_mod,           only: field_collection_type
   use formulation_config_mod,         only: use_moisture
   use mr_indices_mod,                 only: nummr, mr_names
+  use mesh_mod,                       only: mesh_type
   use limited_area_constants_mod,     only: get_boundary_mask, &
                                             get_blend_mask,    &
                                             get_lbc_mask
@@ -47,7 +48,10 @@ contains
     type(field_type), pointer                  :: boundary_u_driving
     type(field_type), pointer                  :: boundary_u_diff
 
-    mask => get_boundary_mask( W2, lam_wind_field%get_mesh_id() )
+    type(mesh_type),  pointer :: mesh => null()
+
+    mesh => lam_wind_field%get_mesh()
+    mask => get_boundary_mask( W2, mesh%get_id() )
 
     boundary_u_driving => lbc_fields%get_field( 'boundary_u_driving' )
     boundary_u_diff    => lbc_fields%get_field( 'boundary_u_diff' )
@@ -65,7 +69,7 @@ contains
                             boundary_u_driving, &
                             boundary_u_lam ) )
 
-    nullify( mask, boundary_u_driving, boundary_u_diff )
+    nullify( mask, mesh, boundary_u_driving, boundary_u_diff )
 
   end subroutine lam_solver_lbc
 
@@ -130,15 +134,18 @@ contains
                                                blend_mask    => null(), &
                                                lbc_mask      => null()
     type(field_type)                        :: lam_lbc, driving_lbc, inc
-    integer(kind=i_def)                     :: function_space, mesh_id
+    integer(kind=i_def)                     :: function_space
+
+    type(mesh_type), pointer :: mesh => null()
 
     ! Define the function space required for masks.
     function_space = lam_field%which_function_space()
-    mesh_id = lam_field%get_mesh_id()
+
+    mesh       => lam_field%get_mesh()
+    blend_mask => get_blend_mask( function_space, mesh%get_id() )
+    lbc_mask   => get_lbc_mask( function_space, mesh%get_id() )
 
     driving_field => lbc_fields%get_field( name )
-    blend_mask    => get_blend_mask( function_space, mesh_id )
-    lbc_mask      => get_lbc_mask( function_space, mesh_id )
 
     ! Setup the temporary fields.
     call lam_field%copy_field_properties( lam_lbc )
@@ -168,7 +175,7 @@ contains
                ! Add weighted increment back on to the state.
                inc_X_plus_Y( lam_field, inc ) )
 
-    nullify( driving_field, blend_mask, lbc_mask )
+    nullify( driving_field, blend_mask, lbc_mask, mesh )
 
   end subroutine blend_field
 

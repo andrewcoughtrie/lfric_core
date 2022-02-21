@@ -104,7 +104,7 @@ contains
 
   !> @details Initialisation procedure for the tangent linear rk timestepping
   !>          algorithm. Initialises various internal fields.
-  !> @param[in]    mesh_id  Id of mesh object on which the model runs
+  !> @param[in]    mesh     Mesh object on which the model runs
   !> @param[in]    u        Change in wind field
   !> @param[in]    rho      Change in density
   !> @param[in]    theta    Change in potential temperature
@@ -113,14 +113,14 @@ contains
   !> @param[in]    ls_rho   Linearisation state in density
   !> @param[in]    ls_theta Linearisation state potential temperature
   !> @param[in]    ls_exner Linearisation state exner pressure
-  subroutine tl_rk_alg_init(mesh_id, u, rho, theta, exner, &
+  subroutine tl_rk_alg_init(mesh, u, rho, theta, exner, &
                             ls_u, ls_rho, ls_theta, ls_exner)
     use fs_continuity_mod,             only: W1, W2
     use function_space_collection_mod, only: function_space_collection
     implicit none
 
     ! Mesh
-    integer(i_def), intent(in)       :: mesh_id
+    type(mesh_type), intent(in), pointer :: mesh
 
     ! Prognostic fields
     type( field_type ), intent( in ) :: u, rho, theta, exner
@@ -176,10 +176,10 @@ contains
       vorticity_fs = W2
     end if
     call vorticity%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, vorticity_fs) )
+      function_space_collection%get_fs(mesh, element_order, vorticity_fs) )
     do stage = 1,num_rk_stage
       call ls_vorticity(stage)%initialise( vector_space = &
-        function_space_collection%get_fs(mesh_id, element_order, vorticity_fs) )
+        function_space_collection%get_fs(mesh, element_order, vorticity_fs) )
     end do
 
     !=== Copy prognostic field data to state arrays ===========================!
@@ -196,7 +196,7 @@ contains
                  setval_X(ls_state(igh_d), ls_rho  ), &
                  setval_X(ls_state(igh_p), ls_exner) )
 
-    call gungho_transport_control_alg_init(mesh_id)
+    call gungho_transport_control_alg_init( mesh )
 
     call log_event( "TL: initialised timestepping algorithm", LOG_LEVEL_INFO )
 
@@ -260,6 +260,7 @@ contains
     type(quadrature_rule_gaussian_type) :: gaussian_quadrature
 
     integer(kind=i_def)            :: st, stage, mesh_id
+
 
     if ( subroutine_timers ) call timer('tl_rk_alg')
     qr => get_qr()

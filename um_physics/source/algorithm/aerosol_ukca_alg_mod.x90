@@ -7,6 +7,8 @@
 
 module aerosol_ukca_alg_mod
 
+  use mesh_mod, only: mesh_type
+
   implicit none
 
   private
@@ -64,6 +66,7 @@ contains
     use timer_mod,                     only: timer
     use log_mod,                       only: log_event, LOG_LEVEL_INFO
 
+
     implicit none
 
     ! -- Arguments --
@@ -84,6 +87,8 @@ contains
     ! -- Local variables --
 
     ! Temporary unpacked fields from collections
+
+    type( mesh_type ),  pointer :: mesh => null()
 
     type( field_type ), pointer :: latitude_w3 => null()
     type( field_type ), pointer :: longitude_w3 => null()
@@ -237,8 +242,6 @@ contains
     type( field_type ) :: exner_in_wth    ! Exner pressure in Wtheta
     type( field_type ) :: w_physics       ! Vertical component of winds 
     type( field_type ) :: wetrho_in_w3    ! Wet density in W3
-
-    integer(i_def) :: mesh_id
 
     ! Time variables
     ! Note: Time at previous step is not required by UKCA on the first time
@@ -420,13 +423,13 @@ contains
 
     ! Get location and level heights data
 
-    mesh_id = sin_stellar_declination_rts%get_mesh_id()
-    latitude_w3 => get_latitude(mesh_id)
-    longitude_w3 => get_longitude(mesh_id)
+    mesh => sin_stellar_declination_rts%get_mesh()
+    latitude_w3  => get_latitude(mesh%get_id())
+    longitude_w3 => get_longitude(mesh%get_id())
 
-    mesh_id = state(igh_t)%get_mesh_id()
-    height_wth => get_height( Wtheta, mesh_id )
-    height_w3 => get_height( W3, mesh_id )
+    mesh => state(igh_t)%get_mesh()
+    height_wth => get_height( Wtheta, mesh%get_id() )
+    height_w3 => get_height( W3, mesh%get_id() )
 
     ! Do UKCA time step
 
@@ -685,6 +688,8 @@ contains
       call pvol_du_cor_ins%write_field('pvol_du_cor_ins')
     end if
 
+    nullify( mesh )
+
     if ( subroutine_timers ) call timer('aerosol_ukca_alg')
 
   end subroutine aerosol_ukca_alg
@@ -741,7 +746,8 @@ contains
 
     type( field_type ), allocatable :: moist_dyn(:)  ! Moist dynamics
 
-    integer(i_def) :: mesh_id
+    type( mesh_type ), pointer :: mesh => null()
+
     integer :: i
 
     ! The required physics fields are derived below from the current state
@@ -749,11 +755,12 @@ contains
     ! and exner pressure (igh_p)
 
     ! Initialise required physics fields and intermediates
-    mesh_id = state(igh_t)%get_mesh_id()
-    w2_fs => function_space_collection%get_fs( mesh_id, element_order, W2 )
-    w3_fs => function_space_collection%get_fs( mesh_id, element_order, W3 )
-    wtheta_fs => function_space_collection%get_fs( mesh_id, element_order,     &
+    mesh => state(igh_t)%get_mesh()
+    w2_fs => function_space_collection%get_fs( mesh, element_order, W2 )
+    w3_fs => function_space_collection%get_fs( mesh, element_order, W3 )
+    wtheta_fs => function_space_collection%get_fs( mesh, element_order,       &
                                                    Wtheta )
+
     call exner_in_wth%initialise(vector_space = wtheta_fs)
     call u_physics%initialise(vector_space = w2_fs)
     call w_physics%initialise(vector_space = wtheta_fs)
@@ -762,8 +769,8 @@ contains
       call rho_in_wth%initialise(vector_space = wtheta_fs)
       allocate(moist_dyn(num_moist_factors))
       do i = 1, num_moist_factors
-        call moist_dyn(i)%initialise( vector_space =                           &
-          function_space_collection%get_fs( mesh_id, element_order, Wtheta ) )
+        call moist_dyn(i)%initialise( vector_space =                          &
+          function_space_collection%get_fs( mesh, element_order, Wtheta ) )
       end do
       call wetrho_in_wth%initialise(vector_space = wtheta_fs)
     end if
@@ -772,8 +779,8 @@ contains
     call map_physics_scalars( exner_in_wth, state(igh_p) )
 
     ! Get w_physics from dynamic winds
-    mesh_id = state(igh_u)%get_mesh_id()
-    dA => get_da_at_w2(mesh_id)
+    mesh => state(igh_u)%get_mesh()
+    dA => get_da_at_w2( mesh%get_id() )
     call invoke( X_divideby_Y( u_physics, state(igh_u), dA ),                  &
                  extract_w_kernel_type( w_physics, u_physics ) )
 
@@ -788,6 +795,8 @@ contains
     else
       call state(igh_d)%copy_field(wetrho_in_w3) 
     end if
+
+    nullify( mesh )
 
   end subroutine derive_physics_fields_from_state
 

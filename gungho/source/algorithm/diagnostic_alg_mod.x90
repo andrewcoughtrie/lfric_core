@@ -12,7 +12,6 @@ module diagnostic_alg_mod
                                               geometry_spherical
   use planet_config_mod,                only: cp
   use mesh_mod,                         only: mesh_type
-  use mesh_collection_mod,              only: mesh_collection
   use function_space_collection_mod,    only: function_space_collection
   use fs_continuity_mod,                only: W1, W2, W3, Wtheta, W2H
   use field_mod,                        only: field_type
@@ -50,8 +49,8 @@ contains
   !> @param[in,out] divergence  Divergence field
   !> @param[in,out] l2          l2 norm
   !> @param[in] u               3D wind field
-  !> @param[in] mesh_id         Mesh_id
-  subroutine divergence_diagnostic_alg(divergence, l2, u, mesh_id)
+  !> @param[in] mesh            Mesh
+  subroutine divergence_diagnostic_alg(divergence, l2, u, mesh)
     use dg_matrix_vector_kernel_mod,  only: dg_matrix_vector_kernel_type
     use fem_constants_mod,            only: get_inverse_w3_mass_matrix, &
                                             get_div
@@ -61,15 +60,15 @@ contains
     type(field_type), intent(inout) :: divergence
     real(r_def), intent(inout)      :: l2
     type(field_type), intent(in)    :: u
-    integer(i_def),   intent(in)    :: mesh_id
+    type(mesh_type),  intent(in), pointer :: mesh
 
     type(field_type)             :: div_u
     type(operator_type), pointer :: div => null(), m3_inv => null()
 
-    call divergence%initialise( vector_space = function_space_collection%get_fs(mesh_id,element_order, W3) )
-    call div_u%initialise( vector_space = function_space_collection%get_fs(mesh_id,element_order, W3) )
-    div    => get_div(mesh_id)
-    m3_inv => get_inverse_w3_mass_matrix(mesh_id)
+    call divergence%initialise( vector_space = function_space_collection%get_fs(mesh,element_order, W3) )
+    call div_u%initialise( vector_space = function_space_collection%get_fs(mesh,element_order, W3) )
+    div    => get_div(mesh%get_id())
+    m3_inv => get_inverse_w3_mass_matrix(mesh%get_id())
     ! Compute l2 norm of area integrated quantity
     call invoke( dg_matrix_vector_kernel_type( div_u, u, div ),             &
                  dg_matrix_vector_kernel_type( divergence, div_u , m3_inv), &
@@ -90,8 +89,8 @@ contains
   !> @param[in]     theta     Potential temperature
   !> @param[in]     moist_dyn Moist dynamics factors
   !> @param[in]     exner     Exner pressure
-  !> @param[in]     mesh_id   Mesh_id
-  subroutine hydbal_diagnostic_alg(l2, theta, moist_dyn, exner, mesh_id)
+  !> @param[in]     mesh      Mesh
+  subroutine hydbal_diagnostic_alg(l2, theta, moist_dyn, exner, mesh)
     use field_mod,                   only: field_type
     use quadrature_xyoz_mod,         only: quadrature_xyoz_type
     use fs_continuity_mod,           only: W2V
@@ -110,17 +109,23 @@ contains
     real(r_def), intent(inout)   :: l2
     type(field_type), pointer    :: geopotential => null()
     type(field_type)             :: hyd_imbal
-    integer(i_def),   intent(in) :: mesh_id
+    type(mesh_type),  intent(in), pointer :: mesh
 
     ! the quadrature object
     type( quadrature_xyoz_type ), pointer :: qr => null()
 
-    call hyd_imbal%initialise( vector_space = function_space_collection%get_fs(mesh_id,element_order, W2V) )
+    type(mesh_type), pointer :: theta_mesh => null()
+
+    call hyd_imbal%initialise(                                               &
+             vector_space = function_space_collection%get_fs( mesh,          &
+                                                              element_order, &
+                                                              W2V) )
 
     qr => get_qr()
 
     ! Get geopotential field from runtime_constants
-    geopotential => get_geopotential(theta%get_mesh_id())
+    theta_mesh   => theta%get_mesh()
+    geopotential => get_geopotential(theta_mesh%get_id())
 
     call invoke( setval_c(hyd_imbal, 0.0_r_def), &
                  hydrostatic_kernel_type( hyd_imbal, exner, theta, moist_dyn, &
@@ -130,7 +135,7 @@ contains
 
     l2 = sqrt(l2)
 
-    nullify( geopotential, qr )
+    nullify( geopotential, qr, theta_mesh )
 
   end subroutine hydbal_diagnostic_alg
 
@@ -140,21 +145,19 @@ contains
   !> @param[in,out] u2_wind  Zonal wind component
   !> @param[in,out] u3_wind  Vertical wind component
   !> @param[in] wind         3D wind field
-  !> @param[in] mesh_id      Mesh_id
+  !> @param[in] mesh         Mesh
   subroutine split_wind_diagnostic_alg(u1_wind, u2_wind, u3_wind, &
-                                       wind, mesh_id)
+                                       wind, mesh)
 
     use convert_hdiv_field_kernel_mod,       only: convert_hdiv_field_kernel_type
     use extract_w_kernel_mod,                only: extract_w_kernel_type
     use extract_uv_kernel_mod,               only: extract_uv_kernel_type
 
-
-
     implicit none
 
     type(field_type), intent(inout)  :: u1_wind, u2_wind, u3_wind
     type(field_type), intent(in)     :: wind
-    integer(i_def),   intent(in)     :: mesh_id
+    type(mesh_type),  intent(in), pointer :: mesh
 
     type(field_type), pointer    :: chi(:) => null(), &
                                     panel_id => null()
@@ -166,8 +169,8 @@ contains
 
 
     ! get chi field
-    chi => get_coordinates(mesh_id)
-    panel_id => get_panel_id(mesh_id)
+    chi => get_coordinates(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
 
     ! Create intermediate fields
     do i = 1,3
@@ -177,15 +180,15 @@ contains
     end do
 
     call u1_wind%initialise( vector_space = &
-              function_space_collection%get_fs(mesh_id,element_order, W2H) )
+              function_space_collection%get_fs(mesh,element_order, W2H) )
 
     call u2_wind%initialise( vector_space = &
-              function_space_collection%get_fs(mesh_id,element_order, W2H) )
+              function_space_collection%get_fs(mesh,element_order, W2H) )
 
     call u3_wind%initialise( vector_space = &
-              function_space_collection%get_fs(mesh_id,element_order, Wtheta) )
+              function_space_collection%get_fs(mesh,element_order, Wtheta) )
 
-    w2_rmultiplicity => get_rmultiplicity( W2, mesh_id )
+    w2_rmultiplicity => get_rmultiplicity( W2, mesh%get_id() )
 
     call invoke( setval_c(u1_wind, 0.0_r_def), &
                  setval_c(u2_wind, 0.0_r_def), &
@@ -226,11 +229,11 @@ contains
   !> @param[in,out] level             Levels of the output field
   !> @param[in] field_name            Name of the field to be output
   !> @param[in] field                 The input field
-  !> @param[in] mesh_id               Mesh_id
+  !> @param[in] mesh                  Mesh object
   !> @param[in] W3_project            Logical to allow projection to W3
-  subroutine scalar_nodal_diagnostic_alg(output_field, nodal_coordinates, level, &
-                                         field_name, field,                      &
-                                         mesh_id, W3_project)
+  subroutine scalar_nodal_diagnostic_alg( output_field, nodal_coordinates, &
+                                          level, field_name, field, mesh,  &
+                                          W3_project )
 
     implicit none
 
@@ -239,7 +242,9 @@ contains
     type(field_type), intent(inout) :: level
     character(len=*), intent(in)    :: field_name
     type(field_type), intent(in)    :: field
-    integer(i_def),   intent(in)    :: mesh_id
+
+    type(mesh_type),  intent(in), pointer :: mesh
+
     logical(l_def),   intent(in)    :: W3_project
 
     ! Local variables
@@ -248,8 +253,8 @@ contains
     integer(i_def)                  :: i
 
     ! get chi field
-    chi => get_coordinates(mesh_id)
-    panel_id => get_panel_id(mesh_id)
+    chi      => get_coordinates( mesh%get_id() )
+    panel_id => get_panel_id( mesh%get_id() )
 
     ! Check if projection required, setup output field and filename
 
@@ -272,7 +277,7 @@ contains
       else
 
         ! Project the field to the output field
-        call project_output(field, output_field, 1, W3 , mesh_id)
+        call project_output( field, output_field, 1, W3 , mesh )
 
       end if
 
@@ -335,15 +340,17 @@ contains
     ! Local variables
     type(field_type), pointer       :: chi(:) => null(), &
                                        panel_id => null()
-    integer(i_def)                  :: i, mesh_id
+    integer(i_def)                  :: i
     integer(i_def)                  :: output_fs
     type(field_type), pointer       :: rmultiplicity
+    type(mesh_type),  pointer       :: mesh => null()
 
-    mesh_id = field%get_mesh_id()
 
-    ! get chi field
-    chi => get_coordinates(mesh_id)
-    panel_id => get_panel_id(mesh_id)
+
+    ! Get chi field
+    mesh     => field%get_mesh()
+    chi      => get_coordinates( mesh%get_id() )
+    panel_id => get_panel_id( mesh%get_id() )
 
     ! Create nodal coordinates, nodal output and levels fields
     ! from the properties of the input field
@@ -383,7 +390,7 @@ contains
     ! Scale by the reciprocal of multiplicity (number of shared dofs
     ! in a cell
     if ( output_fs == W1 .or. output_fs == W2) then
-      rmultiplicity => get_rmultiplicity( output_fs, mesh_id )
+      rmultiplicity => get_rmultiplicity( output_fs, mesh%get_id() )
       do i = 1,output_dim
         call invoke( inc_X_times_Y(output_field(i), rmultiplicity) )
       end do
@@ -402,6 +409,7 @@ contains
     ! Compute fractional level of every dof
     call invoke_compute_dof_level_kernel(level)
 
+    nullify ( mesh )
 
   end subroutine vector_nodal_diagnostic_alg
 
@@ -411,25 +419,17 @@ contains
   !> @param[in,out] output_field      The output field
   !> @param[in] field_name            The field name to use for output
   !> @param[in] field                 The input field
-  !> @param[in] mesh_id               Mesh_id
+  !> @param[in] mesh                  Mesh
   !> @param[in] W3_project            Logical to allow projection to W3
-  subroutine scalar_ugrid_diagnostic_alg(output_field, field_name, field, &
-                                         mesh_id, W3_project)
+  subroutine scalar_ugrid_diagnostic_alg( output_field, field_name, field, &
+                                          mesh, W3_project )
 
     implicit none
     type(field_type), intent(inout) :: output_field(1)
     character(len=*), intent(in)    :: field_name
     type(field_type), intent(in)    :: field
-    integer(i_def),   intent(in)    :: mesh_id
+    type(mesh_type),  intent(in), pointer :: mesh
     logical(l_def),   intent(in)    :: W3_project
-
-    ! Local variables
-    type(mesh_type), pointer        :: mesh => null()
-
-
-    ! get pointer to local mesh
-    mesh => mesh_collection%get_mesh( mesh_id )
-
 
     ! Check if projection required, setup output field and filename
 
@@ -448,7 +448,7 @@ contains
       else
 
         ! Project the field to the output field
-        call project_output(field, output_field, 1, W3 , mesh_id)
+        call project_output( field, output_field, 1, W3 , mesh )
 
       end if
 
@@ -483,15 +483,15 @@ contains
     type(field_type), intent(in)  :: u
 
     procedure(write_interface), pointer :: tmp_write_ptr => null()
-    integer(i_def)                      :: mesh_id
+    type(mesh_type), pointer            :: mesh => null()
 
-    mesh_id = u%get_mesh_id()
+    mesh => u%get_mesh()
     if ( vorticity_in_w1 ) then
       call vorticity%initialise( vector_space = &
-          function_space_collection%get_fs(mesh_id, element_order, W1) )
+          function_space_collection%get_fs(mesh, element_order, W1) )
     else
       call vorticity%initialise( vector_space = &
-          function_space_collection%get_fs(mesh_id, element_order, W2) )
+          function_space_collection%get_fs(mesh, element_order, W2) )
     end if
     call compute_vorticity_alg(vorticity, u, .false.)
 
@@ -501,6 +501,8 @@ contains
       call vorticity%set_write_behaviour(tmp_write_ptr)
       nullify( tmp_write_ptr )
     end if
+
+    nullify( mesh )
 
   end subroutine vorticity_diagnostic_alg
 
@@ -548,20 +550,20 @@ contains
 
   end subroutine l2norm_diff_2fields
 
-  subroutine extract_w2h_diagnostic_alg( h_wind, v_wind, wind, mesh_id )
+  subroutine extract_w2h_diagnostic_alg( h_wind, v_wind, wind, mesh )
     use split_w2_field_kernel_mod,        only: split_w2_field_kernel_type
 
     implicit none
 
     type(field_type), intent(inout)  :: h_wind, v_wind
     type(field_type), intent(in)     :: wind
-    integer(i_def),   intent(in)     :: mesh_id
+    type(mesh_type),  intent(in), pointer :: mesh
 
     call h_wind%initialise( vector_space = &
-              function_space_collection%get_fs(mesh_id,element_order, W2H) )
+              function_space_collection%get_fs(mesh,element_order, W2H) )
 
     call v_wind%initialise( vector_space = &
-              function_space_collection%get_fs(mesh_id,element_order, Wtheta) )
+              function_space_collection%get_fs(mesh,element_order, Wtheta) )
 
     call invoke( split_w2_field_kernel_type(h_wind, v_wind, wind) )
 
@@ -571,12 +573,12 @@ contains
   !> @brief Calculate column totals of dry and wet fields.
   !> @details Calculates column totals for wet + dry air, dry air only and each
   !!          of the different moisture spieces represented by LFRic.
-  !> @param[in] rho_field 3D dry density field
-  !> @param[in] mr Bundle of moisture mixing ratios (nummr is index for speices X)
-  !> @param[in] mesh_id The identifier of the primary mesh
-  !> @param[in] twod_mesh_id The identifier given to the current 2D mesh
+  !> @param[in] rho_field  3D dry density field
+  !> @param[in] mr         Bundle of moisture mixing ratios (nummr is index for speices X)
+  !> @param[in] mesh       The primary mesh
+  !> @param[in] twod_mesh  The 2D mesh
 
-  subroutine column_total_diagnostics_alg(rho_field, mr, mesh_id, twod_mesh_id)
+  subroutine column_total_diagnostics_alg(rho_field, mr, mesh, twod_mesh)
 
     use compute_column_mass_kernel_mod,   only: compute_column_mass_kernel_type
     use geometric_constants_mod,          only: get_height
@@ -590,10 +592,10 @@ contains
 
     implicit none
 
-    type(field_type),  intent(in)    :: rho_field
-    type(field_type),  intent(in)    :: mr(nummr)
-    integer(i_def),    intent(in)    :: mesh_id
-    integer(i_def),    intent(in)    :: twod_mesh_id
+    type(field_type),  intent(in) :: rho_field
+    type(field_type),  intent(in) :: mr(nummr)
+    type(mesh_type),   intent(in), pointer :: mesh
+    type(mesh_type),   intent(in), pointer :: twod_mesh
 
     ! Set up local fields
     ! 3D fields
@@ -613,14 +615,14 @@ contains
     type(function_space_type), pointer :: w3_fs => null()
     procedure(write_interface), pointer :: write_diag_behaviour => null()
 
-    height_w3 => get_height(W3, mesh_id)
-    height_wth => get_height(Wtheta, mesh_id)
-    w3_fs => rho_field%get_function_space()
+    height_w3  => get_height( W3, mesh%get_id() )
+    height_wth => get_height( Wtheta, mesh%get_id() )
+    w3_fs      => rho_field%get_function_space()
     write_diag_behaviour => write_field_single_face
 
     ! Set up tot_col_dry_air_mass field and make it writeable
     call tot_col_dry_air_mass%initialise( vector_space = &
-                    function_space_collection%get_fs(twod_mesh_id, 0, W3) )
+                    function_space_collection%get_fs(twod_mesh, 0, W3) )
 
     call tot_col_dry_air_mass%copy_field_properties(tot_col_wetplusdry_mass)
 
@@ -642,7 +644,7 @@ contains
       call rho_moist_X(i_mr)%initialise( vector_space = w3_fs )
 
       call tot_col_moist_mass(i_mr)%initialise( vector_space = &
-                      function_space_collection%get_fs(twod_mesh_id, 0, W3) )
+                      function_space_collection%get_fs(twod_mesh, 0, W3) )
 
       call tot_col_moist_mass(i_mr)%set_write_behaviour(write_diag_behaviour)
 
@@ -684,9 +686,9 @@ contains
   !!          it is averaged in time to help indicate whether the model has any
   !!          stability problems.
   !> @param[in] w_physics 3D vertical velocity field seen by the model physics
-  !> @param[in] mesh_id Mesh_id The identifier of the primary mesh
+  !> @param[in] mesh      The primary mesh
 
-  subroutine calc_wbig_diagnostic_alg(w_physics, mesh_id)
+  subroutine calc_wbig_diagnostic_alg( w_physics, mesh )
 
     use calc_wbig_kernel_mod,             only: calc_wbig_kernel_type
     use io_config_mod,                    only: write_diag, use_xios_io
@@ -696,8 +698,8 @@ contains
     implicit none
 
     ! Set up necessary fields
-    type(field_type),  intent(in)    :: w_physics
-    integer(i_def),    intent(in)    :: mesh_id
+    type(field_type), intent(in)          :: w_physics
+    type(mesh_type),  intent(in), pointer :: mesh
 
     type( field_type ) :: wbig
 

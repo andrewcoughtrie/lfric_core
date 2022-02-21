@@ -32,6 +32,7 @@ contains
                                              get_panel_id
     use fem_constants_mod,             only: get_inverse_w3_mass_matrix, &
                                              get_qr
+    use mesh_mod,                      only: mesh_type
     use quadrature_xyoz_mod,           only: quadrature_xyoz_type
     use project_pressure_kernel_mod,   only: project_pressure_kernel_type
 
@@ -45,23 +46,23 @@ contains
     type( operator_type ),        pointer :: m3_inv => null()
     type( quadrature_xyoz_type ), pointer :: qr => null()
 
-    integer( kind=i_def ) :: mesh_id
+    type( mesh_type ), pointer :: mesh => null()
 
     if ( subroutine_timers ) call timer('exner_from_eos')
 
-    mesh_id = state(igh_p)%get_mesh_id()
+    mesh => state(igh_p)%get_mesh()
 
-    m3_inv  => get_inverse_w3_mass_matrix(mesh_id)
-    chi => get_coordinates(mesh_id)
-    panel_id => get_panel_id(mesh_id)
-    qr => get_qr()
+    m3_inv   => get_inverse_w3_mass_matrix( mesh%get_id() )
+    chi      => get_coordinates( mesh%get_id() )
+    panel_id => get_panel_id( mesh%get_id() )
+    qr       => get_qr()
 
     call invoke( project_pressure_kernel_type( state(igh_p), state(igh_d), &
                                                state(igh_t),               &
                                                moist_dyn_gas_law, chi,     &
                                                panel_id, m3_inv, qr ) )
 
-    nullify( m3_inv, chi,  &
+    nullify( m3_inv, chi, mesh, &
              panel_id, qr )
 
     if ( subroutine_timers ) call timer('exner_from_eos')

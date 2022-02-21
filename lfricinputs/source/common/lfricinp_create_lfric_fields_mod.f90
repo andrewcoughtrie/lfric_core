@@ -25,6 +25,7 @@ USE field_collection_mod,          ONLY : field_collection_type
 USE fs_continuity_mod,             ONLY : W3, Wtheta, W2H
 USE log_mod,                       ONLY : LOG_LEVEL_INFO, LOG_LEVEL_ERROR,     &
                                           log_event, log_scratch_space
+USE mesh_mod,                      ONLY : mesh_type
 
 ! lfricinp modules
 USE lfricinp_stashmaster_mod,        ONLY: get_stashmaster_item, pseudt
@@ -45,9 +46,9 @@ PUBLIC :: lfricinp_create_lfric_fields
 
 CONTAINS
 
-SUBROUTINE lfricinp_create_lfric_fields(mesh_id, twod_mesh_id,  &
-                                        field_collection, stash_list, &
-                                        um_grid, um_file)
+SUBROUTINE lfricinp_create_lfric_fields( mesh, twod_mesh,              &
+                                         field_collection, stash_list, &
+                                         um_grid, um_file)
 ! Description:
 !  When given list of stashcodes create lfric field. Use stashcode to determine
 !  which vertical level set the field is on and create appropiate function
@@ -56,9 +57,10 @@ SUBROUTINE lfricinp_create_lfric_fields(mesh_id, twod_mesh_id,  &
 
 IMPLICIT NONE
 
-INTEGER(KIND=i_def), INTENT(IN)                 :: mesh_id
-INTEGER(KIND=i_def), INTENT(IN)                 :: twod_mesh_id
-TYPE(field_collection_type), INTENT(IN OUT)     :: field_collection
+TYPE(mesh_type), INTENT(IN), POINTER :: mesh
+TYPE(mesh_type), INTENT(IN), POINTER :: twod_mesh
+
+TYPE(field_collection_type), INTENT(IN OUT) :: field_collection
 
 INTEGER(KIND=int64), INTENT(IN)  :: stash_list(:)
 
@@ -66,13 +68,15 @@ TYPE(lfricinp_grid_type), INTENT(IN):: um_grid
 
 TYPE(shum_file_type), INTENT(IN) :: um_file
 
-PROCEDURE(read_interface), POINTER  :: tmp_read_ptr => NULL()
+PROCEDURE(read_interface),  POINTER  :: tmp_read_ptr => NULL()
 PROCEDURE(write_interface), POINTER  :: tmp_write_ptr => NULL()
 TYPE(function_space_type),  POINTER :: vector_space => NULL()
 
+TYPE(mesh_type), POINTER :: type_mesh => null()
+
 TYPE( field_type )            :: field
 INTEGER(KIND=int64)           :: stashcode, lfric_field_kind, i
-INTEGER(KIND=i_def)           :: fs_id, type_mesh_id
+INTEGER(KIND=i_def)           :: fs_id
 ! A temporary variable to hold the 64bit output
 INTEGER(KIND=int64)           :: ndata_64
 CHARACTER(LEN=:), ALLOCATABLE :: field_name
@@ -100,7 +104,7 @@ DO i=1, SIZE(stash_list)
     SELECT CASE (lfric_field_kind)
 
       CASE(w2h_field) ! Stashcodes that would map to W2h, i.e. winds
-        type_mesh_id = mesh_id
+        type_mesh => mesh
         fs_id = W2H
         ndata_64 = 1_int64
         ndata_first = .FALSE. 
@@ -108,7 +112,7 @@ DO i=1, SIZE(stash_list)
         tmp_write_ptr => write_field_edge 
    
       CASE(w3_field) ! Stashcodes that map to W3/rho
-        type_mesh_id = mesh_id
+        type_mesh => mesh
         fs_id = W3
         ndata_64 = 1_int64
         ndata_first = .FALSE.
@@ -116,7 +120,7 @@ DO i=1, SIZE(stash_list)
         tmp_write_ptr => write_field_face
      
       CASE(wtheta_field) ! Stashcodes that maps to Wtheta
-        type_mesh_id = mesh_id
+        type_mesh => mesh
         fs_id = Wtheta
         ndata_64 = 1_int64
         ndata_first = .FALSE.
@@ -124,7 +128,7 @@ DO i=1, SIZE(stash_list)
         tmp_write_ptr => write_field_face
      
       CASE(w3_field_2d) ! Stash that needs 2D mesh
-        type_mesh_id = twod_mesh_id
+        type_mesh => twod_mesh
         fs_id = W3
         IF ( get_stashmaster_item(stashcode, pseudt) == 0 ) THEN
           ! Field has no pseudo levels
@@ -138,7 +142,7 @@ DO i=1, SIZE(stash_list)
         tmp_read_ptr => read_field_single_face
      
       CASE(w3_soil_field) ! Soil fields
-        type_mesh_id = twod_mesh_id
+        type_mesh => twod_mesh
         fs_id = W3
         ndata_64 = lfricinp_get_num_levels(um_file, stashcode)
         ndata_first = .TRUE.
@@ -153,7 +157,7 @@ DO i=1, SIZE(stash_list)
     END SELECT
 
     vector_space => function_space_collection%get_fs(                          &
-                                              type_mesh_id,                    &
+                                              type_mesh,                       &
                                               element_order,                   &
                                               fs_id,                           &
                                               ndata=INT(ndata_64, KIND=i_def)  &

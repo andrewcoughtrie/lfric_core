@@ -23,6 +23,7 @@ module tl_test_driver_mod
   use io_context_mod,             only : io_context_type
   use log_mod,                    only : log_event,         &
                                          LOG_LEVEL_ALWAYS
+  use mesh_mod,                   only : mesh_type
   use linear_model_data_mod,      only : linear_create_ls,  &
                                          linear_init_ls
   use tl_test_kinetic_energy_gradient_mod, only : test_kinetic_energy_gradient
@@ -60,10 +61,10 @@ module tl_test_driver_mod
 
   type (model_data_type) :: model_data
 
-  integer(i_def) :: mesh_id              = imdi
-  integer(i_def) :: twod_mesh_id         = imdi
-  integer(i_def) :: shifted_mesh_id      = imdi
-  integer(i_def) :: double_level_mesh_id = imdi
+  type(mesh_type), pointer :: mesh              => null()
+  type(mesh_type), pointer :: twod_mesh         => null()
+  type(mesh_type), pointer :: shifted_mesh      => null()
+  type(mesh_type), pointer :: double_level_mesh => null()
 
   class(io_context_type), allocatable :: io_context
 
@@ -88,37 +89,37 @@ contains
                                     filename,             &
                                     program_name,         &
                                     io_context,           &
-                                    mesh_id,              &
-                                    twod_mesh_id,         &
-                                    shifted_mesh_id,      &
-                                    double_level_mesh_id, &
+                                    mesh,                 &
+                                    twod_mesh,            &
+                                    shifted_mesh,         &
+                                    double_level_mesh,    &
                                     model_data  )
 
     clock => io_context%get_clock()
     ! Instantiate the fields stored in model_data
-    call create_model_data( model_data,   &
-                            mesh_id,      &
-                            twod_mesh_id, &
+    call create_model_data( model_data, &
+                            mesh,       &
+                            twod_mesh,  &
                             clock )
 
     ! Instantiate the linearisation state
-    call linear_create_ls( model_data,    &
-                           mesh_id,       &
-                           twod_mesh_id )
+    call linear_create_ls( model_data, &
+                           mesh,       &
+                           twod_mesh )
 
     ! Initialise the fields stored in the model_data prognostics. This needs
     ! to be done before initialise_model.
     call initialise_model_data( model_data, clock )
 
     ! Model configuration initialisation
-    call initialise_model( clock,         &
-                           mesh_id,       &
+    call initialise_model( clock, &
+                           mesh,  &
                            model_data )
 
     ! Initialise the linearisation state
-    call linear_init_ls( mesh_id,         &
-                         twod_mesh_id,    &
-                         model_data,      &
+    call linear_init_ls( mesh,       &
+                         twod_mesh,  &
+                         model_data, &
                          clock )
 
   end subroutine initialise
@@ -133,9 +134,9 @@ contains
 
     clock => io_context%get_clock()
 
-    call test_timesteps( model_data,   &
-                         mesh_id,      &
-                         twod_mesh_id, &
+    call test_timesteps( model_data, &
+                         mesh,       &
+                         twod_mesh,  &
                          clock )
 
   end subroutine run_timesteps
@@ -144,9 +145,9 @@ contains
 
     implicit none
 
-    call test_kinetic_energy_gradient( model_data,  &
-                                       mesh_id,     &
-                                       twod_mesh_id )
+    call test_kinetic_energy_gradient( model_data, &
+                                       mesh,       &
+                                       twod_mesh )
 
   end subroutine run_kinetic_energy_gradient
 
@@ -154,9 +155,9 @@ contains
 
     implicit none
 
-    call test_advect_density_field( model_data,  &
-                                    mesh_id,     &
-                                    twod_mesh_id )
+    call test_advect_density_field( model_data, &
+                                    mesh,       &
+                                    twod_mesh )
 
   end subroutine run_advect_density_field
 
@@ -164,9 +165,9 @@ contains
 
     implicit none
 
-    call test_advect_theta_field( model_data,  &
-                                  mesh_id,     &
-                                  twod_mesh_id )
+    call test_advect_theta_field( model_data, &
+                                  mesh,       &
+                                  twod_mesh )
 
   end subroutine run_advect_theta_field
 
@@ -174,9 +175,9 @@ contains
 
     implicit none
 
-    call test_vorticity_advection( model_data,  &
-                                   mesh_id,     &
-                                   twod_mesh_id )
+    call test_vorticity_advection( model_data, &
+                                   mesh,       &
+                                   twod_mesh )
 
   end subroutine run_vorticity_advection
 
@@ -184,9 +185,9 @@ contains
 
     implicit none
 
-    call test_project_pressure( model_data,  &
-                                mesh_id,     &
-                                twod_mesh_id )
+    call test_project_pressure( model_data, &
+                                mesh,       &
+                                twod_mesh )
 
   end subroutine run_project_pressure
 
@@ -194,9 +195,9 @@ contains
 
     implicit none
 
-    call test_hydrostatic( model_data,  &
-                           mesh_id,     &
-                           twod_mesh_id )
+    call test_hydrostatic( model_data, &
+                           mesh,       &
+                           twod_mesh )
 
   end subroutine run_hydrostatic
 
@@ -204,9 +205,9 @@ contains
 
     implicit none
 
-    call test_pressure_gradient_bd( model_data,  &
-                                    mesh_id,     &
-                                    twod_mesh_id )
+    call test_pressure_gradient_bd( model_data, &
+                                    mesh,       &
+                                    twod_mesh )
 
   end subroutine run_pressure_gradient_bd
 
@@ -217,9 +218,9 @@ contains
     class(clock_type), pointer :: clock
     clock => io_context%get_clock()
 
-    call test_rk_alg( model_data,   &
-                      mesh_id,      &
-                      twod_mesh_id, &
+    call test_rk_alg( model_data, &
+                      mesh,       &
+                      twod_mesh,  &
                       clock )
 
   end subroutine run_rk_alg
@@ -231,9 +232,9 @@ contains
     class(clock_type), pointer :: clock
     clock => io_context%get_clock()
 
-    call test_transport_control( model_data,   &
-                                 mesh_id,      &
-                                 twod_mesh_id, &
+    call test_transport_control( model_data, &
+                                 mesh,       &
+                                 twod_mesh,  &
                                  clock )
 
   end subroutine run_transport_control
@@ -245,9 +246,9 @@ contains
     class(clock_type), pointer :: clock
     clock => io_context%get_clock()
 
-    call test_semi_imp_alg( model_data,   &
-                            mesh_id,      &
-                            twod_mesh_id, &
+    call test_semi_imp_alg( model_data, &
+                            mesh,       &
+                            twod_mesh,  &
                             clock )
 
   end subroutine run_semi_imp_alg
@@ -256,9 +257,9 @@ contains
 
     implicit none
 
-    call test_rhs_alg( model_data,  &
-                       mesh_id,     &
-                       twod_mesh_id )
+    call test_rhs_alg( model_data, &
+                       mesh,       &
+                       twod_mesh )
 
   end subroutine run_rhs_alg
 
@@ -266,9 +267,9 @@ contains
 
     implicit none
 
-    call test_rhs_eos( model_data,  &
-                       mesh_id,     &
-                       twod_mesh_id )
+    call test_rhs_eos( model_data, &
+                       mesh,       &
+                       twod_mesh )
 
   end subroutine run_rhs_eos
 
@@ -281,8 +282,7 @@ contains
     call log_event( 'Finalising '//program_name//' ...', LOG_LEVEL_ALWAYS )
 
     ! Model configuration finalisation
-    call finalise_model( mesh_id,    &
-                         model_data, &
+    call finalise_model( model_data, &
                          program_name )
 
     ! Destroy the fields stored in model_data

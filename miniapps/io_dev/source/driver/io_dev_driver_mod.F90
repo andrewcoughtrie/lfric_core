@@ -21,6 +21,9 @@ module io_dev_driver_mod
                                   log_scratch_space, &
                                   LOG_LEVEL_ALWAYS,  &
                                   LOG_LEVEL_INFO
+  use mesh_mod,             only: mesh_type
+
+
   ! Configuration
   use io_config_mod,              only: use_xios_io,               &
                                         write_diag,                &
@@ -49,9 +52,9 @@ module io_dev_driver_mod
   type(field_type), target, dimension(3) :: chi
   type(field_type), target               :: panel_id
 
-  ! Mesh IDs
-  integer(i_def) :: mesh_id
-  integer(i_def) :: twod_mesh_id
+  ! Meshes
+  type( mesh_type ), pointer :: mesh      => null()
+  type( mesh_type ), pointer :: twod_mesh => null()
 
   class(io_context_type), allocatable :: io_context
 
@@ -72,16 +75,16 @@ module io_dev_driver_mod
     call initialise_infrastructure( filename,     &
                                     program_name, &
                                     communicator, &
-                                    mesh_id,      &
-                                    twod_mesh_id, &
+                                    mesh,         &
+                                    twod_mesh,    &
                                     chi,          &
                                     panel_id,     &
                                     io_context )
 
     ! Instantiate the fields stored in model_data
-    call create_model_data( model_data,  &
-                            mesh_id,     &
-                            twod_mesh_id )
+    call create_model_data( model_data, &
+                            mesh,       &
+                            twod_mesh )
 
     ! Initialise the fields stored in the model_data
     call initialise_model_data( model_data, chi, panel_id, io_context%get_clock() )

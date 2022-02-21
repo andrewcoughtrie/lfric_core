@@ -24,6 +24,8 @@ module fem_constants_mod
   use io_config_mod,                      only: subroutine_timers
   use log_mod,                            only: log_event, LOG_LEVEL_INFO, &
                                                 LOG_LEVEL_ERROR, log_scratch_space
+  use mesh_collection_mod,                only: mesh_collection
+  use mesh_mod,                           only: mesh_type
   use operator_mod,                       only: operator_type
   use quadrature_xyoz_mod,                only: quadrature_xyoz_type
   use quadrature_rule_gaussian_mod,       only: quadrature_rule_gaussian_type
@@ -211,10 +213,12 @@ contains
     integer(kind=i_def), parameter :: zdirection = 3_i_def
 
     ! Temporary values for iterating through list
-    integer(kind=i_def) :: i, mesh_id, num_meshes
+    integer(kind=i_def) :: i, num_meshes
 
     ! Direction switch for computing upwind Det(j)
     integer(kind=i_def) :: detj_direction
+
+    type(mesh_type), pointer :: mesh => null()
 
     if ( subroutine_timers ) call timer('fem_constants_alg')
     call log_event( "Gungho: creating fem_constants", LOG_LEVEL_INFO )
@@ -275,18 +279,18 @@ contains
 
       !=========== Create function spaces required for setup ==================!
 
-      mesh_id = mesh_id_list(i)
+      mesh => mesh_collection%get_mesh( mesh_id_list(i))
 
       ! Don't set up any constants for 2D mesh
-      if (mesh_id /= twod_mesh_label) then
-        w0_fs     => function_space_collection%get_fs( mesh_id, element_order, W0 )
-        w1_fs     => function_space_collection%get_fs( mesh_id, element_order, W1 )
-        w2_fs     => function_space_collection%get_fs( mesh_id, element_order, W2 )
-        w2b_fs    => function_space_collection%get_fs( mesh_id, element_order, W2broken )
-        w2v_fs    => function_space_collection%get_fs( mesh_id, element_order, W2V )
-        w2h_fs    => function_space_collection%get_fs( mesh_id, element_order, W2H )
-        w3_fs     => function_space_collection%get_fs( mesh_id, element_order, W3 )
-        wtheta_fs => function_space_collection%get_fs( mesh_id, element_order, Wtheta )
+      if ( mesh%get_id() /= twod_mesh_label) then
+        w0_fs     => function_space_collection%get_fs( mesh, element_order, W0 )
+        w1_fs     => function_space_collection%get_fs( mesh, element_order, W1 )
+        w2_fs     => function_space_collection%get_fs( mesh, element_order, W2 )
+        w2b_fs    => function_space_collection%get_fs( mesh, element_order, W2broken )
+        w2v_fs    => function_space_collection%get_fs( mesh, element_order, W2V )
+        w2h_fs    => function_space_collection%get_fs( mesh, element_order, W2H )
+        w3_fs     => function_space_collection%get_fs( mesh, element_order, W3 )
+        wtheta_fs => function_space_collection%get_fs( mesh, element_order, Wtheta )
       end if
 
       !=================== Create de Rham cochain operators ===================!

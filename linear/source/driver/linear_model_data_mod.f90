@@ -38,6 +38,7 @@ module linear_model_data_mod
                                              log_scratch_space, &
                                              LOG_LEVEL_INFO,    &
                                              LOG_LEVEL_ERROR
+  use mesh_mod,                       only : mesh_type
 
   implicit none
 
@@ -53,16 +54,17 @@ contains
   !!          the preparation for reading ls fields from a file,
   !!          with a time axis.
   !> @param[inout] model_data The working data set for a model run
-  !> @param[in]    mesh_id The identifier given to the current 3d mesh
-  !> @param[in]    twod_mesh_id The identifier given to the current 2d mesh
-  subroutine linear_create_ls( model_data, mesh_id, &
-                               twod_mesh_id )
+  !> @param[in]    mesh      The current 3d mesh
+  !> @param[in]    twod_mesh The current 2d mesh
+  subroutine linear_create_ls( model_data, mesh, &
+                               twod_mesh )
 
     implicit none
 
     type( model_data_type ), target, intent(inout) :: model_data
-    integer(i_def),                  intent(in)    :: mesh_id
-    integer(i_def),                  intent(in)    :: twod_mesh_id
+
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(mesh_type), pointer, intent(in) :: twod_mesh
 
     type( field_collection_type ), pointer :: depository => null()
     type( field_collection_type ), pointer :: prognostics => null()
@@ -101,22 +103,22 @@ contains
 
       call setup_field( &
            ls_fields, depository, prognostics, "ls_rho", W3,       &
-           mesh_id, checkpoint_restart_flag )
+           mesh, checkpoint_restart_flag )
       call setup_field( &
            ls_fields, depository, prognostics, "ls_exner", W3,     &
-           mesh_id, checkpoint_restart_flag )
+           mesh, checkpoint_restart_flag )
       call setup_field( &
            ls_fields, depository, prognostics, "ls_theta", Wtheta, &
-           mesh_id, checkpoint_restart_flag )
+           mesh, checkpoint_restart_flag )
       call setup_field( &
            ls_fields, depository, prognostics, "ls_u", W2,         &
-           mesh_id, checkpoint_restart_flag )
+           mesh, checkpoint_restart_flag )
 
       do imr = 1,nummr
         name = trim('ls_' // adjustl(mr_names(imr)) )
         call setup_field( &
            ls_fields, depository, prognostics, name, Wtheta, &
-           mesh_id, checkpoint_restart_flag, mr=ls_mr, imr=imr )
+           mesh, checkpoint_restart_flag, mr=ls_mr, imr=imr )
       enddo
 
       do imr = 1, num_moist_factors
@@ -124,7 +126,7 @@ contains
         name = trim(moist_dyn_name)
         call setup_field( &
            ls_fields, depository, prognostics, name, Wtheta, &
-           mesh_id, checkpoint_restart_flag, mr=ls_moist_dyn, imr=imr )
+           mesh, checkpoint_restart_flag, mr=ls_moist_dyn, imr=imr )
       end do
 
     else if ( ls_option == ls_option_file ) then
@@ -138,23 +140,23 @@ contains
 
       call setup_field( &
            ls_fields, depository, prognostics, "ls_rho", W3,       &
-           mesh_id, checkpoint_restart_flag, time_axis=ls_time_axis )
+           mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
       call setup_field( &
            ls_fields, depository, prognostics, "ls_exner", W3,     &
-           mesh_id, checkpoint_restart_flag, time_axis=ls_time_axis )
+           mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
       call setup_field( &
            ls_fields, depository, prognostics, "ls_theta", Wtheta, &
-           mesh_id, checkpoint_restart_flag, time_axis=ls_time_axis )
+           mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
       call setup_field( &
            ls_fields, depository, prognostics, "ls_h_u", W2h,      &
-           mesh_id, checkpoint_restart_flag, time_axis=ls_time_axis )
+           mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
       call setup_field( &
            ls_fields, depository, prognostics, "ls_v_u", Wtheta,   &
-           mesh_id, checkpoint_restart_flag, time_axis=ls_time_axis )
+           mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
 
       call setup_field( &
            ls_fields, depository, prognostics, "ls_u", W2,   &
-           mesh_id, checkpoint_restart_flag )
+           mesh, checkpoint_restart_flag )
 
       do imr = 1,nummr
 
@@ -162,7 +164,7 @@ contains
 
         call setup_field( &
            ls_fields, depository, prognostics, name, Wtheta,         &
-           mesh_id, checkpoint_restart_flag, time_axis=ls_time_axis, &
+           mesh, checkpoint_restart_flag, time_axis=ls_time_axis, &
            mr=ls_mr, imr=imr )
       enddo
 
@@ -173,7 +175,7 @@ contains
 
         call setup_field( &
            ls_fields, depository, prognostics, name, Wtheta,         &
-           mesh_id, checkpoint_restart_flag,  &
+           mesh, checkpoint_restart_flag,  &
            mr=ls_moist_dyn, imr=imr )
       end do
 
@@ -190,18 +192,19 @@ contains
   !> @brief   Define the linearisation state values.
   !> @details At the present, these can only be defined from an analytical
   !!          solution.
-  !> @param[in]    mesh_id      The identifier given to the current 3d mesh
-  !> @param[in]    twod_mesh_id The identifier given to the current 2d mesh
-  !> @param[inout] model_data   The working data set for a model run
-  !> @param[in]    clock        The model time
-  subroutine linear_init_ls( mesh_id, twod_mesh_id, model_data, clock )
+  !> @param[in]    mesh        The current 3d mesh
+  !> @param[in]    twod_mesh   The current 2d mesh
+  !> @param[inout] model_data  The working data set for a model run
+  !> @param[in]    clock       The model time
+  subroutine linear_init_ls( mesh, twod_mesh, model_data, clock )
 
     use gungho_step_mod,                only : gungho_step
 
     implicit none
 
-    integer(i_def),                  intent(in)    :: mesh_id
-    integer(i_def),                  intent(in)    :: twod_mesh_id
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(mesh_type), pointer, intent(in) :: twod_mesh
+
     type( model_data_type ), target, intent(inout) :: model_data
     class(clock_type),               intent(in)    :: clock
 
@@ -220,9 +223,9 @@ contains
 
       ! Evolve the prognostic fields.
       do i=1,10
-        call gungho_step( mesh_id,      &
-                          twod_mesh_id, &
-                          model_data,   &
+        call gungho_step( mesh,       &
+                          twod_mesh,  &
+                          model_data, &
                           clock )
       end do
 
@@ -261,19 +264,20 @@ contains
 
   !> @brief   Define the initial perturbation values.
   !> @details Define the initial perturbation - currently from random data
-  !> @param[in]    mesh_id      The identifier given to the current 3d mesh
-  !> @param[in]    twod_mesh_id The identifier given to the current 2d mesh
-  !> @param[inout] model_data   The working data set for a model run
-  subroutine linear_init_pert( mesh_id, twod_mesh_id, model_data )
+  !> @param[in]    mesh        The current 3d mesh
+  !> @param[in]    twod_mesh   The current 2d mesh
+  !> @param[inout] model_data  The working data set for a model run
+  subroutine linear_init_pert( mesh, twod_mesh, model_data )
 
     implicit none
 
-    integer(i_def),                  intent(in)    :: mesh_id
-    integer(i_def),                  intent(in)    :: twod_mesh_id
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(mesh_type), pointer, intent(in) :: twod_mesh
+
     type( model_data_type ), target, intent(inout) :: model_data
 
-    call linear_init_pert_random( mesh_id,      &
-                                  twod_mesh_id, &
+    call linear_init_pert_random( mesh,      &
+                                  twod_mesh, &
                                   model_data )
 
   end subroutine linear_init_pert

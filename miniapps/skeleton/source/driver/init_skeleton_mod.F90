@@ -20,6 +20,7 @@ module init_skeleton_mod
   use log_mod,                        only : log_event,      &
                                              LOG_LEVEL_INFO, &
                                              LOG_LEVEL_ERROR
+  use mesh_mod,                       only : mesh_type
   use runtime_constants_mod,          only : create_runtime_constants
   use io_config_mod,                  only : write_diag, &
                                              use_xios_io
@@ -29,12 +30,12 @@ module init_skeleton_mod
 
   contains
 
-  subroutine init_skeleton(mesh_id, twod_mesh_id, chi, panel_id, dt, field_1)
+  subroutine init_skeleton( mesh, twod_mesh, chi, panel_id, dt, field_1)
 
     implicit none
 
-    integer(i_def), intent(in)               :: mesh_id
-    integer(i_def), intent(in)               :: twod_mesh_id
+    type(mesh_type), intent(in), pointer     :: mesh
+    type(mesh_type), intent(in), pointer     :: twod_mesh
     real(r_def),    intent(in)               :: dt
     ! Prognostic fields
     type( field_type ), intent(inout)        :: field_1
@@ -50,7 +51,7 @@ module init_skeleton_mod
     ! Create prognostic fields
     ! Creates a field in the W3 function space (fully discontinuous field)
     call field_1%initialise( vector_space = &
-                      function_space_collection%get_fs(mesh_id, element_order, W3) )
+                      function_space_collection%get_fs(mesh, element_order, W3) )
 
     ! Set up field with an IO behaviour (XIOS only at present)
 
@@ -65,7 +66,7 @@ module init_skeleton_mod
     ! Create runtime_constants object. This in turn creates various things
     ! needed by the fem algorithms such as mass matrix operators, mass
     ! matrix diagonal fields and the geopotential field
-    call create_runtime_constants(mesh_id, twod_mesh_id, chi, panel_id, dt)
+    call create_runtime_constants(mesh, twod_mesh, chi, panel_id, dt)
 
     call log_event( 'skeleton: Miniapp initialised', LOG_LEVEL_INFO )
 

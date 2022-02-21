@@ -26,7 +26,6 @@ module diagnostics_io_mod
   use lfric_xios_write_mod,          only: write_field_face, &
                                            write_field_edge
   use mesh_mod,                      only: mesh_type
-  use mesh_collection_mod,           only: mesh_collection
   use field_mod,                     only: field_type
   use field_parent_mod,              only: write_interface
   use fs_continuity_mod,             only: W3
@@ -46,18 +45,18 @@ contains
 !!> @param[in] field_name  Character string the field name
 !!> @param[in] field       The field to output
 !!> @param[in] ts          Timestep
-!!> @param[in] mesh_id     Mesh_id
+!!> @param[in] mesh        Mesh
 !!> @param[in] W3_project  Logical to allow projection to W3
 !-------------------------------------------------------------------------------
 
 subroutine write_scalar_diagnostic( field_name, field, &
-                                    clock, mesh_id, W3_project )
+                                    clock, mesh, W3_project )
   implicit none
 
   character(len=*),  intent(in)    :: field_name
   type(field_type),  intent(in)    :: field
   class(clock_type), intent(in)    :: clock
-  integer(i_def),    intent(in)    :: mesh_id
+  type(mesh_type),   intent(in), pointer :: mesh
   logical,           intent(in)    :: W3_project
 
   integer(i_def), parameter       :: nodal_output_unit = 21
@@ -91,9 +90,9 @@ subroutine write_scalar_diagnostic( field_name, field, &
                          ".m" ))
 
     ! Call diagnostic processing to create nodal field
-    call scalar_nodal_diagnostic_alg(output_field, nodal_coordinates, &
-                                     level, field_name, field,        &
-                                     mesh_id, .false.)
+    call scalar_nodal_diagnostic_alg( output_field, nodal_coordinates, &
+                                      level, field_name, field,        &
+                                      mesh, .false. )
 
     ! Call write routine
     call nodal_write_field(nodal_coordinates, level, output_field,    &
@@ -111,13 +110,13 @@ subroutine write_scalar_diagnostic( field_name, field, &
 
 
       ! Call diagnostic processing to create nodal field
-      call scalar_nodal_diagnostic_alg(output_field, nodal_coordinates, &
-                                       level, field_name, field,        &
-                                       mesh_id, .true.)
+      call scalar_nodal_diagnostic_alg( output_field, nodal_coordinates, &
+                                        level, field_name, field,        &
+                                        mesh, .true. )
 
       ! Call write routine
-      call nodal_write_field(nodal_coordinates, level, output_field,    &
-                                   1, nodal_output_unit, fname)
+      call nodal_write_field( nodal_coordinates, level, output_field,    &
+                              1, nodal_output_unit, fname)
 
     end if
 
@@ -126,8 +125,8 @@ subroutine write_scalar_diagnostic( field_name, field, &
     ! XIOS UGRID output
 
     ! Call diagnostic processing to create ugrid field
-    call scalar_ugrid_diagnostic_alg(output_field, field_name, field, &
-                                     mesh_id, .false.)
+    call scalar_ugrid_diagnostic_alg( output_field, field_name, field, &
+                                      mesh, .false. )
 
     ! Set a field I/O method appropriately
     tmp_write_ptr => write_field_face
@@ -157,24 +156,23 @@ end subroutine write_scalar_diagnostic
 !!> @param[in] field_name  Character string the field name
 !!> @param[in] field       The field to output
 !!> @param[in] ts          Timestep
-!!> @param[in] mesh_id     Mesh_id
+!!> @param[in] mesh        Mesh
 !!> @param[in] W3_project  Logical to allow projection to W3
 !-------------------------------------------------------------------------------
 
 subroutine write_vector_diagnostic( field_name, field, &
-                                    clock, mesh_id, W3_project )
+                                    clock, mesh, W3_project )
   implicit none
 
   character(len=*),  intent(in)    :: field_name
   type(field_type),  intent(in)    :: field
   class(clock_type), intent(in)    :: clock
-  integer(i_def),    intent(in)    :: mesh_id
+  type(mesh_type),   intent(in), pointer :: mesh
   logical,           intent(in)    :: W3_project
 
   integer(i_def), parameter       :: nodal_output_unit = 21
 
   ! Local Variables
-  type(mesh_type), pointer        :: mesh => null()
   type(field_type)                :: nodal_coordinates(3)
   type(field_type)                :: output_field(3)
   type(field_type)                :: projected_field(3)
@@ -189,9 +187,6 @@ subroutine write_vector_diagnostic( field_name, field, &
   integer(i_timestep)             :: timestep
 
   procedure(write_interface), pointer  :: tmp_write_ptr => null()
-
-  ! get pointer to local mesh
-  mesh => mesh_collection%get_mesh( mesh_id )
 
   ! Nodal output
   if ( .not. (use_xios_io) )  then
@@ -211,9 +206,9 @@ subroutine write_vector_diagnostic( field_name, field, &
                         timestep,             &
                         ".m"))
 
-    call vector_nodal_diagnostic_alg(output_field, output_dim, &
-                                     nodal_coordinates, level, &
-                                     field_name, field)
+    call vector_nodal_diagnostic_alg( output_field, output_dim, &
+                                      nodal_coordinates, level, &
+                                      field_name, field )
 
     ! Call write routine
     call nodal_write_field(nodal_coordinates, level, output_field, &
@@ -226,7 +221,7 @@ subroutine write_vector_diagnostic( field_name, field, &
       output_dim = 3
 
       ! Project the field to the output field
-      call project_output(field, projected_field, output_dim, W3 , mesh_id)
+      call project_output( field, projected_field, output_dim, W3 , mesh )
 
       do i =1,output_dim
          ! Write the component number into a new field name
@@ -241,9 +236,9 @@ subroutine write_vector_diagnostic( field_name, field, &
                              ".m"))
 
          ! Call scalar output on each component
-         call scalar_nodal_diagnostic_alg(output_field(i), nodal_coordinates,        &
-                                          level, field_name_new, projected_field(i), &
-                                          mesh_id, .false.)
+         call scalar_nodal_diagnostic_alg( output_field(i), nodal_coordinates,        &
+                                           level, field_name_new, projected_field(i), &
+                                           mesh, .false.)
 
          ! Call write routine
          call nodal_write_field(nodal_coordinates, level, output_field(i), &
@@ -266,7 +261,7 @@ subroutine write_vector_diagnostic( field_name, field, &
       output_dim = 3
 
       ! Project the field to the output field
-      call project_output(field, projected_field, output_dim, W3 , mesh_id)
+      call project_output( field, projected_field, output_dim, W3 , mesh )
 
       ! Set up correct I/O handler for Xi projected to W3
       tmp_write_ptr => write_field_face
@@ -292,8 +287,8 @@ subroutine write_vector_diagnostic( field_name, field, &
 
       !---- Output wind as u1, u2, and u3 wind components ---
 
-      call split_wind_diagnostic_alg(u1_wind, u2_wind, u3_wind, &
-                                    field,  mesh_id)
+      call split_wind_diagnostic_alg( u1_wind, u2_wind, u3_wind, &
+                                      field, mesh )
 
       ! Set up I/O handler as these are derived fields
       tmp_write_ptr => write_field_face
@@ -317,7 +312,7 @@ subroutine write_vector_diagnostic( field_name, field, &
         !---- Output wind as w2h and wtheta fluxes ----
 
         ! Convert u to w2h (h_wind) and wtheta (v_wind)
-        call extract_w2h_diagnostic_alg( h_wind, v_wind, field, mesh_id )
+        call extract_w2h_diagnostic_alg( h_wind, v_wind, field, mesh )
 
         tmp_write_ptr => write_field_face
         call v_wind%set_write_behaviour(tmp_write_ptr)

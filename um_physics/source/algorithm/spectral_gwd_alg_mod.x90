@@ -12,6 +12,7 @@ module spectral_gwd_alg_mod
    use io_config_mod,        only: subroutine_timers
    use timer_mod,            only: timer
    use log_mod,              only: log_event, LOG_LEVEL_INFO
+   use mesh_mod,             only: mesh_type
    use fs_continuity_mod,    only: W3, Wtheta
 
   ! XIOS output
@@ -77,7 +78,8 @@ contains
     type( field_type ), pointer :: height_w3 => null()
     type( field_type ), pointer :: height_wth => null()
 
-    integer(kind=i_def) :: mesh_id, twod_mesh_id
+    type( mesh_type ), pointer :: mesh      => null()
+    type( mesh_type ), pointer :: twod_mesh => null()
 
     if ( subroutine_timers ) call timer("spectral_gwd_alg")
 
@@ -96,11 +98,12 @@ contains
     conv_snow => convection_fields%get_field('conv_snow')
 
 
-    mesh_id = theta%get_mesh_id()
-    twod_mesh_id = ls_rain%get_mesh_id()
-    latitude_w3 => get_latitude(twod_mesh_id)
-    height_wth => get_height(Wtheta, mesh_id)
-    height_w3 => get_height(W3, mesh_id)
+    mesh      => theta%get_mesh()
+    twod_mesh => ls_rain%get_mesh()
+
+    latitude_w3 => get_latitude(twod_mesh%get_id())
+    height_wth  => get_height(Wtheta, mesh%get_id())
+    height_w3   => get_height(W3, mesh%get_id())
 
     call u1_in_w3%copy_field_properties(du_spectral_gwd)
     call u2_in_w3%copy_field_properties(dv_spectral_gwd)
@@ -127,7 +130,7 @@ contains
                 X_divideby_Y ( dtheta_spectral_gwd, dtemp_spectral_gwd,     &
                                exner_in_wth) )
 
-   if ( subroutine_timers ) call timer("spectral_gwd_alg")
+    if ( subroutine_timers ) call timer("spectral_gwd_alg")
 
     if (write_diag .and. use_xios_io) then
       if ( subroutine_timers ) call timer("spectral_gwd_xios")
@@ -138,11 +141,13 @@ contains
       call dtemp_spectral_gwd%write_field('dtemp_spectral_gwd')
 
       if ( subroutine_timers ) call timer("spectral_gwd_xios")
-   end if
+    end if
 
     ! Mapping back of wind increments
     call set_wind(du_tot_spectral_gwd, du_spectral_gwd, dv_spectral_gwd, &
                   dw_spectral_gwd)
+
+    nullify( mesh, twod_mesh )
 
   end subroutine spectral_gwd_alg
 

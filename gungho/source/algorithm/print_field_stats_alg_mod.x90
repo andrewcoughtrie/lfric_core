@@ -45,7 +45,7 @@ subroutine print_field_stats_alg(field, level, printmin, printmax, name)
   real(r_def),      intent(in), optional :: printmin, printmax
   character(*),     intent(in), optional :: name
 
-  integer(i_def)     :: mesh_id, twod_mesh_id, fs_id
+  integer(i_def)     :: fs_id
   real(r_def)        :: fmin, fmax, gmax_lev, gmin_lev, gmax_count, gmin_count,&
                         gmax_lat, gmin_lat, gmax_lon, gmin_lon, gmax_height,   &
                         gmin_height, minval, maxval
@@ -92,14 +92,12 @@ subroutine print_field_stats_alg(field, level, printmin, printmax, name)
 
         mesh => field%get_mesh()
         twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
-        mesh_id = mesh%get_id()
-        twod_mesh_id = twod_mesh%get_id()
+
+        latitude  => get_latitude( twod_mesh%get_id() )
+        longitude => get_longitude( twod_mesh%get_id() )
+        height    => get_height( fs_id, mesh%get_id() )
 
         nullify(mesh, twod_mesh)
-
-        latitude  => get_latitude(twod_mesh_id)
-        longitude => get_longitude(twod_mesh_id)
-        height    => get_height(fs_id, mesh_id)
 
         call latitude%copy_field_properties(max_lev)
         call latitude%copy_field_properties(min_lev)

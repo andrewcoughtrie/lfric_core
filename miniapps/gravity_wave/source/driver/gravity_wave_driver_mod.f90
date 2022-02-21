@@ -48,6 +48,7 @@ module gravity_wave_driver_mod
                                             LOG_LEVEL_INFO,     &
                                             LOG_LEVEL_TRACE,    &
                                             LOG_LEVEL_ERROR
+  use mesh_mod,                       only: mesh_type
   use io_mod,                         only: ts_fname
   use files_config_mod,               only: checkpoint_stem_name
   use timer_mod,                      only: init_timer, timer, output_timer
@@ -59,12 +60,12 @@ module gravity_wave_driver_mod
   public initialise, run, finalise
 
   ! The prognostic fields
-  type( field_type ), target             :: wind
-  type( field_type ), target             :: pressure
-  type( field_type ), target             :: buoyancy
+  type( field_type ), target :: wind
+  type( field_type ), target :: pressure
+  type( field_type ), target :: buoyancy
 
-  integer(i_def) :: mesh_id
-  integer(i_def) :: twod_mesh_id
+  type( mesh_type ), pointer :: mesh      => null()
+  type( mesh_type ), pointer :: twod_mesh => null()
 
   class(io_context_type), allocatable :: io_context
 
@@ -86,9 +87,9 @@ contains
   call initialise_infrastructure( model_communicator, &
                                   filename,           &
                                   program_name,       &
-                                  io_context,           &
-                                  mesh_id,              &
-                                  twod_mesh_id)
+                                  io_context,         &
+                                  mesh,               &
+                                  twod_mesh)
 
   call log_event( 'Initialising '//program_name//' ...', LOG_LEVEL_ALWAYS )
 
@@ -115,7 +116,7 @@ contains
   end if
 
   ! Create the prognostic fields
-  call create_gravity_wave_prognostics(mesh_id, wind, pressure, buoyancy)
+  call create_gravity_wave_prognostics(mesh, wind, pressure, buoyancy)
 
   clock => io_context%get_clock()
 
@@ -143,12 +144,12 @@ contains
   end if
 
   ! Initialise the gravity-wave model
-  call gravity_wave_alg_init(mesh_id, wind, pressure, buoyancy)
+  call gravity_wave_alg_init(mesh, wind, pressure, buoyancy)
 
   ! Output initial conditions
   ! We only want these once at the beginning of a run
   if (clock%is_initialisation() .and. write_diag) then
-    call gravity_wave_diagnostics_driver( mesh_id,           &
+    call gravity_wave_diagnostics_driver( mesh,              &
                                           wind,              &
                                           pressure,          &
                                           buoyancy,          &
@@ -201,7 +202,7 @@ contains
 
       call log_event("Gravity Wave: writing diagnostic output", LOG_LEVEL_INFO)
 
-      call gravity_wave_diagnostics_driver( mesh_id,           &
+      call gravity_wave_diagnostics_driver( mesh,              &
                                             wind,              &
                                             pressure,          &
                                             buoyancy,          &

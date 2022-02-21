@@ -24,6 +24,7 @@ module cld_alg_mod
   use physics_mappings_alg_mod,      only: map_physics_scalars
   use moisture_conservation_alg_mod, only: moisture_conservation_alg
   use log_mod,                       only: log_event, LOG_LEVEL_INFO
+  use mesh_mod,                      only: mesh_type
   use geometric_constants_mod,       only: get_height
   use fs_continuity_mod,             only: Wtheta, W3
   use cld_diags_mod,                 only: initialise_diags_for_cld,      &
@@ -128,22 +129,22 @@ contains
     type( field_type ) :: icing_sfip_li_bcf
     type( field_type ) :: icing_sfip_lir_com
 
-    integer(i_def) :: mesh_id
+    type( mesh_type ), pointer :: mesh => null()
 
     if ( subroutine_timers ) call timer('cld_alg')
 
     call log_event( 'End-of-timestep cloud update', LOG_LEVEL_INFO )
 
-    mesh_id = theta%get_mesh_id()
+    mesh => theta%get_mesh()
+    height_wth => get_height(Wtheta, mesh%get_id())
 
     ! Map updated pressure into wtheta space
     call theta%copy_field_properties(exner_wth)
     call map_physics_scalars(exner_wth, exner)
 
-    cf_bulk    => cloud_fields%get_field('bulk_fraction')
-    cf_area    => cloud_fields%get_field('area_fraction')
-    height_wth => get_height(Wtheta, mesh_id)
-    zh         => turbulence_fields%get_field('zh')
+    cf_bulk => cloud_fields%get_field('bulk_fraction')
+    cf_area => cloud_fields%get_field('area_fraction')
+    zh      => turbulence_fields%get_field('zh')
 
     call initialise_diags_for_cld( cld_amount_max,                             &
                                    cld_amount_rnd,                             &
@@ -264,6 +265,8 @@ contains
                                  theta_inc,              &
                                  exner_wth )
     end if
+
+    nullify ( mesh )
 
   end subroutine cld_alg
 

@@ -12,6 +12,7 @@ module calc_phys_predictors_alg_mod
   use field_mod,                only: field_type
   use field_collection_mod,     only: field_collection_type
   use derived_config_mod,       only: bundle_size
+  use mesh_mod,                 only: mesh_type
   use moist_dyn_mod,            only: num_moist_factors
   use field_indices_mod,        only: igh_u, igh_t
   use formulation_config_mod,   only: dlayer_on, use_wavedynamics
@@ -65,6 +66,8 @@ subroutine calc_phys_predictors_alg(derived_fields, rhs_np1,                &
     class(clock_type), intent(in) :: clock
     real(kind=r_def),  intent(in) :: dt
 
+    type( mesh_type ),  pointer :: mesh => null()
+
     type( field_type ), pointer :: theta_star => null()
     type( field_type ), pointer :: u_star => null()
     type( field_type ), pointer :: u1_in_w3_star => null()
@@ -79,8 +82,8 @@ subroutine calc_phys_predictors_alg(derived_fields, rhs_np1,                &
 
     if ( subroutine_timers ) call timer("calc_phys_predictors")
 
-    theta_star  => derived_fields%get_field('theta_star')
-    u_star  => derived_fields%get_field('u_star')
+    theta_star => derived_fields%get_field('theta_star')
+    u_star     => derived_fields%get_field('u_star')
 
     if (use_wavedynamics .and. (.not. clock%is_spinning_up())) then
       ! Note that if spinning up the dynamics, then explicit predictors are used.
@@ -113,9 +116,14 @@ subroutine calc_phys_predictors_alg(derived_fields, rhs_np1,                &
 
     u_physics_star  => derived_fields%get_field('u_physics_star')
     w_physics_star  => derived_fields%get_field('w_physics_star')
-    dA => get_da_at_w2(u_physics_star%get_mesh_id())
+
+    mesh => u_physics_star%get_mesh()
+    dA => get_da_at_w2( mesh%get_id() )
+
     call invoke(         X_divideby_Y(u_physics_star, u_star, dA),     &
                 extract_w_kernel_type(w_physics_star, u_physics_star) )
+
+    nullify( mesh )
 
     if ( subroutine_timers ) call timer("calc_phys_predictors")
 

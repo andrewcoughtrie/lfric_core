@@ -16,6 +16,7 @@ module set_rho_alg_mod
 
   ! Derived Types
   use field_mod,                       only: field_type
+  use mesh_mod,                        only: mesh_type
   use quadrature_xyoz_mod,             only: quadrature_xyoz_type
   use quadrature_rule_gaussian_mod,    only: quadrature_rule_gaussian_type
 
@@ -46,13 +47,14 @@ subroutine set_rho_alg( rho, timestep, dt )
                                    panel_id => null()
 
     real(kind=r_def)    :: time
-    integer(kind=i_def) :: mesh_id
 
-    mesh_id = rho%get_mesh_id()
+    type( mesh_type ), pointer :: mesh => null()
+
+    mesh => rho%get_mesh()
 
     qr = quadrature_xyoz_type(nqp_exact, quadrature_rule)
-    chi => get_coordinates(mesh_id)
-    panel_id => get_panel_id(mesh_id)
+    chi => get_coordinates(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
     ! Set rho according to formulation
     time = real(timestep,r_def)*dt
     call invoke( set_rho_kernel_type ( rho, chi, panel_id, time, qr ) )

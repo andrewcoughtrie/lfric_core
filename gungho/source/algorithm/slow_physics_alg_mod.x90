@@ -14,6 +14,7 @@ module slow_physics_alg_mod
                                        cv_scheme_gregory_rowntree
   use constants_mod,             only: i_def, r_def, l_def
   use log_mod,                   only: LOG_LEVEL_INFO
+  use mesh_mod,                  only: mesh_type
   use print_field_stats_alg_mod, only: print_field_stats_alg
   use physics_config_mod,        only: microphysics_placement,         &
                                        microphysics_placement_slow,    &
@@ -124,15 +125,15 @@ contains
   !> @param[in,out] aerosol_fields         Fields for aerosol scheme
   !> @param[in]     clock                  Model time
   !> @param[in]     dt                     The model timestep length
-  !> @param[in]     mesh_id                Identifier given to current mesh
-  !> @param[in]     twod_mesh_id           Identifier given to current 2d mesh
+  !> @param[in]     mesh                   Current mesh
+  !> @param[in]     twod_mesh              2d mesh
   subroutine slow_physics(du, dtheta, mr, visc_m, visc_h,                      &
                           theta, rho, exner, mr_n, derived_fields,             &
                           radiation_fields, microphysics_fields,               &
                           orography_fields, turbulence_fields,                 &
                           convection_fields, cloud_fields, surface_fields,     &
                           soil_fields, snow_fields, aerosol_fields,            &
-                          clock, dt, mesh_id, twod_mesh_id )
+                          clock, dt, mesh, twod_mesh )
 
     implicit none
 
@@ -158,8 +159,9 @@ contains
     type( field_collection_type ), intent(inout) :: snow_fields
     type( field_collection_type ), intent(inout) :: aerosol_fields
 
-    integer( kind=i_def ), intent(in) :: mesh_id
-    integer( kind=i_def ), intent(in) :: twod_mesh_id
+    type(mesh_type), intent(in), pointer :: mesh
+    type(mesh_type), intent(in), pointer :: twod_mesh
+
     class(clock_type),     intent(in) :: clock
     real( kind=r_def ),    intent(in) :: dt
 
@@ -234,7 +236,6 @@ contains
     logical( kind=l_def ) :: boundary_layer_done
 #ifdef UM_PHYSICS
     ! Variables for extracting horizontal number of cells from mesh
-    type(mesh_type), pointer :: mesh => null()
     integer( kind=i_def ) :: ncells
 #endif
 
@@ -272,7 +273,7 @@ contains
       !--------------------------------------------------------------------
       ! Fractional standard deviation (FSD) of cloud condensate
       !--------------------------------------------------------------------
-      vector_space => function_space_collection%get_fs( mesh_id, 0, Wtheta, 3)
+      vector_space => function_space_collection%get_fs( mesh, 0, Wtheta, 3)
       call f_arr%initialise(vector_space)
       if ( cld_fsd_hill ) then
         call fsd_condensate_alg( f_arr, cloud_fields, convection_fields )
@@ -293,7 +294,7 @@ contains
                l_radaer ) ) then
 
           call locate_tropopause_alg( trop_level, theta, exner_in_wth,         &
-                                      twod_mesh_id )
+                                      twod_mesh )
         end if
 
         !--------------------------------------------------------------------
@@ -324,16 +325,15 @@ contains
     if ( microphysics == microphysics_um .and. &
          microphysics_placement == microphysics_placement_slow) then
       ! Switch UM to running i-first on whole domain
-      mesh => mesh_collection%get_mesh( mesh_id )
       ncells = mesh%get_last_edge_cell()
-      call um_control_init(mesh_id, ncells)
+      call um_control_init(mesh, ncells)
       call um_physics_init(ncells)
       call mphys_alg( mr_n, theta, rho, derived_fields, microphysics_fields, &
                       cloud_fields, aerosol_fields, turbulence_fields,       &
                       f_arr, dmr_mphys, dtheta_mphys, dcfl_pc2_mphys,        &
                       dcff_pc2_mphys, dbcf_pc2_mphys, dt )
       ! Switch UM back to columns
-      call um_control_init(mesh_id, 1_i_def)
+      call um_control_init(mesh, 1_i_def)
       call um_physics_init(1_i_def)
       microphysics_done = .true. ! Collect this increment later on
     end if
@@ -347,14 +347,14 @@ contains
       !--------------------------------------------------------------------
       ! UM radaer scheme
       !--------------------------------------------------------------------
-      vector_space=>function_space_collection%get_fs(mesh_id,0,Wtheta,mode_dimen)
+      vector_space=>function_space_collection%get_fs(mesh,0,Wtheta,mode_dimen)
       call aer_mix_ratio%initialise(vector_space)
-      vector_space=>function_space_collection%get_fs(mesh_id,0,Wtheta,         &
+      vector_space=>function_space_collection%get_fs(mesh,0,Wtheta,         &
                                                      sw_band_mode)
       call aer_sw_absorption%initialise(vector_space)
       call aer_sw_scattering%initialise(vector_space)
       call aer_sw_asymmetry%initialise(vector_space)
-      vector_space=>function_space_collection%get_fs(mesh_id,0,Wtheta,         &
+      vector_space=>function_space_collection%get_fs(mesh,0,Wtheta,         &
                                                      lw_band_mode)
       call aer_lw_absorption%initialise(vector_space)
       call aer_lw_scattering%initialise(vector_space)
@@ -383,7 +383,7 @@ contains
                         tile_lw_albedo, tile_lwinc_albedo, derived_fields,   &
                         radiation_fields, orography_fields,                  &
                         surface_fields, soil_fields, snow_fields,            &
-                        twod_mesh_id, clock%get_step())
+                        twod_mesh, clock%get_step())
 
       dtheta_rad => radiation_fields%get_field('dtheta_rad')
       dmv_pc2_rad => radiation_fields%get_field('dmv_pc2_rad')

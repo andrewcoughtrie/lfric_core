@@ -46,6 +46,7 @@ module cma_test_algorithm_mod
   use halo_routing_collection_mod,    only : halo_routing_collection_type, &
                                              halo_routing_collection
   use field_mod,                      only : field_type
+  use mesh_mod,                       only : mesh_type
   use quadrature_xyoz_mod,            only : quadrature_xyoz_type
   use quadrature_rule_gaussian_mod,   only : quadrature_rule_gaussian_type
   use operator_mod,                   only : operator_type, &
@@ -83,7 +84,8 @@ module cma_test_algorithm_mod
   private
 
   ! Mesh id
-  integer(kind=i_def) :: mesh_id
+  type(mesh_type), pointer :: mesh => null()
+
   ! Index of coordinate function space
   integer(kind=i_def) :: chi_space
   ! Coordinate fields
@@ -154,13 +156,14 @@ contains
   !>         of an appropriate size (if the grid spacing is too small or too larger,
   !>         the two terms in the Helmholtz operator might have very different magnitude
   !>         distorting the test results).
-  !>@param[in] mesh_id_in Id of mesh to be used
-  subroutine cma_test_init(mesh_id_in)
+  !>@param[in] mesh Mesh to be used
+  subroutine cma_test_init(mesh_in)
     implicit none
 
-    integer(kind=i_def), intent(in) :: mesh_id_in
+    type(mesh_type), intent(in), pointer :: mesh_in
+
     ! Local variables
-    integer(kind=i_def)               :: i
+    integer(kind=i_def) :: i
 
     ! Return if module has already been initialised
     if (is_initialised) return
@@ -169,7 +172,7 @@ contains
     allocate( halo_routing_collection, &
               source = halo_routing_collection_type() )
 
-    mesh_id = mesh_id_in
+    mesh => mesh_in
 
     ! Set up coordinate field
     if ( coord_order == 0 ) then
@@ -185,32 +188,32 @@ contains
     allocate( function_space_collection, &
               source = function_space_collection_type() )
 
-    fs_coord => function_space_collection%get_fs(mesh_id,     &
+    fs_coord => function_space_collection%get_fs(mesh,        &
                                                  coord_order, &
                                                  chi_space)
 
-    fs_pressure => function_space_collection%get_fs(mesh_id, 1, W3)
+    fs_pressure => function_space_collection%get_fs(mesh, 1, W3)
     call panel_id%initialise(vector_space = fs_pressure )
 
-    fs_coord => function_space_collection%get_fs(mesh_id, coord_order, Wchi)
+    fs_coord => function_space_collection%get_fs(mesh, coord_order, Wchi)
 
     do i = 1,3
       call chi(i)%initialise(vector_space = fs_coord )
     end do
 
-    call assign_coordinate_field(chi, panel_id, mesh_id)
+    call assign_coordinate_field( chi, panel_id, mesh )
 
     ! Construct quadrature rule
     qr = quadrature_xyoz_type(3, quadrature_rule)
 
     ! Extract function spaces from mesh
-    fs_vel_v    => function_space_collection%get_fs(mesh_id,       &
+    fs_vel_v    => function_space_collection%get_fs(mesh,          &
                                                     element_order, &
                                                     W2V)
-    fs_vel_h    => function_space_collection%get_fs(mesh_id,       &
+    fs_vel_h    => function_space_collection%get_fs(mesh,          &
                                                     element_order, &
                                                     W2H)
-    fs_pressure => function_space_collection%get_fs(mesh_id,       &
+    fs_pressure => function_space_collection%get_fs(mesh,          &
                                                     element_order, &
                                                     W3)
     ! Create temporary fields for testing
@@ -330,7 +333,7 @@ contains
     type(function_space_type), pointer :: fs => null()
 
     ! Extract function space for creation of temporary fields
-    fs => function_space_collection%get_fs(mesh_id,       &
+    fs => function_space_collection%get_fs(mesh,          &
                                            element_order, &
                                            x1%which_function_space())
 

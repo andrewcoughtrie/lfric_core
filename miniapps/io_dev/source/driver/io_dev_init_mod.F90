@@ -22,6 +22,7 @@ module io_dev_init_mod
   use log_mod,                        only : log_event, &
                                              LOG_LEVEL_INFO, &
                                              LOG_LEVEL_ERROR
+  use mesh_mod,                       only : mesh_type
   use pure_abstract_field_mod,        only : pure_abstract_field_type
   use lfric_xios_time_axis_mod,       only : time_axis_type, update_interface
   ! Configuration
@@ -54,16 +55,16 @@ module io_dev_init_mod
   contains
 
   !> @details Sets up fields used for inputting and outputting IO_Dev data
-  !> @param[in]  mesh_id                 The identifier given to the current 3D mesh
-  !> @param[in]  twod_mesh_id            The identifier given to the current 2D mesh
+  !> @param[in]  mesh                    The current 3D mesh
+  !> @param[in]  twod_mesh               The current 2D mesh
   !> @param[out] core_fields             The core field collection
   !> @param[out] dump_fields             Collection of fields to be written-to/read-from
   !>                                     dump files
   !> @param[out] dump_fields             Collection of fields to be passed to PSyCloned
   !>                                     kernels
   !> @param[in,out] variable_times_list  List of time_axis objects in model data
-  subroutine setup_io_dev_fields( mesh_id,      &
-                                  twod_mesh_id, &
+  subroutine setup_io_dev_fields( mesh,         &
+                                  twod_mesh,    &
                                   core_fields,  &
                                   dump_fields,  &
                                   alg_fields,   &
@@ -72,8 +73,8 @@ module io_dev_init_mod
     implicit none
 
     ! Arguments
-    integer(i_def),              intent(in)    :: mesh_id
-    integer(i_def),              intent(in)    :: twod_mesh_id
+    type(mesh_type), pointer,    intent(in)    :: mesh
+    type(mesh_type), pointer,    intent(in)    :: twod_mesh
     type(field_collection_type), intent(out)   :: core_fields
     type(field_collection_type), intent(out)   :: dump_fields
     type(field_collection_type), intent(out)   :: alg_fields
@@ -100,19 +101,19 @@ module io_dev_init_mod
 
     if ( field_kind == field_kind_real ) then
       ! W0 (node) field
-      call create_real_field( core_fields, "W0_field", mesh_id, twod_mesh_id, W0 )
+      call create_real_field( core_fields, "W0_field", mesh, twod_mesh, W0 )
 
       ! W2 (edge) fields
-      call create_real_field( core_fields, "W2H_field", mesh_id, twod_mesh_id, W2H )
-      call create_real_field( core_fields, "W2V_field", mesh_id, twod_mesh_id, W2V )
+      call create_real_field( core_fields, "W2H_field", mesh, twod_mesh, W2H )
+      call create_real_field( core_fields, "W2V_field", mesh, twod_mesh, W2V )
 
       ! W3 (face) fields
       call create_real_field( core_fields, "W3_field",         &
-                              mesh_id, twod_mesh_id, W3 )
+                              mesh, twod_mesh, W3 )
       call create_real_field( core_fields, "W3_2D_field",      &
-                              mesh_id, twod_mesh_id, W3, twod=.true. )
+                              mesh, twod_mesh, W3, twod=.true. )
       call create_real_field( core_fields, "multi_data_field", &
-                              mesh_id, twod_mesh_id, W3, ndata=n_multi_data, twod=.true. )
+                              mesh, twod_mesh, W3, ndata=n_multi_data, twod=.true. )
 
       !----------------------------------------------------------------------------
       ! Time varying fields
@@ -131,18 +132,18 @@ module io_dev_init_mod
                                       pop_freq = ancil_update_freq )
 
         call core_fields%remove_field( "W3_2D_field" )
-        call create_real_field( core_fields, "W3_2D_field", mesh_id, twod_mesh_id, W3, &
+        call create_real_field( core_fields, "W3_2D_field", mesh, twod_mesh, W3, &
                            time_axis=seconds_axis, twod=.true. )
 
         call core_fields%remove_field( "W3_field" )
-        call create_real_field( core_fields, "W3_field", mesh_id, twod_mesh_id, W3, &
+        call create_real_field( core_fields, "W3_field", mesh, twod_mesh, W3, &
                            time_axis=seconds_axis )
 
         call core_fields%remove_field( "multi_data_field" )
-        call create_real_field( core_fields, "multi_data_field", mesh_id, twod_mesh_id, W3, &
+        call create_real_field( core_fields, "multi_data_field", mesh, twod_mesh, W3, &
                            ndata=5, time_axis=seconds_axis, twod=.true. )
 
-        call create_real_field( core_fields, "seconds_field", mesh_id, twod_mesh_id, W3, &
+        call create_real_field( core_fields, "seconds_field", mesh, twod_mesh, W3, &
                                 time_axis=seconds_axis, twod=.true. )
 
         call seconds_axis%set_update_behaviour( tmp_update_ptr )
@@ -154,7 +155,7 @@ module io_dev_init_mod
                                    xios_id="time_days",                 &
                                    interp_flag = interp_flag,           &
                                    pop_freq = ancil_update_freq )
-        call create_real_field( core_fields, "days_field", mesh_id, twod_mesh_id, W3, &
+        call create_real_field( core_fields, "days_field", mesh, twod_mesh, W3, &
                                 time_axis=days_axis, twod=.true. )
         call days_axis%set_update_behaviour( tmp_update_ptr )
         call variable_times_list%insert_item(days_axis)
@@ -165,7 +166,7 @@ module io_dev_init_mod
                                       xios_id="time_months",                 &
                                       interp_flag = interp_flag,            &
                                       pop_freq = ancil_update_freq )
-        call create_real_field( core_fields, "months_field", mesh_id, twod_mesh_id, W3, &
+        call create_real_field( core_fields, "months_field", mesh, twod_mesh, W3, &
                                 time_axis=months_axis, twod=.true. )
         call months_axis%set_update_behaviour( tmp_update_ptr )
         call variable_times_list%insert_item(months_axis)
@@ -208,17 +209,17 @@ module io_dev_init_mod
 
     else if ( field_kind == field_kind_integer ) then
       ! W0 (node) field
-      call create_integer_field( core_fields, "W0_field", mesh_id, twod_mesh_id, W0 )
+      call create_integer_field( core_fields, "W0_field", mesh, twod_mesh, W0 )
 
       ! W2 (edge) fields
-      call create_integer_field( core_fields, "W2H_field", mesh_id, twod_mesh_id, W2H )
-      call create_integer_field( core_fields, "W2V_field", mesh_id, twod_mesh_id, W2V )
+      call create_integer_field( core_fields, "W2H_field", mesh, twod_mesh, W2H )
+      call create_integer_field( core_fields, "W2V_field", mesh, twod_mesh, W2V )
 
       ! W3 (face) fields
       call create_integer_field( core_fields, "W3_field",         &
-                                 mesh_id, twod_mesh_id, W3 )
+                                 mesh, twod_mesh, W3 )
       call create_integer_field( core_fields, "W3_2D_field",      &
-                                 mesh_id, twod_mesh_id, W3, twod=.true. )
+                                 mesh, twod_mesh, W3, twod=.true. )
 
       ! Add fields to dump_fields collection - fields for which read and write
       ! routines will be tested
@@ -250,8 +251,8 @@ module io_dev_init_mod
   !>        to the model data.
   !> @param[in,out] core_fields  The core field collection
   !> @param[in]    field_name   The name of the field to be created
-  !> @param[in]    mesh_id      The identifier given to the current 3D mesh
-  !> @param[in]    twod_mesh_id The identifier given to the current 2D mesh
+  !> @param[in]    mesh         The current 3D mesh
+  !> @param[in]    twod_mesh    The current 2D mesh
   !> @param[in]    fs_id        The identifier for the field's function space
   !> @param[in]    ndata        The size of the field's multi-data axis
   !> @param[in,out] time_axis    The time axis to be used if the created field is
@@ -259,8 +260,8 @@ module io_dev_init_mod
   !> @param[in]    twod         Flag used if field is 2D
   subroutine create_real_field( core_fields,  &
                                 field_name,   &
-                                mesh_id,      &
-                                twod_mesh_id, &
+                                mesh,         &
+                                twod_mesh,    &
                                 fs_id,        &
                                 ndata,        &
                                 time_axis,    &
@@ -271,8 +272,8 @@ module io_dev_init_mod
     ! Arguments
     type(field_collection_type),    intent(inout) :: core_fields
     character(len=*),               intent(in)    :: field_name
-    integer(i_def),                 intent(in)    :: mesh_id
-    integer(i_def),                 intent(in)    :: twod_mesh_id
+    type(mesh_type),      pointer,  intent(in)    :: mesh
+    type(mesh_type),      pointer,  intent(in)    :: twod_mesh
     integer(i_def),                 intent(in)    :: fs_id
     integer(i_def),       optional, intent(in)    :: ndata
     type(time_axis_type), optional, intent(inout) :: time_axis
@@ -304,9 +305,9 @@ module io_dev_init_mod
 
     ! Set up function space
     if ( twod_flag ) then
-      vector_space => function_space_collection%get_fs(twod_mesh_id, element_order, fs_id, ndata=multi_data_level)
+      vector_space => function_space_collection%get_fs(twod_mesh, element_order, fs_id, ndata=multi_data_level)
     else
-      vector_space => function_space_collection%get_fs(mesh_id, element_order, fs_id, ndata=multi_data_level)
+      vector_space => function_space_collection%get_fs(mesh, element_order, fs_id, ndata=multi_data_level)
     end if
 
     ! Initialise field object from specifications
@@ -342,10 +343,10 @@ module io_dev_init_mod
     if ( present(time_axis) ) then
       ! Set up function space
       if ( twod_flag ) then
-        vector_space => function_space_collection%get_fs(twod_mesh_id, element_order, fs_id, &
+        vector_space => function_space_collection%get_fs(twod_mesh, element_order, fs_id, &
                                               ndata=multi_data_level*time_axis%get_window_size())
       else
-        vector_space => function_space_collection%get_fs(mesh_id, element_order, fs_id, &
+        vector_space => function_space_collection%get_fs(mesh, element_order, fs_id, &
                                         ndata=multi_data_level*time_axis%get_window_size())
       end if
       ! Initialise field object from specifications
@@ -360,15 +361,15 @@ module io_dev_init_mod
   !>        them to the model data.
   !> @param[in,out] core_fields The core field collection
   !> @param[in]    field_name   The name of the field to be created
-  !> @param[in]    mesh_id      The identifier given to the current 3D mesh
-  !> @param[in]    twod_mesh_id The identifier given to the current 2D mesh
+  !> @param[in]    mesh         The current 3D mesh
+  !> @param[in]    twod_mesh    The current 2D mesh
   !> @param[in]    fs_id        The identifier for the field's function space
   !> @param[in]    ndata        The size of the field's multi-data axis
   !> @param[in]    twod         Flag used if field is 2D
   subroutine create_integer_field( core_fields,  &
                                    field_name,   &
-                                   mesh_id,      &
-                                   twod_mesh_id, &
+                                   mesh,         &
+                                   twod_mesh,    &
                                    fs_id,        &
                                    ndata,        &
                                    twod )
@@ -378,8 +379,8 @@ module io_dev_init_mod
     ! Arguments
     type(field_collection_type),    intent(inout) :: core_fields
     character(len=*),               intent(in)    :: field_name
-    integer(i_def),                 intent(in)    :: mesh_id
-    integer(i_def),                 intent(in)    :: twod_mesh_id
+    type(mesh_type),      pointer,  intent(in)    :: mesh
+    type(mesh_type),      pointer,  intent(in)    :: twod_mesh
     integer(i_def),                 intent(in)    :: fs_id
     integer(i_def),       optional, intent(in)    :: ndata
     logical(l_def),       optional, intent(in)    :: twod
@@ -410,9 +411,9 @@ module io_dev_init_mod
 
     ! Set up function space
     if ( twod_flag ) then
-      vector_space => function_space_collection%get_fs(twod_mesh_id, element_order, fs_id, ndata=multi_data_level)
+      vector_space => function_space_collection%get_fs(twod_mesh, element_order, fs_id, ndata=multi_data_level)
     else
-      vector_space => function_space_collection%get_fs(mesh_id, element_order, fs_id, ndata=multi_data_level)
+      vector_space => function_space_collection%get_fs(mesh, element_order, fs_id, ndata=multi_data_level)
     end if
 
     ! Initialise field object from specifications

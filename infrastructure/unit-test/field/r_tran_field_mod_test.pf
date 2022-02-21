@@ -56,8 +56,10 @@ contains
     class(r_tran_field_test_type), intent(inout) :: this
 
     type(local_mesh_type), pointer :: unit_test_local_mesh_ptr
-    type(mesh_type) :: unit_test_mesh
-    integer(i_def)  :: mesh_id
+    type(mesh_type),       pointer :: mesh_ptr => null()
+    type(mesh_type)                :: unit_test_mesh
+
+
 
     ! Initialise YAXT
     call xt_initialize(this%getMpiCommunicator())
@@ -79,8 +81,11 @@ contains
     this%mesh_id = mesh_collection%add_new_mesh( unit_test_mesh )
 
     ! Make a function space to be used to create fields in the tests
-    this%w2_fs => function_space_collection%get_fs( this%mesh_id, &
+    mesh_ptr => mesh_collection%get_mesh(this%mesh_id)
+    this%w2_fs => function_space_collection%get_fs( mesh_ptr, &
                                                     element_order, W2 )
+
+    nullify(mesh_ptr)
 
   end subroutine setUp
 

@@ -15,6 +15,7 @@ module gravity_wave_diagnostics_driver_mod
   use clock_mod,            only : clock_type
   use constants_mod,        only : i_def
   use field_mod,            only : field_type
+  use mesh_mod,             only : mesh_type
   use diagnostics_io_mod,   only : write_scalar_diagnostic, &
                                    write_vector_diagnostic
   implicit none
@@ -25,13 +26,13 @@ module gravity_wave_diagnostics_driver_mod
 contains
 
   !> @brief Outputs the diagnostics from the gravity-wave miniapp
-  !> @param [in] mesh_id The identifier of the primary mesh
-  !> @param [inout] state A collection containing the fields that will
-  !>                   be written to diagnostic output
-  !> @param [in] clock Model time.
-  !> @param [in] W3_project Flag that determines if vector fields should be
-  !>                        projected to W3
-  subroutine gravity_wave_diagnostics_driver( mesh_id, &
+  !> @param [in]    mesh       Primary mesh
+  !> @param [inout] state      A collection containing the fields that will
+  !>                           be written to diagnostic output
+  !> @param [in]    clock      Model time.
+  !> @param [in]    W3_project Flag that determines if vector fields should be
+  !>                           projected to W3
+  subroutine gravity_wave_diagnostics_driver( mesh, &
                                               wind,   &
                                               pressure, &
                                               buoyancy, &
@@ -39,20 +40,20 @@ contains
                                               W3_project )
 
     implicit none
-    type( field_type), intent(inout) :: wind
-    type( field_type), intent(inout) :: buoyancy
-    type( field_type), intent(inout) :: pressure
-    integer(i_def),    intent(in)    :: mesh_id
+    type( field_type ), intent(inout) :: wind
+    type( field_type ), intent(inout) :: buoyancy
+    type( field_type ), intent(inout) :: pressure
+    type( mesh_type  ), intent(in), pointer :: mesh
     class(clock_type), intent(in)    :: clock
     logical,           intent(in)    :: W3_project
 
     ! Calculation and output of diagnostics
     call write_vector_diagnostic( 'wind', wind, &
-                                  clock, mesh_id, W3_project )
+                                  clock, mesh, W3_project )
     call write_scalar_diagnostic( 'pressure', pressure, &
-                                  clock, mesh_id, W3_project )
+                                  clock, mesh, W3_project )
     call write_scalar_diagnostic( 'buoyancy', buoyancy, &
-                                  clock, mesh_id, W3_project )
+                                  clock, mesh, W3_project )
 
   end subroutine gravity_wave_diagnostics_driver
 

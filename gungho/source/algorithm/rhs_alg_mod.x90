@@ -184,7 +184,7 @@ subroutine rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn, compute_eos, &
           vorticity_fs = W2
         end if
         call vorticity%initialise( vector_space =                               &
-                    function_space_collection%get_fs(mesh_id, element_order, &
+                    function_space_collection%get_fs(mesh, element_order, &
                                                       vorticity_fs) )
         call compute_vorticity_alg(vorticity, u, .false.)
         if ( vorticity_in_w1 ) then

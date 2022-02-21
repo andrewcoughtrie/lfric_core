@@ -14,6 +14,8 @@ module orographic_drag_alg_mod
   use io_config_mod,        only: subroutine_timers
   use timer_mod,            only: timer
   use log_mod,              only: log_event, LOG_LEVEL_INFO
+  use mesh_mod,             only: mesh_type
+
   use geometric_constants_mod, only: get_height
   use fs_continuity_mod,       only: W3, Wtheta
 
@@ -83,22 +85,23 @@ contains
     type( field_type ), pointer :: height_w3 => null()
     type( field_type ), pointer :: height_wth => null()
 
-    integer(kind=i_def) :: mesh_id
+    type( mesh_type ), pointer :: mesh => null()
+
 
     if ( subroutine_timers ) call timer("orographic_drag_alg")
 
     call log_event( 'slow_physics: Running Orographic drag', LOG_LEVEL_INFO )
 
-    mesh_id = theta%get_mesh_id()
+    mesh => theta%get_mesh()
+
+    height_wth => get_height(Wtheta, mesh%get_id())
+    height_w3  => get_height(W3, mesh%get_id())
 
     ! Unpack fields
     u1_in_w3 => derived_fields%get_field('u1_in_w3')
     u2_in_w3 => derived_fields%get_field('u2_in_w3')
     exner_in_wth => derived_fields%get_field('exner_in_wth')
     wetrho_in_w3 => derived_fields%get_field('wetrho_in_w3')
-
-    height_wth => get_height(Wtheta, mesh_id)
-    height_w3 => get_height(W3, mesh_id)
 
     ! Unpack orography fields
     sd_orog      => orography_fields%get_field('sd_orog')
@@ -173,6 +176,8 @@ contains
     ! Mapping back of wind increments
     call set_wind(du_tot_orographic_drag, du_orographic_drag, &
                   dv_orographic_drag, dw_orographic_drag)
+
+    nullify( mesh )
 
   end subroutine orographic_drag_alg
 

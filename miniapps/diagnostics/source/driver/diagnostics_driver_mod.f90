@@ -36,6 +36,7 @@ module diagnostics_driver_mod
                                             LOG_LEVEL_TRACE
   use mesh_collection_mod,           only : mesh_collection, &
                                             mesh_collection_type
+  use mesh_mod,                      only : mesh_type
   use mpi_mod,                       only : store_comm,    &
                                             get_comm_size, &
                                             get_comm_rank
@@ -54,8 +55,9 @@ module diagnostics_driver_mod
   type(field_type), target, dimension(3) :: chi
   type(field_type), target               :: panel_id
 
-  integer(i_def) :: mesh_id
-  integer(i_def) :: twod_mesh_id
+  type(mesh_type), pointer :: mesh      => null()
+  type(mesh_type), pointer :: twod_mesh => null()
+
 
   class(io_context_type), allocatable :: io_context
 
@@ -159,11 +161,11 @@ contains
 
     ! Create the mesh
     call init_mesh( local_rank, total_ranks, stencil_depth, &
-                    mesh_id, twod_mesh_id=twod_mesh_id )
+                    mesh, twod_mesh=twod_mesh )
 
 
     ! Create FEM specifics (function spaces and chi field)
-    call init_fem(mesh_id, chi, panel_id)
+    call init_fem( mesh, chi, panel_id )
 
     !----------------------------------------------------------------------
     ! IO init
@@ -177,8 +179,8 @@ contains
       call initialise_xios( io_context,         &
                             xios_ctx,           &
                             model_communicator, &
-                            mesh_id,            &
-                            twod_mesh_id,       &
+                            mesh,               &
+                            twod_mesh,          &
                             chi,                &
                             panel_id,           &
                             timestep_start,     &
@@ -197,9 +199,9 @@ contains
     dt_model = real(clock%get_seconds_per_step(), r_def)
 
     ! Create and initialise prognostic fields
-    call init_diagnostics(mesh_id, twod_mesh_id,          &
-                          chi, panel_id, dt_model,        &
-                          model_data, fieldspec_collection)
+    call init_diagnostics( mesh, twod_mesh,                &
+                           chi, panel_id, dt_model,        &
+                           model_data, fieldspec_collection)
 
     call log_event("seed starting values", LOG_LEVEL_INFO)
     ! Seed values as this is a test!
@@ -233,9 +235,9 @@ contains
 
         call log_event( 'Running ' // program_name // ' ...', &
                         LOG_LEVEL_ALWAYS )
-        call diagnostics_step( mesh_id,      &
-                               twod_mesh_id, &
-                               model_data,   &
+        call diagnostics_step( mesh,       &
+                               twod_mesh,  &
+                               model_data, &
                                clock )
 
     end do

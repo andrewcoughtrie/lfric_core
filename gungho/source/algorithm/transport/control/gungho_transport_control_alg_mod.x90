@@ -47,8 +47,8 @@ contains
   !=============================================================================
   !> @brief Create all the initialisation structures required for transport in
   !!        the model.
-  !> @params[in] mesh_id   The ID of the mesh to initialise on
-  subroutine gungho_transport_control_alg_init(mesh_id)
+  !> @params[in] mesh   The mesh to initialise on
+  subroutine gungho_transport_control_alg_init( mesh )
 
     use reconstruct_w3_field_alg_mod, only: reconstruct_w3_field_alg_init
     use wt_advective_update_alg_mod,  only: wt_advective_update_alg_init
@@ -66,16 +66,14 @@ contains
 
     implicit none
 
-    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type), pointer, intent(in) :: mesh
 
     integer(kind=i_def)           :: equation_form
-    integer(kind=i_def)           :: shifted_mesh_id
     integer(kind=i_def)           :: config
     logical(kind=l_def)           :: use_divergence_factor
     type(transport_metadata_type) :: transport_metadata
 
     integer(kind=i_def), allocatable :: local_mesh_ids(:)
-    type(mesh_type),         pointer :: mesh => null()
     type(mesh_type),         pointer :: shifted_mesh => null()
     type(local_mesh_type),   pointer :: local_mesh => null()
 
@@ -119,12 +117,10 @@ contains
     end do
 
     ! Initialise any necessary transport fields or coefficients
-    mesh => mesh_collection%get_mesh(mesh_id)
     shifted_mesh => mesh_collection%get_mesh(mesh, SHIFTED)
-    shifted_mesh_id = shifted_mesh%get_id()
-    call reconstruct_w3_field_alg_init(mesh_id)
-    call wt_advective_update_alg_init(mesh_id)
-    call reconstruct_w3_field_alg_init(shifted_mesh_id)
+    call reconstruct_w3_field_alg_init( mesh )
+    call wt_advective_update_alg_init( mesh )
+    call reconstruct_w3_field_alg_init( shifted_mesh )
 
 
     ! Initialise transport_runtime_collection
@@ -217,7 +213,6 @@ contains
     type(field_collection_type), intent(in),    optional :: aerosol_fields_after_slow
 
     ! Internal variables
-    integer(kind=i_def) :: shifted_mesh_id
     type(field_type)    :: dry_flux, temp_inc
     type(field_type)    :: fields_np1(bundle_size)
     logical(kind=l_def) :: do_moisture_diagnostics
@@ -242,10 +237,9 @@ contains
     if ( moisture_eqn == moisture_eqn_conservative .or. any_ffsl ) then
       primary_mesh => wind_n%get_mesh()
       shifted_mesh => mesh_collection%get_mesh(primary_mesh, SHIFTED)
-      shifted_mesh_id = shifted_mesh%get_id()
 
       transport_runtime = transport_runtime_type(wind_n, wind_np1, model_dt, &
-                                                 shifted_mesh_id)
+                                                 shifted_mesh )
     else
       transport_runtime = transport_runtime_type(wind_n, wind_np1, model_dt)
     end if

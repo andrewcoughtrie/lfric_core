@@ -93,6 +93,7 @@ module gw_mixed_schur_precon_alg_mod
                                              LOG_LEVEL_INFO,  &
                                              LOG_LEVEL_DEBUG, &
                                              log_scratch_space
+  use mesh_mod,                        only: mesh_type
   use fs_continuity_mod,           only: W0, W2, W3, Wtheta
   use boundaries_config_mod,       only: limited_area
 
@@ -209,14 +210,14 @@ contains
     type(operator_type), pointer              :: Mb => null()
     type(quadrature_xyoz_type)                :: qr
     type(quadrature_rule_gaussian_type)       :: quadrature_rule
-    integer(i_def)                            :: mesh_id
+    type(mesh_type), pointer                  :: mesh => null()
 
     call log_event( 'Constructing gravity waves mixed preconditioner...', &
                     LOG_LEVEL_INFO )
 
     self%alpha = 0.5_r_def
 
-    mesh_id = state%vector(igw_u)%get_mesh_id()
+    mesh => state%vector(igw_u)%get_mesh()
 
     ! Get required function spaces
     wu => state%vector(igw_u)%get_function_space()
@@ -246,11 +247,11 @@ contains
     call self%Mb_lumped_inv%initialise( vector_space = wb )
     select case(b_space)
     case(b_space_w0)
-       Mb => get_mass_matrix(W0, mesh_id)
+       Mb => get_mass_matrix(W0, mesh%get_id())
     case(b_space_w3)
-       Mb => get_mass_matrix(W3, mesh_id)
+       Mb => get_mass_matrix(W3, mesh%get_id())
     case(b_space_wtheta)
-       Mb => get_mass_matrix(Wtheta, mesh_id)
+       Mb => get_mass_matrix(Wtheta, mesh%get_id())
     end select
     call invoke( setval_c( ones,     1.0_r_def ),               &
                  setval_c( M_lumped, 0.0_r_def ),               &
@@ -267,6 +268,8 @@ contains
 
     ! Set pressure solver
     self%gw_pressure_solver => pressure_solver
+
+    nullify( mesh )
 
     call log_event( 'done', LOG_LEVEL_INFO )
 
@@ -392,9 +395,10 @@ contains
     type(field_type), pointer    :: w3_mask => null()
 
     real(kind=r_def)    :: const1, const2
-    integer(kind=i_def) :: mesh_id
 
-    mesh_id = rhs0%vector(igw_b)%get_mesh_id()
+    type(mesh_type), pointer :: mesh => null()
+
+    mesh => rhs0%vector(igw_b)%get_mesh()
 
     ! rhs_u = R_u + alpha * dt * Q * Mb^-1 * R_b
     ! rhs_p = R_p - alpha * dt * cs^2 * M3^-1 * D * HB^-1 * rhs_u
@@ -403,8 +407,8 @@ contains
     const1 = self%alpha*dt
 
     if (limited_area) then
-      w2_mask => get_mask(W2, mesh_id)
-      w3_mask => get_mask(W3, mesh_id)
+      w2_mask => get_mask(W2, mesh%get_id())
+      w3_mask => get_mask(W3, mesh%get_id())
     endif
 
     call invoke( X_times_Y(self%mb_rb,rhs0%vector(igw_b),self%Mb_lumped_inv), &
@@ -417,8 +421,8 @@ contains
     endif
 
     ! Compute rhs_p
-    div    => get_div(mesh_id)
-    M3_inv => get_inverse_w3_mass_matrix(mesh_id)
+    div    => get_div(mesh%get_id())
+    M3_inv => get_inverse_w3_mass_matrix(mesh%get_id())
     const2 = -self%alpha*dt*cs_square
     call invoke( X_times_Y(self%hb_ru, self%rhs_u, self%Hb_lumped_inv),       &
                  dg_matrix_vector_kernel_type(self%rhs_p_tmp,self%hb_ru, div),&
@@ -429,6 +433,8 @@ contains
     endif
 
     call self%rhs_p%log_minmax(LOG_LEVEL_DEBUG,  'gw_pressure_rhs ')
+
+    nullify( mesh )
 
   end subroutine build_pressure_rhs
 
@@ -457,9 +463,11 @@ contains
     type(field_type),    pointer :: wtheta_mask => null()
     type(operator_type), pointer :: div => null()
     real(kind=r_def)             :: const1, const2
-    integer(kind=i_def)          :: buoyancy_space, mesh_id
+    integer(kind=i_def)          :: buoyancy_space
 
-    mesh_id = self%u_inc%get_mesh_id()
+    type(mesh_type),     pointer :: mesh => null()
+
+    mesh => self%u_inc%get_mesh()
 
     if (limited_area) then
       select case(b_space)
@@ -473,9 +481,9 @@ contains
           call log_event( 'gravity_wave, gw_mixed_schur_precon_alg_mod: '//  &
                           'Invalid buoyancy space', LOG_LEVEL_ERROR )
       end select
-      w3_mask => get_mask(W3, mesh_id)
-      w2_mask => get_mask(W2, mesh_id)
-      wtheta_mask => get_mask(buoyancy_space, mesh_id)
+      w3_mask => get_mask(W3, mesh%get_id())
+      w2_mask => get_mask(W2, mesh%get_id())
+      wtheta_mask => get_mask(buoyancy_space, mesh%get_id())
 
       ! Apply masks to pressure, from Helmholtz solve
       call invoke( inc_X_times_Y(self%p_inc, w3_mask) )
@@ -485,7 +493,7 @@ contains
     call invoke( setval_c(self%u_inc, 0.0_r_def), &
                  setval_c(self%b_inc, 0.0_r_def) )
     ! U increment
-    div => get_div(mesh_id)
+    div => get_div(mesh%get_id())
     const1 = self%alpha*dt
     call invoke( transpose_matrix_vector_kernel_type(self%u_inc,       &
                                                      self%p_inc,       &
@@ -524,6 +532,8 @@ contains
       nullify(w2_mask)
       nullify(wtheta_mask)
     endif
+
+    nullify(mesh)
 
   end subroutine back_substitute
 

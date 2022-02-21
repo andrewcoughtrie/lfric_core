@@ -74,10 +74,8 @@ SUBROUTINE get_lfric_mesh_coords(cell_lid, lon, lat)
 ! This routine returns the latitude and longitude at the centre of a LFRic mesh
 ! cell with local cell id CELL_LID
 !
-USE mesh_collection_mod,        ONLY: mesh_collection
-USE mesh_mod,                   ONLY: mesh_type
 USE local_mesh_mod,             ONLY: local_mesh_type
-USE lfricinp_lfric_driver_mod,  ONLY: mesh_id
+USE lfricinp_lfric_driver_mod,  ONLY: mesh
 
 IMPLICIT NONE
 
@@ -88,13 +86,11 @@ INTEGER,           INTENT(IN)  :: cell_lid
 REAL(KIND=real64), INTENT(OUT) :: lon, lat
 
 ! Local variables
-TYPE(mesh_type),        POINTER  :: mesh => NULL()
 TYPE(local_mesh_type),  POINTER  :: local_mesh => NULL()
 INTEGER(KIND=int32)              :: nverts
 INTEGER(KIND=int32)              :: i
 REAL(KIND=real64)                :: vert_coords(2)
 
-mesh => mesh_collection%get_mesh(mesh_id)
 local_mesh => mesh%get_local_mesh()
 
 !
@@ -115,7 +111,7 @@ END DO
 lat = lat / REAL(nverts)
 lon = lon / REAL(nverts)
 
-NULLIFY(mesh,local_mesh)
+NULLIFY(local_mesh)
 
 END SUBROUTINE get_lfric_mesh_coords
 

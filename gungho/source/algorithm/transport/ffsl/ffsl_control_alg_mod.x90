@@ -182,12 +182,12 @@ contains
     type(transport_runtime_type), pointer :: transport_runtime => null()
 
     ! Mesh ID
-    integer(kind=i_def) :: mesh_id, shifted_mesh_id
+    integer(kind=i_def) :: mesh_id
 
     ! Function Spaces
     integer(kind=i_def)                :: function_space
     type(function_space_type), pointer :: w3_shifted_fs => null()
-    type(mesh_type),           pointer :: shifted_mesh => null()
+    type(mesh_type),           pointer :: shifted_mesh  => null()
 
     ! TODO in #2223: Mapping from Wtheta to W3_shifted
 
@@ -199,8 +199,7 @@ contains
     if (function_space == Wtheta) then
       ! If Wtheta variable move onto shifted W3 mesh
       shifted_mesh => mesh_collection%get_mesh(field_n%get_mesh(), SHIFTED)
-      shifted_mesh_id = shifted_mesh%get_id()
-      w3_shifted_fs   => function_space_collection%get_fs(shifted_mesh_id, 0_i_def, W3)
+      w3_shifted_fs   => function_space_collection%get_fs(shifted_mesh, 0_i_def, W3)
       call field_to_adv%initialise( vector_space = w3_shifted_fs )
       call invoke( setval_X(field_to_adv, field_n) )
     else

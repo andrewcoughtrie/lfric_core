@@ -13,7 +13,6 @@ module minmax_tseries_mod
                                                vector_nodal_diagnostic_alg
   use files_config_mod,                  only: diag_stem_name
   use mesh_mod,                          only: mesh_type
-  use mesh_collection_mod,               only: mesh_collection
   use mpi_mod,                           only: get_comm_rank
   use fs_continuity_mod,                 only: W1, W2
 
@@ -27,21 +26,15 @@ module minmax_tseries_mod
 contains
 
 
- subroutine minmax_tseries_init(field_name, mesh_id)
+ subroutine minmax_tseries_init(field_name)
 
     use io_utility_mod, only: claim_io_unit
 
     implicit none
 
     character(len=*),    intent(in)    :: field_name
-    integer(i_def),      intent(in)    :: mesh_id
-
     character(len=str_max_filename)    :: fname
 
-    ! output variables
-    type(mesh_type), pointer           :: mesh => null()
-
-    mesh => mesh_collection%get_mesh( mesh_id )
     if ( get_comm_rank() == 0 ) then
 
       unitno = claim_io_unit()
@@ -58,20 +51,20 @@ contains
 !> @brief Routine to process and dump time series of maxima and minima of fields to file
 !> @details Writes field to a .m formatted file by dumping the values of maxima
 !>          and minima on nodal points.
-!> @param[in] field Field to output
+!> @param[in] field       Field to output
 !> @param[in] field_name Name of field to output
-!> @param[in] mesh_id  Id of the mesh all fields are on
- subroutine minmax_tseries(field, field_name, mesh_id)
+!> @param[in] mesh       Mesh all fields are on
+ subroutine minmax_tseries(field, field_name, mesh)
    use scalar_mod, only : scalar_type
 
    implicit none
 
-   type(field_type),    intent(in)    :: field
-   character(len=*),    intent(in)    :: field_name
-   integer(i_def),      intent(in)    :: mesh_id
+   type(field_type), intent(in)    :: field
+   character(len=*), intent(in)    :: field_name
+
+   type(mesh_type),  intent(in), pointer :: mesh
 
    ! Internal variables
-   type(mesh_type ), pointer          :: mesh => null()
    type(field_type)                   :: nodal_output(3)
    type(field_type)                   :: nodal_coordinates(3)
    type(field_type)                   :: level
@@ -83,8 +76,6 @@ contains
    integer(i_def)                     :: i
 
    character(len=str_max_filename)    :: fname
-
-   mesh => mesh_collection%get_mesh( mesh_id )
 
    fname = trim(diag_stem_name) // "_" // &
            trim("nodal_minmax_") // trim(field_name) // trim(".m")
@@ -99,8 +90,8 @@ contains
 
    else
      ! Scalar field
-     call scalar_nodal_diagnostic_alg(nodal_output, nodal_coordinates, level, &
-                                      field_name, field, mesh_id, .false.)
+     call scalar_nodal_diagnostic_alg( nodal_output, nodal_coordinates, level, &
+                                       field_name, field, mesh, .false. )
    end if
 
    do i = 1,3
@@ -115,18 +106,11 @@ contains
 
  end subroutine minmax_tseries
 
- subroutine minmax_tseries_final(mesh_id)
+ subroutine minmax_tseries_final()
 
     use io_utility_mod, only: release_io_unit
 
     implicit none
-
-    integer(i_def),      intent(in)    :: mesh_id
-
-    ! Internal variables
-    type(mesh_type ), pointer          :: mesh => null()
-
-    mesh => mesh_collection%get_mesh( mesh_id )
 
     if ( get_comm_rank() == 0 ) then
       close(unitno)

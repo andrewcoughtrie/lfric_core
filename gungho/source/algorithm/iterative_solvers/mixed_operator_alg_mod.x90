@@ -48,6 +48,7 @@ module mixed_operator_alg_mod
   use field_vector_mod,                  only: field_vector_type
   use log_mod,                           only: log_event, LOG_LEVEL_ERROR, &
                                                log_scratch_space
+  use mesh_mod,                          only: mesh_type
   use combine_w2_field_kernel_mod,       only: combine_w2_field_kernel_type
   use split_w2_field_kernel_mod,         only: split_w2_field_kernel_type
   use mixed_solver_config_mod,           only: split_w, &
@@ -143,7 +144,7 @@ contains
     real(kind=r_def)                   :: tau_r_dt
     type(function_space_type), pointer :: u_fs => null(), &
                                           t_fs => null()
-    integer(i_def)                     :: p, mesh_id
+    integer(i_def)                     :: p
     type(field_type), pointer          :: w2_mask     => null(), &
                                           w3_mask     => null(), &
                                           wtheta_mask => null()
@@ -153,12 +154,14 @@ contains
     type(operator_type), pointer       :: q22_op => null(), &
                                           q32_op => null()
 
+    type(mesh_type), pointer :: mesh => null()
+
     if ( subroutine_timers ) call timer('mixed_operator')
 
     ! Extract mesh id
     select type (y)
     type is (field_vector_type)
-      mesh_id = y%vector(isol_u)%get_mesh_id()
+      mesh => y%vector(isol_u)%get_mesh()
     class default
        write(log_scratch_space, '(A)') &
              "mixed_operator_alg_mod: incorrect vector_type argument y"
@@ -167,19 +170,19 @@ contains
 
     ! LAM Masks
     if ( limited_area ) then
-      w2_mask     => get_mask(W2, mesh_id)
-      w3_mask     => get_mask(W3, mesh_id)
-      wtheta_mask => get_mask(Wtheta, mesh_id)
+      w2_mask     => get_mask(W2, mesh%get_id())
+      w3_mask     => get_mask(W3, mesh%get_id())
+      wtheta_mask => get_mask(Wtheta, mesh%get_id())
     end if
 
 
     ! Obtain operators from runtime constants
-    mm_w3_inv     => get_inverse_w3_mass_matrix(mesh_id)
-    mm_wtheta     => get_mass_matrix(Wtheta, mesh_id)
-    div           => get_div(mesh_id)
-    mt_lumped_inv => get_normalisation(Wtheta, mesh_id)
-    m2_diag       => get_normalisation(W2, mesh_id)
-    mm_vel        => get_w2_si_mass_matrix(mesh_id) ! = m2 (or dl) + tau_u*dt*coriolis
+    mm_w3_inv     => get_inverse_w3_mass_matrix(mesh%get_id())
+    mm_wtheta     => get_mass_matrix(Wtheta, mesh%get_id())
+    div           => get_div(mesh%get_id())
+    mt_lumped_inv => get_normalisation(Wtheta, mesh%get_id())
+    m2_diag       => get_normalisation(W2, mesh%get_id())
+    mm_vel        => get_w2_si_mass_matrix(mesh%get_id()) ! = m2 (or dl) + tau_u*dt*coriolis
 
     ! Obtain operators from si operators
     p2theta           => get_p2theta()
@@ -196,7 +199,7 @@ contains
        type is (field_vector_type)
          ! Create fields in 3D W2 space
          p = y%vector(isol_u)%get_element_order()
-         u_fs => function_space_collection%get_fs( mesh_id, p, W2 )
+         u_fs => function_space_collection%get_fs( mesh, p, W2 )
 
          call f_star%initialise( vector_space = u_fs )
          call x_uvw%initialise( vector_space = u_fs )
@@ -231,7 +234,7 @@ contains
 
          case ( eliminate_variables_discrete )
            ! Create theta' field
-           t_fs => function_space_collection%get_fs( mesh_id, p, Wtheta )
+           t_fs => function_space_collection%get_fs( mesh, p, Wtheta )
            call x_t%initialise( vector_space = t_fs )
            ! theta' = x_t = -mt_lumped_inv*Ptheta2*u'
            ! then P2theta*theta' = Q22*u' (in the formulation)
@@ -257,7 +260,7 @@ contains
 
          case ( eliminate_variables_analytic )
            ! Create theta' field
-           t_fs => function_space_collection%get_fs( mesh_id, p, Wtheta )
+           t_fs => function_space_collection%get_fs( mesh, p, Wtheta )
            call x_t%initialise( vector_space = t_fs )
            ! For analytic elimination:
            ! Q32 = tau*dt*M3^rho * D * rho^ref + <v,k * dpi/dz * dtheta/dz * k.v>
@@ -320,6 +323,8 @@ contains
              "mixed_operator_alg_mod: incorrect vector_type argument x"
        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
     end select
+
+    nullify(mesh)
 
     if ( subroutine_timers ) call timer('mixed_operator')
 

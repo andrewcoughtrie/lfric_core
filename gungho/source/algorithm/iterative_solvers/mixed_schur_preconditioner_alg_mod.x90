@@ -103,6 +103,7 @@ module mixed_schur_preconditioner_alg_mod
                                              LOG_LEVEL_INFO,  &
                                              LOG_LEVEL_DEBUG, &
                                              log_scratch_space
+  use mesh_mod,                        only: mesh_type
   use si_operators_alg_mod,            only: get_m3_rho_star, &
                                              get_compound_div, &
                                              get_div_star, &
@@ -201,16 +202,18 @@ contains
       pressure_solver
     type(mixed_schur_preconditioner_type)  :: self
 
-    integer(i_def)                          :: p, mesh_id
+    integer(i_def) :: p
+    type(mesh_type), pointer :: mesh => null()
+
 
     call log_event( 'Constructing approximate Schur mixed preconditioner...', &
                     LOG_LEVEL_INFO )
 
     p = state%vector(isol_u)%get_element_order()
-    mesh_id =  state%vector(isol_u)%get_mesh_id()
-    call self%rhs_u%initialise( vector_space = function_space_collection%get_fs( mesh_id, p, W2 ) )
-    call self%rhs_t%initialise( vector_space = function_space_collection%get_fs( mesh_id, p, Wtheta ) )
-    call self%rhs_d%initialise( vector_space = function_space_collection%get_fs( mesh_id, p, W3 ) )
+    mesh =>  state%vector(isol_u)%get_mesh()
+    call self%rhs_u%initialise( vector_space = function_space_collection%get_fs( mesh, p, W2 ) )
+    call self%rhs_t%initialise( vector_space = function_space_collection%get_fs( mesh, p, Wtheta ) )
+    call self%rhs_d%initialise( vector_space = function_space_collection%get_fs( mesh, p, W3 ) )
 
     ! Helmholtz rhs
     call self%rhs_p%initialise( vector_space = state%vector(isol_p)%get_function_space() )
@@ -222,6 +225,8 @@ contains
 
     ! Set pressure solver
     self%pressure_solver => pressure_solver
+
+    nullify(mesh)
 
     call log_event( 'done', LOG_LEVEL_INFO )
 

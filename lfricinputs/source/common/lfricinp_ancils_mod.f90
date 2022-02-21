@@ -19,7 +19,7 @@ use lfric_xios_read_mod,            ONLY : read_field_face, &
 use lfric_xios_write_mod,           ONLY : write_field_face, &
                                            write_field_single_face
 USE field_collection_mod,           ONLY : field_collection_type
-
+USE mesh_mod,                       ONLY : mesh_type
 USE function_space_mod,             ONLY : function_space_type
 USE function_space_collection_mod,  ONLY : function_space_collection
 USE fs_continuity_mod,              ONLY : W3
@@ -38,13 +38,13 @@ CONTAINS
 
 ! Organises fields to be read from ancils into ancil_fields collection
 
-SUBROUTINE lfricinp_create_ancil_fields(ancil_fields, mesh_id, twod_mesh_id)
+SUBROUTINE lfricinp_create_ancil_fields( ancil_fields, mesh, twod_mesh )
 
 IMPLICIT NONE
 
-TYPE( field_collection_type ), INTENT( OUT )   :: ancil_fields
-INTEGER(i_def), INTENT(IN) :: mesh_id
-INTEGER(i_def), INTENT(IN) :: twod_mesh_id
+TYPE( field_collection_type ), INTENT( OUT )         :: ancil_fields
+TYPE( mesh_type ),             INTENT( IN ), POINTER :: mesh
+TYPE( mesh_type ),             INTENT( IN ), POINTER :: twod_mesh
 
 ! Set up ancil_fields collection
 WRITE(log_scratch_space,'(A,A)') "Create ancil fields: "// &
@@ -55,8 +55,8 @@ CALL ancil_fields%initialise(name='ancil_fields')
 IF (l_land_area_fraction) THEN
   ! Surface ancils
   CALL log_event("Create land area fraction ancil", LOG_LEVEL_INFO)
-  CALL lfricinp_setup_ancil_field("land_area_fraction", ancil_fields, mesh_id, &
-       twod_mesh_id, twod=.TRUE.)
+  CALL lfricinp_setup_ancil_field("land_area_fraction", ancil_fields, mesh, &
+       twod_mesh, twod=.TRUE.)
 END IF
 
 END SUBROUTINE lfricinp_create_ancil_fields
@@ -65,15 +65,15 @@ END SUBROUTINE lfricinp_create_ancil_fields
 
 ! Creates fields to be read into from ancillary files
 
-SUBROUTINE lfricinp_setup_ancil_field( name, ancil_fields, mesh_id, &
-                                       twod_mesh_id, twod, ndata )
+SUBROUTINE lfricinp_setup_ancil_field( name, ancil_fields, mesh, &
+                                       twod_mesh, twod, ndata )
 
 IMPLICIT NONE
 
 CHARACTER(*), INTENT(IN)                    :: name
 TYPE(field_collection_type), INTENT(IN OUT) :: ancil_fields
-INTEGER(i_def), INTENT(IN)                  :: mesh_id
-INTEGER(i_def), INTENT(IN)                  :: twod_mesh_id
+TYPE( mesh_type ), INTENT(IN), POINTER      :: mesh
+TYPE( mesh_type ), INTENT(IN), POINTER      :: twod_mesh
 LOGICAL(l_def), OPTIONAL, INTENT(IN)        :: twod
 INTEGER(i_def), OPTIONAL, INTENT(IN)        :: ndata
 
@@ -97,9 +97,9 @@ ELSE
 END IF
 
 ! Set up function spaces for field initialisation
-w3_space   => function_space_collection%get_fs( mesh_id, fs_order, &
+w3_space   => function_space_collection%get_fs( mesh, fs_order, &
               W3, ndat )
-twod_space => function_space_collection%get_fs( twod_mesh_id, fs_order, &
+twod_space => function_space_collection%get_fs( twod_mesh, fs_order, &
                W3, ndat )
 
 ! Create field

@@ -26,6 +26,8 @@ module linear_model_mod
                                          LOG_LEVEL_INFO,    &
                                          LOG_LEVEL_TRACE,   &
                                          LOG_LEVEL_ERROR
+  use mesh_mod,                    only: mesh_type
+
   implicit none
 
   private
@@ -36,15 +38,16 @@ contains
 
   !> @brief Completes the initialisation of the tangent linear model
   !> @param[in] clock Model time
-  !> @param[in] mesh_id The identifier of the primary mesh
+  !> @param[in] mesh The primary mesh
   !> @param[in,out] model_data The working data set for the model run
-  subroutine initialise_linear_model( clock,   &
-                                      mesh_id, &
+  subroutine initialise_linear_model( clock, &
+                                      mesh,  &
                                       model_data )
     implicit none
 
-    class(clock_type),       intent(in), pointer   :: clock
-    integer(i_def),          intent(in)            :: mesh_id
+    class(clock_type), intent(in), pointer :: clock
+    type(mesh_type),   intent(in), pointer :: mesh
+
     type( model_data_type ), intent(inout), target :: model_data
 
     type( field_collection_type ), pointer :: prognostic_fields => null()
@@ -84,14 +87,14 @@ contains
       case( method_semi_implicit )  ! Semi-Implicit
         call semi_implicit_solver_alg_final()
         call final_si_operators()
-        call tl_semi_implicit_alg_init(mesh_id, u, rho, theta, exner, &
+        call tl_semi_implicit_alg_init(mesh, u, rho, theta, exner, &
                                        mr, ls_u, ls_rho, ls_theta, ls_exner, &
                                        ls_mr, ls_moist_dyn)
 
       case( method_rk )             ! RK
         ! Initialise and output initial conditions for first timestep
 
-        call tl_rk_alg_init(mesh_id, u, rho, theta, exner, &
+        call tl_rk_alg_init(mesh, u, rho, theta, exner, &
                             ls_u, ls_rho, ls_theta, ls_exner)
 
       case default

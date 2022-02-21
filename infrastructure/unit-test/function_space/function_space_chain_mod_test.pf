@@ -101,6 +101,7 @@ type(global_mesh_type), pointer :: target_global_mesh_ptr => null()
 type(global_mesh_type), pointer :: global_mesh_ptr    => null()
 type(global_mesh_type)          :: global_mesh
 type(mesh_type)                 :: mesh
+type(mesh_type), pointer        :: mesh_ptr => null()
 type(mesh_type), pointer        :: source_mesh_ptr => null()
 type(mesh_type), pointer        :: target_mesh_ptr => null()
 type(local_mesh_type)           :: local_mesh
@@ -218,14 +219,21 @@ do i=1, size(mesh_names)-1
   call target_mesh_ptr%add_mesh_map( source_mesh_ptr )
 end do
 
-this%function_space1 => function_space_collection%get_fs( mesh_id(1), &
+mesh_ptr => mesh_collection % get_mesh( mesh_id(1) )
+this%function_space1 => function_space_collection%get_fs( mesh_ptr, &
                                                           element_order, W0 )
-this%function_space2 => function_space_collection%get_fs( mesh_id(2), &
+
+mesh_ptr => mesh_collection % get_mesh( mesh_id(2) )
+this%function_space2 => function_space_collection%get_fs( mesh_ptr, &
                                                           element_order, W0 )
-this%function_space3 => function_space_collection%get_fs( mesh_id(3), &
+mesh_ptr => mesh_collection % get_mesh( mesh_id(3) )
+this%function_space3 => function_space_collection%get_fs( mesh_ptr, &
                                                           element_order, W0 )
-this%function_space4 => function_space_collection%get_fs( mesh_id(4), &
+mesh_ptr => mesh_collection % get_mesh( mesh_id(4) )
+this%function_space4 => function_space_collection%get_fs( mesh_ptr, &
                                                           element_order, W0 )
+
+nullify(mesh_ptr)
 
 return
 end subroutine setUp

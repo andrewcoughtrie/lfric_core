@@ -52,7 +52,6 @@ contains
     logical(l_def)   :: logspace
     integer(i_def)   :: monotonicity
     type(field_type) :: rhs, field_n
-    integer(i_def)   :: mesh_id
 
     type(field_type), pointer     :: advecting_wind => null()
     type(field_type), pointer     :: ls_advecting_wind => null()
@@ -72,16 +71,17 @@ contains
 
     ! Get transport_runtime
     mesh => field%get_mesh()
-    transport_runtime => get_transport_runtime(mesh)
+    transport_runtime => get_transport_runtime( mesh )
+    advecting_wind    => tl_transport_runtime%get_advecting_wind( mesh%get_id() )
+    ls_advecting_wind => transport_runtime%get_advecting_wind( mesh%get_id() )
 
-    ! get the stuff needed by the advection algorithm
-    mesh_id = field%get_mesh_id()
+    number_substeps = transport_runtime%get_number_substeps( mesh%get_id(), &
+                                                             direction,     &
+                                                             transport_metadata%get_splitting() )
 
-    number_substeps = transport_runtime%get_number_substeps(mesh_id,direction,transport_metadata%get_splitting())
-    dt_substep      = transport_runtime%get_dt_substep(mesh_id,direction,transport_metadata%get_splitting())
-    advecting_wind  => tl_transport_runtime%get_advecting_wind(mesh_id)
-    ls_advecting_wind => transport_runtime%get_advecting_wind(mesh_id)
-
+    dt_substep      = transport_runtime%get_dt_substep( mesh%get_id(), &
+                                                        direction,     &
+                                                        transport_metadata%get_splitting() )
     logspace     = transport_metadata%get_log_space()
     monotonicity = transport_metadata%get_monotone()
     enforce_min_value = transport_metadata%get_enforce_min_value()

@@ -29,6 +29,7 @@ module dense_operator_alg_mod
   use linear_operator_mod,           only : abstract_linear_operator_type
   use log_mod,                       only : log_event, LOG_LEVEL_ERROR, &
                                             log_scratch_space
+  use mesh_mod,                      only : mesh_type
   use matrix_vector_kernel_mod,      only : matrix_vector_kernel_type
   use mm_diagonal_kernel_mod,        only : mm_diagonal_kernel_type
   use operator_mod,                  only : operator_type
@@ -84,24 +85,24 @@ contains
 
     type(function_space_type), pointer :: fs_wa => null()
     type(function_space_type), pointer :: fs_wb => null()
-    integer(kind=i_def) :: mesh_id
+    type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def) :: elem, fs_label
 
     select type (fv)
     type is (field_vector_type)
-    ! Check we have the correct number of fields in the type
+      ! Check we have the correct number of fields in the type
        if(size(fv%vector) /= 2 ) then
           write(log_scratch_space, '(A, I1)')  &
                "dense_operator_alg_mod: nfields expected 2, but got ", size(fv%vector)
           call log_event(log_scratch_space, LOG_LEVEL_ERROR)
        end if
-       mesh_id = fv%vector(1)%get_mesh_id()
+       mesh => fv%vector(1)%get_mesh()
        elem = fv%vector(1)%get_element_order()
        fs_label = fv%vector(1)%which_function_space()
-       fs_wa => function_space_collection%get_fs(mesh_id, elem, fs_label)
+       fs_wa => function_space_collection%get_fs(mesh, elem, fs_label)
        elem = fv%vector(2)%get_element_order()
        fs_label = fv%vector(2)%which_function_space()
-       fs_wb => function_space_collection%get_fs(mesh_id, elem, fs_label)
+       fs_wb => function_space_collection%get_fs(mesh, elem, fs_label)
        ! make the operators
        self%mass_w0 = operator_type(fs_wa, fs_wa)
        self%mass_w3 = operator_type(fs_wb, fs_wb)
@@ -110,11 +111,12 @@ contains
          compute_mass_matrix_kernel_w_scalar_type(self%mass_w0, chi, panel_id, qr), &
          compute_mass_matrix_kernel_w3_type(self%mass_w3, chi, panel_id, qr) )
 
-   class default
-       write(log_scratch_space, '(A)') "dense_operator_alg_mod: incorrect vector_type as argument fv"
-       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-   end select
+    class default
+      write(log_scratch_space, '(A)') "dense_operator_alg_mod: incorrect vector_type as argument fv"
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end select
 
+    nullify(mesh)
 
   end function dense_operator_constructor
 

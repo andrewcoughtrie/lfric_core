@@ -109,9 +109,13 @@ contains
 
     integer(i_def) :: result
 
+    type(mesh_type), pointer :: mesh => null()
+
+    mesh => mesh_collection%get_mesh(this%mesh_id)
+
     ! Create a halo_routing object with a particular mesh_id, element_order,
     ! lfric_fs, ndata, type and kind
-    halo_routing = halo_routing_type( this%mesh_id, &
+    halo_routing = halo_routing_type( mesh, &
                                       0, &
                                       W3, &
                                       2, &
@@ -136,6 +140,8 @@ contains
 
     result = halo_routing%get_fortran_kind()
     @assertEqual( r_def, result )
+
+    mesh => null()
 
   end subroutine test_halo_routing
 

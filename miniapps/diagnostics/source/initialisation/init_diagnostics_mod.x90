@@ -33,6 +33,7 @@ module init_diagnostics_mod
                                               log_scratch_space , &
                                               LOG_LEVEL_INFO, &
                                               LOG_LEVEL_ERROR
+    use mesh_mod,                      only : mesh_type
     use non_spatial_dimension_mod,     only : NUMERICAL, CATEGORICAL
     use pure_abstract_field_mod,       only : pure_abstract_field_type
     use runtime_constants_mod,         only : create_runtime_constants
@@ -43,13 +44,14 @@ module init_diagnostics_mod
 
 contains
 
-    subroutine init_diagnostics(mesh_id, twod_mesh_id, chi, panel_id, &
-                                dt, model_data, fieldspec_collection)
+    subroutine init_diagnostics( mesh, twod_mesh, chi, panel_id, &
+                                 dt, model_data, fieldspec_collection)
 
         implicit none
 
-        integer(i_def), intent(in) :: mesh_id
-        integer(i_def), intent(in) :: twod_mesh_id
+        type(mesh_type), intent(in), pointer :: mesh
+        type(mesh_type), intent(in), pointer :: twod_mesh
+
         real(r_def),    intent(in) :: dt
 
         type (model_data_type), intent(inout) :: model_data
@@ -106,43 +108,43 @@ contains
 
             ! Initialise fields with non-spatial dimensions
             else if (associated(non_spatial_axis)) then
-                call new_field%initialise(vector_space = &
-                        function_space_collection%get_fs( &
-                                twod_mesh_id, &
-                                fieldspec%get_order(), &
+                call new_field%initialise( vector_space =       &
+                        function_space_collection%get_fs(       &
+                                twod_mesh,                      &
+                                fieldspec%get_order(),          &
                                 fieldspec%get_function_space(), &
-                                length_ndata), &
-                        name = trim(fieldspec%get_unique_id()))
+                                length_ndata ),                 &
+                        name = trim(fieldspec%get_unique_id()) )
 
             ! Initialise fields with vertical axis
             else if (associated(vert_axis)) then
                 ! Mutable vertical axes use 3d mesh
                 if (vert_axis%get_is_primary_axis()) then
-                    call new_field%initialise(vector_space = &
-                            function_space_collection%get_fs( &
-                                    mesh_id, &
-                                    fieldspec%get_order(), &
-                                    fieldspec%get_function_space()), &
-                            name = trim(fieldspec%get_unique_id()))
+                    call new_field%initialise( vector_space =         &
+                            function_space_collection%get_fs(         &
+                                    mesh,                             &
+                                    fieldspec%get_order(),            &
+                                    fieldspec%get_function_space() ), &
+                            name = trim(fieldspec%get_unique_id()) )
                 ! Immutable vertical axes use multi-data field with 2d mesh
                 else
-                    call new_field%initialise(vector_space = &
-                            function_space_collection%get_fs( &
-                                    twod_mesh_id, &
-                                    fieldspec%get_order(), &
+                    call new_field%initialise( vector_space =       &
+                            function_space_collection%get_fs(       &
+                                    twod_mesh,                      &
+                                    fieldspec%get_order(),          &
                                     fieldspec%get_function_space(), &
-                                    vert_axis%get_size()), &
-                            name = trim(fieldspec%get_unique_id()))
+                                    vert_axis%get_size() ),         &
+                            name = trim(fieldspec%get_unique_id()) )
                 end if
 
             ! Initialise 2-d fields
             else
-                call new_field%initialise(vector_space = &
-                        function_space_collection%get_fs( &
-                                twod_mesh_id, &
-                                fieldspec%get_order(), &
-                                fieldspec%get_function_space()), &
-                        name = trim(fieldspec%get_unique_id()))
+                call new_field%initialise( vector_space =         &
+                        function_space_collection%get_fs(         &
+                                twod_mesh,                        &
+                                fieldspec%get_order(),            &
+                                fieldspec%get_function_space() ), &
+                        name = trim(fieldspec%get_unique_id()) )
             end if
 
             call log_event("Add to depository", LOG_LEVEL_INFO)
@@ -191,7 +193,8 @@ contains
             end if
         end do
 
-        call create_runtime_constants(mesh_id, twod_mesh_id, chi, panel_id, dt)
+        call create_runtime_constants( mesh, twod_mesh, &
+                                       chi, panel_id, dt )
 
         call log_event('diagnostics: Miniapp initialised', LOG_LEVEL_INFO)
 

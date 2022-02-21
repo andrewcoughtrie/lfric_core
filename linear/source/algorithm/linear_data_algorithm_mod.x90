@@ -22,6 +22,7 @@ module linear_data_algorithm_mod
                                             log_scratch_space, &
                                             LOG_LEVEL_INFO,    &
                                             LOG_LEVEL_DEBUG
+  use mesh_mod,                       only: mesh_type
 
   implicit none
 
@@ -189,14 +190,15 @@ module linear_data_algorithm_mod
 
   end subroutine linear_copy_model_to_ls
 
-  subroutine linear_init_pert_random( mesh_id, twod_mesh_id, model_data )
+  subroutine linear_init_pert_random( mesh, twod_mesh, model_data )
 
     use assign_field_random_kernel_mod, only: assign_field_random_kernel_type
 
     implicit none
 
-    integer(i_def),                  intent(in)    :: mesh_id
-    integer(i_def),                  intent(in)    :: twod_mesh_id
+    type(mesh_type), intent(in), pointer :: mesh
+    type(mesh_type), intent(in), pointer :: twod_mesh
+
     type( model_data_type ), target, intent(inout) :: model_data
 
     integer :: i

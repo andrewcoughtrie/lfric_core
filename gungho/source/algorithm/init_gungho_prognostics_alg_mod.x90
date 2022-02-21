@@ -68,6 +68,7 @@ module init_gungho_prognostics_alg_mod
   ! Derived Types
   use field_mod,                       only: field_type
   use field_collection_mod,            only: field_collection_type
+  use mesh_mod,                        only: mesh_type
   use quadrature_xyoz_mod,             only: quadrature_xyoz_type
   use operator_mod,                    only: operator_type
   use function_space_collection_mod,   only: function_space_collection
@@ -98,16 +99,16 @@ contains
     type(field_type), intent(inout) :: u
     real(kind=r_def), intent(in)    :: time
 
-    integer(kind=i_def)                 :: mesh_id
+    type(mesh_type), pointer            :: mesh => null()
     type(field_type)                    :: r_u, r_psi, psi
     type(field_type),           pointer :: chi(:) => null()
     type(field_type),           pointer :: panel_id => null()
     type(quadrature_xyoz_type), pointer :: qr => null()
 
-    mesh_id = u%get_mesh_id()
+    mesh => u%get_mesh()
     qr => get_qr()
-    chi => get_coordinates(mesh_id)
-    panel_id => get_panel_id(mesh_id)
+    chi => get_coordinates(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
 
     !--------------------------------------------------------------------------!
     ! Initialise U according to formulation by sampling
@@ -136,9 +137,9 @@ contains
         call log_event( "Gungho: Initialising winds from stream function",     &
                         LOG_LEVEL_INFO )
         call psi%initialise( vector_space =                                    &
-                function_space_collection%get_fs(mesh_id, element_order, W1) )
+                function_space_collection%get_fs(mesh, element_order, W1) )
         call r_psi%initialise( vector_space =                                  &
-                function_space_collection%get_fs(mesh_id, element_order, W1) )
+                function_space_collection%get_fs(mesh, element_order, W1) )
         call invoke( name = "initialise_streamfunction",                       &
                      setval_c(psi, 0.0_r_def),                                 &
                      setval_c(r_psi, 0.0_r_def),                               &

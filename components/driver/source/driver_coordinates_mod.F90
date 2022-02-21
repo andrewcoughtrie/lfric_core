@@ -16,7 +16,6 @@ module driver_coordinates_mod
   use constants_mod,             only: r_def, i_def, i_native, l_def
   use log_mod,                   only: log_event, LOG_LEVEL_ERROR
   use planet_config_mod,         only: scaled_radius
-  use mesh_collection_mod,       only: mesh_collection
   use coord_transform_mod,       only: xyz2llr, llr2xyz, identify_panel, &
                                        xyz2alphabetar, alphabetar2xyz
   use finite_element_config_mod, only: coord_system,            &
@@ -52,8 +51,8 @@ contains
   !>
   !> @param[in,out] chi      Model coordinate array of size 3 of fields
   !> @param[in]     panel_id Field giving the ID of mesh panels
-  !> @param[in]     mesh_id  ID of mesh on which this field is attached
-  subroutine assign_coordinate_field(chi, panel_id, mesh_id)
+  !> @param[in]     mesh     Mesh on which this field is attached
+  subroutine assign_coordinate_field(chi, panel_id, mesh)
 
     use field_mod,             only: field_type, field_proxy_type
     use reference_element_mod, only: reference_element_type
@@ -64,12 +63,11 @@ contains
 
     type( field_type ),  intent( inout )        :: chi(3)
     type( field_type ),  intent( inout )        :: panel_id
-    integer(kind=i_def), intent( in )           :: mesh_id
+    type( mesh_type  ),  intent( in ),  pointer :: mesh
 
     integer(kind=i_def),                pointer :: map(:,:)          => null()
     integer(kind=i_def),                pointer :: map_pid(:,:)      => null()
     real(kind=r_def),                   pointer :: dof_coords(:,:)   => null()
-    type(mesh_type),                    pointer :: mesh              => null()
     class(reference_element_type),      pointer :: reference_element => null()
 
     type(field_proxy_type) :: chi_proxy(3)
@@ -110,7 +108,6 @@ contains
                       "local array dz(nlayers) ", LOG_LEVEL_ERROR )
     end if
 
-    mesh => mesh_collection%get_mesh( mesh_id )
     call mesh%get_dz(dz)
 
     reference_element => mesh%get_reference_element()

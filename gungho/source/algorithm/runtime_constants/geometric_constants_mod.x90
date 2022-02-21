@@ -24,6 +24,7 @@ module geometric_constants_mod
   use io_config_mod,                      only: subroutine_timers
   use log_mod,                            only: log_event, LOG_LEVEL_INFO, &
                                                 LOG_LEVEL_ERROR
+  use mesh_collection_mod,                only: mesh_collection
   use mesh_mod,                           only: mesh_type
   use timer_mod,                          only: timer
 
@@ -115,9 +116,10 @@ contains
     type(function_space_type), pointer :: w3_k0_fs  => null() ! lowest order w3 fs
     type(field_type)                   :: temp_w2_field
 
+    type(mesh_type), pointer :: mesh => null()
 
     ! Temporary values for iterating through list
-    integer(kind=i_def) :: i, j, mesh_id, num_meshes
+    integer(kind=i_def) :: i, j, num_meshes
     logical(kind=l_def) :: any_scheme_ffsl
 
 
@@ -145,18 +147,18 @@ contains
     do i = 1, num_meshes
 
       !=========== Create function spaces required for setup ==================!
-      mesh_id = mesh_id_list(i)
+      mesh => mesh_collection%get_mesh( mesh_id_list(i) )
 
-      w3_k0_fs => function_space_collection%get_fs( mesh_id, 0, W3 )
+      w3_k0_fs => function_space_collection%get_fs( mesh, 0, W3 )
 
       ! Don't need most function spaces for 2D meshes
-      if (mesh_id /= twod_mesh_label) then
-        w2_fs     => function_space_collection%get_fs( mesh_id, element_order, W2 )
-        w3_fs     => function_space_collection%get_fs( mesh_id, element_order, W3 )
-        wtheta_fs => function_space_collection%get_fs( mesh_id, element_order, Wtheta )
-        w1_k0_fs  => function_space_collection%get_fs( mesh_id,             0, W1 )
-        w2_k0_fs  => function_space_collection%get_fs( mesh_id,             0, W2 )
-        wth_k0_fs => function_space_collection%get_fs( mesh_id,             0, Wtheta )
+      if ( mesh%get_id() /= twod_mesh_label) then
+        w2_fs     => function_space_collection%get_fs( mesh, element_order, W2 )
+        w3_fs     => function_space_collection%get_fs( mesh, element_order, W3 )
+        wtheta_fs => function_space_collection%get_fs( mesh, element_order, Wtheta )
+        w1_k0_fs  => function_space_collection%get_fs( mesh,             0, W1 )
+        w2_k0_fs  => function_space_collection%get_fs( mesh,             0, W2 )
+        wth_k0_fs => function_space_collection%get_fs( mesh,             0, Wtheta )
       end if
 
       !================ Set coordinates field and panel ID ====================!

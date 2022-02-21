@@ -33,6 +33,7 @@ contains
                                              LOG_LEVEL_INFO
     use field_mod,                     only: field_type
     use field_collection_mod,          only: field_collection_type
+    use mesh_mod,                      only: mesh_type
     use mr_indices_mod,                only: nummr
     use mixing_config_mod,             only: viscosity, smagorinsky, viscosity_mu
     use smagorinsky_alg_mod,           only: smagorinsky_alg
@@ -60,7 +61,7 @@ contains
     type( field_type ), pointer :: chi(:) => null()
     type( field_type ), pointer :: panel_id => null()
 
-    integer( i_def )   :: mesh_id
+    type( mesh_type ), pointer   :: mesh => null()
 
     !--------------------------------------------------------------------
     ! Apply horizontal Smagorinsky subgrid mixing
@@ -73,19 +74,22 @@ contains
     if ( viscosity ) then
 
       call log_event( 'Applying Viscosity', LOG_LEVEL_INFO )
-      mesh_id = theta%get_mesh_id()
+
+      mesh => theta%get_mesh()
 
       call dtheta%initialise( theta%get_function_space() )
       call du%initialise( u%get_function_space() )
 
-      chi => get_coordinates(mesh_id)
-      panel_id => get_panel_id(mesh_id)
+      chi      => get_coordinates( mesh%get_id() )
+      panel_id => get_panel_id( mesh%get_id() )
+
       call invoke( tracer_viscosity_kernel_type( dtheta, theta, 1, chi,       &
                                                 panel_id, viscosity_mu ),     &
                    momentum_viscosity_kernel_type( du, u, 1, chi,             &
                                                    panel_id, viscosity_mu ),  &
                    inc_X_plus_bY( theta, dt, dtheta ),                        &
                    inc_X_plus_bY( u,     dt, du ) )
+      nullify( mesh )
     end if
 
   end subroutine mixing_alg

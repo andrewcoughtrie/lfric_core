@@ -10,11 +10,13 @@ module illuminate_alg_mod
 use constants_mod,           only: i_def, i_timestep, r_second
 use field_mod,               only: field_type
 use field_collection_mod,    only: field_collection_type
+use mesh_mod,                only: mesh_type
 use io_config_mod,           only: write_diag, use_xios_io
 use geometric_constants_mod, only: get_latitude, get_longitude
 use illuminate_kernel_mod,   only: illuminate_kernel_type
 use io_config_mod,           only: subroutine_timers
 use timer_mod,               only: timer
+
 
 implicit none
 private
@@ -38,8 +40,7 @@ subroutine illuminate_alg(radiation_fields, timestep, dt)
   integer(kind=i_timestep),      intent(in)    :: timestep
   real(r_second),                intent(in)    :: dt
 
-  integer(kind=i_def) :: mesh_id
-
+  type( mesh_type ),  pointer :: mesh => null()
   type( field_type ), pointer :: latitude  => null()
   type( field_type ), pointer :: longitude => null()
 
@@ -63,10 +64,10 @@ subroutine illuminate_alg(radiation_fields, timestep, dt)
     => radiation_fields%get_field('sin_stellar_declination_rts')
   stellar_eqn_of_time_rts => radiation_fields%get_field('stellar_eqn_of_time_rts')
 
-  mesh_id = cos_zenith_angle%get_mesh_id()
+  mesh => cos_zenith_angle%get_mesh()
 
-  latitude  => get_latitude(mesh_id)
-  longitude => get_longitude(mesh_id)
+  latitude  => get_latitude( mesh%get_id() )
+  longitude => get_longitude( mesh%get_id() )
 
   call invoke( illuminate_kernel_type( &
                  cos_zenith_angle, lit_fraction, &
@@ -87,6 +88,8 @@ subroutine illuminate_alg(radiation_fields, timestep, dt)
 
     if ( subroutine_timers ) call timer("illuminate_xios")
   end if
+
+  nullify( mesh )
 
 end subroutine illuminate_alg
 

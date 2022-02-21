@@ -26,6 +26,7 @@ module tl_test_rk_alg_mod
   use log_mod,                        only: log_event,         &
                                             log_scratch_space, &
                                             LOG_LEVEL_INFO
+  use mesh_mod,                       only: mesh_type
   use tl_rk_alg_timestep_mod,         only: tl_rk_alg_init, &
                                             tl_rk_alg_step, &
                                             tl_rk_alg_final
@@ -42,21 +43,21 @@ module tl_test_rk_alg_mod
   contains
 
   !> @brief Test the tangent linear runge-kutta algorithm
-  !> @param[in] model_data    The working data set for a model run
-  !> @param[in] mesh_id       The identifier given to the current 3d mesh
-  !> @param[in] twod_mesh_id  The identifier given to the current 2d mesh
-  !> @param[in] clock         Model time
-  subroutine test_rk_alg( model_data,    &
-                          mesh_id,       &
-                          twod_mesh_id,  &
+  !> @param[in] model_data  The working data set for a model run
+  !> @param[in] mesh        The current 3d mesh
+  !> @param[in] twod_mesh   The current 2d mesh
+  !> @param[in] clock       Model time
+  subroutine test_rk_alg( model_data, &
+                          mesh,       &
+                          twod_mesh,  &
                           clock )
 
     implicit none
 
-    integer(i_def),                intent(in) :: mesh_id
-    integer(i_def),                intent(in) :: twod_mesh_id
-    type(model_data_type), target, intent(in) :: model_data
-    class(clock_type),             intent(in) :: clock
+    type(mesh_type),       pointer, intent(in) :: mesh
+    type(mesh_type),       pointer, intent(in) :: twod_mesh
+    type(model_data_type), target,  intent(in) :: model_data
+    class(clock_type),              intent(in) :: clock
 
     character(str_def) :: label = "rk_alg"
 
@@ -121,40 +122,40 @@ module tl_test_rk_alg_mod
     exner => prognostic_fields%get_field('exner')
 
     call p_u%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, W2) )
+      function_space_collection%get_fs(mesh, element_order, W2) )
     call p_rho%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, W3) )
+      function_space_collection%get_fs(mesh, element_order, W3) )
     call p_exner%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, W3) )
+      function_space_collection%get_fs(mesh, element_order, W3) )
     call p_theta%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, Wtheta) )
+      function_space_collection%get_fs(mesh, element_order, Wtheta) )
 
     call n_u%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, W2) )
+      function_space_collection%get_fs(mesh, element_order, W2) )
     call n_rho%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, W3) )
+      function_space_collection%get_fs(mesh, element_order, W3) )
     call n_exner%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, W3) )
+      function_space_collection%get_fs(mesh, element_order, W3) )
     call n_theta%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, Wtheta) )
+      function_space_collection%get_fs(mesh, element_order, Wtheta) )
 
     call r_u%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, W2) )
+      function_space_collection%get_fs(mesh, element_order, W2) )
     call r_rho%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, W3) )
+      function_space_collection%get_fs(mesh, element_order, W3) )
     call r_exner%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, W3) )
+      function_space_collection%get_fs(mesh, element_order, W3) )
     call r_theta%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, Wtheta) )
+      function_space_collection%get_fs(mesh, element_order, Wtheta) )
 
     call diff_u%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, W2) )
+      function_space_collection%get_fs(mesh, element_order, W2) )
     call diff_rho%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, W3) )
+      function_space_collection%get_fs(mesh, element_order, W3) )
     call diff_exner%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, W3) )
+      function_space_collection%get_fs(mesh, element_order, W3) )
     call diff_theta%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, Wtheta) )
+      function_space_collection%get_fs(mesh, element_order, Wtheta) )
 
     call clone_bundle(moist_dyn, p_moist_dyn, num_moist_factors)
     call clone_bundle(moist_dyn, r_moist_dyn, num_moist_factors)
@@ -184,7 +185,7 @@ module tl_test_rk_alg_mod
 
     call rk_alg_final()
 
-    call rk_alg_init(mesh_id, u, rho, theta, exner)
+    call rk_alg_init(mesh, u, rho, theta, exner)
 
     call rk_alg_step(u, rho, theta, moist_dyn, exner, &
                      mr, cloud_fields, dt, clock)
@@ -224,14 +225,14 @@ module tl_test_rk_alg_mod
           inc_X_plus_Y( n_moist_dyn(i), p_moist_dyn(i) ) )
       end do
 
-      call rk_alg_init(mesh_id, n_u, n_rho, n_theta, n_exner)
+      call rk_alg_init(mesh, n_u, n_rho, n_theta, n_exner)
 
       call rk_alg_step(n_u, n_rho, n_theta, n_moist_dyn, n_exner, &
                        n_mr, cloud_fields, dt, clock)
 
       call rk_alg_final()
 
-      call tl_rk_alg_init(mesh_id, p_u, p_rho, p_theta, p_exner,    &
+      call tl_rk_alg_init(mesh, p_u, p_rho, p_theta, p_exner, &
                           ls_u, ls_rho, ls_theta, ls_exner)
 
       call tl_rk_alg_step(p_u, p_rho, p_theta, p_moist_dyn, p_exner, &

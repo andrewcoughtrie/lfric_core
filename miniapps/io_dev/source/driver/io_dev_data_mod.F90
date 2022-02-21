@@ -22,6 +22,7 @@ module io_dev_data_mod
   use log_mod,                          only : log_event,      &
                                                LOG_LEVEL_INFO, &
                                                LOG_LEVEL_ERROR
+  use mesh_mod,                         only : mesh_type
   use timer_mod,                        only : timer
   use variable_fields_mod,              only : init_variable_fields, &
                                                update_variable_fields
@@ -78,22 +79,22 @@ contains
 
   !> @brief Create the fields contained in model_data
   !> @param[in,out] model_data   The working data set for a model run
-  !> @param[in]     mesh_id      The identifier given to the current 3d mesh
-  !> @param[in]     twod_mesh_id The identifier given to the current 2d mesh
+  !> @param[in]     mesh         The current 3d mesh
+  !> @param[in]     twod_mesh    The current 2d mesh
   !> @param[in]     clock        The model clock object
   subroutine create_model_data( model_data, &
-                                mesh_id,    &
-                                twod_mesh_id )
+                                mesh,    &
+                                twod_mesh )
 
     implicit none
 
-    type( io_dev_data_type ), intent(inout) :: model_data
-    integer( i_def ),         intent(in)    :: mesh_id
-    integer( i_def ),         intent(in)    :: twod_mesh_id
+    type( io_dev_data_type ),   intent(inout) :: model_data
+    type( mesh_type ), pointer, intent(in)    :: mesh
+    type( mesh_type ), pointer, intent(in)    :: twod_mesh
 
     ! Create model data fields
-    call setup_io_dev_fields( mesh_id,                        &
-                              twod_mesh_id,                   &
+    call setup_io_dev_fields( mesh,                           &
+                              twod_mesh,                      &
                               model_data%core_fields,         &
                               model_data%dump_fields,         &
                               model_data%alg_fields,          &

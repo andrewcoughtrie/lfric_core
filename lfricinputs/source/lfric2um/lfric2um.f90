@@ -13,8 +13,8 @@ USE lfricinp_create_lfric_fields_mod,  ONLY: lfricinp_create_lfric_fields
 ! lfric2um modules
 USE lfric2um_namelists_mod, ONLY: lfric2um_nl_fname, lfric_nl_fname, &
      lfric2um_config, required_lfric_namelists
-USE lfricinp_lfric_driver_mod, ONLY: lfricinp_initialise_lfric, mesh_id, &
-     twod_mesh_id, lfric_fields
+USE lfricinp_lfric_driver_mod, ONLY: lfricinp_initialise_lfric, mesh, &
+     twod_mesh, lfric_fields
 USE lfric2um_initialise_um_mod, ONLY: lfric2um_initialise_um, um_output_file
 USE lfric2um_initialise_lfric2um_mod, ONLY: lfric2um_initialise_lfric2um
 USE lfric2um_main_loop_mod, ONLY: lfric2um_main_loop
@@ -54,9 +54,9 @@ CALL lfric2um_initialise_lfric2um()
 CALL lfric2um_initialise_um()
 
 ! Create LFRic field collection based on list of stashcodes
-CALL lfricinp_create_lfric_fields(mesh_id, twod_mesh_id, lfric_fields, &
-                                  lfric2um_config%stash_list, um_grid, &
-                                  um_output_file)
+CALL lfricinp_create_lfric_fields( mesh, twod_mesh, lfric_fields,       &
+                                   lfric2um_config%stash_list, um_grid, &
+                                   um_output_file )
 
 ! Main loop over fields to be read, regridded and written to output dump
 CALL lfric2um_main_loop()

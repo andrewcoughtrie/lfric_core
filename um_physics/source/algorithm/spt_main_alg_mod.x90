@@ -92,6 +92,8 @@ module spt_main_alg_mod
   use spt_saturation_cap_kernel_mod,           only: spt_saturation_cap_kernel_type
   use spt_moisture_conservation_kernel_mod,    only: spt_moisture_conservation_kernel_type
 
+  use mesh_mod, only: mesh_type
+
   ! Module to get dz at theta
   use physical_op_constants_mod, only: get_dz_at_wtheta
 
@@ -159,7 +161,7 @@ module spt_main_alg_mod
   type(function_space_type), pointer :: vector_space_w0 => null()
 
   ! Mesh
-  integer(i_def) :: mesh_id
+  type( mesh_type ), pointer :: mesh => null()
 
   ! Scalars
   real(kind=r_def) :: inv_kappa, mlcrcp
@@ -189,7 +191,7 @@ module spt_main_alg_mod
   call dtheta%copy_field_properties(dt_spt)
   call mv%copy_field_properties(dmv_spt)
 
-  mesh_id = dtheta_spt%get_mesh_id()
+  mesh => dtheta_spt%get_mesh()
 
   ! Initialize variables to 0.0
   call invoke( setval_c(dtheta_spt, 0.0_r_def), &
@@ -279,9 +281,9 @@ module spt_main_alg_mod
   if (spt_n_smoothing_iters>0) then
 
     ! Initiate field_w0
-    vector_space_w0=>function_space_collection%get_fs(mesh_id, 0, W0)
+    vector_space_w0 => function_space_collection%get_fs( mesh, 0, W0 )
     call field_w0%initialise(vector_space_w0)
-    rmultiplicity_w0 => get_rmultiplicity( W0, mesh_id) ! 1/multiplicity of w0
+    rmultiplicity_w0 => get_rmultiplicity( W0, mesh%get_id()) ! 1/multiplicity of w0
 
     ! Do filtering for Theta
     if (.not. spt_mse_conservation) then
@@ -312,7 +314,8 @@ module spt_main_alg_mod
 
   !!!!   7) Apply water conservation to the column if requested
   if (spt_moisture_conservation) then
-    dz_wth => get_dz_at_wtheta(dtheta%get_mesh_id())
+    mesh   => dtheta%get_mesh()
+    dz_wth => get_dz_at_wtheta(mesh%get_id())
     call invoke(spt_moisture_conservation_kernel_type(dmv_spt,mv,dz_wth,rho_in_wth))
   end if
 
@@ -335,6 +338,8 @@ module spt_main_alg_mod
     call dtheta_spt%write_field('dtheta_spt')
     call dmv_spt%write_field('dmv_spt')
   end if
+
+  nullify( mesh )
 
   if ( subroutine_timers ) call timer("spt_main_alg")
 

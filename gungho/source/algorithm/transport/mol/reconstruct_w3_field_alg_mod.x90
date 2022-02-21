@@ -57,6 +57,7 @@ module reconstruct_w3_field_alg_mod
   use log_mod,                        only: log_event,         &
                                             LOG_LEVEL_ERROR,   &
                                             LOG_LEVEL_INFO
+  use mesh_mod,                       only: mesh_type
   use transport_enumerated_types_mod, only: direction_v,    &
                                             direction_h,    &
                                             direction_3d
@@ -120,9 +121,9 @@ contains
   !!          be pre-computed for a single mesh.
   !!          FV aspects currently only support lowest order elements.
   !!
-  !> @param[in] mesh_id Identity of the mesh to create all fields on
+  !> @param[in] mesh   Mesh to create all fields on
   !!
-  subroutine reconstruct_w3_field_alg_init( mesh_id )
+  subroutine reconstruct_w3_field_alg_init( mesh )
 
     use fs_continuity_mod,                 only: W3
     use function_space_collection_mod,     only: function_space_collection
@@ -131,7 +132,7 @@ contains
 
     implicit none
 
-    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type), pointer, intent(in) :: mesh
 
     integer(kind=i_def)         :: mesh_index
     integer(kind=i_def)         :: flux_stencil_size
@@ -153,7 +154,6 @@ contains
     type(function_space_type), pointer     :: w3_fs => null()
     type(field_type)                       :: w3_field
     class(reference_element_type), pointer :: reference_element => null()
-    type(mesh_type),               pointer :: mesh => null()
     integer(kind=i_def)                    :: face_quad_order
     integer(kind=i_def)                    :: nqp_xy, nqp_z, nqp_xyz
     real(kind=r_def)                       :: transform_radius, chi3_max
@@ -161,10 +161,10 @@ contains
     logical(kind=l_def)                    :: horizontal_faces
     logical(kind=l_def)                    :: vertical_faces
 
+    reference_element => mesh%get_reference_element()
+    mesh_index = find_mesh_index(mesh%get_id())
 
-    mesh_index = find_mesh_index(mesh_id)
-
-    ! Set default values of 0 for the integers to be stored for this mesh_id,
+    ! Set default values of 0 for the integers to be stored for this mesh,
     ! in case they aren't set below
     flux_stencil_extent = 0_i_def
     flux_2d_stencil_size = 0_i_def
@@ -181,15 +181,13 @@ contains
         ! Initialise PSy layer arrays (this will not be needed when
         ! multi-dimensional field arrays are supported)
         ! This needs some temporary fields for computing undf in the PSy layer
-        w3_fs => function_space_collection%get_fs( mesh_id, element_order, W3 )
+        w3_fs => function_space_collection%get_fs( mesh, element_order, W3 )
         call w3_field%initialise( vector_space = w3_fs )
 
         ! Get topology information from the reference element
-        mesh              => w3_field%get_mesh()
-        reference_element => mesh%get_reference_element()
-        ! Number of horizontal neighbours from the reference element
+        ! Number of horizontal neighbours
         nfaces_re_h = reference_element%get_number_horizontal_faces()
-        ! Number of vertical neighbours from the reference element
+        ! Number of vertical neighbours
         nfaces_re_v = reference_element%get_number_vertical_faces()
 
         if ( oned_reconstruction ) then
@@ -209,8 +207,8 @@ contains
           flux_stencil_size = flux_2d_stencil_size
         end if
 
-        chi => get_coordinates(mesh_id)
-        panel_id => get_panel_id(mesh_id)
+        chi => get_coordinates(mesh%get_id())
+        panel_id => get_panel_id(mesh%get_id())
 
         if ( coord_system == coord_system_xyz ) then
           transform_radius = 0.0_r_def
@@ -239,10 +237,10 @@ contains
 
         call log_event( "Gungho: computing horizontal flux coeffs", LOG_LEVEL_INFO )
 
-        md_w3 => get_mass_matrix_diagonal(W3, mesh_id)
+        md_w3 => get_mass_matrix_diagonal(W3, mesh%get_id())
         ! Create multi-data space and field for the vertical flux coefficients
         ndata_h = nfaces_re_h*flux_stencil_size
-        multidata_fs => function_space_collection%get_fs( mesh_id, element_order, W3, ndata_h )
+        multidata_fs => function_space_collection%get_fs( mesh, element_order, W3, ndata_h )
         call flux_coeffs_list(mesh_index)%initialise( vector_space = multidata_fs, ndata_first = .true. )
 
         if ( oned_reconstruction ) then
@@ -279,7 +277,7 @@ contains
 
         ! Create multi-data space and field for the vertical flux coefficients
         ndata_v = nfaces_re_v*(fv_flux_order + 1_i_def)
-        multidata_fs => function_space_collection%get_fs( mesh_id, element_order, W3, ndata_v )
+        multidata_fs => function_space_collection%get_fs( mesh, element_order, W3, ndata_v )
         call vert_flux_coeffs_list(mesh_index)%initialise( vector_space = multidata_fs, ndata_first = .true. )
 
         ! Quadrature rule on vertical faces with 1 point in both horizontal and
@@ -310,7 +308,7 @@ contains
     ndata_h_list(mesh_index) = ndata_h
     ndata_v_list(mesh_index) = ndata_v
 
-    nullify( chi, panel_id, md_w3, w3_fs, reference_element, mesh )
+    nullify( chi, panel_id, md_w3, w3_fs, reference_element )
 
   end subroutine reconstruct_w3_field_alg_init
 
@@ -351,7 +349,7 @@ contains
     integer(kind=i_def),           intent(in)    :: direction
     logical(kind=l_def), optional, intent(in)    :: logspace
 
-    integer(kind=i_def) :: mesh_id
+    type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def) :: mesh_index
     integer(kind=i_def) :: logspace_loc
     integer(kind=i_def) :: stencil_extent
@@ -371,7 +369,7 @@ contains
       if ( logspace ) logspace_loc = 1_i_def
     end if
 
-    mesh_id = field_new%get_mesh_id()
+    mesh => field_new%get_mesh()
 
     select case(operators)
 
@@ -379,7 +377,7 @@ contains
         call log_event( "Gungho: Unrecognized option for operator.", LOG_LEVEL_ERROR )
 
       case(operators_fv)
-        mesh_index = find_mesh_index(mesh_id)
+        mesh_index = find_mesh_index(mesh%get_id())
 
         ! Get extents and data sizes for this mesh
         flux_stencil_extent => flux_stencil_extent_list(mesh_index)
@@ -423,20 +421,20 @@ contains
         end if
       case(operators_fem)
         ! Sample field_old at W2 points
-        w2_rmultiplicity => get_rmultiplicity(W2, mesh_id)
+        w2_rmultiplicity => get_rmultiplicity(W2, mesh%get_id())
         call invoke( setval_c(field_new, 0.0_r_def), &
                      sample_field_kernel_type(field_new, w2_rmultiplicity, field_old) )
 
     end select
 
-    nullify(flux_stencil_extent,  &
-            flux_2d_stencil_size, &
-            ndata_h,              &
-            ndata_v,              &
-            flux_coeffs,          &
-            vert_flux_coeffs,     &
-            w2_rmultiplicity      &
-            )
+    nullify( flux_stencil_extent,  &
+             flux_2d_stencil_size, &
+             ndata_h,              &
+             ndata_v,              &
+             flux_coeffs,          &
+             vert_flux_coeffs,     &
+             w2_rmultiplicity,     &
+             mesh )
 
   end subroutine reconstruct_w3_field_alg
 

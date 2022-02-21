@@ -12,6 +12,7 @@ module tl_test_rhs_alg_mod
   use constants_mod,                  only: i_def, r_def, str_def
   use gungho_model_data_mod,          only: model_data_type
   use field_mod,                      only: field_type
+  use mesh_mod,                       only: mesh_type
   use field_collection_mod,           only: field_collection_type
   use function_space_mod,             only: function_space_type
   use derived_config_mod,             only: bundle_size
@@ -37,14 +38,15 @@ module tl_test_rhs_alg_mod
 
   contains
 
-  subroutine test_rhs_alg( model_data,    &
-                           mesh_id,       &
-                           twod_mesh_id )
+  subroutine test_rhs_alg( model_data, &
+                           mesh,       &
+                           twod_mesh )
 
     implicit none
 
-    integer(i_def),                intent(in) :: mesh_id
-    integer(i_def),                intent(in) :: twod_mesh_id
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(mesh_type), pointer, intent(in) :: twod_mesh
+
     type(model_data_type), target, intent(in) :: model_data
 
     character(str_def) :: label = "rhs_alg"

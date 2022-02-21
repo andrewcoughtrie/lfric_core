@@ -16,7 +16,6 @@ module radiation_diags_mod
   use io_config_mod,            only: subroutine_timers
   use lfric_xios_write_mod,     only: write_field_single_face
   use mesh_mod,                 only: mesh_type
-  use mesh_collection_mod,      only: mesh_collection
   use timer_mod,                only: timer
   use timestepping_config_mod,  only: dt
 
@@ -115,18 +114,19 @@ subroutine initialise_diags_for_radiation( lw_down_surf, lw_heating_rate, &
 
   ! Local working variables
   type( function_space_type ),  pointer :: flux_space => null()
-  type( mesh_type ),            pointer :: mesh => null()
   procedure( write_interface ), pointer :: write_behaviour => null()
-  integer( i_def ) :: mesh_id, twod_mesh_id
+
+  type( mesh_type ), pointer :: mesh      => null()
+  type( mesh_type ), pointer :: twod_mesh => null()
 
   if ( subroutine_timers ) call timer("radiation_diags")
 
   ! Create the vector spaces
-  mesh_id = lw_heating_rate%get_mesh_id()
-  twod_mesh_id = lw_down_surf%get_mesh_id()
-  mesh => mesh_collection%get_mesh( mesh_id )
+  mesh      => lw_heating_rate%get_mesh()
+  twod_mesh => lw_down_surf%get_mesh()
+
   n_levs = mesh%get_nlayers() + 1
-  flux_space => function_space_collection%get_fs(twod_mesh_id, 0, W3, n_levs)
+  flux_space => function_space_collection%get_fs(twod_mesh, 0, W3, n_levs)
   write_behaviour => write_field_single_face
 
 
@@ -297,6 +297,8 @@ subroutine initialise_diags_for_radiation( lw_down_surf, lw_heating_rate, &
     call lw_down_clear_rts%initialise(flux_space)
   if ( (lw_up_clear_surf_rts_flag .or. lw_up_clear_toa_rts_flag) .and. &
     .not. lw_up_clear_rts_flag ) call lw_up_clear_rts%initialise(flux_space)
+
+  nullify(mesh, twod_mesh)
 
   if ( subroutine_timers ) call timer("radiation_diags")
 

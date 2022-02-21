@@ -25,6 +25,7 @@ module create_gungho_prognostics_mod
   use function_space_collection_mod , only : function_space_collection
   use log_mod,                        only : log_event,         &
                                              LOG_LEVEL_INFO
+  use mesh_mod,                       only : mesh_type
   use mr_indices_mod,                 only : nummr, &
                                              mr_names
   use moist_dyn_mod,                  only : num_moist_factors
@@ -51,19 +52,19 @@ contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Create empty fields to be used as prognostics by the gungho model
-  !> @param[in] mesh_id The identifier given to the current 3d mesh
+  !> @param[in]    mesh       The current 3d mesh
   !> @param[inout] depository A collection of all fields that need to be
   !>                          kept in scope
   !> @param[inout] prognostic_fields A collection of the fields that make up the
   !>                                 prognostic variables in the model
   !> @param[inout] mr An array of fields that hold the moisture mixing ratios
   !> @param[inout] moist_dyn An array of the moist dynamics fields
-  subroutine create_gungho_prognostics(mesh_id, depository,&
-                                       prognostic_fields, diagnostic_fields, &
-                                       mr, moist_dyn)
+  subroutine create_gungho_prognostics( mesh, depository, &
+                                        prognostic_fields, diagnostic_fields, &
+                                        mr, moist_dyn )
     implicit none
 
-    integer(i_def), intent(in)                :: mesh_id
+    type(mesh_type), intent(in), pointer :: mesh
 
     type(field_collection_type), intent(inout):: depository
     type(field_collection_type), intent(inout):: prognostic_fields
@@ -110,16 +111,16 @@ contains
 
     ! Create prognostic fields
     call theta%initialise( vector_space = &
-                        function_space_collection%get_fs(mesh_id, element_order, Wtheta), &
+                        function_space_collection%get_fs(mesh, element_order, Wtheta), &
                         name= "theta" )
     call u%initialise( vector_space = &
-                        function_space_collection%get_fs(mesh_id, element_order, W2), &
+                        function_space_collection%get_fs(mesh, element_order, W2), &
                         name = "u" )
     call rho%initialise( vector_space = &
-                        function_space_collection%get_fs(mesh_id, element_order, W3), &
+                        function_space_collection%get_fs(mesh, element_order, W3), &
                         name = "rho" )
     call exner%initialise( vector_space = &
-                        function_space_collection%get_fs(mesh_id, element_order, W3), &
+                        function_space_collection%get_fs(mesh, element_order, W3), &
                         name = "exner" )
 
     ! The moisture mixing ratio fields (mr) and moist dynamics fields
@@ -127,14 +128,14 @@ contains
     ! always created here (even if use_moisture is false).
     do imr = 1,nummr
       call mr(imr)%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, theta%which_function_space()), &
+      function_space_collection%get_fs(mesh, element_order, theta%which_function_space()), &
                             name = trim(mr_names(imr)) )
     end do
 
     ! Auxilliary fields holding moisture-dependent factors for dynamics
     do imr = 1, num_moist_factors
       call moist_dyn(imr)%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, theta%which_function_space()) )
+      function_space_collection%get_fs(mesh, element_order, theta%which_function_space()) )
     end do
 
     ! Set I/O behaviours for diagnostic output

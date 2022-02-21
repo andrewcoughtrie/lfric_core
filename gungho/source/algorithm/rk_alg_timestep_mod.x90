@@ -97,18 +97,18 @@ contains
 
   !> @details Initialisation procedure for the rk timestepping algorithm
   !>          Initialises various internal fields
-  !> @param[in]    mesh_id Id of mesh object on which the model runs
-  !> @param[in]    u 3D wind field
-  !> @param[in]    rho Density
+  !> @param[in]    mesh  Mesh object on which the model runs
+  !> @param[in]    u 3D  wind field
+  !> @param[in]    rho   Density
   !> @param[in]    theta Potential temperature
   !> @param[in]    exner Exner pressure
-  subroutine rk_alg_init(mesh_id, u, rho, theta, exner)
+  subroutine rk_alg_init(mesh, u, rho, theta, exner)
     use fs_continuity_mod,             only: W1, W2
     use function_space_collection_mod, only: function_space_collection
     implicit none
 
     ! Mesh
-    integer(i_def), intent(in)          :: mesh_id
+    type(mesh_type), intent(in), pointer :: mesh
 
     ! Prognostic fields
     type( field_type ), intent( in ) :: u, rho, theta, exner
@@ -152,7 +152,7 @@ contains
       vorticity_fs = W2
     end if
     call vorticity%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, vorticity_fs) )
+      function_space_collection%get_fs(mesh, element_order, vorticity_fs) )
 
 
     !=== Copy prognostic field data to state arrays ===========================!
@@ -162,7 +162,7 @@ contains
                  setval_X(state(igh_d), rho  ), &
                  setval_X(state(igh_p), exner) )
 
-    call gungho_transport_control_alg_init(mesh_id)
+    call gungho_transport_control_alg_init(mesh)
 
     call log_event( "Gungho: initialised timestepping algorithm", LOG_LEVEL_INFO )
 

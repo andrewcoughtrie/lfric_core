@@ -121,10 +121,10 @@ contains
   !>
   !> @param[in,out] chi      Model coordinate array of size 3 of fields
   !> @param[in]     panel_id Field giving the ID of mesh panels
-  !> @param[in]     mesh_id  Id of mesh on which this field is attached
+  !> @param[in]     mesh     Mesh on which this field is attached
   !> @param[in]     surface_altitude Field containing the surface altitude
   !=============================================================================
-  subroutine assign_orography_field(chi, panel_id, mesh_id, surface_altitude)
+  subroutine assign_orography_field(chi, panel_id, mesh, surface_altitude)
 
     use field_mod,                      only : field_type, field_proxy_type
     use mesh_mod,                       only : mesh_type
@@ -138,17 +138,17 @@ contains
     implicit none
 
     ! Arguments
-    type( field_type ),  intent( inout )   :: chi(3)
-    type( field_type ),  intent( in )      :: panel_id
-    integer(kind=i_def), intent( in )      :: mesh_id
-    ! we keep the surface_altitude as an optional argument since it is
+    type( field_type ),  intent( inout )       :: chi(3)
+    type( field_type ),  intent( in )          :: panel_id
+    type( mesh_type),    intent( in ), pointer :: mesh
+
+    ! We keep the surface_altitude as an optional argument since it is
     ! not needed for miniapps that only want analytic orography
     type( field_type ),  intent( in ), optional :: surface_altitude
 
     ! Local variables
     type( field_proxy_type )     :: chi_proxy(3)
     type( field_proxy_type )     :: panel_id_proxy
-    type( mesh_type), pointer    :: mesh => null()
     type( domain_size_type )     :: domain_size
     real(kind=r_def)             :: domain_top, domain_surface
     integer(kind=i_def)          :: cell
@@ -159,8 +159,8 @@ contains
     integer(kind=i_def), pointer :: map_pid(:,:) => null()
     integer(kind=i_def), pointer :: map_sf(:,:) => null()
 
-    integer(kind=i_def) :: sf_mesh_id, surface_order
-
+    integer(kind=i_def)          :: surface_order
+    type( mesh_type ), pointer   :: sf_mesh
     type( field_type )           :: surface_altitude_w0
     type( field_proxy_type )     :: sfc_alt_proxy
 
@@ -179,8 +179,6 @@ contains
          LOG_LEVEL_ERROR )
     end if
 
-    ! Get mesh object
-    mesh => mesh_collection%get_mesh(mesh_id)
     ! Get domain size
     domain_size = mesh%get_domain_size()
     ! Calculate horizontal domain size from the domain_size object
@@ -195,7 +193,7 @@ contains
     ! Get domain top from the mesh object and domain_surface
     domain_top = mesh%get_domain_top() + domain_surface
 
-    if (orog_init_option==orog_init_option_none)then
+    if (orog_init_option==orog_init_option_none) then
 
       call log_event( "assign_orography_field: "// &
          "Flat surface requested.", LOG_LEVEL_INFO )
@@ -276,14 +274,19 @@ contains
         ancil_orography => ancil_orography_cartesian
       end if
 
+      if ( present(surface_altitude) ) then
 
-      ! Set up the surface altitude field on W0 points
-      sf_mesh_id =  surface_altitude%get_mesh_id()
-      surface_order = surface_altitude%get_element_order()
-      call surface_altitude_w0%initialise( vector_space =  &
-         function_space_collection%get_fs(sf_mesh_id, surface_order, W0) )
+        ! Set up the surface altitude field on W0 points
+        sf_mesh =>  surface_altitude%get_mesh()
+        surface_order = surface_altitude%get_element_order()
+        call surface_altitude_w0%initialise( vector_space =  &
+           function_space_collection%get_fs(sf_mesh, surface_order, W0) )
 
-      call surface_altitude_alg( surface_altitude_w0, surface_altitude )
+        call surface_altitude_alg( surface_altitude_w0, surface_altitude )
+        call surface_altitude%log_minmax(LOG_LEVEL_INFO, 'srf_alt')
+        call surface_altitude_w0%log_minmax(LOG_LEVEL_INFO, 'srf_alt_w0')
+        nullify ( sf_mesh )
+      end if
 
       ! Break encapsulation and get the proxy
       chi_proxy(1) = chi(1)%get_proxy()
@@ -338,9 +341,6 @@ contains
                              map_sf(:,cell),             &
                              basis_sf_on_chi)
       end do
-
-      call surface_altitude%log_minmax(LOG_LEVEL_INFO, 'srf_alt')
-      call surface_altitude_w0%log_minmax(LOG_LEVEL_INFO, 'srf_alt_w0')
 
       deallocate(basis_sf_on_chi)
 

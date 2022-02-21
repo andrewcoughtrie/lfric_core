@@ -42,6 +42,7 @@ module catalyst_demo_driver_mod
                                             log_scratch_space
   use mesh_collection_mod,            only: mesh_collection, &
                                             mesh_collection_type
+  use mesh_mod,                       only: mesh_type
   use operator_mod,                   only: operator_type
   use io_config_mod,                  only: write_diag,           &
                                             diagnostic_frequency, &
@@ -96,8 +97,8 @@ module catalyst_demo_driver_mod
   type(field_type), target, dimension(3) :: chi
   type(field_type), target,              :: panel_id
 
-  integer(i_def) :: mesh_id
-  integer(i_def) :: twod_mesh_id
+  type( mesh_type), pointer :: mesh      => null()
+  type( mesh_type), pointer :: twod_mesh => null()
 
   integer(i_def), allocatable :: multigrid_mesh_ids(:)
 
@@ -167,18 +168,16 @@ contains
   stencil_depth = get_required_stencil_depth()
 
   ! Create the mesh
-  call init_mesh( local_rank, total_ranks, stencil_depth, &
-                  mesh_id,                                &
-                  twod_mesh_id=twod_mesh_id,              &
-                  multigrid_mesh_ids=multigrid_mesh_ids,  &
-                  use_multigrid=l_multigrid )
+  call init_mesh( local_rank, total_ranks, stencil_depth, mesh, &
+                  twod_mesh = twod_mesh,                        &
+                  multigrid_mesh_ids = multigrid_mesh_ids,      &
+                  use_multigrid = l_multigrid )
 
   !----------------------------------------------------------------------------
   ! FEM init
   !----------------------------------------------------------------------------
   ! Create FEM specifics (function spaces and chi field)
-  call init_fem( mash_id, chi, panel_id )
-
+  call init_fem( mesh, chi, panel_id )
 
   !----------------------------------------------------------------------------
   ! IO init
@@ -190,8 +189,8 @@ contains
     call initialise_xios( xios_ctx,           &
                           model_communicator, &
                           clock,              &
-                          mesh_id,            &
-                          twod_mesh_id,       &
+                          mesh,               &
+                          twod_mesh,          &
                           chi,                &
                           panel_id )
 
@@ -219,9 +218,9 @@ contains
   multigrid_function_space_chain = function_space_chain_type()
 
   ! Create function space collection and initialise prognostic fields
-  call init_catalyst_demo( mesh_id, twod_mesh_id, multigrid_mesh_ids, &
-                           chi, panel_id,                             &
-                           multigrid_function_space_chain,            &
+  call init_catalyst_demo( mesh%get_id(), twod_mesh%get_id(), &
+                           multigrid_mesh_ids, chi, panel_id, &
+                           multigrid_function_space_chain,    &
                            wind, pressure, buoyancy )
 
   ! Output initial conditions
@@ -237,12 +236,12 @@ contains
 
     if ( write_diag ) then
       ! Calculation and output of diagnostics
-      call write_vector_diagnostic('wind', wind, &
-                                   clock, mesh_id, nodal_output_on_w3)
+      call write_vector_diagnostic('wind', wind,
+                                   clock, mesh, nodal_output_on_w3)
       call write_scalar_diagnostic('pressure', pressure, &
-                                   clock, mesh_id, nodal_output_on_w3)
+                                   clock, mesh, nodal_output_on_w3)
       call write_scalar_diagnostic('buoyancy', buoyancy, &
-                                   clock, mesh_id, nodal_output_on_w3)
+                                   clock, mesh, nodal_output_on_w3)
     end if
 
     ! Catalyst visualisation
@@ -251,12 +250,12 @@ contains
       call vis_fields%add_vis_field(wind, 'wind')
       call vis_fields%add_vis_field(pressure, 'pressure')
       call vis_fields%add_vis_field(buoyancy, 'buoyancy')
-      call catalyst_coprocess(ts_init, ts_init*dt, vis_fields, mesh_id)
+      call catalyst_coprocess( ts_init, ts_init*dt, vis_fields, mesh%get_id() )
     end if
 
   end if
 
-  call gravity_wave_alg_init(mesh_id, wind, pressure, buoyancy)
+  call gravity_wave_alg_init(mesh%get_id(), wind, pressure, buoyancy)
 
   end subroutine initialise
 
@@ -295,11 +294,11 @@ contains
                      LOG_LEVEL_INFO)
 
       call write_vector_diagnostic('wind', wind, &
-                                   clock, mesh_id, nodal_output_on_w3)
+                                   clock, mesh, nodal_output_on_w3)
       call write_scalar_diagnostic('pressure', pressure, &
-                                   clock, mesh_id, nodal_output_on_w3)
+                                   clock, mesh, nodal_output_on_w3)
       call write_scalar_diagnostic('buoyancy', buoyancy, &
-                                   clock, mesh_id, nodal_output_on_w3)
+                                   clock, mesh, nodal_output_on_w3)
 
     end if
 

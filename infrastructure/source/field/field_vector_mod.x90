@@ -15,6 +15,7 @@ module field_vector_mod
   use function_space_collection_mod, only : function_space_collection
   use log_mod,                       only : log_event, LOG_LEVEL_ERROR, &
                                             log_scratch_space
+  use mesh_mod,                      only : mesh_type
   use vector_mod,                    only : abstract_vector_type
 
   implicit none
@@ -331,7 +332,9 @@ contains
     implicit none
     class(field_vector_type),                 intent(in)    :: self
     class(abstract_vector_type), allocatable, intent(inout) :: vec
-    integer(kind=i_def) :: pos, mesh_id, elem, fs_label, astat, nfctr
+    integer(kind=i_def) :: pos, elem, fs_label, astat, nfctr
+
+    type(mesh_type), pointer :: mesh => null()
 
     allocate(field_vector_type::vec,stat=astat )
     select type (vec)
@@ -341,14 +344,14 @@ contains
              allocate(vec%vector(size(self%vector)))
           end if
 
-          ! get the mesh id
-          mesh_id = self%vector(1)%get_mesh_id()
+          ! Get the mesh
+          mesh => self%vector(1)%get_mesh()
           nfctr = size(self%vector)
           do pos = 1, nfctr
              elem = self%vector(pos)%get_element_order()
              fs_label = self%vector(pos)%which_function_space()
              call vec%vector(pos)%initialise(vector_space = &
-                   function_space_collection%get_fs(mesh_id, elem, fs_label) )
+                   function_space_collection%get_fs(mesh, elem, fs_label) )
           end do
        class default
           write(log_scratch_space,'(A)') &

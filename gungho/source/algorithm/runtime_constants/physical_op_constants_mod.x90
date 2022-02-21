@@ -24,6 +24,8 @@ module physical_op_constants_mod
   use log_mod,                            only: log_event, LOG_LEVEL_INFO, &
                                                 LOG_LEVEL_ERROR
   use mesh_mod,                           only: mesh_type
+  use mesh_collection_mod,                only: mesh_collection
+
   use operator_mod,                       only: operator_type
   use quadrature_xyoz_mod,                only: quadrature_xyoz_type
   use timer_mod,                          only: timer
@@ -134,9 +136,11 @@ contains
     type(field_type)                    :: max_diff_wtheta
 
     real(kind=r_def)          :: diffusion_const
-    integer(kind=i_def)       :: num_meshes, mesh_id, i
+    integer(kind=i_def)       :: num_meshes, i
     character(len=str_short)  :: mesh_number
     character(len=str_def)    :: field_name
+
+    type(mesh_type), pointer  :: mesh => null()
 
     ! Parameters of the cells
     integer(i_def), parameter :: n_faces = 4_i_def
@@ -170,16 +174,17 @@ contains
     ! TODO: #2790 should change this structure to avoid looping through meshes
     do i = 1, num_meshes
 
-      mesh_id = mesh_id_list(i)
-      ! Convert mesh id to character
-      write(mesh_number, '(I8)') mesh_id
+      mesh => mesh_collection%get_mesh( mesh_id_list(i) )
 
-      w1_k0_fs  => function_space_collection%get_fs( mesh_id, 0, W1 )
-      w2_k0_fs  => function_space_collection%get_fs( mesh_id, 0, W2 )
-      w2_fs     => function_space_collection%get_fs( mesh_id, element_order, W2 )
-      w3_fs     => function_space_collection%get_fs( mesh_id, element_order, W3 )
-      wtheta_fs => function_space_collection%get_fs( mesh_id, element_order, Wtheta )
-      wtheta_k0_fs => function_space_collection%get_fs( mesh_id, 0, Wtheta )
+      ! Convert mesh id to character
+      write(mesh_number, '(I8)') mesh%get_id()
+
+      w1_k0_fs  => function_space_collection%get_fs( mesh, 0, W1 )
+      w2_k0_fs  => function_space_collection%get_fs( mesh, 0, W2 )
+      w2_fs     => function_space_collection%get_fs( mesh, element_order, W2 )
+      w3_fs     => function_space_collection%get_fs( mesh, element_order, W3 )
+      wtheta_fs => function_space_collection%get_fs( mesh, element_order, Wtheta )
+      wtheta_k0_fs => function_space_collection%get_fs( mesh, 0, Wtheta )
 
       !===================== Create geopotential field ========================!
 
@@ -245,12 +250,12 @@ contains
           field_name = trim("max_diff_wtheta_") // adjustl(mesh_number)
           call max_diff_wtheta%initialise( vector_space = wtheta_k0_fs, name = field_name )
 
-          detj_at_w2 => get_detj_at_w2(mesh_id)
-          dA_at_w2 => get_dA_at_w2(mesh_id)
-          height_w1 => get_height(W1, mesh_id)
-          height_w2 => get_height(W2, mesh_id)
-          height_w3 => get_height(W3, mesh_id)
-          height_wth => get_height(Wtheta, mesh_id)
+          detj_at_w2 => get_detj_at_w2(mesh%get_id())
+          dA_at_w2 => get_dA_at_w2(mesh%get_id())
+          height_w1 => get_height(W1, mesh%get_id())
+          height_w2 => get_height(W2, mesh%get_id())
+          height_w3 => get_height(W3, mesh%get_id())
+          height_wth => get_height(Wtheta, mesh%get_id())
 
           call invoke( name = "calculate_physics_geometric_objects",           &
                        X_divideby_Y(dx_at_w2, detj_at_w2, dA_at_w2),           &
@@ -312,6 +317,7 @@ contains
     nullify( w3_fs  )
     nullify( wtheta_k0_fs )
     nullify( qr )
+    nullify( mesh )
 
     call log_event( "Gungho: created physical_op_constants", LOG_LEVEL_INFO )
     if ( subroutine_timers ) call timer('physical_op_constants_alg')

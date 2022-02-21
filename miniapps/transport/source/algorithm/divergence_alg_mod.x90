@@ -12,6 +12,7 @@ module divergence_alg_mod
   use fem_constants_mod,               only: get_div, &
                                              get_inverse_W3_mass_matrix
   use field_mod,                       only: field_type
+  use mesh_mod,                        only: mesh_type
   use operator_mod,                    only: operator_type
 
   implicit none
@@ -32,21 +33,21 @@ contains
     type(field_type), intent(in)    :: wind
 
     ! Internal variables
-    integer(kind=i_def)          :: mesh_id
     type(field_type)             :: div_u
     type(operator_type), pointer :: mm_w3_inv => null()
     type(operator_type), pointer :: div => null()
+    type(mesh_type),     pointer :: mesh => null()
 
-    mesh_id = wind%get_mesh_id()
-    mm_w3_inv => get_inverse_w3_mass_matrix(mesh_id)
-    div => get_div(mesh_id)
+    mesh      => wind%get_mesh()
+    mm_w3_inv => get_inverse_w3_mass_matrix(mesh%get_id())
+    div       => get_div(mesh%get_id())
 
-    call div_u%initialise( vector_space=divergence%get_function_space())
+    call div_u%initialise( vector_space=divergence%get_function_space() )
 
     call invoke( dg_matrix_vector_kernel_type( div_u, wind, div ),            &
                  dg_matrix_vector_kernel_type( divergence, div_u , mm_w3_inv) )
 
-    nullify( div, mm_w3_inv )
+    nullify( div, mm_w3_inv, mesh )
 
   end subroutine divergence_alg
 

@@ -24,8 +24,8 @@ module bl_imp_alg_mod
   use io_config_mod, only: write_diag, use_xios_io
   use bl_imp_diags_mod, only: initialise_diags_for_bl_imp, &
                               output_diags_for_bl_imp
-  use log_mod,              only: log_event, LOG_LEVEL_INFO
-
+  use log_mod,                       only: log_event, LOG_LEVEL_INFO
+  use mesh_mod,                      only: mesh_type
   use map_fd_to_prognostics_alg_mod, only: set_wind
   use set_any_dof_kernel_mod,        only: set_any_dof_kernel_type
   use reference_element_mod,         only: W, S, E, N
@@ -231,13 +231,11 @@ contains
     type( field_type ) :: surf_lw_up, surf_lw_down
     type( field_type ) :: grid_surface_temperature
   
-    integer(kind=i_def) :: mesh_id
+    type( mesh_type ), pointer :: mesh => null()
 
     if ( subroutine_timers ) call timer("bl_imp_alg")
 
     call log_event( 'Running implicit Boundary layer', LOG_LEVEL_INFO )
-
-    mesh_id = theta%get_mesh_id()
 
     ! Unpack derived fields
     exner_in_wth   => derived_fields%get_field('exner_in_wth')
@@ -347,14 +345,17 @@ contains
     n_snow_layers         => snow_fields%get_field('n_snow_layers')
     snow_depth            => snow_fields%get_field('snow_depth')
 
-    height_wth => get_height(Wtheta, mesh_id)
-    height_w1  => get_height(W1, mesh_id)
-    height_w2  => get_height(W2, mesh_id)
-    height_w3  => get_height(W3, mesh_id)
-    dA         => get_da_at_w2(mesh_id)
-    rdz        => get_rdz_fd1(mesh_id)
-    dtrdz      => get_dtrdz_fd2(mesh_id)
-    latitude   => get_latitude(zh%get_mesh_id())
+    mesh       => theta%get_mesh()
+    height_wth => get_height(Wtheta, mesh%get_id())
+    height_w1  => get_height(W1, mesh%get_id())
+    height_w2  => get_height(W2, mesh%get_id())
+    height_w3  => get_height(W3, mesh%get_id())
+    dA         => get_da_at_w2(mesh%get_id())
+    rdz        => get_rdz_fd1(mesh%get_id())
+    dtrdz      => get_dtrdz_fd2(mesh%get_id())
+
+    mesh       => zh%get_mesh()
+    latitude   => get_latitude(mesh%get_id())
 
     ! Local surface fields that need creating
     call tile_temperature%copy_field_properties(snow_sublimation)
@@ -540,6 +541,8 @@ contains
                                    visibility_no_precip )
 
     end if
+
+    nullify( mesh )
 
   end subroutine bl_imp_alg
 

@@ -101,7 +101,7 @@ contains
     type(function_space_type), pointer     :: w1_fs => null()
     class(reference_element_type), pointer :: reference_element => null()
     type(mesh_type), pointer               :: mesh => null()
-    integer(kind=i_def)                    :: mesh_id
+
     integer(kind=i_def)                    :: logspace_loc
     integer(kind=i_def), pointer           :: ndata_v => null()
     integer(kind=i_def)                    :: monotonicity_option
@@ -115,7 +115,7 @@ contains
       monotonicity_option = monotonicity
     end if
 
-    mesh_id = wind%get_mesh_id()
+    mesh => wind%get_mesh()
 
     call u_grad_f%initialise( adv_field%get_function_space() )
 
@@ -134,7 +134,7 @@ contains
 
 
       if ( direction == direction_3d .or. direction == direction_h ) then
-        w1_fs => function_space_collection%get_fs( mesh_id, element_order, W1 )
+        w1_fs => function_space_collection%get_fs( mesh, element_order, W1 )
         call h_reconstruction%initialise( w1_fs )
         call ls_h_reconstruction%initialise( w1_fs )
         ! Horizontal update, to reconstruct adv_field and ls_adv_field in W1
@@ -158,8 +158,8 @@ contains
 
       if ( direction == direction_3d .or. direction == direction_v ) then
         ! vertical update
-        ndata_v => get_adv_ndata_v(mesh_id)
-        vert_adv_coeffs => get_vert_adv_coeffs(mesh_id)
+        ndata_v => get_adv_ndata_v(mesh%get_id())
+        vert_adv_coeffs => get_vert_adv_coeffs(mesh%get_id())
         ! Compute vertical component of advective update
         call invoke( tl_poly1d_vert_adv_kernel_type( u_grad_f,           &
                                                      consistent_wind,    &
@@ -176,7 +176,7 @@ contains
       call log_event( "TL: fem not available", LOG_LEVEL_ERROR )
     end select
 
-    mt_lumped_inv => get_inverse_lumped_mass_matrix(Wtheta, mesh_id)
+    mt_lumped_inv => get_inverse_lumped_mass_matrix(Wtheta, mesh%get_id())
 
     ! Apply monotonicity (as if this is a full timestep)
     if ( monotonicity_option == monotone_clipping ) then

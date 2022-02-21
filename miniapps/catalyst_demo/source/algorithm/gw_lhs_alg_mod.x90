@@ -42,26 +42,26 @@ contains
     type(function_space_type), pointer    :: u_fs => null(), &
                                              b_fs => null(), &
                                              p_fs => null()
-    integer(i_def)                        :: mesh_id
+    type(mesh_type), pointer              :: mesh => null()
     type( quadrature_xyoz_type )          :: qr
     type( quadrature_rule_gaussian_type ) :: quadrature_rule
 
-    mesh_id = state(igw_u)%get_mesh_id()
-    u_fs => function_space_collection%get_fs ( mesh_id, element_order,   &
+    mesh => state(igw_u)%get_mesh()
+    u_fs => function_space_collection%get_fs ( mesh, element_order,   &
                                                state(igw_u)%which_function_space() )
 
-    p_fs => function_space_collection%get_fs ( mesh_id, element_order,   &
+    p_fs => function_space_collection%get_fs ( mesh, element_order,   &
                                                state(igw_p)%which_function_space() )
     call lhs_p%initialise( vector_space = p_fs )
 
-    b_fs => function_space_collection%get_fs ( mesh_id, element_order,   &
+    b_fs => function_space_collection%get_fs ( mesh, element_order,   &
                                                state(igw_b)%which_function_space() )
 
     Q = operator_type( u_fs, b_fs)
     qr = quadrature_xyoz_type(element_order+2, quadrature_rule)
     call invoke( compute_q_operator_type(Q, qr) )
 
-    nullify( u_fs, b_fs, p_fs )
+    nullify( u_fs, b_fs, p_fs, mesh )
 
   end subroutine gw_lhs_init
   !============================================================================!

@@ -34,7 +34,7 @@ module cell_locator_driver_mod
                                              mesh_collection_type
   use mpi_mod,                        only : store_comm, &
                                              get_comm_size, get_comm_rank
-
+  use mesh_mod,                       only : mesh_type
   use cell_locator_api_mod,           only : cell_locator_api_type, &
                                              cell_locator_api_clear, &
                                              cell_locator_api_build, &
@@ -55,8 +55,8 @@ module cell_locator_driver_mod
   type(field_type), target, dimension(3) :: chi
   type(field_type), target               :: panel_id
 
-  integer(i_def) :: mesh_id
-  integer(i_def) :: twod_mesh_id
+  type(mesh_type), pointer :: mesh      => null()
+  type(mesh_type), pointer :: twod_mesh => null()
 
   type(cell_locator_api_type) :: cell_locator_obj
 
@@ -74,6 +74,9 @@ contains
 
     integer(i_def) :: total_ranks, local_rank, stencil_depth
     integer(i_def) :: ier
+
+    type(mesh_type), pointer :: mesh      => null()
+    type(mesh_type), pointer :: twod_mesh => null()
 
     ! Store the MPI communicator for later use.
     call store_comm( model_communicator )
@@ -108,17 +111,16 @@ contains
     stencil_depth = get_required_stencil_depth()
 
     ! Create the mesh
-    call init_mesh( local_rank, total_ranks, stencil_depth, &
-                    mesh_id,                                &
-                    twod_mesh_id=twod_mesh_id )
+    call init_mesh( local_rank, total_ranks, stencil_depth, mesh, &
+                    twod_mesh = twod_mesh )
 
     ! Create FEM specifics (function spaces and chi field)
-    call init_fem( mesh_id, chi, panel_id )
+    call init_fem( mesh, chi, panel_id )
 
     ! Sets up chi. Create runtime_constants object. This creates various things
     ! needed by the timestepping algorithms such as mass matrix operators, mass
     ! matrix diagonal fields and the geopotential field.
-    call create_runtime_constants( mesh_id, twod_mesh_id, chi, panel_id )
+    call create_runtime_constants( mesh%get_id(), twod_mesh%get_id(), chi, panel_id )
 
     ! Construct cell locator
     call timer( 'constructor' )
@@ -130,7 +132,7 @@ contains
     call timer( 'constructor' )
 
     call timer( 'build' )
-    call cell_locator_obj%build( mesh_id, ier )
+    call cell_locator_obj%build( mesh%get_id(), ier )
     if ( ier /= 0 ) then
       call log_event( 'cell_locator: Error after building cell locator', &
                       LOG_LEVEL_ERROR )

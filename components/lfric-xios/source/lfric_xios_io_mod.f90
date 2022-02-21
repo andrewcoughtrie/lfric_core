@@ -59,12 +59,10 @@ module lfric_xios_io_mod
   !>
   type, extends(io_context_initialiser_type) :: setup_xios_type
     private
-    integer           :: mesh_id
-    integer           :: twod_mesh_id
-    class(field_type), &
-      pointer         :: chi(:)            => null()
-    class(field_type), &
-      pointer         :: panel_id          => null()
+    type(mesh_type),   pointer :: mesh      => null()
+    type(mesh_type),   pointer :: twod_mesh => null()
+    class(field_type), pointer :: chi(:)    => null()
+    class(field_type), pointer :: panel_id  => null()
     !
     ! An unused allocatable integer that prevents an intenal compiler error
     ! with the GNU Fortran compiler. Adding an allocatable forces the compiler
@@ -85,30 +83,30 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Initialises a setup_xios object.
   !>
-  !> @param[in] mesh_id            Identifier for the primary mesh.
-  !> @param[in] twod_mesh_id       Identifier for the primary 2D mesh.
+  !> @param[in] mesh               Primary mesh.
+  !> @param[in] twod_mesh          Primary 2D mesh.
   !> @param[in] chi                Co-ordinate fields.
   !> @param[in] panel_id           Field with IDs of mesh panels.
   !> @param[in] populate_filelist  Model procedure to fill file list.
   !>
-  subroutine initialise_setup_xios( this,         &
-                                    mesh_id,      &
-                                    twod_mesh_id, &
-                                    chi,          &
+  subroutine initialise_setup_xios( this,      &
+                                    mesh,      &
+                                    twod_mesh, &
+                                    chi,       &
                                     panel_id )
 
     implicit none
 
     class(setup_xios_type), intent(inout)       :: this
-    integer(kind=i_def),    intent(in)          :: mesh_id
-    integer(kind=i_def),    intent(in)          :: twod_mesh_id
+    type(mesh_type),        intent(in), pointer :: mesh
+    type(mesh_type),        intent(in), pointer :: twod_mesh
     class(field_type),      intent(in), target  :: chi(:)
     class(field_type),      intent(in), target  :: panel_id
 
-    this%mesh_id           = mesh_id
-    this%twod_mesh_id      = twod_mesh_id
-    this%chi               => chi
-    this%panel_id          => panel_id
+    this%mesh      => mesh
+    this%twod_mesh => twod_mesh
+    this%chi       => chi
+    this%panel_id  => panel_id
 
   end subroutine initialise_setup_xios
 
@@ -128,7 +126,7 @@ contains
 
     select type(context)
       class is (lfric_xios_context_type)
-        call init_xios_dimensions(this%mesh_id, this%twod_mesh_id, this%chi, this%panel_id)
+        call init_xios_dimensions(this%mesh, this%twod_mesh, this%chi, this%panel_id)
         file_list = context%get_filelist()
         call setup_xios_files( file_list, context%get_clock() )
 
@@ -146,8 +144,8 @@ contains
   !> @param[out]  context            I/O context to be initialised
   !> @param[in]   identifier         The XIOS context ID
   !> @param[in]   communicator       MPI communicator used by the XIOS context
-  !> @param[in]   mesh_id            Mesh ID
-  !> @param[in]   twod_mesh_id       2D Mesh ID
+  !> @param[in]   mesh               Mesh
+  !> @param[in]   twod_mesh          2D Mesh
   !> @param[in]   chi                Coordinate field
   !> @param[in]   panel_id           Field containing IDs of mesh panels
   !> @param[in]   start_step         The starting model timestep
@@ -160,8 +158,8 @@ contains
   subroutine initialise_xios( context,           &
                               identifier,        &
                               communicator,      &
-                              mesh_id,           &
-                              twod_mesh_id,      &
+                              mesh,              &
+                              twod_mesh,         &
                               chi,               &
                               panel_id,          &
                               start_step,        &
@@ -176,8 +174,8 @@ contains
     class(io_context_type),        intent(out), allocatable :: context
     character(len=*),              intent(in)               :: identifier
     integer(kind=i_def),           intent(in)               :: communicator
-    integer(kind=i_def),           intent(in)               :: mesh_id
-    integer(kind=i_def),           intent(in)               :: twod_mesh_id
+    type(mesh_type),               intent(in), pointer      :: mesh
+    type(mesh_type),               intent(in), pointer      :: twod_mesh
     class(field_type),             intent(in)               :: chi(:)
     class(field_type),             intent(in)               :: panel_id
     character(len=*),              intent(in)               :: start_step
@@ -192,7 +190,7 @@ contains
 
     integer :: rc
 
-    call callback%initialise( mesh_id, twod_mesh_id, chi, panel_id )
+    call callback%initialise( mesh, twod_mesh, chi, panel_id )
 
     allocate( lfric_xios_context_type::context, stat=rc )
     if (rc /= 0) then
@@ -220,18 +218,19 @@ contains
   !!           of XIOS dimensionality (domains, axes, etc) and initialised the
   !!           corresponding XIOS objects.
   !>
-  !> @param[in]  mesh_id       Mesh id
-  !> @param[in]  twod_mesh_id  2D Mesh id
-  !> @param[in]  chi           Coordinate field
-  !> @param[in]  panel_id      Field with IDs of mesh panels
+  !> @param[in]  mesh       Mesh
+  !> @param[in]  twod_mesh  2D Mesh
+  !> @param[in]  chi        Coordinate field
+  !> @param[in]  panel_id   Field with IDs of mesh panels
   !>
-  subroutine init_xios_dimensions(mesh_id, twod_mesh_id, chi, panel_id)
+  subroutine init_xios_dimensions(mesh, twod_mesh, chi, panel_id)
 
     implicit none
 
     ! Arguments
-    integer(kind=i_def), intent(in) :: mesh_id
-    integer(kind=i_def), intent(in) :: twod_mesh_id
+    type(mesh_type), intent(in), pointer :: mesh
+    type(mesh_type), intent(in), pointer :: twod_mesh
+
     type(field_type),    intent(in) :: chi(:)
     type(field_type),    intent(in) :: panel_id
 
@@ -273,7 +272,6 @@ contains
 
 
     ! Variables for local and global mesh information
-    type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def)      :: num_face_local
     integer(kind=i_def)      :: nodes_per_edge
     integer(kind=i_def)      :: nodes_per_face
@@ -301,21 +299,20 @@ contains
     allocate(local_undf(1))
 
     ! Set up fields to hold the output coordinates
-    output_field_fs => function_space_collection%get_fs( mesh_id, element_order, W0 )
+    output_field_fs => function_space_collection%get_fs( mesh, element_order, W0 )
     do i = 1,3
       call coord_output(i)%initialise( vector_space = output_field_fs )
       proxy_coord_output(i) = coord_output(i)%get_proxy()
     end do
 
     ! Get mesh information
-    mesh => coord_output(1)%get_mesh()
     num_face_local = mesh%get_last_edge_cell()
     nodes_per_face = mesh%get_nverts_per_cell_2d()
     nodes_per_edge = mesh%get_nverts_per_edge()
 
     ! Calculate the local size of a W2H fs in order to determine
     ! how many edge dofs for the current partition
-    w2h_fs => function_space_collection%get_fs( mesh_id, element_order, W2H )
+    w2h_fs => function_space_collection%get_fs( mesh, element_order, W2H )
     num_edge_local = w2h_fs%get_last_dof_owned()/size(w2h_fs%get_levels())
 
     ! Get the local value for last owned dof
@@ -371,14 +368,14 @@ contains
     bnd_nodes_lat=(reshape(nodes_lat, (/1, size(nodes_lat)/) ) )
 
     ! Initialise XIOS UGRID domains
-    call init_xios_ugrid_domain( "node", mesh_id, W0,  sample_chi, bnd_nodes_lon, bnd_nodes_lat )
-    call init_xios_ugrid_domain( "face", mesh_id, W3,  sample_chi, bnd_faces_lon, bnd_faces_lat )
-    call init_xios_ugrid_domain( "edge", mesh_id, W2H, sample_chi, bnd_edges_lon, bnd_edges_lat )
+    call init_xios_ugrid_domain( "node", mesh, W0,  sample_chi, bnd_nodes_lon, bnd_nodes_lat )
+    call init_xios_ugrid_domain( "face", mesh, W3,  sample_chi, bnd_faces_lon, bnd_faces_lat )
+    call init_xios_ugrid_domain( "edge", mesh, W2H, sample_chi, bnd_edges_lon, bnd_edges_lat )
 
     ! Initialise XIOS axes
-    call init_xios_axis( "vert_axis_full_levels", mesh_id, W0 )
-    call init_xios_axis( "vert_axis_half_levels", mesh_id, W3 )
-    call init_xios_axis( "radiation_levels", mesh_id, W0 )
+    call init_xios_axis( "vert_axis_full_levels", mesh, W0 )
+    call init_xios_axis( "vert_axis_half_levels", mesh, W3 )
+    call init_xios_axis( "radiation_levels", mesh, W0 )
 
     ! Create all the regular checkpoint domains based on current function spaces
     ! Loop over function spaces we need to create domains for:
@@ -391,10 +388,10 @@ contains
       ! Enable use of the XIOS i_index for relevant function spaces
       if (any( use_i_index == domain_function_spaces(fs_index) )) then
         call checkpoint_domain_init(domain_function_spaces(fs_index), &
-                                    trim(domain_name), mesh_id, sample_chi, .true.)
+                                    trim(domain_name), mesh, sample_chi, .true.)
       else
         call checkpoint_domain_init(domain_function_spaces(fs_index), &
-                                    trim(domain_name), mesh_id, sample_chi, .false.)
+                                    trim(domain_name), mesh, sample_chi, .false.)
       end if
 
     end do
@@ -474,7 +471,7 @@ contains
   !> @details Samples the chi field at nodal points, calculates cartesian coordinates.
   !>          For spherical geometry, converts to lat-lon in degrees for specified layer
   !>
-  !> @param[in]     mesh            The id of the partitioned mesh
+  !> @param[in]     mesh                  The partitioned mesh
   !> @param[in]     nodal_coords          Input field
   !> @param[in]     chi                   Input coordinate field
   !> @param[in]     nlayers               The number of layers data is output on
@@ -656,22 +653,22 @@ contains
   !>
   !> @param[in]  fs_id        Function space id
   !> @param[in]  domain_name  XIOS domain name
-  !> @param[in]  mesh_id      Mesh id
+  !> @param[in]  mesh         Mesh
   !> @param[in]  chi          Coordinate field
   !> @param[in]  use_index    Flag to specify use of domain index
   !>                          to preserve order over decomposition
   !> @param[in]  k_order      Function space order (optional,
   !>                          default = 0)
   !>
-  subroutine checkpoint_domain_init(fs_id, domain_name, mesh_id, chi, &
-                                         use_index, k_order)
+  subroutine checkpoint_domain_init(fs_id, domain_name, mesh, chi, &
+                                    use_index, k_order)
 
     implicit none
 
     ! Arguments
     integer(kind=i_def),           intent(in) :: fs_id
     character(len=*),              intent(in) :: domain_name
-    integer(kind=i_def),           intent(in) :: mesh_id
+    type(mesh_type),               intent(in), pointer :: mesh
     type(field_type),              intent(in) :: chi(3)
     logical(kind=l_def),           intent(in) :: use_index
     integer(kind=i_def), optional, intent(in) :: k_order
@@ -725,7 +722,7 @@ contains
 
     ! Create appropriate function space in order to be able to get the
     ! physical coordinates
-    output_field_fs => function_space_collection%get_fs( mesh_id, &
+    output_field_fs => function_space_collection%get_fs( mesh,  &
                                                          k_ord, &
                                                          fs_id)
 
@@ -830,20 +827,20 @@ contains
   !>          domain object
   !>
   !> @param[in]  domain_id   The name of the XIOS domain
-  !> @param[in]  mesh_id     The id of the partitioned mesh
+  !> @param[in]  mesh        Partitioned mesh
   !> @param[in]  fs_id       The id of the function space corresponding to the domain
   !> @param[in]  chi         Input coordinate field
   !> @param[in]  lon_bounds  Array of longitude coords making up the domain bounds
   !> @param[in]  lat_bounds  Array of latitude coords making up the domain bounds
   !>
-  subroutine init_xios_ugrid_domain( domain_id, mesh_id, fs_id, chi, lon_bounds, lat_bounds )
+  subroutine init_xios_ugrid_domain( domain_id, mesh, fs_id, chi, lon_bounds, lat_bounds )
 
     implicit none
 
-    character(len=*),       intent(in) :: domain_id
-    integer(kind=i_def),    intent(in) :: mesh_id
-    integer(kind=i_native), intent(in) :: fs_id
-    type(field_type),       intent(in) :: chi(:)
+    character(len=*),       intent(in)          :: domain_id
+    type(mesh_type),        intent(in), pointer :: mesh
+    integer(kind=i_native), intent(in)          :: fs_id
+    type(field_type),       intent(in)          :: chi(:)
 
     type(function_space_type), pointer :: domain_fs   => null()
 
@@ -879,7 +876,7 @@ contains
 
     ! Here we use information from the input function space to calculate the
     ! physical coordinates for the horizontal domain
-    domain_fs => function_space_collection%get_fs( mesh_id, element_order, fs_id )
+    domain_fs => function_space_collection%get_fs( mesh, element_order, fs_id )
 
     ! Get the function space levels information
     dp_levels = real( domain_fs%get_levels(), kind=dp_xios )
@@ -974,23 +971,23 @@ contains
   !>          and local mesh and passes information to XIOS axis object
   !>
   !> @param[in]  axis_id  The name of the XIOS axis
-  !> @param[in]  mesh_id  The id of the partitioned mesh
+  !> @param[in]  mesh     Partitioned mesh
   !> @param[in]  fs_id    The id of the function space corresponding to the
   !>                      domain
   !>
-  subroutine init_xios_axis( axis_id, mesh_id, fs_id )
+  subroutine init_xios_axis( axis_id, mesh, fs_id )
 
     implicit none
 
-    character(len=*),       intent(in) :: axis_id
-    integer(kind=i_def),    intent(in) :: mesh_id
-    integer(kind=i_native), intent(in) :: fs_id
+    character(len=*),       intent(in)          :: axis_id
+    type(mesh_type),        intent(in), pointer :: mesh
+    integer(kind=i_native), intent(in)          :: fs_id
 
     type(function_space_type), pointer :: domain_fs => null()
     real(dp_xios), allocatable         :: dp_levels(:)
     integer(kind=i_def)                :: n_levels
 
-    domain_fs => function_space_collection%get_fs( mesh_id,       &
+    domain_fs => function_space_collection%get_fs( mesh,          &
                                                    element_order, &
                                                    fs_id )
 

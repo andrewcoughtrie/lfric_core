@@ -30,6 +30,7 @@ module multires_coupling_driver_mod
   use log_mod,                                  only : log_event,        &
                                                        LOG_LEVEL_ALWAYS, &
                                                        LOG_LEVEL_INFO
+  use mesh_mod,                                 only : mesh_type
   use multires_coupling_mod,                    only : program_name
   use coupling_test_alg_mod,                    only : coupling_test_alg
   use xios,                                     only : xios_context_finalize
@@ -57,22 +58,23 @@ module multires_coupling_driver_mod
   type (model_data_type) :: physics_mesh_model_data
 
   ! Primary mesh ids
-  integer(kind=i_def) :: prime_mesh_id = imdi
-  integer(kind=i_def) :: prime_2D_mesh_id = imdi
-  integer(kind=i_def) :: prime_shifted_mesh_id = imdi
-  integer(kind=i_def) :: prime_double_level_mesh_id = imdi
+  type(mesh_type), pointer :: prime_mesh    => null()
+  type(mesh_type), pointer :: prime_2D_mesh => null()
+
+  type(mesh_type), pointer :: prime_shifted_mesh      => null()
+  type(mesh_type), pointer :: prime_double_level_mesh => null()
 
   ! Dynamics and Physics mesh ids
-  integer(kind=i_def) :: dynamics_mesh_id
-  integer(kind=i_def) :: dynamics_2D_mesh_id
-  integer(kind=i_def) :: physics_mesh_id
-  integer(kind=i_def) :: physics_2D_mesh_id
+  type(mesh_type), pointer :: dynamics_mesh    => null()
+  type(mesh_type), pointer :: dynamics_2D_mesh => null()
+  type(mesh_type), pointer :: physics_mesh     => null()
+  type(mesh_type), pointer :: physics_2D_mesh  => null()
 
   ! 2D Mesh names
   character(str_def) :: dynamics_2D_mesh_name
   character(str_def) :: physics_2D_mesh_name
 
-  character(*), public, parameter   :: xios_ctx = 'multires_coupling'
+  character(*), public, parameter :: xios_ctx = 'multires_coupling'
 
 contains
 
@@ -103,18 +105,19 @@ contains
                                     filename,                  &
                                     program_name,              &
                                     io_context,                &
-                                    prime_mesh_id,             &
-                                    prime_2D_mesh_id,          &
-                                    prime_shifted_mesh_id,     &
-                                    prime_double_level_mesh_id )
+                                    prime_mesh,                &
+                                    prime_2D_mesh,             &
+                                    prime_shifted_mesh,        &
+                                    prime_double_level_mesh )
 
     dynamics_2D_mesh_name = trim(dynamics_mesh_name)//'_2d'
-    dynamics_mesh_id = mesh_collection%get_mesh_id(dynamics_mesh_name)
-    dynamics_2D_mesh_id = mesh_collection%get_mesh_id(dynamics_2D_mesh_name)
+
+    dynamics_mesh    => mesh_collection%get_mesh( dynamics_mesh_name )
+    dynamics_2D_mesh => mesh_collection%get_mesh( dynamics_2D_mesh_name )
 
     physics_2D_mesh_name = trim(physics_mesh_name)//'_2d'
-    physics_mesh_id = mesh_collection%get_mesh_id(physics_mesh_name)
-    physics_2D_mesh_id = mesh_collection%get_mesh_id(physics_2D_mesh_name)
+    physics_mesh    => mesh_collection%get_mesh( physics_mesh_name )
+    physics_2D_mesh => mesh_collection%get_mesh( physics_2D_mesh_name )
 
     !-------------------------------------------------------------------------
     ! Create and initialise model data
@@ -125,12 +128,12 @@ contains
 
     ! Instantiate the fields stored in model_data
     call create_model_data( dynamics_mesh_model_data, &
-                            dynamics_mesh_id,         &
-                            dynamics_2D_mesh_id,      &
+                            dynamics_mesh,            &
+                            dynamics_2D_mesh,         &
                             clock )
     call create_model_data( physics_mesh_model_data, &
-                            physics_mesh_id,         &
-                            physics_2D_mesh_id,      &
+                            physics_mesh,            &
+                            physics_2D_mesh,         &
                             clock )
 
 
@@ -142,8 +145,8 @@ contains
    ! We only want these once at the beginning of a run
    if ( clock%is_initialisation() .and. write_diag .and. &
         multires_coupling_mode /= multires_coupling_mode_test ) then
-     call multires_coupling_diagnostics_driver( dynamics_mesh_id,         &
-                                                dynamics_2D_mesh_id,      &
+     call multires_coupling_diagnostics_driver( dynamics_mesh,            &
+                                                dynamics_2D_mesh,         &
                                                 dynamics_mesh_model_data, &
                                                 clock, nodal_output_on_w3 )
    end if
@@ -151,16 +154,15 @@ contains
    if ( multires_coupling_mode /= multires_coupling_mode_test ) then
      ! Model configuration initialisation
      call initialise_model( clock,                    &
-                            dynamics_mesh_id,         &
+                            dynamics_mesh,            &
                             dynamics_mesh_model_data, &
-                            physics_mesh_id,          &
+                            physics_mesh,             &
                             physics_mesh_model_data )
    end if
 
   end subroutine initialise
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !> Performs time steps.
   !>
   subroutine run()
 
@@ -178,10 +180,10 @@ contains
       do while (clock%tick())
         ! Update time-varying fields
         call update_variable_fields( dynamics_mesh_model_data%ancil_times_list, &
-                                      clock, dynamics_mesh_model_data%ancil_fields )
+                                     clock, dynamics_mesh_model_data%ancil_fields )
         ! Perform gungho timestep
-        call gungho_step( dynamics_mesh_id,         &
-                          dynamics_2D_mesh_id,      &
+        call gungho_step( dynamics_mesh,            &
+                          dynamics_2D_mesh,         &
                           dynamics_mesh_model_data, &
                           clock )
         ! Write out output file
@@ -189,8 +191,8 @@ contains
 
         if ( (mod(clock%get_step(), diagnostic_frequency) == 0) &
               .and. (write_diag) ) then
-              call multires_coupling_diagnostics_driver( dynamics_mesh_id,         &
-                                                         dynamics_2D_mesh_id,      &
+              call multires_coupling_diagnostics_driver( dynamics_mesh,            &
+                                                         dynamics_2D_mesh,         &
                                                          dynamics_mesh_model_data, &
                                                          clock, nodal_output_on_w3 )
         end if
@@ -225,9 +227,7 @@ contains
     end if
 
     if ( multires_coupling_mode /= multires_coupling_mode_test ) then
-      call finalise_model( dynamics_mesh_id,         &
-                           dynamics_mesh_model_data, &
-                           physics_mesh_id,          &
+      call finalise_model( dynamics_mesh_model_data, &
                            physics_mesh_model_data,  &
                            program_name )
     end if

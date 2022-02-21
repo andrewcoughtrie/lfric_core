@@ -9,7 +9,7 @@ PROGRAM um2lfric
 USE lfricinp_read_command_line_args_mod, ONLY: lfricinp_read_command_line_args
 USE lfricinp_um_parameters_mod, ONLY: fnamelen
 USE lfricinp_lfric_driver_mod, ONLY: lfricinp_initialise_lfric,                &
-                lfricinp_finalise_lfric, mesh_id, twod_mesh_id, lfric_fields
+                lfricinp_finalise_lfric, mesh, twod_mesh, lfric_fields
 USE lfricinp_ancils_mod, ONLY: lfricinp_create_ancil_fields, ancil_fields
 USE lfricinp_create_lfric_fields_mod, ONLY: lfricinp_create_lfric_fields
 USE lfricinp_um_grid_mod, ONLY: um_grid
@@ -68,12 +68,12 @@ CALL lfricinp_initialise_lfric(program_name_arg="um2lfric",                    &
 CALL um2lfric_initialise_um2lfric()
 
 ! Initialise LFRic field collection
-CALL lfricinp_create_lfric_fields(mesh_id, twod_mesh_id,  &
-                                  lfric_fields, um2lfric_config%stash_list,    &
-                                  um_grid, um_input_file)
+CALL lfricinp_create_lfric_fields( mesh, twod_mesh, lfric_fields, &
+                                   um2lfric_config%stash_list,    &
+                                   um_grid, um_input_file )
 
 ! Initialise LFRic ancils field collection
-CALL lfricinp_create_ancil_fields(ancil_fields, mesh_id, twod_mesh_id)
+CALL lfricinp_create_ancil_fields( ancil_fields, mesh, twod_mesh )
 
 ! Read in, process and partition regridding weights
 CALL um2lfric_regrid_weightsfile_ctl()

@@ -45,6 +45,7 @@ module skeleton_driver_mod
                                          LOG_LEVEL_TRACE
   use mesh_collection_mod,        only : mesh_collection, &
                                          mesh_collection_type
+  use mesh_mod,                   only : mesh_type
   use mpi_mod,                    only : store_comm,    &
                                          get_comm_size, &
                                          get_comm_rank
@@ -73,9 +74,8 @@ module skeleton_driver_mod
   ! Coordinate field
   type(field_type), target, dimension(3) :: chi
   type(field_type), target               :: panel_id
-
-  integer(i_def) :: mesh_id
-  integer(i_def) :: twod_mesh_id
+  type(mesh_type),  pointer              :: mesh      => null()
+  type(mesh_type),  pointer              :: twod_mesh => null()
 
 contains
 
@@ -159,10 +159,10 @@ contains
 
     ! Create the mesh
     call init_mesh( local_rank, total_ranks, stencil_depth, &
-                    mesh_id, twod_mesh_id = twod_mesh_id )
+                    mesh, twod_mesh = twod_mesh )
 
     ! Create FEM specifics (function spaces and chi field)
-    call init_fem( mesh_id, chi, panel_id )
+    call init_fem( mesh, chi, panel_id )
 
     !-------------------------------------------------------------------------
     ! IO init
@@ -175,8 +175,8 @@ contains
       call initialise_xios( io_context,         &
                             program_name,       &
                             model_communicator, &
-                            mesh_id,            &
-                            twod_mesh_id,       &
+                            mesh,               &
+                            twod_mesh,          &
                             chi,                &
                             panel_id,           &
                             timestep_start,     &
@@ -195,7 +195,7 @@ contains
     dt_model = real(clock%get_seconds_per_step(), r_def)
 
     ! Create and initialise prognostic fields
-    call init_skeleton(mesh_id, twod_mesh_id, chi, panel_id, dt_model, field_1)
+    call init_skeleton(mesh, twod_mesh, chi, panel_id, dt_model, field_1)
 
   end subroutine initialise
 
@@ -221,7 +221,7 @@ contains
     if (write_diag ) then
       ! Calculation and output of diagnostics
       call write_scalar_diagnostic( 'skeleton_field', field_1, &
-                                    clock, mesh_id, .false. )
+                                    clock, mesh, .false. )
     end if
 
   end subroutine run

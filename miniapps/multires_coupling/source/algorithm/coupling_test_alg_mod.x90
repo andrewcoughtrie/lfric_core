@@ -66,8 +66,6 @@ contains
     type( mesh_type ),     pointer :: mesh_A => null()
     type( mesh_type ),     pointer :: mesh_B => null()
 
-    integer(kind=i_def) :: mesh_A_id
-    integer(kind=i_def) :: mesh_B_id
     real(kind=r_def)    :: tol = 1.0
     real(kind=r_def)    :: errornorm_sq, norm_sq
 
@@ -75,30 +73,27 @@ contains
 
     ! Check how many multires_coupling meshes have been declared in configuration
     if ( size(multires_coupling_mesh_tags) > 1 ) then
-      mesh_A_id = mesh_collection%get_mesh_id(multires_coupling_mesh_tags(1))
-      mesh_B_id = mesh_collection%get_mesh_id(multires_coupling_mesh_tags(2))
+      mesh_A => mesh_collection%get_mesh(multires_coupling_mesh_tags(1))
+      mesh_B => mesh_collection%get_mesh(multires_coupling_mesh_tags(2))
     else
-      mesh_A_id = mesh_collection%get_mesh_id(multires_coupling_mesh_tags(1))
-      mesh_B_id = mesh_collection%get_mesh_id(multires_coupling_mesh_tags(1))
+      mesh_A => mesh_collection%get_mesh(multires_coupling_mesh_tags(1))
+      mesh_B => mesh_collection%get_mesh(multires_coupling_mesh_tags(1))
     end if
 
     ! Initialise meshes, function spaces and common fields
-    W2_A => function_space_collection%get_fs(mesh_A_id, element_order, W2)
-    W3_A => function_space_collection%get_fs(mesh_A_id, element_order, W3)
-    W2_B => function_space_collection%get_fs(mesh_B_id, element_order, W2)
-    W3_B => function_space_collection%get_fs(mesh_B_id, element_order, W3)
+    W2_A => function_space_collection%get_fs(mesh_A, element_order, W2)
+    W3_A => function_space_collection%get_fs(mesh_A, element_order, W3)
+    W2_B => function_space_collection%get_fs(mesh_B, element_order, W2)
+    W3_B => function_space_collection%get_fs(mesh_B, element_order, W3)
 
     call field_W2_A1%initialise( vector_space = W2_A )
     call field_W2_B1%initialise( vector_space = W2_B )
     call field_W3_A1%initialise( vector_space = W3_A )
     call field_W3_B1%initialise( vector_space = W3_B )
 
-    mesh_A => field_W2_A1%get_mesh()
-    mesh_B => field_W2_B1%get_mesh()
-
     ! Get div operators
-    div_A => get_div(mesh_A_id)
-    div_B => get_div(mesh_B_id)
+    div_A => get_div(mesh_A%get_id())
+    div_B => get_div(mesh_B%get_id())
 
     ! Initialise field A on W2
     ! Initial field A on W3 is divergence of the W2 field

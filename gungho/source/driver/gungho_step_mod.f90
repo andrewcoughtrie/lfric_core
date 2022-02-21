@@ -27,6 +27,8 @@ module gungho_step_mod
                                              log_scratch_space, &
                                              LOG_LEVEL_INFO, &
                                              LOG_LEVEL_TRACE
+
+  use mesh_mod,                       only : mesh_type
   use minmax_tseries_mod,             only : minmax_tseries
   use mr_indices_mod,                 only : nummr
   use semi_implicit_timestep_alg_mod, only : semi_implicit_alg_step
@@ -46,19 +48,19 @@ module gungho_step_mod
   contains
 
   !> @brief Steps the gungho app through one timestep
-  !> @param[in] mesh_id The identifier of the primary mesh
-  !> @param[in] twod_mesh_id The identifier of the two-dimensional mesh
+  !> @param[in] mesh      The primary mesh
+  !> @param[in] twod_mesh The two-dimensional mesh
   !> @param[inout] model_data The working data set for the model run
   !> @param[in] timestep number of current timestep
-  subroutine gungho_step( mesh_id,      &
-                          twod_mesh_id, &
-                          model_data,   &
+  subroutine gungho_step( mesh,       &
+                          twod_mesh,  &
+                          model_data, &
                           clock )
 
     implicit none
 
-    integer(i_def),                  intent(in)    :: mesh_id
-    integer(i_def),                  intent(in)    :: twod_mesh_id
+    type(mesh_type), intent(in), pointer    :: mesh
+    type(mesh_type), intent(in), pointer    :: twod_mesh
     type( model_data_type ), target, intent(inout) :: model_data
     class(clock_type),               intent(in)    :: clock
 
@@ -119,7 +121,7 @@ module gungho_step_mod
     u => prognostic_fields%get_field('u')
     rho => prognostic_fields%get_field('rho')
     exner => prognostic_fields%get_field('exner')
-    dA => get_da_at_w2(mesh_id)
+    dA => get_da_at_w2(mesh%get_id())
 
     ! Get timestep parameters from clock
     dt = real(clock%get_seconds_per_step(), r_def)
@@ -133,8 +135,8 @@ module gungho_step_mod
                                     cloud_fields, surface_fields,            &
                                     soil_fields, snow_fields,                &
                                     chemistry_fields, aerosol_fields,        &
-                                    lbc_fields, clock, dt, mesh_id,          &
-                                    twod_mesh_id)
+                                    lbc_fields, clock, dt, mesh,             &
+                                    twod_mesh)
       case( method_rk )             ! RK
         call rk_alg_step(u, rho, theta, moist_dyn, exner, mr, cloud_fields,  &
                          dt, clock)
@@ -159,7 +161,7 @@ module gungho_step_mod
                                                      dt )
       end if
 
-      if(write_minmax_tseries) call minmax_tseries(u, 'u', mesh_id)
+      if (write_minmax_tseries) call minmax_tseries(u, 'u', mesh)
 
       call u%log_minmax(LOG_LEVEL_INFO, ' u')
       call theta%log_minmax(LOG_LEVEL_INFO, 'theta')

@@ -22,6 +22,7 @@ module create_physics_prognostics_mod
   use log_mod,                        only : log_event,         &
                                              LOG_LEVEL_INFO,    &
                                              LOG_LEVEL_ERROR
+  use mesh_mod,                       only : mesh_type
   use pure_abstract_field_mod,        only : pure_abstract_field_type
   use radiation_config_mod,           only : n_radstep, cloud_representation,  &
                                              cloud_representation_combined,    &
@@ -54,8 +55,8 @@ module create_physics_prognostics_mod
 
 contains
   !>@brief Routine to initialise the field objects required by the physics
-  !> @param[in]    mesh_id The identifier given to the current 3d mesh
-  !> @param[in]    twod_mesh_id The identifier given to the current 2d mesh
+  !> @param[in]    mesh      The current 3d mesh
+  !> @param[in]    twod_mesh The current 2d mesh
   !> @param[in]    clock Model time.
   !> @param[in,out] depository Main collection of all fields in memory
   !> @param[in,out] prognostic_fields The prognostic variables in the model
@@ -71,8 +72,8 @@ contains
   !> @param[out]   snow_fields Collection of fields for snow scheme
   !> @param[out]   aerosol_fields Collection of fields for aerosol scheme
   !> @param[out]   chemistry_fields Collection of fields for chemistry scheme
-  subroutine create_physics_prognostics( mesh_id,             &
-                                         twod_mesh_id,        &
+  subroutine create_physics_prognostics( mesh,                &
+                                         twod_mesh,           &
                                          clock,               &
                                          depository,          &
                                          prognostic_fields,   &
@@ -101,8 +102,9 @@ contains
 
     implicit none
 
-    integer(i_def),    intent(in) :: mesh_id
-    integer(i_def),    intent(in) :: twod_mesh_id
+    type( mesh_type ), intent(in), pointer :: mesh
+    type( mesh_type ), intent(in), pointer :: twod_mesh
+
     class(clock_type), intent(in) :: clock
 
     ! Collections of fields
@@ -159,16 +161,16 @@ contains
     end if
 
     ! Create the vector spaces once here for re-use later
-    wtheta_space => function_space_collection%get_fs(mesh_id, 0, Wtheta)
-    w3_space => function_space_collection%get_fs(mesh_id, 0, W3)
-    w2_space => function_space_collection%get_fs(mesh_id, 0, W2)
+    wtheta_space => function_space_collection%get_fs(mesh, 0, Wtheta)
+    w3_space => function_space_collection%get_fs(mesh, 0, W3)
+    w2_space => function_space_collection%get_fs(mesh, 0, W2)
 #ifdef UM_PHYSICS
-    twod_space => function_space_collection%get_fs(twod_mesh_id, 0, W3)
-    surft_space => function_space_collection%get_fs(twod_mesh_id, 0, W3, n_surf_tile)
-    pft_space => function_space_collection%get_fs(twod_mesh_id, 0, W3, npft)
-    soil_space => function_space_collection%get_fs(twod_mesh_id, 0, W3, sm_levels)
-    sice_space => function_space_collection%get_fs(twod_mesh_id, 0, W3, n_sea_ice_tile)
-    snow_space => function_space_collection%get_fs(twod_mesh_id, 0, W3, snow_lev_tile)
+    twod_space  => function_space_collection%get_fs(twod_mesh, 0, W3)
+    surft_space => function_space_collection%get_fs(twod_mesh, 0, W3, n_surf_tile)
+    pft_space   => function_space_collection%get_fs(twod_mesh, 0, W3, npft)
+    soil_space  => function_space_collection%get_fs(twod_mesh, 0, W3, sm_levels)
+    sice_space  => function_space_collection%get_fs(twod_mesh, 0, W3, n_sea_ice_tile)
+    snow_space  => function_space_collection%get_fs(twod_mesh, 0, W3, snow_lev_tile)
 #endif
 
     !========================================================================
@@ -484,7 +486,7 @@ contains
       'level_ent_dsc', twod_space, twod=.true. )
 
     ! Space for the 7 BL types
-    vector_space => function_space_collection%get_fs(twod_mesh_id, 0, W3, 7)
+    vector_space => function_space_collection%get_fs(twod_mesh, 0, W3, 7)
     call add_physics_field( turbulence_fields, depository, prognostic_fields,  &
       'bl_type_ind',  vector_space, twod=.true. )
 
@@ -521,7 +523,7 @@ contains
       'tau_w2', w2_space )
 
     ! Fields on entrainment levels, don't need checkpointing
-    vector_space => function_space_collection%get_fs(twod_mesh_id, 0, W3, 3)
+    vector_space => function_space_collection%get_fs(twod_mesh, 0, W3, 3)
     call add_physics_field( turbulence_fields, depository, prognostic_fields,  &
       'ent_we_lim', vector_space, twod=.true. )
     call add_physics_field( turbulence_fields, depository, prognostic_fields,  &
@@ -714,7 +716,7 @@ contains
     call add_physics_field( surface_fields, depository, prognostic_fields,     &
       'canopy_water', surft_space, checkpoint_flag=checkpoint_flag, twod=.true. )
 
-    vector_space=>function_space_collection%get_fs(twod_mesh_id, 0, W3, &
+    vector_space=>function_space_collection%get_fs(twod_mesh, 0, W3, &
                                                    n_land_tile*rad_nband)
     call add_physics_field( surface_fields, depository, prognostic_fields,     &
       'albedo_obs_scaling', vector_space,                                      &
@@ -777,19 +779,19 @@ contains
       'wspd10m', twod_space, twod=.true. )
 
     ! Space for variables required for regridding to cell faces
-    vector_space => function_space_collection%get_fs(twod_mesh_id, 0, W2, n_surf_interp)
+    vector_space => function_space_collection%get_fs(twod_mesh, 0, W2, n_surf_interp)
     call add_physics_field( surface_fields, depository, prognostic_fields,     &
       'surf_interp_w2',  vector_space, twod=.true. )
 
     ! 2D fields at W2 points
-    vector_space => function_space_collection%get_fs(twod_mesh_id, 0, W2)
+    vector_space => function_space_collection%get_fs(twod_mesh, 0, W2)
     call add_physics_field( surface_fields, depository, prognostic_fields,     &
       'tau_land_w2',  vector_space, twod=.true. )
     call add_physics_field( surface_fields, depository, prognostic_fields,     &
       'tau_ssi_w2',  vector_space, twod=.true. )
 
     ! Field on soil levels and land tiles
-    vector_space => function_space_collection%get_fs(twod_mesh_id, 0, W3, soil_lev_tile)
+    vector_space => function_space_collection%get_fs(twod_mesh, 0, W3, soil_lev_tile)
     call add_physics_field( surface_fields, depository, prognostic_fields,     &
       'tile_water_extract', vector_space, twod=.true. )
 
@@ -1242,7 +1244,7 @@ contains
       'pvol_du_cor_ins', wtheta_space, checkpoint_flag=checkpoint_flag )
 
     ! Fields on dust space, might need checkpointing
-    vector_space => function_space_collection%get_fs(twod_mesh_id, 0, W3, ndiv)
+    vector_space => function_space_collection%get_fs(twod_mesh, 0, W3, ndiv)
     call add_physics_field( aerosol_fields, depository, prognostic_fields,     &
       'dust_mrel', vector_space, twod=.true. , checkpoint_flag=checkpoint_flag )
 

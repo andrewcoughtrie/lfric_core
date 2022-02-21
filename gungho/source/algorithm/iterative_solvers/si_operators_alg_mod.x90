@@ -18,6 +18,7 @@ module si_operators_alg_mod
                                        LOG_LEVEL_INFO, &
                                        LOG_LEVEL_ERROR, &
                                        log_scratch_space
+  use mesh_mod,                  only: mesh_type
   use helmholtz_solver_config_mod, &
                                  only: preconditioner,              &
                                        preconditioner_tridiagonal,  &
@@ -162,8 +163,8 @@ module si_operators_alg_mod
 contains
 
   !>@brief Subroutine to create the si operators
-  !>@param[in] mesh_id Identifier for the mesh
-  subroutine create_si_operators(mesh_id)
+  !>@param[in] mesh The mesh
+  subroutine create_si_operators( mesh )
 
     use function_space_mod,        only: function_space_type
     use fs_continuity_mod,         only: W0, W2, W3, Wtheta
@@ -173,7 +174,7 @@ contains
 
     implicit none
 
-    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type), pointer, intent(in) :: mesh
 
     integer(kind=i_def) :: i, j
     type(function_space_type), pointer     :: w2_fs => null()
@@ -189,9 +190,9 @@ contains
        multigrid_levels=1
     end if
 
-    w2_fs => function_space_collection%get_fs( mesh_id, element_order, W2 )
-    w3_fs => function_space_collection%get_fs( mesh_id, element_order, W3 )
-    wt_fs => function_space_collection%get_fs( mesh_id, element_order, Wtheta )
+    w2_fs => function_space_collection%get_fs( mesh, element_order, W2 )
+    w3_fs => function_space_collection%get_fs( mesh, element_order, W3 )
+    wt_fs => function_space_collection%get_fs( mesh, element_order, Wtheta )
 
     allocate(m3_rho_star(multigrid_levels))
     allocate(m3_exner_star(multigrid_levels))
@@ -400,6 +401,7 @@ contains
 
     type(field_type), intent(in)           :: state(bundle_size) ! (u, theta, rho, exner)
     real(kind=r_def), intent(in)           :: dt
+
     type(field_type)                       :: theta, rho, exner, coarse_field
     type(quadrature_xyoz_type)             :: qr
     type(quadrature_face_type)             :: qrf
@@ -413,8 +415,7 @@ contains
     type(function_space_type),     pointer :: w2_fs => null()
     type(function_space_type),     pointer :: wt_fs => null()
     real(kind=r_def)                       :: const1, const2, const3
-    integer(kind=i_def), parameter         :: imone = -1_i_def
-    real(kind=r_def),    parameter         :: one   = 1_r_def
+
     class(reference_element_type), pointer :: reference_element =>null()
     type(mesh_type),               pointer :: mesh => null()
     type(operator_type),           pointer :: m2 => null()
@@ -423,11 +424,15 @@ contains
     type(field_type)                       :: m2_u, theta_adv_term, exner_in_wth
     integer(kind=i_def)                    :: level, i
     type(field_type),              target  :: dummy_w2_mask
-    type(field_type),              pointer :: w2_mask => null()
-    integer(kind=i_def)                    :: mesh_id
-    type(field_type), pointer              :: height_w3 => null()
-    type(field_type), pointer              :: height_wt => null()
+    type(field_type),              pointer :: w2_mask   => null()
+    type(field_type),              pointer :: height_w3 => null()
+    type(field_type),              pointer :: height_wt => null()
     type(field_type)                       :: multiplicity
+
+    ! Parameters
+    integer(kind=i_def), parameter :: imone = -1_i_def
+    real(kind=r_def),    parameter :: one   =  1_r_def
+
 
     if ( subroutine_timers ) call timer('si_operators_alg:compute')
     call log_event( "Gungho: computing si_operators", LOG_LEVEL_INFO )
@@ -463,17 +468,17 @@ contains
        write(log_scratch_space,'(A,I0)') "si_ops: mg level=",level
        call log_event(log_scratch_space, LOG_LEVEL_INFO)
 
-       mesh_id = rho_at_u(level)%get_mesh_id()
-       chi => get_coordinates(mesh_id)
-       panel_id =>  get_panel_id(mesh_id)
+       mesh     => rho_at_u(level)%get_mesh()
+       chi      => get_coordinates( mesh%get_id() )
+       panel_id => get_panel_id( mesh%get_id() )
 
-       u_normalisation => get_normalisation(W2, mesh_id)
+       u_normalisation => get_normalisation( W2, mesh%get_id() )
 
        ! Non-topological operators
        call exner_in_wth%initialise( vector_space = theta%get_function_space() )
        if ( exner_in_wth%get_element_order() == 0 ) then
-         height_w3 => get_height(W3, mesh_id)
-         height_wt => get_height(Wtheta, mesh_id)
+         height_w3 => get_height(W3, mesh%get_id())
+         height_wt => get_height(Wtheta, mesh%get_id())
          call invoke( sample_w3_to_wtheta_kernel_type(exner_in_wth, exner, &
                                                       height_wt, height_w3 ) )
          nullify(height_w3, height_wt)
@@ -485,7 +490,7 @@ contains
                       sample_field_kernel_type(exner_in_wth, multiplicity, exner) )
        end if
 
-       m3_inv => get_inverse_w3_mass_matrix(mesh_id)
+       m3_inv => get_inverse_w3_mass_matrix( mesh%get_id() )
        const1 = (1.0_r_def-kappa)/kappa
        const2 = tau_t*tau_u*dt**2*cp
        call invoke( eos_operators_kernel_type(m3_exner_star(level), m3_rho_star(level),  &
@@ -509,7 +514,7 @@ contains
        else
           ! for non MG, at higher order, need computed rmultiplicity
           call ones%initialise( vector_space = w2_fs )
-          w2_rmultiplicity => get_rmultiplicity( W2, mesh_id )
+          w2_rmultiplicity => get_rmultiplicity( W2, mesh%get_id() )
           call invoke( setval_c(ones,     1.0_r_def),         &
                setval_c(rho_at_u(level), 0.0_r_def),          &
                sample_flux_kernel_type(rho_at_u(level), ones, &
@@ -524,8 +529,8 @@ contains
        const1 = tau_u*dt*cp
        const2 = tau_t*dt
        const3 = tau_r*dt
-       m3_inv => get_inverse_w3_mass_matrix(mesh_id)
-       div    => get_div(mesh_id)
+       m3_inv => get_inverse_w3_mass_matrix( mesh%get_id() )
+       div    => get_div( mesh%get_id() )
        call invoke( name = "cell_and_boundary_kernels",                                 &
             weighted_div_kernel_type(div_star(level), theta, const1, qr),               &
             weighted_proj_2theta_kernel_type(p2theta(level), exner, const1, qr),        &
@@ -553,12 +558,12 @@ contains
 
        ! Compute Hb_lumped_inv field
        if (dlayer_on) then
-          m2 => get_dl_mass_matrix(mesh_id)
+          m2 => get_dl_mass_matrix( mesh%get_id() )
        else
-          m2 => get_mass_matrix(W2, mesh_id)
+          m2 => get_mass_matrix(W2, mesh%get_id() )
        end if
-       u_normalisation => get_normalisation(W2, mesh_id)
-       t_normalisation => get_normalisation(Wtheta, mesh_id)
+       u_normalisation => get_normalisation( W2, mesh%get_id() )
+       t_normalisation => get_normalisation( Wtheta, mesh%get_id() )
 
        call m2_u%initialise( vector_space = w2_fs )
        call ones%initialise( vector_space = w2_fs )
@@ -597,7 +602,7 @@ contains
        ! Compute the Helmholtz operator
        if ( element_order == 0 ) then
          if ( limited_area ) then
-           w2_mask => get_mask(W2, mesh_id)
+           w2_mask => get_mask( W2, mesh%get_id() )
          else
            ! Create dummy mask arrays with 1 in every entry
            call dummy_w2_mask%initialise( vector_space = w2_fs )
@@ -663,9 +668,9 @@ contains
 
        ! Restrict the fields for the next level, provided not last time round
        ! the loop
-       if(level < multigrid_levels) then
+       if (level < multigrid_levels) then
           ! should not get here if no multigrid, but just in case
-          if(l_multigrid) then
+          if (l_multigrid) then
 
              write(log_scratch_space,'(A,I0,A,I0)') &
                   "si_ops:MG restrict L",level," to L",level+1
@@ -702,7 +707,7 @@ contains
 
     nullify( chi, panel_id, m3_inv, div, w2_rmultiplicity, &
              mesh, reference_element, m2, u_normalisation, t_normalisation, &
-             w2_mask )
+             w2_mask, mesh )
 
     if ( subroutine_timers ) call timer('si_operators_alg:compute')
 

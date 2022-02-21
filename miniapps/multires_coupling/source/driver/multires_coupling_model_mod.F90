@@ -34,6 +34,7 @@ module multires_coupling_model_mod
                                          use_multires_coupling
   use mesh_collection_mod,        only : mesh_collection, &
                                          mesh_collection_type
+  use mesh_mod,                   only : mesh_type
   use gungho_mod,                 only : load_configuration
   use gungho_model_data_mod,      only : model_data_type
   use gungho_setup_io_mod,        only : init_gungho_files
@@ -119,22 +120,19 @@ contains
   !> @param [in]    filename The name of the configuration namelist file
   !> @param [in]    program_name An identifier given to the model begin run
   !> @param [out]    io_context Context in which I/O operations are performed
-  !> @param [in,out] mesh_id The identifier given to the current 3d mesh
-  !> @param [in,out] twod_mesh_id The identifier given to the current 2d mesh
-  !> @param [in,out] shifted_mesh_id The identifier given to the vertically
-  !>                                 shifted 3d mesh
-  !> @param [in,out] double_level_mesh_id The identifier given to the
-  !>                                      double-level 3d mesh the double-level
-  !>                                      mesh
+  !> @param [in,out] mesh         The current 3d mesh
+  !> @param [in,out] twod_mesh    The current 2d mesh
+  !> @param [in,out] shifted_mesh The vertically shifted 3d mesh
+  !> @param [in,out] double_level_mesh The double-level 3d mesh
   !>
-  subroutine initialise_infrastructure(communicator,         &
-                                       filename,             &
-                                       program_name,         &
-                                       io_context,           &
-                                       mesh_id,              &
-                                       twod_mesh_id,         &
-                                       shifted_mesh_id,      &
-                                       double_level_mesh_id)
+  subroutine initialise_infrastructure( communicator,         &
+                                        filename,             &
+                                        program_name,         &
+                                        io_context,           &
+                                        mesh,                 &
+                                        twod_mesh,            &
+                                        shifted_mesh,         &
+                                        double_level_mesh )
 
     use check_configuration_mod, only: get_required_stencil_depth
     use logging_config_mod,      only: run_log_level,          &
@@ -151,10 +149,10 @@ contains
     character(*),           intent(in)               :: filename
     character(*),           intent(in)               :: program_name
     class(io_context_type), intent(out), allocatable :: io_context
-    integer(i_def),         intent(inout)            :: mesh_id
-    integer(i_def),         intent(inout)            :: twod_mesh_id
-    integer(i_def),         intent(inout)            :: double_level_mesh_id
-    integer(i_def),         intent(inout)            :: shifted_mesh_id
+    type(mesh_type),        intent(inout), pointer   :: mesh
+    type(mesh_type),        intent(inout), pointer   :: twod_mesh
+    type(mesh_type),        intent(inout), pointer   :: double_level_mesh
+    type(mesh_type),        intent(inout), pointer   :: shifted_mesh
 
     character(len=*), parameter :: io_context_name = "multires_coupling"
 
@@ -181,8 +179,11 @@ contains
 
     logical(l_def)                :: found_dynamics_chi
     character(str_def)            :: dynamics_2D_mesh_name
-    integer(i_def)                :: dynamics_mesh_id, dynamics_2D_mesh_id
-    integer(i_def)                :: physics_mesh_id
+
+    type(mesh_type), pointer      :: dynamics_mesh    => null()
+    type(mesh_type), pointer      :: physics_mesh     => null()
+    type(mesh_type), pointer      :: dynamics_2D_mesh => null()
+
     integer(i_def),   allocatable :: multires_coupling_mesh_ids(:)
     integer(i_def),   allocatable :: multires_coupling_2D_mesh_ids(:)
     type(field_type), allocatable, target :: chi_mrc(:,:)
@@ -269,10 +270,10 @@ contains
     stencil_depth = get_required_stencil_depth()
 
     ! Create the mesh
-    call init_mesh( local_rank, total_ranks, stencil_depth, mesh_id,               &
-                    twod_mesh_id                  = twod_mesh_id,                  &
-                    shifted_mesh_id               = shifted_mesh_id,               &
-                    double_level_mesh_id          = double_level_mesh_id,          &
+    call init_mesh( local_rank, total_ranks, stencil_depth, mesh,                  &
+                    twod_mesh                     = twod_mesh,                     &
+                    shifted_mesh                  = shifted_mesh,                  &
+                    double_level_mesh             = double_level_mesh,             &
                     multigrid_mesh_ids            = multigrid_mesh_ids,            &
                     multigrid_2D_mesh_ids         = multigrid_2D_mesh_ids,         &
                     use_multigrid                 = l_multigrid,                   &
@@ -281,10 +282,10 @@ contains
                     multires_coupling_mesh_tags   = multires_coupling_mesh_tags,   &
                     use_multires_coupling         = use_multires_coupling )
 
-    call init_fem( mesh_id, chi, panel_id,                                        &
-                   shifted_mesh_id               = shifted_mesh_id,               &
+    call init_fem( mesh, chi, panel_id,                                           &
+                   shifted_mesh                  = shifted_mesh,                  &
                    shifted_chi                   = shifted_chi,                   &
-                   double_level_mesh_id          = double_level_mesh_id,          &
+                   double_level_mesh             = double_level_mesh,             &
                    double_level_chi              = double_level_chi,              &
                    multigrid_mesh_ids            = multigrid_mesh_ids,            &
                    multigrid_2D_mesh_ids         = multigrid_2D_mesh_ids,         &
@@ -304,18 +305,18 @@ contains
     call log_event("Initialising I/O context", LOG_LEVEL_INFO)
 
     dynamics_2D_mesh_name = trim(dynamics_mesh_name)//'_2d'
-    dynamics_mesh_id = mesh_collection%get_mesh_id(dynamics_mesh_name)
-    dynamics_2D_mesh_id = mesh_collection%get_mesh_id(dynamics_2D_mesh_name)
+    dynamics_mesh    => mesh_collection%get_mesh( dynamics_mesh_name )
+    dynamics_2D_mesh => mesh_collection%get_mesh( dynamics_2D_mesh_name )
     ! Find chi for dynamics mesh for XIOS
     ! We haven't computed runtime constants yet so have to add this here
     found_dynamics_chi = .false.
-    if (dynamics_mesh_id == mesh_id) then
+    if ( associated( dynamics_mesh, mesh ) ) then
       dynamics_chi => chi
       dynamics_panel_id => panel_id
       found_dynamics_chi = .true.
     else
       do i = 1, SIZE(multires_coupling_mesh_ids)
-        if (dynamics_mesh_id == multires_coupling_mesh_ids(i)) then
+        if ( dynamics_mesh%get_id() == multires_coupling_mesh_ids(i) ) then
           dynamics_chi => chi_mrc(:,i)
           dynamics_panel_id => panel_id_mrc(i)
           found_dynamics_chi = .true.
@@ -332,8 +333,8 @@ contains
       call initialise_xios( io_context,                      &
                             io_context_name,                 &
                             communicator,                    &
-                            dynamics_mesh_id,                &
-                            dynamics_2D_mesh_id,             &
+                            dynamics_mesh,                   &
+                            dynamics_2D_mesh,                &
                             dynamics_chi,                    &
                             dynamics_panel_id,               &
                             timestep_start,                  &
@@ -355,20 +356,20 @@ contains
 
     ! Set up surface altitude field - this will be used to generate orography
     ! for models with global land mass included (i.e GAL)
-    call init_altitude( twod_mesh_id, surface_altitude )
+    call init_altitude( twod_mesh, surface_altitude )
 
     ! Assignment of orography from surface_altitude
-    call assign_orography_field(chi, panel_id,                      &
-                                mesh_id, surface_altitude)
-    call assign_orography_field(shifted_chi, panel_id,              &
-                                shifted_mesh_id, surface_altitude)
-    call assign_orography_field(double_level_chi, panel_id,         &
-                                double_level_mesh_id, surface_altitude)
+    call assign_orography_field( chi, panel_id,                      &
+                                 mesh, surface_altitude )
+    call assign_orography_field( shifted_chi, panel_id,              &
+                                 shifted_mesh, surface_altitude )
+    call assign_orography_field( double_level_chi, panel_id,         &
+                                 double_level_mesh, surface_altitude )
 
     ! Set up orography fields for multgrid meshes
     if ( l_multigrid ) then
-      call mg_orography_alg(multigrid_mesh_ids, multigrid_2D_mesh_ids, &
-                            chi_mg, panel_id_mg, surface_altitude)
+      call mg_orography_alg( multigrid_mesh_ids, multigrid_2D_mesh_ids, &
+                             chi_mg, panel_id_mg, surface_altitude )
     end if
 
     !-------------------------------------------------------------------------
@@ -378,9 +379,9 @@ contains
     ! Create runtime_constants object. This in turn creates various things
     ! needed by the timestepping algorithms such as mass matrix operators, mass
     ! matrix diagonal fields and the geopotential field
-    call create_runtime_constants(mesh_id, twod_mesh_id, chi,                 &
-                                  panel_id, dt_model, shifted_mesh_id,        &
-                                  shifted_chi, double_level_mesh_id,          &
+    call create_runtime_constants(mesh, twod_mesh, chi,                       &
+                                  panel_id, dt_model, shifted_mesh,           &
+                                  shifted_chi, double_level_mesh,             &
                                   double_level_chi,                           &
                                   multigrid_mesh_ids, multigrid_2D_mesh_ids,  &
                                   chi_mg, panel_id_mg,                        &
@@ -388,7 +389,7 @@ contains
                                   multires_coupling_2D_mesh_ids,              &
                                   chi_mrc, panel_id_mrc )
 
-    physics_mesh_id = mesh_collection%get_mesh_id(physics_mesh_name)
+    physics_mesh => mesh_collection%get_mesh( physics_mesh_name )
 
 #ifdef UM_PHYSICS
     ! Set derived planet constants and presets
@@ -402,8 +403,10 @@ contains
         ! Initialisation for the Socrates radiation scheme
         call socrates_init()
       end if
+
       ! Initialisation of UM high-level variables
-      call um_control_init(physics_mesh_id, ncells)
+      call um_control_init( physics_mesh, ncells )
+
       ! Initialisation of UM clock
       call um_clock_init(clock)
       ! Initialisation of UM physics variables
@@ -427,21 +430,21 @@ contains
   !> @brief Initialises the multires_coupling application
   !>
   !> @param[in] clock Model time
-  !> @param[in] dynamics_mesh_id        The ID of the dynamics mesh
+  !> @param[in] dynamics_mesh           The dynamics mesh
   !> @param[in,out] dynamics_model_data The dynamics data set
-  !> @param[in] physics_mesh_id         The ID of the physics mesh
+  !> @param[in] physics_mesh            The physics mesh
   !> @param[in,out] physics_model_data  The physics data set
   !>
   subroutine initialise_model( clock,               &
-                               dynamics_mesh_id,    &
+                               dynamics_mesh,       &
                                dynamics_model_data, &
-                               physics_mesh_id,     &
+                               physics_mesh,        &
                                physics_model_data )
     implicit none
 
-    class(clock_type),       intent(in), pointer   :: clock
-    integer(kind=i_def),            intent(in)    :: dynamics_mesh_id
-    integer(kind=i_def),            intent(in)    :: physics_mesh_id
+    class(clock_type),     pointer, intent(in)    :: clock
+    type(mesh_type),       pointer, intent(in)    :: dynamics_mesh
+    type(mesh_type),       pointer, intent(in)    :: physics_mesh
     type(model_data_type), target,  intent(inout) :: dynamics_model_data
     type(model_data_type), target,  intent(inout) :: physics_model_data
 
@@ -460,29 +463,29 @@ contains
 
     ! Get pointers to field collections for use downstream
     dynamics_mr => dynamics_model_data%mr
-    physics_mr => physics_model_data%mr
+    physics_mr  => physics_model_data%mr
 
     prognostic_fields => dynamics_model_data%prognostic_fields
-    dynamics_theta => prognostic_fields%get_field('theta')
-    dynamics_u => prognostic_fields%get_field('u')
-    dynamics_rho => prognostic_fields%get_field('rho')
-    dynamics_exner => prognostic_fields%get_field('exner')
+    dynamics_theta    => prognostic_fields%get_field('theta')
+    dynamics_u        => prognostic_fields%get_field('u')
+    dynamics_rho      => prognostic_fields%get_field('rho')
+    dynamics_exner    => prognostic_fields%get_field('exner')
 
     prognostic_fields => physics_model_data%prognostic_fields
-    physics_theta => prognostic_fields%get_field('theta')
-    physics_u => prognostic_fields%get_field('u')
-    physics_rho => prognostic_fields%get_field('rho')
-    physics_exner => prognostic_fields%get_field('exner')
+    physics_theta     => prognostic_fields%get_field('theta')
+    physics_u         => prognostic_fields%get_field('u')
+    physics_rho       => prognostic_fields%get_field('rho')
+    physics_exner     => prognostic_fields%get_field('exner')
 
     if (write_minmax_tseries) then
-      call minmax_tseries_init('u', dynamics_mesh_id)
-      call minmax_tseries(dynamics_u, 'u', dynamics_mesh_id)
+      call minmax_tseries_init('u')
+      call minmax_tseries(dynamics_u, 'u', dynamics_mesh)
     end if
 
     select case( method )
       case( method_semi_implicit )  ! Semi-Implicit
         ! Initialise and output initial conditions for first timestep
-        call semi_implicit_alg_init(dynamics_mesh_id, dynamics_u, dynamics_rho, &
+        call semi_implicit_alg_init(dynamics_mesh, dynamics_u, dynamics_rho, &
                                     dynamics_theta, dynamics_exner, dynamics_mr)
         if ( write_conservation_diag ) then
          call conservation_algorithm( clock%get_step(), &
@@ -498,7 +501,7 @@ contains
         end if
       case( method_rk )             ! RK
         ! Initialise and output initial conditions for first timestep
-        call rk_alg_init(dynamics_mesh_id, dynamics_u, dynamics_rho, &
+        call rk_alg_init(dynamics_mesh, dynamics_u, dynamics_rho, &
                          dynamics_theta, dynamics_exner)
         if ( write_conservation_diag ) then
          call conservation_algorithm( clock%get_step(), &
@@ -579,19 +582,16 @@ contains
   !---------------------------------------------------------------------------
   !> @brief Finalise the Multires Coupling application
   !>
-  !> @param[in] mesh_id The identifier of the primary mesh
-  !> @param[in,out] model_data The working data set for the model run
+  !> @param[in,out] dynamics_model_data The working data set for the model run
+  !> @param[in,out] physics_model_data  The working data set for the model run
   !> @param[in] program_name An identifier given to the model begin run
   !>
-  subroutine finalise_model( dynamics_mesh_id,    &
-                             dynamics_model_data, &
-                             physics_mesh_id,     &
+  subroutine finalise_model( dynamics_model_data, &
                              physics_model_data,  &
                              program_name )
     implicit none
 
-    integer(kind=i_def),           intent(in)    :: dynamics_mesh_id
-    integer(kind=i_def),           intent(in)    :: physics_mesh_id
+
     type(model_data_type), target, intent(inout) :: dynamics_model_data
     type(model_data_type), target, intent(inout) :: physics_model_data
     character(*),                  intent(in)    :: program_name
@@ -617,16 +617,16 @@ contains
     physics_mr => physics_model_data%mr
 
     prognostic_fields => dynamics_model_data%prognostic_fields
-    dynamics_theta => prognostic_fields%get_field('theta')
-    dynamics_u => prognostic_fields%get_field('u')
-    dynamics_rho => prognostic_fields%get_field('rho')
-    dynamics_exner => prognostic_fields%get_field('exner')
+    dynamics_theta    => prognostic_fields%get_field('theta')
+    dynamics_u        => prognostic_fields%get_field('u')
+    dynamics_rho      => prognostic_fields%get_field('rho')
+    dynamics_exner    => prognostic_fields%get_field('exner')
 
     prognostic_fields => physics_model_data%prognostic_fields
-    physics_theta => prognostic_fields%get_field('theta')
-    physics_u => prognostic_fields%get_field('u')
-    physics_rho => prognostic_fields%get_field('rho')
-    physics_exner => prognostic_fields%get_field('exner')
+    physics_theta     => prognostic_fields%get_field('theta')
+    physics_u         => prognostic_fields%get_field('u')
+    physics_rho       => prognostic_fields%get_field('rho')
+    physics_exner     => prognostic_fields%get_field('exner')
 
     ! Log fields
     call dynamics_rho%log_field(   LOG_LEVEL_DEBUG, 'rho' )
@@ -653,7 +653,7 @@ contains
                         dynamics_u, 'u')
     end if
 
-    if (write_minmax_tseries) call minmax_tseries_final(dynamics_mesh_id)
+    if (write_minmax_tseries) call minmax_tseries_final()
 
     if ( method == method_semi_implicit ) call semi_implicit_alg_final()
     if ( method == method_rk )            call rk_alg_final()

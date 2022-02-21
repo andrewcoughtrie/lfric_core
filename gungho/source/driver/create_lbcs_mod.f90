@@ -15,6 +15,7 @@ module create_lbcs_mod
   use field_collection_mod,       only : field_collection_type
   use fs_continuity_mod,          only : W0, W2, W3, Wtheta, W2h
   use function_space_mod,         only : function_space_type
+  use mesh_mod,                   only : mesh_type
   use mr_indices_mod,             only : nummr,                      &
                                          mr_names
   use linked_list_mod,            only : linked_list_type
@@ -36,16 +37,17 @@ module create_lbcs_mod
   !> @details Create the lateral boundary condition field collection.
   !!          On every timestep these fields will be updated and used by the
   !!          limited area model.
-  !> @param[in]     mesh_id           The current 3d mesh identifier.
+  !> @param[in]     mesh              The current 3d mesh.
   !> @param[in,out] depository        Main collection of all fields in memory.
   !> @param[in,out] prognostic_fields The prognostic variables in the model.
   !> @param[in,out] lbc_fields        The lbc_fields used on every timestep.
-  subroutine create_lbc_fields( mesh_id, depository, prognostic_fields, &
+  subroutine create_lbc_fields( mesh, depository, prognostic_fields, &
                                 lbc_fields, lbc_times_list )
 
     implicit none
 
-    integer(i_def),              intent(in)    :: mesh_id
+    type(mesh_type), intent(in), pointer :: mesh
+
     type(field_collection_type), intent(inout) :: depository
     type(field_collection_type), intent(inout) :: prognostic_fields
     type(field_collection_type), intent(inout) :: lbc_fields
@@ -76,27 +78,27 @@ module create_lbcs_mod
       checkpoint_restart_flag = .true.
 
       call setup_field( lbc_fields, depository, prognostic_fields, &
-         "lbc_theta", Wtheta, mesh_id, checkpoint_restart_flag )
+         "lbc_theta", Wtheta, mesh, checkpoint_restart_flag )
 
       call setup_field( lbc_fields, depository, prognostic_fields, &
-         "lbc_u", W2, mesh_id, checkpoint_restart_flag )
+         "lbc_u", W2, mesh, checkpoint_restart_flag )
 
       call setup_field( lbc_fields, depository, prognostic_fields, &
-         "lbc_rho", W3, mesh_id, checkpoint_restart_flag )
+         "lbc_rho", W3, mesh, checkpoint_restart_flag )
 
       call setup_field( lbc_fields, depository, prognostic_fields, &
-         "lbc_exner", W3, mesh_id, checkpoint_restart_flag )
+         "lbc_exner", W3, mesh, checkpoint_restart_flag )
 
       call setup_field( lbc_fields, depository, prognostic_fields, &
-         "boundary_u_diff", W2, mesh_id, checkpoint_restart_flag )
+         "boundary_u_diff", W2, mesh, checkpoint_restart_flag )
 
       call setup_field( lbc_fields, depository, prognostic_fields, &
-         "boundary_u_driving", W2, mesh_id, checkpoint_restart_flag )
+         "boundary_u_driving", W2, mesh, checkpoint_restart_flag )
 
       do imr = 1, nummr
         name = trim('lbc_' // adjustl(mr_names(imr)) )
         call setup_field( lbc_fields, depository, prognostic_fields, &
-           name, wtheta, mesh_id, checkpoint_restart_flag )
+           name, wtheta, mesh, checkpoint_restart_flag )
       enddo
 
    else if ( lbc_option == lbc_option_file ) then
@@ -108,36 +110,36 @@ module create_lbcs_mod
                                      interp_flag = interp_flag )
 
       call setup_field( lbc_fields, depository, prognostic_fields, &
-         "lbc_theta", Wtheta, mesh_id, checkpoint_restart_flag,       &
+         "lbc_theta", Wtheta, mesh, checkpoint_restart_flag,       &
           time_axis=lbc_time_axis  )
 
       call setup_field( lbc_fields, depository, prognostic_fields, &
-         "lbc_rho", W3, mesh_id, checkpoint_restart_flag,             &
+         "lbc_rho", W3, mesh, checkpoint_restart_flag,             &
           time_axis=lbc_time_axis  )
 
       call setup_field( lbc_fields, depository, prognostic_fields, &
-         "lbc_exner", W3, mesh_id, checkpoint_restart_flag,           &
+         "lbc_exner", W3, mesh, checkpoint_restart_flag,           &
           time_axis=lbc_time_axis  )
 
       call lbc_time_axis%set_update_behaviour(tmp_update_ptr)
       call lbc_times_list%insert_item(lbc_time_axis)
 
       call setup_field( lbc_fields, depository, prognostic_fields, &
-         "lbc_h_u", W2h, mesh_id, checkpoint_restart_flag,            &
+         "lbc_h_u", W2h, mesh, checkpoint_restart_flag,            &
           time_axis=lbc_time_axis  )
 
       call setup_field( lbc_fields, depository, prognostic_fields, &
-         "lbc_v_u", Wtheta, mesh_id, checkpoint_restart_flag,         &
+         "lbc_v_u", Wtheta, mesh, checkpoint_restart_flag,         &
           time_axis=lbc_time_axis  )
 
       call setup_field( lbc_fields, depository, prognostic_fields, &
-         "lbc_u", W2, mesh_id, checkpoint_restart_flag )
+         "lbc_u", W2, mesh, checkpoint_restart_flag )
 
       call setup_field( lbc_fields, depository, prognostic_fields, &
-         "boundary_u_diff", W2, mesh_id, checkpoint_restart_flag )
+         "boundary_u_diff", W2, mesh, checkpoint_restart_flag )
 
       call setup_field( lbc_fields, depository, prognostic_fields, &
-         "boundary_u_driving", W2, mesh_id, checkpoint_restart_flag )
+         "boundary_u_driving", W2, mesh, checkpoint_restart_flag )
 
     end if
 

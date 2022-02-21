@@ -19,6 +19,7 @@ module diagnostics_step_mod
     use io_config_mod,                  only : write_diag
     use gungho_model_data_mod,          only : model_data_type
     use log_mod,                        only : log_event, LOG_LEVEL_INFO
+    use mesh_mod,                       only : mesh_type
     use non_spatial_alg_mod,            only : non_spatial_alg
     use spread_alg_mod,                 only : spread_alg
 
@@ -33,18 +34,18 @@ contains
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !> Performs time steps.
     !>
-    subroutine diagnostics_step( mesh_id,      &
-                                 twod_mesh_id, &
-                                 model_data,   &
+    subroutine diagnostics_step( mesh,       &
+                                 twod_mesh,  &
+                                 model_data, &
                                  clock )
 
         implicit none
 
         ! Model run working data set
-        integer(i_def),                  intent(in)    :: mesh_id ! included for consistency with gungho
-        integer(i_def),                  intent(in)    :: twod_mesh_id ! included for consistency with gungho
-        type( model_data_type ), target, intent(inout) :: model_data
-        class(clock_type),               intent(in)    :: clock ! included for consistency with gungho
+        type(mesh_type),         pointer, intent(in)    :: mesh      ! included for consistency with gungho
+        type(mesh_type),         pointer, intent(in)    :: twod_mesh ! included for consistency with gungho
+        type( model_data_type ), target,  intent(inout) :: model_data
+        class(clock_type),                intent(in)    :: clock     ! included for consistency with gungho
 
         type(field_type), pointer :: red => null()
         type(field_type), pointer :: green => null()

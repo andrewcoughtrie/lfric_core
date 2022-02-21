@@ -57,29 +57,29 @@ module intermesh_constants_mod
 
 contains
   !>@brief Subroutine to create the intermesh mapping constants
-  !> @param[in] mesh_id              Mesh_id
+  !> @param[in] mesh                 Mesh
   !> @param[in] chi                  Coordinate field
   !> @param[in] panel_id             panel id
-  !> @param[in] shifted_mesh_id      Mesh_id for vertically shifted mesh
+  !> @param[in] shifted_mesh         Mesh for vertically shifted mesh
   !> @param[in] shifted_chi          Coordinate field for vertically shifted mesh
-  !> @param[in] double_level_mesh_id Mesh_id for double level mesh
+  !> @param[in] double_level_mesh    Mesh for double level mesh
   !> @param[in] double_level_chi     Coordinate field for double level mesh
-  subroutine create_intermesh_constants(mesh_id,               &
-                                        chi,                   &
-                                        panel_id,              &
-                                        shifted_mesh_id,       &
-                                        shifted_chi,           &
-                                        double_level_mesh_id,  &
+  subroutine create_intermesh_constants(mesh,               &
+                                        chi,                &
+                                        panel_id,           &
+                                        shifted_mesh,       &
+                                        shifted_chi,        &
+                                        double_level_mesh,  &
                                         double_level_chi)
     implicit none
 
     ! Arguments
-    integer(i_def),    intent(in) :: mesh_id
+    type(mesh_type),   intent(in), pointer :: mesh
     type(field_type),  intent(in) :: chi(:)
     type(field_type),  intent(in) :: panel_id
-    integer(i_def),    intent(in) :: shifted_mesh_id
+    type(mesh_type),   intent(in), pointer :: shifted_mesh
     type(field_type),  intent(in) :: shifted_chi(:)
-    integer(i_def),    intent(in) :: double_level_mesh_id
+    type(mesh_type),   intent(in), pointer :: double_level_mesh
     type(field_type),  intent(in) :: double_level_chi(:)
 
     ! Internal variables
@@ -99,9 +99,9 @@ contains
 
     !=========== Create function spaces required for setup ===================!
 
-    w3_fs     => function_space_collection%get_fs( mesh_id, element_order, W3 )
-    wtheta_fs => function_space_collection%get_fs( mesh_id, element_order, Wtheta )
-    w3_shift_fs => function_space_collection%get_fs( shifted_mesh_id, element_order, W3 )
+    w3_fs       => function_space_collection%get_fs( mesh, element_order, W3 )
+    wtheta_fs   => function_space_collection%get_fs( mesh, element_order, Wtheta )
+    w3_shift_fs => function_space_collection%get_fs( shifted_mesh, element_order, W3 )
 
     !======== Create transform matrix stuff for wtheta to shifted W3 ========!
 

@@ -33,6 +33,7 @@ contains
     use geometric_constants_mod,      only: get_coordinates, &
                                             get_panel_id
     use mass_matrix_solver_alg_mod,   only: mass_matrix_solver_alg
+    use mesh_mod,                     only: mesh_type
     use project_pressure_kernel_mod,  only: project_pressure_kernel_type
 
     implicit none
@@ -47,15 +48,15 @@ contains
     type( operator_type ), pointer :: m3_inv => null()
     type( quadrature_xyoz_type ), pointer :: qr => null()
 
-    integer(kind=i_def) :: mesh_id
+    type(mesh_type), pointer :: mesh => null()
 
-    mesh_id = state(igh_t)%get_mesh_id()
+    mesh => state(igh_t)%get_mesh()
 
     call dtheta%initialise( state(igh_t)%get_function_space() )
 
-    m3_inv  => get_inverse_w3_mass_matrix(mesh_id)
-    chi => get_coordinates(mesh_id)
-    panel_id => get_panel_id(mesh_id)
+    m3_inv  => get_inverse_w3_mass_matrix(mesh%get_id())
+    chi => get_coordinates(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
     qr => get_qr()
 
     ! rho^np1 and theta^np1 can be updated directly from advection terms

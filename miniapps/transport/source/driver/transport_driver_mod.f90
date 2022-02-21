@@ -95,11 +95,12 @@ module transport_driver_mod
 
   class(io_context_type), allocatable :: io_context
 
-  integer(kind=i_def) :: mesh_id
-  integer(kind=i_def) :: twod_mesh_id
-  integer(kind=i_def) :: shifted_mesh_id
-  integer(kind=i_def) :: double_level_mesh_id
-  integer(kind=i_def) :: num_meshes
+  type(mesh_type), pointer :: mesh              => null()
+  type(mesh_type), pointer :: twod_mesh         => null()
+  type(mesh_type), pointer :: shifted_mesh      => null()
+  type(mesh_type), pointer :: double_level_mesh => null()
+
+  integer(i_def) :: num_meshes
 
 
 contains
@@ -133,7 +134,6 @@ contains
     integer(kind=i_def), allocatable :: multigrid_mesh_ids(:)
     integer(kind=i_def), allocatable :: multigrid_2d_mesh_ids(:)
     integer(kind=i_def), allocatable :: local_mesh_ids(:)
-    type(mesh_type),         pointer :: mesh => null()
     type(local_mesh_type),   pointer :: local_mesh => null()
 
     dt_model = real(dt, r_def)
@@ -199,32 +199,31 @@ contains
 
     ! Create the mesh
     call init_mesh( local_rank, total_ranks, stencil_depth,      &
-                    mesh_id,                                     &
-                    twod_mesh_id=twod_mesh_id,                   &
-                    shifted_mesh_id=shifted_mesh_id,             &
-                    double_level_mesh_id=double_level_mesh_id,   &
+                    mesh,                                        &
+                    twod_mesh=twod_mesh,                         &
+                    shifted_mesh=shifted_mesh,                   &
+                    double_level_mesh=double_level_mesh,         &
                     multigrid_mesh_ids=multigrid_mesh_ids,       &
                     multigrid_2d_mesh_ids=multigrid_2d_mesh_ids, &
                     use_multigrid=l_multigrid )
 
     ! FEM initialisation
-    call init_fem( mesh_id, chi, panel_id,                      &
-                   shifted_mesh_id=shifted_mesh_id,             &
+    call init_fem( mesh, chi, panel_id,                         &
+                   shifted_mesh=shifted_mesh,                   &
                    shifted_chi=shifted_chi,                     &
-                   double_level_mesh_id=double_level_mesh_id,   &
+                   double_level_mesh=double_level_mesh,         &
                    double_level_chi= double_level_chi,          &
                    multigrid_mesh_ids=multigrid_mesh_ids,       &
                    multigrid_2d_mesh_ids=multigrid_2d_mesh_ids, &
                    use_multigrid=l_multigrid )
 
     ! Create runtime_constants object.
-    call create_runtime_constants( mesh_id, twod_mesh_id, chi, panel_id,   &
-                                   dt_model, shifted_mesh_id, shifted_chi, &
-                                   double_level_mesh_id, double_level_chi  )
+    call create_runtime_constants( mesh, twod_mesh, chi, panel_id,      &
+                                   dt_model, shifted_mesh, shifted_chi, &
+                                   double_level_mesh, double_level_chi  )
 
     ! Set up transport runtime collection type
     ! Transport on only one horizontal local mesh
-    mesh => mesh_collection%get_mesh(mesh_id)
     local_mesh => mesh%get_local_mesh()
     allocate(local_mesh_ids(1))
     local_mesh_ids(1) = local_mesh%get_id()
@@ -235,7 +234,7 @@ contains
     call transport_prerun_setup( num_meshes )
 
     ! Initialise prognostic variables
-    call transport_init_fields_alg( mesh_id, wind, density, theta, &
+    call transport_init_fields_alg( mesh, wind, density, theta, &
                                     tracer, mr, divergence )
 
     ! Initialise all transport-only control algorithm
@@ -254,8 +253,8 @@ contains
       call initialise_xios( io_context,         &
                             xios_ctx,           &
                             model_communicator, &
-                            mesh_id,            &
-                            twod_mesh_id,       &
+                            mesh,               &
+                            twod_mesh,          &
                             chi,                &
                             panel_id,           &
                             timestep_start,     &
@@ -282,17 +281,17 @@ contains
     if (clock%is_initialisation() .and. write_diag) then
 
       call write_vector_diagnostic( 'u', wind, clock, &
-                                    mesh_id, nodal_output_on_w3 )
+                                    mesh, nodal_output_on_w3 )
       call write_scalar_diagnostic( 'rho', density, clock, &
-                                    mesh_id, nodal_output_on_w3 )
+                                    mesh, nodal_output_on_w3 )
       call write_scalar_diagnostic( 'theta', theta, clock, &
-                                    mesh_id, nodal_output_on_w3 )
+                                    mesh, nodal_output_on_w3 )
       call write_scalar_diagnostic( 'tracer', tracer, clock, &
-                                    mesh_id, nodal_output_on_w3 )
+                                    mesh, nodal_output_on_w3 )
       call write_scalar_diagnostic( 'm_v', mr(1), clock, &
-                                    mesh_id, nodal_output_on_w3 )
+                                    mesh, nodal_output_on_w3 )
       call write_scalar_diagnostic( 'divergence', divergence, clock, &
-                                    mesh_id, nodal_output_on_w3 )
+                                    mesh, nodal_output_on_w3 )
 
     end if
 
@@ -359,18 +358,18 @@ contains
         ! Compute divergence
         call divergence_alg( divergence, wind )
 
-        call write_vector_diagnostic( 'u', wind,                     &
-                                      clock, mesh_id, nodal_output_on_w3 )
-        call write_scalar_diagnostic( 'rho', density,                 &
-                                      clock, mesh_id, nodal_output_on_w3 )
-        call write_scalar_diagnostic( 'theta', theta,                     &
-                                      clock, mesh_id, nodal_output_on_w3 )
-        call write_scalar_diagnostic( 'tracer', tracer, &
-                                      clock, mesh_id, nodal_output_on_w3 )
-        call write_scalar_diagnostic( 'm_v', mr(1), &
-                                      clock, mesh_id, nodal_output_on_w3 )
+        call write_vector_diagnostic( 'u', wind,                &
+                                      clock, mesh, nodal_output_on_w3 )
+        call write_scalar_diagnostic( 'rho', density,           &
+                                      clock, mesh, nodal_output_on_w3 )
+        call write_scalar_diagnostic( 'theta', theta,           &
+                                      clock, mesh, nodal_output_on_w3 )
+        call write_scalar_diagnostic( 'tracer', tracer,         &
+                                      clock, mesh, nodal_output_on_w3 )
+        call write_scalar_diagnostic( 'm_v', mr(1),             &
+                                      clock, mesh, nodal_output_on_w3 )
         call write_scalar_diagnostic( 'divergence', divergence, &
-                                      clock, mesh_id, nodal_output_on_w3 )
+                                      clock, mesh, nodal_output_on_w3 )
 
 
       end if

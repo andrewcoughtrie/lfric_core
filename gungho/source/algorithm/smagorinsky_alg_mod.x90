@@ -22,7 +22,7 @@ module smagorinsky_alg_mod
 
   use log_mod,                   only: log_event,         &
                                        LOG_LEVEL_INFO
-
+  use mesh_mod,                  only: mesh_type
   use io_config_mod,             only: subroutine_timers, &
                                        write_conservation_diag
   use timer_mod,                 only: timer
@@ -81,7 +81,7 @@ subroutine smagorinsky_alg(mr, theta, u, visc_m,                   &
     type( field_type ), pointer :: delta => null()
     type( field_type ) :: dmr_v, dmr_cl
 
-    integer(kind=i_def) :: mesh_id
+    type( mesh_type ), pointer :: mesh => null()
 
     ! Stencil depth for the Smagorinsky diffusion kernel
     integer(kind=i_def), parameter :: smag_stencil_depth = 1
@@ -90,15 +90,15 @@ subroutine smagorinsky_alg(mr, theta, u, visc_m,                   &
 
     call log_event( 'Applying Smagorinsky mixing', LOG_LEVEL_INFO )
 
-    mesh_id = theta%get_mesh_id()
+    mesh => theta%get_mesh()
 
     call du%initialise( u%get_function_space() )
     call dtheta%initialise( theta%get_function_space() )
 
-    height_wth => get_height(Wtheta, mesh_id)
-    height_w3 => get_height(W3, mesh_id)
-    chi => get_coordinates(mesh_id)
-    panel_id => get_panel_id(mesh_id)
+    height_wth => get_height(Wtheta, mesh%get_id())
+    height_w3 => get_height(W3, mesh%get_id())
+    chi => get_coordinates(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
 
     if ( boundary_layer == boundary_layer_um ) then
 
@@ -149,7 +149,7 @@ subroutine smagorinsky_alg(mr, theta, u, visc_m,                   &
       call log_event( 'Using pure Smagorinsky coefficient', LOG_LEVEL_INFO )
       ! Calculate visc_h and visc_m as (mix_factor * delta)**2 * shear
       shear => derived_fields%get_field('shear')
-      delta => get_delta_at_wtheta(mesh_id)
+      delta => get_delta_at_wtheta(mesh%get_id())
 
       ! Potential temperature:
       call invoke( a_times_X( visc_h, mix_factor, delta ),                    &

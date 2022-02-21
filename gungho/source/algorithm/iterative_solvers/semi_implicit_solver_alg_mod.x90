@@ -28,6 +28,7 @@ module semi_implicit_solver_alg_mod
   ! Derived Types
   use field_vector_mod,                   only: field_vector_type
   use field_mod,                          only: field_type
+  use mesh_mod,                           only: mesh_type
   use derived_config_mod,                 only: bundle_size
   use field_indices_mod,                  only: isol_p, isol_t, isol_d,  &
                                                 isol_u, isol_w, isol_uv, &
@@ -603,8 +604,9 @@ contains
     type( field_vector_type ),                  intent(inout) :: vector_state
     type( field_type ), dimension(bundle_size), intent(in)    :: state
 
-    type( field_type )    :: uv, w
-    integer( kind=i_def ) :: p, mesh_id, state_size
+    type( field_type ) :: uv, w
+    type( mesh_type ), pointer  :: mesh => null()
+    integer( kind=i_def ) :: p, state_size
 
     state_size = 2 ! Default UV + P fields
     if ( split_w ) &
@@ -615,11 +617,11 @@ contains
     vector_state = field_vector_type( state_size )
 
     if ( split_w ) then
-      p       = state(igh_u)%get_element_order()
-      mesh_id = state(igh_u)%get_mesh_id()
+      p    =  state(igh_u)%get_element_order()
+      mesh => state(igh_u)%get_mesh()
 
-      call uv%initialise( function_space_collection%get_fs( mesh_id, p, W2h ) )
-      call w%initialise( function_space_collection%get_fs( mesh_id, p, W2v ) )
+      call uv%initialise( function_space_collection%get_fs( mesh, p, W2h ) )
+      call w%initialise( function_space_collection%get_fs( mesh, p, W2v ) )
       call invoke( setval_c( uv, 0.0_r_def ), &
                    setval_c( w,  0.0_r_def ), &
                    split_w2_field_kernel_type( uv, w, state(igh_u) ) )
@@ -634,6 +636,8 @@ contains
       call vector_state%import_field( state(igh_t), isol_t )
       call vector_state%import_field( state(igh_d), isol_d )
     end if
+
+    nullify(mesh)
 
   end subroutine construct_solver_state
 end module semi_implicit_solver_alg_mod

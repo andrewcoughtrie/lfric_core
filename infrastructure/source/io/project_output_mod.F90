@@ -22,8 +22,8 @@ contains
 !> @param[inout] projected_field The output field
 !> @param[in] d dimension of the output field
 !> @param[in] output_fs the desired output function space
-!> @param[in] mesh_id  The id of the mesh object the model runs on
-  subroutine project_output(field, projected_field, d, output_fs, mesh_id)
+!> @param[in] mesh  Mesh object the model runs on.
+  subroutine project_output(field, projected_field, d, output_fs, mesh)
 
     use constants_mod,             only: r_def, str_max_filename, i_def
     use field_mod,                 only: field_type
@@ -48,7 +48,7 @@ contains
     ! Output function space
     integer(i_def),     intent(in)                 :: output_fs
     ! Mesh
-    integer(i_def),     intent(in)                 :: mesh_id
+    type(mesh_type),    intent(in), pointer        :: mesh
 
 
     type( quadrature_xyoz_type )          :: qr
@@ -65,7 +65,7 @@ contains
     ! Create the output field
     do dir = 1,d
       call projected_field(dir)%initialise( vector_space = &
-              function_space_collection%get_fs(mesh_id,element_order, output_fs ) )
+              function_space_collection%get_fs(mesh, element_order, output_fs ) )
       call field%get_write_behaviour(tmp_write_ptr)
       ! set the write field behaviour based upon what is set in the original field
       call projected_field(dir)%set_write_behaviour(tmp_write_ptr)
@@ -73,8 +73,7 @@ contains
 
 
     ! do the projection
-    call galerkin_projection_algorithm(projected_field, field, mesh_id, &
-                                           d, qr)
+    call galerkin_projection_algorithm(projected_field, field, mesh, d, qr)
 
   end subroutine project_output
 

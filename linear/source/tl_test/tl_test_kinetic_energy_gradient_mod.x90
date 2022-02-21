@@ -25,6 +25,7 @@ module tl_test_kinetic_energy_gradient_mod
   use log_mod,                        only: log_event,         &
                                             log_scratch_space, &
                                             LOG_LEVEL_INFO
+  use mesh_mod,                       only: mesh_type
   use kinetic_energy_gradient_kernel_mod, &
                              only: kinetic_energy_gradient_kernel_type
   use tl_kinetic_energy_gradient_kernel_mod, &
@@ -39,16 +40,17 @@ module tl_test_kinetic_energy_gradient_mod
   contains
 
   !> @brief Test the tangent linear kinetic energy gradient kernel.
-  !> @param[in] model_data    The working data set for a model run
-  !> @param[in] mesh_id       The identifier given to the current 3d mesh
-  !> @param[in] twod_mesh_id  The identifier given to the current 2d mesh
-  subroutine test_kinetic_energy_gradient( model_data,    &
-                                           mesh_id,       &
-                                           twod_mesh_id )
+  !> @param[in] model_data  The working data set for a model run
+  !> @param[in] mesh        The current 3d mesh
+  !> @param[in] twod_mesh   The current 2d mesh
+  subroutine test_kinetic_energy_gradient( model_data, &
+                                           mesh,       &
+                                           twod_mesh )
     implicit none
 
-    integer(i_def),                intent(in) :: mesh_id
-    integer(i_def),                intent(in) :: twod_mesh_id
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(mesh_type), pointer, intent(in) :: twod_mesh
+
     type(model_data_type), target, intent(in) :: model_data
 
     character(str_def) :: label = "kinetic energy gradient"
@@ -82,8 +84,8 @@ module tl_test_kinetic_energy_gradient_mod
     call log_event( "TL Test: " // trim(label), &
                      LOG_LEVEL_INFO )
 
-    chi_sph => get_coordinates(mesh_id)
-    panel_id => get_panel_id(mesh_id)
+    chi_sph => get_coordinates(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
     qr => get_qr()
 
     prognostic_fields => model_data%prognostic_fields
@@ -93,21 +95,21 @@ module tl_test_kinetic_energy_gradient_mod
     n_u => prognostic_fields%get_field('u')
     ls_u => ls_fields%get_field('ls_u')
     call p_u%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, W2) )
+      function_space_collection%get_fs(mesh, element_order, W2) )
 
     ! Output fields
     call n1_rhs_u%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, W2) )
+      function_space_collection%get_fs(mesh, element_order, W2) )
     call n2_rhs_u%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, W2) )
+      function_space_collection%get_fs(mesh, element_order, W2) )
     call p_rhs_u%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, W2) )
+      function_space_collection%get_fs(mesh, element_order, W2) )
 
     ! Test fields
     call random_u%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, W2) )
+      function_space_collection%get_fs(mesh, element_order, W2) )
     call diff%initialise( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, W2) )
+      function_space_collection%get_fs(mesh, element_order, W2) )
 
     ! Taylor Remainder Convergence Test
     call invoke( setval_C( n1_rhs_u, 0.0_r_def ) )

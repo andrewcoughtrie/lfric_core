@@ -11,6 +11,9 @@ module mg_orography_alg_mod
   use field_mod,                     only: field_type
   use fs_continuity_mod,             only: W3
   use function_space_collection_mod, only: function_space_collection
+  use mesh_collection_mod,           only: mesh_collection
+  use mesh_mod,                      only: mesh_type
+
 
   implicit none
 
@@ -49,6 +52,8 @@ contains
     type( field_type ),  intent(in)    :: surface_altitude
 
     ! local variables
+    type(mesh_type), pointer      :: mesh => null()
+    type(mesh_type), pointer      :: twod_mesh => null()
     integer(kind=i_def)           :: level, surface_order
     integer(kind=i_def)           :: mg_mesh_id
     integer(kind=i_def)           :: mg_2D_mesh_id
@@ -65,12 +70,15 @@ contains
       mg_mesh_id    = multigrid_mesh_ids(level)
       mg_2D_mesh_id = multigrid_2D_mesh_ids(level)
 
+      mesh      => mesh_collection%get_mesh(mg_mesh_id)
+      twod_mesh => mesh_collection%get_mesh(mg_2D_mesh_id)
+
       !------------------------------------------------------------------------!
       ! Create the surface altitude fields on the multigrid meshes
       !------------------------------------------------------------------------!
 
       call surface_altitude_mg( level )%initialise( vector_space = &
-         function_space_collection%get_fs( mg_2D_mesh_id, surface_order, W3) )
+         function_space_collection%get_fs( twod_mesh, surface_order, W3) )
       ! We use a simple restriction from fine to coarse levels
       call invoke( restrict_kernel_type( surface_altitude_mg( level ),  &
                                          surface_altitude_mg( level-1 ) ) )
@@ -81,7 +89,7 @@ contains
       !------------------------------------------------------------------------!
 
       call assign_orography_field(chi_mg(:,level), panel_id_mg(level), &
-                                  mg_mesh_id, surface_altitude_mg(level))
+                                  mesh, surface_altitude_mg(level))
     end do
 
     deallocate(surface_altitude_mg)

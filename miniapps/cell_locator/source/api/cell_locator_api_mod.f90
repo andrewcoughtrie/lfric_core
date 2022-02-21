@@ -185,17 +185,16 @@ module cell_locator_api_mod
 
   !> @brief Build the cell locator object
   !> @param[inout] self instance of cell_locator_api_type
-  !> @param[in] mesh_id mesh ID
-  !> @param[out] ier error code (0 = OK)
-  subroutine cell_locator_api_build( self, mesh_id, ier )
+  !> @param[in]    mesh mesh
+  !> @param[out]   ier error code (0 = OK)
+  subroutine cell_locator_api_build( self, mesh, ier )
 
     implicit none
     class(cell_locator_api_type), intent(inout) :: self
-    integer(i_def), intent(in)                  :: mesh_id
-    integer(i_def), intent(out)                 :: ier
+    type(mesh_type), intent(in), pointer        :: mesh
+    integer(i_def),  intent(out)                :: ier
 
     ! Local constants and variables
-    type(mesh_type), pointer                    :: mesh => null()
     integer(i_def)                              :: i, j, k, idx, nlayers
     integer(i_def)                              :: ncells_vtk, ncells_local
     integer(i_def)                              :: ndofs_per_cell, idof
@@ -212,9 +211,6 @@ module cell_locator_api_mod
     character(len=1024)                         :: vtk_grid_filename_proc
     character(len=128)                          :: msg
     real(r_def)                                 :: x, y, z, r, rho, lam, the
-
-    ! Interrogate mesh to get basic dimensions
-    mesh => mesh_collection%get_mesh( mesh_id )
 
     self%my_mpi_rank = get_comm_rank()
     self%num_mpi_ranks = get_comm_size()
@@ -246,7 +242,7 @@ module cell_locator_api_mod
 
     ! Determine vertex coordinates by extracting dof coordinates from a W0
     ! field, 0 for linear elements, W0 for nodal
-    output_field_fs => function_space_collection%get_fs( mesh_id, 0, W0 )
+    output_field_fs => function_space_collection%get_fs( mesh, 0, W0 )
     do i = 1, 3
       ! Create 3 new scalar fields
       call coord_output(i)%initialise( vector_space = output_field_fs )
@@ -263,8 +259,8 @@ module cell_locator_api_mod
 
     ! Convert field to physical nodal output & sample chi on nodal points;
     ! convert result to lon, lat, rad if requested
-    chi => get_coordinates(mesh_id)
-    panel_id => get_panel_id(mesh_id)
+    chi => get_coordinates( mesh%get_id() )
+    panel_id => get_panel_id( mesh%get_id() )
     call invoke_xyz_nodal_coordinates_kernel( coord_output, chi, panel_id )
 
     nullify( chi, panel_id )

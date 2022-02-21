@@ -19,6 +19,7 @@ module init_gungho_lbcs_alg_mod
   use limited_area_constants_mod,      only: get_boundary_mask, &
                                              get_lbc_mask
   use lfric_xios_read_mod,             only: read_state
+  use mesh_mod,                        only: mesh_type
   use variable_fields_mod,             only: init_variable_fields,  &
                                              update_variable_fields
   use linked_list_mod,                 only: linked_list_type
@@ -72,18 +73,18 @@ module init_gungho_lbcs_alg_mod
 
     character(str_def)          :: lbc_name
     integer(i_def)              :: imr
-    integer(i_def)              :: mesh_id
+    type(mesh_type), pointer    :: mesh => null()
 
     theta => prognostic_fields%get_field( 'theta' )
     u     => prognostic_fields%get_field( 'u' )
     rho   => prognostic_fields%get_field( 'rho' )
     exner => prognostic_fields%get_field( 'exner' )
 
-    mesh_id = theta%get_mesh_id()
-    w2_lbc_mask      => get_lbc_mask( W2, mesh_id )
-    w3_lbc_mask      => get_lbc_mask( W3, mesh_id )
-    wtheta_lbc_mask  => get_lbc_mask( wtheta, mesh_id )
-    w2_boundary_mask => get_boundary_mask( W2, mesh_id )
+    mesh => theta%get_mesh()
+    w2_lbc_mask      => get_lbc_mask( W2, mesh%get_id() )
+    w3_lbc_mask      => get_lbc_mask( W3, mesh%get_id() )
+    wtheta_lbc_mask  => get_lbc_mask( wtheta, mesh%get_id() )
+    w2_boundary_mask => get_boundary_mask( W2, mesh%get_id() )
 
     lbc_theta  => lbc_fields%get_field( 'lbc_theta' )
     lbc_u      => lbc_fields%get_field( 'lbc_u' )
@@ -114,6 +115,7 @@ module init_gungho_lbcs_alg_mod
     nullify( w2_lbc_mask, w3_lbc_mask, wtheta_lbc_mask, w2_boundary_mask )
     nullify( theta, u, rho, exner, mr )
     nullify( lbc_theta, lbc_u, lbc_rho, lbc_exner, lbc_mr, boundary_u )
+    nullify( mesh )
 
   end subroutine init_lbcs_analytic_alg
 
@@ -202,9 +204,13 @@ module init_gungho_lbcs_alg_mod
     type( field_type ), pointer :: boundary_u => null()
     type( field_type ), pointer :: w2_boundary_mask => null()
 
+    type( mesh_type ), pointer :: mesh => null()
+
     lbc_field  => lbc_fields%get_field( 'lbc_u' )
     boundary_u => lbc_fields%get_field( 'boundary_u_driving' )
-    w2_boundary_mask => get_boundary_mask( W2, lbc_field%get_mesh_id() )
+
+    mesh => lbc_field%get_mesh()
+    w2_boundary_mask => get_boundary_mask( W2, mesh%get_id() )
 
     call invoke( X_times_Y( boundary_u, lbc_field, w2_boundary_mask ) )
 
@@ -221,7 +227,7 @@ module init_gungho_lbcs_alg_mod
     lbc_field      => lbc_fields%get_field( 'lbc_exner' )
     call lbc_field%log_minmax(LOG_LEVEL_INFO, 'lbc_exner')
 
-    nullify( boundary_u, lbc_field, w2_boundary_mask)
+    nullify( boundary_u, lbc_field, w2_boundary_mask, mesh )
 
   end subroutine define_boundary_u
 

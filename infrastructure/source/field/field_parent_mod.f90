@@ -196,13 +196,14 @@ contains
     type (mesh_type), pointer :: mesh => null()
 
     self%vspace => vector_space
+    mesh => self%vspace%get_mesh()
 
     ! Fields on a read-only function space can never halo exchanged
     ! - so only need a routing table for writable function spaces
     if ( vector_space%is_writable() ) then
       self%halo_routing => &
         halo_routing_collection%get_halo_routing( &
-                                             vector_space%get_mesh_id(), &
+                                             mesh, &
                                              vector_space%get_element_order(), &
                                              vector_space%which(), &
                                              vector_space%get_ndata(), &
@@ -324,9 +325,14 @@ contains
     implicit none
 
     class (field_parent_type) :: self
+
+    type(mesh_type), pointer :: mesh => null()
     integer(i_def) :: mesh_id
 
-    mesh_id = self%vspace%get_mesh_id()
+    mesh => self%vspace%get_mesh()
+    mesh_id = mesh%get_id()
+
+    mesh => null()
 
     return
   end function get_mesh_id

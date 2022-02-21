@@ -14,6 +14,7 @@ use function_space_collection_mod, only: function_space_collection
 use function_space_mod,            only: function_space_type
 use io_config_mod,                 only: write_diag, use_xios_io
 use lfric_xios_write_mod,          only: write_field_single_face
+use mesh_mod,                      only: mesh_type
 use field_parent_mod,              only: write_interface
 use geometric_constants_mod,       only: get_height
 use locate_tropopause_kernel_mod,  only: locate_tropopause_kernel_type
@@ -29,15 +30,15 @@ contains
 ! @param[in,out] trop_level             Level of tropopause
 ! @param[in]     theta                  Potential temperature
 ! @param[in]     exner_in_wth           Exner pressure on wth space
-! @param[in]     twod_mesh_id           Identifier given to current 2d mesh
+! @param[in]     twod_mesh              Current 2d mesh
 
-subroutine locate_tropopause_alg(trop_level, theta, exner_in_wth, twod_mesh_id)
+subroutine locate_tropopause_alg(trop_level, theta, exner_in_wth, twod_mesh)
 
   implicit none
 
   type( field_type ), intent(inout) :: trop_level
   type( field_type ), intent(in)    :: theta, exner_in_wth
-  integer( kind=i_def ), intent(in) :: twod_mesh_id
+  type( mesh_type ),  intent(in), pointer :: twod_mesh
 
   ! Local fields
   type( field_type ),         pointer :: height_wth => null()
@@ -48,7 +49,7 @@ subroutine locate_tropopause_alg(trop_level, theta, exner_in_wth, twod_mesh_id)
 
   height_wth => get_height(Wtheta, theta%get_mesh_id())
 
-  vector_space=>function_space_collection%get_fs(twod_mesh_id, 0, W3)
+  vector_space=>function_space_collection%get_fs(twod_mesh, 0, W3)
   call trop_level%initialise(vector_space)
 
   call invoke( locate_tropopause_kernel_type( theta, exner_in_wth, &

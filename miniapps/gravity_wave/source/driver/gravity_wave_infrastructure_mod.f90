@@ -26,6 +26,7 @@ module gravity_wave_infrastructure_mod
                                          LOG_LEVEL_INFO,     &
                                          LOG_LEVEL_DEBUG,    &
                                          LOG_LEVEL_TRACE
+  use mesh_mod,                   only : mesh_type
   use mpi_mod,                    only : store_comm, &
                                          get_comm_size, get_comm_rank
   use yaxt,                       only : xt_initialize, xt_finalize
@@ -56,12 +57,12 @@ contains
   !> @param [in] filename The name of the configuration namelist file
   !> @param [in] program_name An identifier given to the model begin run
   !> @param [in] xios_id XIOS client identifier
-  subroutine initialise_infrastructure(comm, &
-                                       filename, &
-                                       program_name,         &
-                                       io_context,           &
-                                       mesh_id,              &
-                                       twod_mesh_id)
+  subroutine initialise_infrastructure(comm,         &
+                                       filename,     &
+                                       program_name, &
+                                       io_context,   &
+                                       mesh,         &
+                                       twod_mesh)
 
     use logging_config_mod, only: run_log_level,          &
                                   key_from_run_log_level, &
@@ -76,8 +77,8 @@ contains
     character(*),      intent(in) :: filename
     character(*),      intent(in) :: program_name
     class(io_context_type), intent(out), allocatable :: io_context
-    integer(i_def),         intent(inout)            :: mesh_id
-    integer(i_def),         intent(inout)            :: twod_mesh_id
+    type(mesh_type),   intent(inout), pointer :: mesh
+    type(mesh_type),   intent(inout), pointer :: twod_mesh
 
     type(field_type), target :: chi(3)
     type(field_type), target :: panel_id
@@ -151,31 +152,30 @@ contains
     stencil_depth = get_required_stencil_depth()
 
     ! Create the mesh
-    call init_mesh( local_rank, total_ranks, stencil_depth,        &
-                    mesh_id,                                       &
-                    twod_mesh_id          = twod_mesh_id,          &
+    call init_mesh( local_rank, total_ranks, stencil_depth, mesh,  &
+                    twod_mesh             = twod_mesh,             &
                     multigrid_mesh_ids    = multigrid_mesh_ids,    &
                     multigrid_2D_mesh_ids = multigrid_2D_mesh_ids, &
                     use_multigrid         = l_multigrid )
 
     ! Create FEM specifics (function spaces and chi field)
-    call init_fem(mesh_id, chi, panel_id,                        &
-                  multigrid_mesh_ids    = multigrid_mesh_ids,    &
-                  multigrid_2D_mesh_ids = multigrid_2D_mesh_ids, &
-                  chi_mg                = chi_mg,                &
-                  panel_id_mg           = panel_id_mg,           &
-                  use_multigrid         = l_multigrid )
+    call init_fem( mesh, chi, panel_id,                           &
+                   multigrid_mesh_ids    = multigrid_mesh_ids,    &
+                   multigrid_2D_mesh_ids = multigrid_2D_mesh_ids, &
+                   chi_mg                = chi_mg,                &
+                   panel_id_mg           = panel_id_mg,           &
+                   use_multigrid         = l_multigrid )
 
     !-------------------------------------------------------------------------
     ! Initialise aspects of output
     !-------------------------------------------------------------------------
 
-    call initialise_io( comm, &
-                        mesh_id,            &
-                        twod_mesh_id,       &
-                        chi,                &
-                        panel_id,           &
-                        xios_ctx,           &
+    call initialise_io( comm,      &
+                        mesh,      &
+                        twod_mesh, &
+                        chi,       &
+                        panel_id,  &
+                        xios_ctx,  &
                         io_context )
 
     !-------------------------------------------------------------------------
@@ -187,11 +187,12 @@ contains
     ! Create runtime_constants object. This in turn creates various things
     ! needed by the timestepping algorithms such as mass matrix operators, mass
     ! matrix diagonal fields and the geopotential field and limited area masks.
-    call create_runtime_constants(mesh_id, twod_mesh_id, chi, panel_id, dt_model,     &
-                                  mg_mesh_ids    = multigrid_mesh_ids,                &
-                                  mg_2D_mesh_ids = multigrid_2D_mesh_ids,             &
-                                  chi_mg         = chi_mg,                            &
-                                  panel_id_mg    = panel_id_mg )
+    call create_runtime_constants( mesh, twod_mesh,                        &
+                                   chi, panel_id, dt_model,                &
+                                   mg_mesh_ids    = multigrid_mesh_ids,    &
+                                   mg_2D_mesh_ids = multigrid_2D_mesh_ids, &
+                                   chi_mg         = chi_mg,                &
+                                   panel_id_mg    = panel_id_mg )
 
 
   end subroutine initialise_infrastructure

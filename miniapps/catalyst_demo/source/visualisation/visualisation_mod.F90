@@ -321,7 +321,7 @@ subroutine catalyst_coprocess(timestep, time, vis_fields, mesh_id)
 end subroutine catalyst_coprocess
 
 ! Creates new grid for VTK visualisation pipeline
-subroutine create_vtk_grid(mesh_id)
+subroutine create_vtk_grid(mesh)
   use, intrinsic :: iso_c_binding, only: c_long, c_double, c_short, c_loc, &
                                          c_null_ptr
   implicit none
@@ -370,7 +370,7 @@ subroutine create_vtk_grid(mesh_id)
 
   ! Determine vertex coordinates by extracting dof coordinates from a W0
   ! field
-  output_field_fs => function_space_collection%get_fs( mesh_id, 0, W0 )
+  output_field_fs => function_space_collection%get_fs( mesh, 0, W0 )
   do i = 1, 3
     call coord_output(i)%initialise( vector_space = output_field_fs )
     proxy_coord_output(i) = coord_output(i)%get_proxy()
