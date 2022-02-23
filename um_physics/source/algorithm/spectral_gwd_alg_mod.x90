@@ -18,6 +18,8 @@ module spectral_gwd_alg_mod
   ! XIOS output
   use io_config_mod, only: write_diag, &
                            use_xios_io
+  use spectral_gwd_diags_mod, only: initialise_diags_for_spectral_gwd, &
+  	                                   output_diags_for_spectral_gwd
 
   use map_fd_to_prognostics_alg_mod, only: set_wind
 
@@ -61,6 +63,12 @@ contains
     type( field_type ) :: dtemp_spectral_gwd ! ... temperature
 
     type( field_type ) :: totalppn ! total surface precipitation
+
+    ! Flux from spectral gravity wave drag ...
+    type( field_type ) :: tau_east_spectral_gwd  ! ... eastward component
+    type( field_type ) :: tau_south_spectral_gwd ! ... southward component
+    type( field_type ) :: tau_west_spectral_gwd  ! ... westward component
+    type( field_type ) :: tau_north_spectral_gwd ! ... northward component
 
     ! Temporary unpacked fields from collections
     type( field_type ), pointer :: u1_in_w3 => null()
@@ -111,6 +119,13 @@ contains
     call dtheta_spectral_gwd%copy_field_properties(dtemp_spectral_gwd)
     call ls_rain%copy_field_properties(totalppn)
 
+     ! Initialise diagnostics
+     call initialise_diags_for_spectral_gwd(                   &
+                                theta, tau_east_spectral_gwd,  &
+                                tau_south_spectral_gwd,        &
+                                tau_west_spectral_gwd,         &
+                                tau_north_spectral_gwd)
+
     call invoke(                                                            &
                 ! Set vertical wind inc to zero for mapping back of winds
                 setval_c(dw_spectral_gwd, 0.0_r_def),                       &
@@ -124,7 +139,9 @@ contains
                 spectral_gwd_kernel_type (du_spectral_gwd, dv_spectral_gwd, &
                             dtemp_spectral_gwd, u1_in_w3, u2_in_w3,         &
                             wetrho_in_w3, exner_in_wth, theta,              &
-                            height_w3, height_wth, totalppn, latitude_w3),  &
+                            height_w3, height_wth, totalppn, latitude_w3,   &
+                            tau_east_spectral_gwd, tau_south_spectral_gwd,  &
+                            tau_west_spectral_gwd, tau_north_spectral_gwd), &
 
                 ! Convert temperature to potential temperature
                 X_divideby_Y ( dtheta_spectral_gwd, dtemp_spectral_gwd,     &
@@ -133,14 +150,13 @@ contains
     if ( subroutine_timers ) call timer("spectral_gwd_alg")
 
     if (write_diag .and. use_xios_io) then
-      if ( subroutine_timers ) call timer("spectral_gwd_xios")
 
-      call du_spectral_gwd%write_field('du_spectral_gwd')
-      call dv_spectral_gwd%write_field('dv_spectral_gwd')
-      call dtheta_spectral_gwd%write_field('dtheta_spectral_gwd')
-      call dtemp_spectral_gwd%write_field('dtemp_spectral_gwd')
+      call output_diags_for_spectral_gwd(                              &
+                 du_spectral_gwd, dv_spectral_gwd, dtemp_spectral_gwd, &
+                 dtheta_spectral_gwd, tau_east_spectral_gwd,           &
+                 tau_south_spectral_gwd, tau_west_spectral_gwd,        &
+                 tau_north_spectral_gwd)
 
-      if ( subroutine_timers ) call timer("spectral_gwd_xios")
     end if
 
     ! Mapping back of wind increments

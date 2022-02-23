@@ -28,31 +28,37 @@ contains
   !> invoke_orographic_drag_kernel: Invokes the kernel which calls the UM
   !> orographic drag scheme only on points where the standard deviation
   !> of subgrid orography is more than zero.
-  subroutine invoke_orographic_drag_kernel(                            &
-                      du_blk, dv_blk, du_orog_gwd, dv_orog_gwd,        &
-                      dtemp_blk, dtemp_orog_gwd, u1_in_w3, u2_in_w3,   &
-                      wetrho_in_w3, theta, exner_in_w3, sd_orog,       &
-                      grad_xx_orog, grad_xy_orog, grad_yy_orog,        &
-                      mr_v, mr_cl, mr_ci,                              &
-                      height_w3, height_wth)
+  subroutine invoke_orographic_drag_kernel(                              &
+                      du_orog_blk, dv_orog_blk, du_orog_gwd, dv_orog_gwd,&
+                      dtemp_orog_blk, dtemp_orog_gwd, u1_in_w3, u2_in_w3,&
+                      wetrho_in_w3, theta_in_wth, exner_in_w3, sd_orog,  &
+                      grad_xx_orog, grad_xy_orog, grad_yy_orog,          &
+                      mr_v, mr_cl, mr_ci,                                &
+                      height_w3, height_wth,                             &
+                      taux_orog_blk, tauy_orog_blk,                      &
+                      taux_orog_gwd, tauy_orog_gwd )
 
     use orographic_drag_kernel_mod, only: orographic_drag_kernel_code
     use mesh_mod, only: mesh_type
     implicit none
 
     ! Increments from orographic drag
-    type(field_type), intent(inout) :: du_blk, dv_blk,           & ! Winds
+    type(field_type), intent(inout) :: du_orog_blk, dv_orog_blk, & ! Winds
                                        du_orog_gwd, dv_orog_gwd, &
-                                       dtemp_blk, dtemp_orog_gwd   ! Temperature
+                                       dtemp_orog_blk, dtemp_orog_gwd ! Temperature
 
     ! Inputs to orographic drag scheme
     type(field_type), intent(in) :: u1_in_w3, u2_in_w3,         & ! Winds
-                                    wetrho_in_w3, theta,        & ! Density, Temperature
+                                    wetrho_in_w3, theta_in_wth, & ! Density, Temperature
                                     exner_in_w3,                & ! Exner pressure
                                     sd_orog, grad_xx_orog,      & ! Orography ancils
                                     grad_xy_orog, grad_yy_orog, & !
                                     mr_v, mr_cl, mr_ci,         & ! mixing ratios
                                     height_w3, height_wth         ! Heights
+    ! Diagnostics from orographic drag
+    ! Stress from ...
+    type(field_type), intent(inout) :: taux_orog_blk, tauy_orog_blk, & ! ... orographic flow blocking drag
+                                       taux_orog_gwd, tauy_orog_gwd    ! ... orographic gravity wave drag
 
     integer :: cell
 
@@ -68,12 +74,14 @@ contains
                               du_orog_gwd_proxy, dv_orog_gwd_proxy,   &
                               dtemp_blk_proxy, dtemp_orog_gwd_proxy,  &
                               u1_in_w3_proxy, u2_in_w3_proxy,         &
-                              wetrho_in_w3_proxy, theta_proxy,        &
+                              wetrho_in_w3_proxy, theta_in_wth_proxy, &
                               exner_in_w3_proxy,                      &
                               sd_orog_proxy, grad_xx_orog_proxy,      &
                               grad_xy_orog_proxy, grad_yy_orog_proxy, &
                               mr_v_proxy, mr_cl_proxy, mr_ci_proxy,   &
-                              height_w3_proxy, height_wth_proxy
+                              height_w3_proxy, height_wth_proxy,      &
+                              taux_blk_proxy, tauy_blk_proxy,         &
+                              taux_gwd_proxy, tauy_gwd_proxy
 
     integer, pointer :: map_adspc1_sd_orog(:,:) => null(), &
                         map_w3(:,:) => null(),                  &
@@ -82,16 +90,16 @@ contains
     TYPE(mesh_type), pointer :: mesh => null()
 
     ! Initialise field and/or operator proxies
-    du_blk_proxy = du_blk%get_proxy()
-    dv_blk_proxy = dv_blk%get_proxy()
+    du_blk_proxy = du_orog_blk%get_proxy()
+    dv_blk_proxy = dv_orog_blk%get_proxy()
     du_orog_gwd_proxy = du_orog_gwd%get_proxy()
     dv_orog_gwd_proxy = dv_orog_gwd%get_proxy()
-    dtemp_blk_proxy = dtemp_blk%get_proxy()
+    dtemp_blk_proxy = dtemp_orog_blk%get_proxy()
     dtemp_orog_gwd_proxy = dtemp_orog_gwd%get_proxy()
     u1_in_w3_proxy = u1_in_w3%get_proxy()
     u2_in_w3_proxy = u2_in_w3%get_proxy()
     wetrho_in_w3_proxy = wetrho_in_w3%get_proxy()
-    theta_proxy = theta%get_proxy()
+    theta_in_wth_proxy = theta_in_wth%get_proxy()
     exner_in_w3_proxy = exner_in_w3%get_proxy()
     sd_orog_proxy = sd_orog%get_proxy()
     grad_xx_orog_proxy = grad_xx_orog%get_proxy()
@@ -103,11 +111,16 @@ contains
     height_w3_proxy = height_w3%get_proxy()
     height_wth_proxy = height_wth%get_proxy()
 
+    taux_blk_proxy = taux_orog_blk%get_proxy()
+    tauy_blk_proxy = tauy_orog_blk%get_proxy()
+    taux_gwd_proxy = taux_orog_gwd%get_proxy()
+    tauy_gwd_proxy = tauy_orog_gwd%get_proxy()
+
     ! Initialise number of layers
     nlayers = du_blk_proxy%vspace%get_nlayers()
 
     ! Create a mesh object
-    mesh => du_blk%get_mesh()
+    mesh => du_orog_blk%get_mesh()
 
     ! Look-up dofmaps for each function space
     map_w3 => du_blk_proxy%vspace%get_whole_dofmap()
@@ -154,12 +167,14 @@ contains
                       du_orog_gwd_proxy%data, dv_orog_gwd_proxy%data,      &
                       dtemp_blk_proxy%data, dtemp_orog_gwd_proxy%data,     &
                       u1_in_w3_proxy%data, u2_in_w3_proxy%data,            &
-                      wetrho_in_w3_proxy%data, theta_proxy%data,           &
+                      wetrho_in_w3_proxy%data, theta_in_wth_proxy%data,    &
                       exner_in_w3_proxy%data,                              &
                       sd_orog_proxy%data, grad_xx_orog_proxy%data,         &
                       grad_xy_orog_proxy%data, grad_yy_orog_proxy%data,    &
                       mr_v_proxy%data, mr_cl_proxy%data, mr_ci_proxy%data, &
                       height_w3_proxy%data, height_wth_proxy%data,         &
+                      taux_blk_proxy%data, tauy_blk_proxy%data,            &
+                      taux_gwd_proxy%data, tauy_gwd_proxy%data,            &
                       ndf_w3, undf_w3, map_w3(:,cell),                     &
                       ndf_wtheta, undf_wtheta, map_wtheta(:,cell),         &
                       ndf_adspc1_sd_orog, undf_adspc1_sd_orog,   &
@@ -177,6 +192,10 @@ contains
     call dv_orog_gwd_proxy%set_dirty()
     call dtemp_blk_proxy%set_dirty()
     call dtemp_orog_gwd_proxy%set_dirty()
+    call taux_blk_proxy%set_dirty()
+    call tauy_blk_proxy%set_dirty()
+    call taux_gwd_proxy%set_dirty()
+    call tauy_gwd_proxy%set_dirty()
 
   end subroutine invoke_orographic_drag_kernel
   !---------------------------------------------------------------------

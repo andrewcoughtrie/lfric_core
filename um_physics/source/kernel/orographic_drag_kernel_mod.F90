@@ -16,6 +16,7 @@ module orographic_drag_kernel_mod
 
   use planet_constants_mod,       only: p_zero, kappa
   use constants_mod,              only: r_def, r_um, i_def, i_um, pi
+  use empty_data_mod,             only: empty_real_data
   use fs_continuity_mod,          only: W3, Wtheta
   use kernel_mod,                 only: kernel_type
   use orographic_drag_config_mod, only: cd_flow_blocking,            &
@@ -38,13 +39,13 @@ module orographic_drag_kernel_mod
   !>
   type, public, extends(kernel_type) :: orographic_drag_kernel_type
     private
-    type(arg_type) :: meta_args(20) = (/                                   &
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3),                        & ! du_blk, u wind increment blocking
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3),                        & ! dv_blk, v wind increment blocking
+    type(arg_type) :: meta_args(24) = (/                                   &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3),                        & ! du_orog_blk, u wind increment blocking
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3),                        & ! dv_orog_blk, v wind increment blocking
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3),                        & ! du_orog_gwd, u wind increment gwd
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3),                        & ! dv_orog_gwd, v wind increment gwd
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, Wtheta),                    & ! dtemp_blk, temperature increment blocking
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, Wtheta),                    & ! dtemp_orog_gwd, temperature increment gwd
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, Wtheta),                    & ! dtemp_orog_blk, T increment blocking
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, Wtheta),                    & ! dtemp_orog_gwd, T increment gwd
          arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                        & ! u1_in_w3, zonal wind
          arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                        & ! u2_in_w3, meridional wind
          arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                        & ! wetrho_in_w3, wet density in w3
@@ -58,7 +59,11 @@ module orographic_drag_kernel_mod
          arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! mr_cl
          arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! mr_ci
          arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                        & ! height_w3
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta)                     & ! height_wtheta
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! height_wth
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, Wtheta),                    & ! taux_orog_blk
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, Wtheta),                    & ! tauy_orog_blk
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, Wtheta),                    & ! taux_orog_gwd
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, Wtheta)                     & ! tauy_orog_gwd
          /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -77,11 +82,11 @@ contains
   !>          drag scheme, which calculates the zonal and meridional winds and
   !>          temperature increments from parametrized orographic drag.
   !! @param[in]     nlayers        Integer the number of layers
-  !! @param[in,out] du_blk         u increment from blocking
-  !! @param[in,out] dv_blk         v increment from blocking
+  !! @param[in,out] du_orog_blk    u increment from blocking
+  !! @param[in,out] dv_orog_blk    v increment from blocking
   !! @param[in,out] du_orog_gwd    u increment from gravity wave drag
   !! @param[in,out] dv_orog_gwd    v increment from gravity wave drag
-  !! @param[in,out] dtemp_blk      T increment from blocking
+  !! @param[in,out] dtemp_orog_blk T increment from blocking
   !! @param[in,out] dtemp_orog_gwd T increment from gravity wave drag
   !! @param[in]     u1_in_w3       Zonal wind
   !! @param[in]     u2_in_w3       Meridional wind
@@ -97,6 +102,10 @@ contains
   !! @param[in]     mr_ci          Cloud ice mixing ratio
   !! @param[in]     height_w3      Height at rho levels
   !! @param[in]     height_wth     Height at theta levels
+  !! @param[in,out] taux_orog_blk  x-stress from blocking
+  !! @param[in,out] tauy_orog_blk  y-stress from blocking
+  !! @param[in,out] taux_orog_gwd  x-stress from orographic gwd
+  !! @param[in,out] tauy_orog_gwd  y-stress from orographic gwd
   !! @param[in]     ndf_w3         Number of degrees of freedom per cell for wth
   !! @param[in]     undf_w3        Number of unique degrees of freedom for wth
   !! @param[in]     map_w3         Dofmap for the cell at w3
@@ -108,12 +117,17 @@ contains
   !! @param[in]     map_2d         Dofmap for the 2d cell
   !>
   subroutine orographic_drag_kernel_code(                                  &
-                        nlayers, du_blk, dv_blk, du_orog_gwd, dv_orog_gwd, &
-                        dtemp_blk, dtemp_orog_gwd, u1_in_w3, u2_in_w3,     &
+                        nlayers, du_orog_blk, dv_orog_blk,                 &
+                        du_orog_gwd, dv_orog_gwd,                          &
+                        dtemp_orog_blk, dtemp_orog_gwd, u1_in_w3, u2_in_w3,&
                         wetrho_in_w3, theta_in_wth, exner_in_wth, sd_orog, &
                         grad_xx_orog, grad_xy_orog, grad_yy_orog,          &
                         mr_v, mr_cl, mr_ci,                                &
                         height_w3, height_wth,                             &
+                        ! Diagnostics
+                        taux_orog_blk, tauy_orog_blk,                      &
+                        taux_orog_gwd, tauy_orog_gwd,                      &
+                        ! Spatial information
                         ndf_w3, undf_w3, map_w3, ndf_wth, undf_wth,        &
                         map_wth, ndf_2d, undf_2d, map_2d)
 
@@ -138,9 +152,9 @@ contains
     integer(i_def), intent(in), dimension(ndf_wth) :: map_wth
     integer(i_def), intent(in), dimension(ndf_2d)  :: map_2d
 
-    real(r_def), intent(inout), dimension(undf_w3)  :: du_blk, du_orog_gwd, &
-                                                       dv_blk, dv_orog_gwd
-    real(r_def), intent(inout), dimension(undf_wth) :: dtemp_blk, dtemp_orog_gwd
+    real(r_def), intent(inout), dimension(undf_w3)  :: du_orog_blk, du_orog_gwd, &
+                                                       dv_orog_blk, dv_orog_gwd
+    real(r_def), intent(inout), dimension(undf_wth) :: dtemp_orog_blk, dtemp_orog_gwd
     real(r_def), intent(in), dimension(undf_w3)     :: u1_in_w3, u2_in_w3, &
                                                        wetrho_in_w3
     real(r_def), intent(in), dimension(undf_wth)  :: theta_in_wth, exner_in_wth
@@ -149,8 +163,14 @@ contains
                                                      grad_xx_orog, &
                                                      grad_xy_orog, &
                                                      grad_yy_orog
+
     real(r_def), intent(in), dimension(undf_w3)   :: height_w3
     real(r_def), intent(in), dimension(undf_wth)  :: height_wth
+
+    real(r_def), pointer, intent(inout)::      &
+            taux_orog_blk(:), tauy_orog_blk(:),&
+            taux_orog_gwd(:), tauy_orog_gwd(:)
+
     !----------------------------------------------------------------------
     ! Local variables for input to the kernel
     !----------------------------------------------------------------------
@@ -172,7 +192,11 @@ contains
                     du_dt_blk, du_dt_orog_gwd, & ! zonal wind tendencies
                     dv_dt_blk, dv_dt_orog_gwd, & ! meridional wind tendencies
                     z_rho_levels,              & ! height above the surface
-                    z_theta_levels               ! height above the surface
+                    z_theta_levels
+
+    real(r_um), dimension(seg_len, 0:nlayers) :: &
+                       tau_x_blk, tau_y_blk,     &
+                       tau_x_orog_gwd, tau_y_orog_gwd
 
     ! The following variables are used in the nonhydrostatic option of the scheme
     ! which is hardcoded to .false. in the UM code.
@@ -219,7 +243,7 @@ contains
 
     integer(i_um), dimension(seg_len) :: ktop, kbot
 
-    ! Flags for diagnostics (not used in LFRic)
+    ! Flags for diagnostics that are not used in LFRic
     logical, parameter ::                                                     &
                u_s_d_on = .false.,  v_s_d_on= .false., nsq_s_d_on= .false.,   &
                du_dt_diag_on = .false., dv_dt_diag_on = .false.,              &
@@ -227,18 +251,25 @@ contains
                fr_d_on = .false., bld_d_on= .false., tausx_d_on = .false.,    &
                tausy_d_on = .false., bldt_d_on= .false.
 
+    ! Flags for diagnostics that are used in LFRic
+    logical :: tau_x_blk_flag, tau_y_blk_flag,     &
+               tau_x_orog_gwd_flag, tau_y_orog_gwd_flag
+
     ! Flag for determining if scheme needs to be computed
     logical, dimension(seg_len) :: drag
 
-    ! Diagnostics
+    ! Diagnostics not used
     real(r_um), dimension(seg_len) :: &
                u_s_d, v_s_d, nsq_s_d, &
                fr_d, bld_d, bldt_d,   &
                tausx_d, tausy_d
-    ! Diagnostics
+
+
+    ! Diagnostics not used
     real(r_um), dimension(seg_len, nlayers) :: &
                        du_dt_diag, dv_dt_diag, &
                        stress_u, stress_v
+
 
     !-----------------------------------------------------------------------
     ! Initialise arrays and call UM code
@@ -290,7 +321,7 @@ contains
     grad_xy(1) = real(grad_xy_orog(map_2d(1)), r_um)
     grad_yy(1) = real(grad_yy_orog(map_2d(1)), r_um)
 
-    ! Scale aware inputs (not used in LFRic)
+    ! Scale aware inputs (not currently used in LFRic)
     orog_f1(1)  = 0.0_r_um
     orog_f2(1)  = 0.0_r_um
     orog_f3(1)  = 0.0_r_um
@@ -305,6 +336,20 @@ contains
     l_fb_heating = orographic_blocking_heating
     l_gw_heating = orographic_gwd_heating
     l_smooth     = vertical_smoothing
+
+    ! Set stash flags and arrays
+    if (.not. associated(taux_orog_blk, empty_real_data) ) then
+      tau_x_blk_flag = .true.
+    end if
+    if (.not. associated(tauy_orog_blk, empty_real_data) ) then
+      tau_y_blk_flag = .true.
+    end if
+    if (.not. associated(taux_orog_gwd, empty_real_data) ) then
+      tau_x_orog_gwd_flag = .true.
+    end if
+    if (.not. associated(tauy_orog_gwd, empty_real_data) ) then
+      tau_y_orog_gwd_flag = .true.
+    end if
 
     ! Call routine to setup orographic drag fields
     call gw_setup(nlayers, seg_len, gw_seg_size,                     &
@@ -339,8 +384,8 @@ contains
                   dv_dt_diag, seg_len,dv_dt_diag_on,                     &
                   stress_u, stress_u_on,seg_len,stress_u_on,             &
                   stress_v, stress_v_on,seg_len,                         &
-                  stress_u, seg_len, stress_u_on,                        &
-                  stress_v, seg_len, stress_v_on,                        &
+                  tau_x_blk, seg_len, tau_x_blk_flag,                    &
+                  tau_y_blk, seg_len, tau_y_blk_flag,                    &
                   fr_d,fr_d_on, seg_len,                                 &
                   bld_d,bld_d_on, seg_len,                               &
                   bldt_d,bldt_d_on, seg_len,                             &
@@ -362,31 +407,55 @@ contains
                  dv_dt_diag, seg_len,dv_dt_diag_on,                  &
                  stress_u, seg_len, stress_u_on, stress_u_on,        &
                  stress_v, seg_len, stress_v_on,                     &
-                 stress_u, seg_len, stress_u_on,                     &
-                 stress_v, seg_len, stress_v_on,                     &
+                 ! diagnostics (used)
+                 tau_x_orog_gwd, seg_len, tau_x_orog_gwd_flag,       &
+                 tau_y_orog_gwd, seg_len, tau_y_orog_gwd_flag,       &
+                 ! diagnostics (not used)
                  tausx_d, tausx_d_on, seg_len,                       &
                  tausy_d, tausy_d_on, seg_len,                       &
                  nsq_s_d, nsq_s_d_on, seg_len)
 
     ! Map variables back
     do k = 1, nlayers
-      du_blk(map_w3(1) + k-1) = real(du_dt_blk(1,k)*timestep, r_def)
-      dv_blk(map_w3(1) + k-1) = real(dv_dt_blk(1,k)*timestep, r_def)
+      du_orog_blk(map_w3(1) + k-1) = real(du_dt_blk(1,k)*timestep, r_def)
+      dv_orog_blk(map_w3(1) + k-1) = real(dv_dt_blk(1,k)*timestep, r_def)
 
       du_orog_gwd(map_w3(1) + k-1) = real(du_dt_orog_gwd(1,k)*timestep, r_def)
       dv_orog_gwd(map_w3(1) + k-1) = real(dv_dt_orog_gwd(1,k)*timestep, r_def)
 
-      dtemp_blk(map_wth(1) + k)      = real(dtemp_dt_blk(1,k)*timestep, r_def)
+      dtemp_orog_blk(map_wth(1) + k)      = real(dtemp_dt_blk(1,k)*timestep, r_def)
       dtemp_orog_gwd(map_wth(1) + k) = real(dtemp_dt_orog_gwd(1,k)*timestep, r_def)
     end do ! k
 
     ! Set level 0 increment such that theta increment will equal level 1
-    dtemp_blk(map_wth(1) + 0)      = real(dtemp_dt_blk(1,1)*timestep, r_def)   &
+    dtemp_orog_blk(map_wth(1) + 0) = real(dtemp_dt_blk(1,1)*timestep, r_def)   &
                                    * exner_in_wth(map_wth(1) + 0)              &
                                    / exner_in_wth(map_wth(1) + 1)
     dtemp_orog_gwd(map_wth(1) + 0) = real(dtemp_dt_orog_gwd(1,1)*timestep, r_def)&
                                    * exner_in_wth(map_wth(1) + 0)                &
                                    / exner_in_wth(map_wth(1) + 1)
+
+    ! Map diagnostics back
+    if (.not. associated(taux_orog_blk, empty_real_data) ) then
+      do k = 0, nlayers
+        taux_orog_blk(map_wth(1) + k) = real(tau_x_blk(1,k), r_def)
+      end do
+    end if
+    if (.not. associated(tauy_orog_blk, empty_real_data) ) then
+      do k = 0, nlayers
+        tauy_orog_blk(map_wth(1) + k) = real(tau_y_blk(1,k), r_def)
+      end do
+    end if
+    if (.not. associated(taux_orog_gwd, empty_real_data) ) then
+      do k = 0, nlayers
+        taux_orog_gwd(map_wth(1) + k) = real(tau_x_orog_gwd(1,k), r_def)
+      end do
+    end if
+    if (.not. associated(tauy_orog_gwd, empty_real_data) ) then
+      do k = 0, nlayers
+        tauy_orog_gwd(map_wth(1) + k) = real(tau_y_orog_gwd(1,k), r_def)
+      end do
+    end if
 
   end subroutine orographic_drag_kernel_code
 

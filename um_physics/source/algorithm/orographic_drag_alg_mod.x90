@@ -22,7 +22,8 @@ module orographic_drag_alg_mod
   ! XIOS output
   use io_config_mod, only: write_diag, &
                            use_xios_io
-
+  use orographic_drag_diags_mod, only: initialise_diags_for_orographic_drag, &
+  	                                   output_diags_for_orographic_drag
   use map_fd_to_prognostics_alg_mod, only: set_wind
 
   implicit none
@@ -62,9 +63,9 @@ contains
     type( field_type ) :: dtemp_orographic_drag ! ... temperature
 
     ! Orographic blocking drag increments to ...
-    type( field_type ) :: du_blk    ! ... zonal wind
-    type( field_type ) :: dv_blk    ! ... meridional wind
-    type( field_type ) :: dtemp_blk ! ... temperature
+    type( field_type ) :: du_orog_blk    ! ... zonal wind
+    type( field_type ) :: dv_orog_blk    ! ... meridional wind
+    type( field_type ) :: dtemp_orog_blk ! ... temperature
 
     ! Orographic gravity wave drag increments to ...
     type( field_type ) :: du_orog_gwd    ! ... zonal wind
@@ -84,6 +85,12 @@ contains
 
     type( field_type ), pointer :: height_w3 => null()
     type( field_type ), pointer :: height_wth => null()
+
+    ! Diagnostics
+
+    ! Zonal and and meridional stress from ...
+    type( field_type ) :: taux_orog_blk, tauy_orog_blk               ! ... orographic blocking drag
+    type( field_type ) :: taux_orog_gwd, tauy_orog_gwd               ! ... orographic gwd drag
 
     type( mesh_type ), pointer :: mesh => null()
 
@@ -113,22 +120,28 @@ contains
     call u1_in_w3%copy_field_properties(du_orographic_drag)
     call u2_in_w3%copy_field_properties(dv_orographic_drag)
     call theta%copy_field_properties(dw_orographic_drag)
-    call u1_in_w3%copy_field_properties(du_blk)
-    call u2_in_w3%copy_field_properties(dv_blk)
+    call u1_in_w3%copy_field_properties(du_orog_blk)
+    call u2_in_w3%copy_field_properties(dv_orog_blk)
     call u1_in_w3%copy_field_properties(du_orog_gwd)
     call u2_in_w3%copy_field_properties(dv_orog_gwd)
     call theta%copy_field_properties(dtemp_orographic_drag)
-    call theta%copy_field_properties(dtemp_blk)
+    call theta%copy_field_properties(dtemp_orog_blk)
     call theta%copy_field_properties(dtemp_orog_gwd)
 
-    ! Initalize field increments from orographic drag
+    ! Initialise field increments from orographic drag
     call invoke(setval_c(dw_orographic_drag, 0.0_r_def), &
-                setval_c(du_blk,    0.0_r_def),          &
-                setval_c(dv_blk,    0.0_r_def),          &
-                setval_c(dtemp_blk, 0.0_r_def),          &
+                setval_c(du_orog_blk,    0.0_r_def),     &
+                setval_c(dv_orog_blk,    0.0_r_def),     &
+                setval_c(dtemp_orog_blk, 0.0_r_def),     &
                 setval_c(du_orog_gwd,    0.0_r_def),     &
                 setval_c(dv_orog_gwd,    0.0_r_def),     &
                 setval_c(dtemp_orog_gwd, 0.0_r_def) )
+
+    ! Initialise orographic drag diagnostics
+    call initialise_diags_for_orographic_drag(                              &
+                                theta, u1_in_w3,                            &
+                                taux_orog_blk, tauy_orog_blk,               &
+                                taux_orog_gwd, tauy_orog_gwd)
 
     ! Call orographic drag kernel
     ! The orographic drag kernel is temporarily being called from
@@ -136,18 +149,22 @@ contains
     ! subset of points (in this case, points where sd_orog > 0)
     ! does not currently exist in PSyclone.
     ! PSyclone ticket relating to this functionality is #487.
-    call invoke_orographic_drag_kernel(                         &
-                du_blk, dv_blk, du_orog_gwd, dv_orog_gwd,       &
-                dtemp_blk, dtemp_orog_gwd, u1_in_w3, u2_in_w3,  &
-                wetrho_in_w3, theta, exner_in_wth, sd_orog,     &
-                grad_xx_orog, grad_xy_orog, grad_yy_orog,       &
-                mr_n(imr_v), mr_n(imr_cl), mr_n(imr_ci),        &
-                height_w3, height_wth)
+    call invoke_orographic_drag_kernel(                       &
+                du_orog_blk, dv_orog_blk,                     &
+                du_orog_gwd, dv_orog_gwd,                     &
+                dtemp_orog_blk, dtemp_orog_gwd,               &
+                u1_in_w3, u2_in_w3,                           &
+                wetrho_in_w3, theta, exner_in_wth, sd_orog,   &
+                grad_xx_orog, grad_xy_orog, grad_yy_orog,     &
+                mr_n(imr_v), mr_n(imr_cl), mr_n(imr_ci),      &
+                height_w3, height_wth,                        &
+                taux_orog_blk, tauy_orog_blk,                 &
+                taux_orog_gwd, tauy_orog_gwd)
 
     ! Sum increments
-    call invoke(X_plus_Y (du_orographic_drag, du_blk, du_orog_gwd),          &
-                X_plus_Y (dv_orographic_drag, dv_blk, dv_orog_gwd),          &
-                X_plus_Y (dtemp_orographic_drag, dtemp_blk, dtemp_orog_gwd), &
+    call invoke(X_plus_Y (du_orographic_drag, du_orog_blk, du_orog_gwd),          &
+                X_plus_Y (dv_orographic_drag, dv_orog_blk, dv_orog_gwd),          &
+                X_plus_Y (dtemp_orographic_drag, dtemp_orog_blk, dtemp_orog_gwd), &
 
     ! Convert temperature to potential temperature
                 X_divideby_Y (dtheta_orographic_drag, dtemp_orographic_drag, &
@@ -155,22 +172,16 @@ contains
 
     if ( subroutine_timers ) call timer("orographic_drag_alg")
 
-    ! Write diagnostics
     if (write_diag .and. use_xios_io) then
-      if ( subroutine_timers ) call timer("orographic_drag_xios")
 
-      call du_orographic_drag%write_field('du_orographic_drag')
-      call dv_orographic_drag%write_field('dv_orographic_drag')
-      call du_blk%write_field('du_orog_blk')
-      call dv_blk%write_field('dv_orog_blk')
-      call du_orog_gwd%write_field('du_orog_gwd')
-      call dv_orog_gwd%write_field('dv_orog_gwd')
-      call dtheta_orographic_drag%write_field('dtheta_orographic_drag')
-      call dtemp_orographic_drag%write_field('dtemp_orographic_drag')
-      call dtemp_blk%write_field('dtemp_orog_blk')
-      call dtemp_orog_gwd%write_field('dtemp_orog_gwd')
+      ! Write orographic drag diagnostics
 
-      if ( subroutine_timers ) call timer("orographic_drag_xios")
+      call output_diags_for_orographic_drag(                                       &
+                     du_orographic_drag, dv_orographic_drag, dtemp_orographic_drag,&
+                     dtheta_orographic_drag, du_orog_blk, dv_orog_blk,             &
+                     dtemp_orog_blk, du_orog_gwd, dv_orog_gwd, dtemp_orog_gwd,     &
+                     taux_orog_blk, tauy_orog_blk, taux_orog_gwd, tauy_orog_gwd)
+
     end if
 
     ! Mapping back of wind increments

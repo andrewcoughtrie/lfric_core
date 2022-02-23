@@ -556,21 +556,39 @@
 	<field id="microphysics__rim_cry" name="rim_cry" long_name="riming_rate_for_ice_crystals" unit="kg kg-1 s-1" grid_ref="full_level_face_grid" />
 	<field id="microphysics__rim_agg" name="rim_agg" long_name="riming rate_for_ice aggregates" unit="kg kg-1 s-1" grid_ref="full_level_face_grid" />
 	<!-- spectral GWD fields -->
-	<field id="dtheta_spectral_gwd" name="dtheta_spectral_gwd" long_name="spectral_gravity_wave_drag_theta_increment" unit="K" grid_ref="full_level_face_grid" />
-	<field id="du_spectral_gwd" name="du_spectral_gwd" long_name="spectral_gravity_wave_drag_U_wind_increment" unit="m s-1" grid_ref="half_level_face_grid" />
-	<field id="dv_spectral_gwd" name="dv_spectral_gwd" long_name="spectral_gravity_wave_drag_V_wind_increment" unit="m s-1" grid_ref="half_level_face_grid" />
-	<field id="dtemp_spectral_gwd" name="dtemp_spectral_gwd" long_name="spectral_gravity_wave_drag_T_increment" unit="K" grid_ref="full_level_face_grid" />
+	<field id="spectral_gwd__dtheta_spectral_gwd" name="dtheta_spectral_gwd" long_name="spectral_gravity_wave_drag_theta_increment" unit="K" grid_ref="full_level_face_grid" />
+	<field id="spectral_gwd__du_spectral_gwd" name="du_spectral_gwd" long_name="spectral_gravity_wave_drag_U_wind_increment" unit="m s-1" grid_ref="half_level_face_grid" />
+	<field id="spectral_gwd__dv_spectral_gwd" name="dv_spectral_gwd" long_name="spectral_gravity_wave_drag_V_wind_increment" unit="m s-1" grid_ref="half_level_face_grid" />
+	<field id="spectral_gwd__dtemp_spectral_gwd" name="dtemp_spectral_gwd" long_name="spectral_gravity_wave_drag_T_increment" unit="K" grid_ref="full_level_face_grid" />
+    <field id="spectral_gwd__tau_east_spectral_gwd" name="tau_east_spectral_gwd" long_name="spectral_gwd_eastward_wind_stress" unit="Pa" grid_ref="full_level_face_grid" />
+    <field id="spectral_gwd__tau_south_spectral_gwd" name="tau_south_spectral_gwd" long_name="spectral_gwd_southward_wind_stress" unit="Pa" grid_ref="full_level_face_grid" />
+    <field id="spectral_gwd__tau_west_spectral_gwd" name="tau_west_spectral_gwd" long_name="spectral_gwd_westward_wind_stress" unit="Pa" grid_ref="full_level_face_grid" />
+    <field id="spectral_gwd__tau_north_spectral_gwd" name="tau_north_spectral_gwd" long_name="spectral_gwd_northward_wind_stress" unit="Pa" grid_ref="full_level_face_grid" />
+	<field id="spectral_gwd__dudt_spectral_gwd" name="dudt_spectral_gwd" long_name="spectral_gravity_wave_drag_U_wind_tendency" unit="m s-2" grid_ref="half_level_face_grid"> spectral_gwd__du_spectral_gwd/$DT </field>
+	<field id="spectral_gwd__dvdt_spectral_gwd" name="dvdt_spectral_gwd" long_name="spectral_gravity_wave_drag_V_wind_tendency" unit="m s-2" grid_ref="half_level_face_grid"> spectral_gwd__dv_spectral_gwd/$DT </field>
 	<!-- orographic drag fields -->
-	<field id="du_orographic_drag" name="du_orog" long_name="orographic_drag_U_wind_increment" unit="m s-1" grid_ref="half_level_face_grid" />
-	<field id="dv_orographic_drag" name="dv_orog" long_name="orographic_drag_V_wind_increment" unit="m s-1" grid_ref="half_level_face_grid" />
-	<field id="du_orog_blk" name="du_orog_blk" long_name="orographic_blocking_drag_U_wind_increment" unit="m s-1" grid_ref="half_level_face_grid" />
-	<field id="dv_orog_blk" name="dv_orog_blk" long_name="orographic_blocking_drag_V_wind_increment" unit="m s-1" grid_ref="half_level_face_grid" />
-	<field id="du_orog_gwd" name="du_orog_gwd" long_name="orographic_gravity_wave_drag_U_wind_increment" unit="m s-1" grid_ref="half_level_face_grid" />
-	<field id="dv_orog_gwd" name="dv_orog_gwd" long_name="orographic_gravity_wave_drag_V_wind_increment" unit="m s-1" grid_ref="half_level_face_grid" />
-	<field id="dtheta_orographic_drag" name="dtheta_orog" long_name="orographic_drag_theta_increment" unit="K" grid_ref="full_level_face_grid" />
-	<field id="dtemp_orographic_drag" name="dtemp_orog" long_name="orographic_drag_temp_increment" unit="K" grid_ref="full_level_face_grid" />
-	<field id="dtemp_orog_blk" name="dtemp_orog_blk" long_name="orographic_blocking_drag_T_increment" unit="K" grid_ref="full_level_face_grid" />
-	<field id="dtemp_orog_gwd" name="dtemp_orog_gwd" long_name="orographic_gravity_wave_drag_T_increment" unit="K" grid_ref="full_level_face_grid" />
+	<field id="orographic_drag__du_orographic_drag" name="du_orog" long_name="orographic_drag_U_wind_increment" unit="m s-1" grid_ref="half_level_face_grid" />
+	<field id="orographic_drag__dv_orographic_drag" name="dv_orog" long_name="orographic_drag_V_wind_increment" unit="m s-1" grid_ref="half_level_face_grid" />
+	<field id="orographic_drag__du_orog_blk" name="du_orog_blk" long_name="orographic_blocking_drag_U_wind_increment" unit="m s-1" grid_ref="half_level_face_grid" />
+	<field id="orographic_drag__dv_orog_blk" name="dv_orog_blk" long_name="orographic_blocking_drag_V_wind_increment" unit="m s-1" grid_ref="half_level_face_grid" />
+	<field id="orographic_drag__du_orog_gwd" name="du_orog_gwd" long_name="orographic_gravity_wave_drag_U_wind_increment" unit="m s-1" grid_ref="half_level_face_grid" />
+	<field id="orographic_drag__dv_orog_gwd" name="dv_orog_gwd" long_name="orographic_gravity_wave_drag_V_wind_increment" unit="m s-1" grid_ref="half_level_face_grid" />
+	<field id="orographic_drag__dtheta_orographic_drag" name="dtheta_orog" long_name="orographic_drag_theta_increment" unit="K" grid_ref="full_level_face_grid" />
+	<field id="orographic_drag__dtemp_orographic_drag" name="dtemp_orog" long_name="orographic_drag_temp_increment" unit="K" grid_ref="full_level_face_grid" />
+	<field id="orographic_drag__dtemp_orog_blk" name="dtemp_orog_blk" long_name="orographic_blocking_drag_T_increment" unit="K" grid_ref="full_level_face_grid" />
+	<field id="orographic_drag__dtemp_orog_gwd" name="dtemp_orog_gwd" long_name="orographic_gravity_wave_drag_T_increment" unit="K" grid_ref="full_level_face_grid" />
+    <field id="orographic_drag__dudt_orographic_drag" name="dudt_orog" long_name="orographic_drag_U_wind_tendency" unit="m s-2" grid_ref="half_level_face_grid"> orographic_drag__du_orographic_drag/$DT </field>
+    <field id="orographic_drag__dvdt_orographic_drag" name="dvdt_orog" long_name="orographic_drag_V_wind_tendency" unit="m s-2" grid_ref="half_level_face_grid"> orographic_drag__dv_orographic_drag/$DT </field>
+    <field id="orographic_drag__dudt_orog_blk" name="dudt_orog_blk" long_name="orographic_blocking_drag_U_wind_tendency" unit="m s-2" grid_ref="half_level_face_grid"> orographic_drag__du_orog_blk/$DT </field>
+    <field id="orographic_drag__dvdt_orog_blk" name="dvdt_orog_blk" long_name="orographic_blocking_drag_V_wind_tendency" unit="m s-2" grid_ref="half_level_face_grid"> orographic_drag__dv_orog_blk/$DT </field>
+    <field id="orographic_drag__dudt_orog_gwd" name="dudt_orog_gwd" long_name="orographic_gravity_wave_drag_U_wind_tendency" unit="m s-2" grid_ref="half_level_face_grid"> orographic_drag__du_orog_gwd/$DT </field>
+    <field id="orographic_drag__dvdt_orog_gwd" name="dvdt_orog_gwd" long_name="orographic_gravity_wave_V_wind_tendency" unit="m s-2" grid_ref="half_level_face_grid"> orographic_drag__dv_orog_gwd/$DT </field>
+    <field id="orographic_drag__taux_orog_blk" name="taux_orog_blk" long_name="orographic_blocking_drag_U_wind_stress" unit="Pa" grid_ref="full_level_face_grid" />
+	<field id="orographic_drag__tauy_orog_blk" name="tauy_orog_blk" long_name="orographic_blocking_drag_V_wind_stress" unit="Pa" grid_ref="full_level_face_grid" />
+    <field id="orographic_drag__taux_orog_gwd" name="taux_orog_gwd" long_name="orographic_gravity_wave_drag_U_wind_stress" unit="Pa" grid_ref="full_level_face_grid" />
+	<field id="orographic_drag__tauy_orog_gwd" name="tauy_orog_gwd" long_name="orographic_gravity_wave_drag_V_wind_stress" unit="Pa" grid_ref="full_level_face_grid" />
+    <field id="orographic_drag__taux_orographic_drag" name="taux_orog" long_name="orographic_drag_U_wind_stress" unit="Pa" grid_ref="full_level_face_grid"> orographic_drag__taux_orog_blk + orographic_drag__taux_orog_gwd </field>
+	<field id="orographic_drag__tauy_orographic_drag" name="tauy_orog" long_name="orographic_drag_V_wind_stress" unit="Pa" grid_ref="full_level_face_grid"> orographic_drag__tauy_orog_blk + orographic_drag__tauy_orog_gwd </field>
 	<!-- surface fields -->
 	<field id="surface__tile_fraction" name="tile_fraction" long_name="surface_tile_fraction" unit="1" domain_ref="face" axis_ref="surface_tiles"/>
 	<field id="surface__z0m" name="z0m" long_name="surface_roughness_length" unit="m" domain_ref="face" />
