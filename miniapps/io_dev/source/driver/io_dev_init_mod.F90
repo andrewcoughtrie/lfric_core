@@ -95,9 +95,9 @@ module io_dev_init_mod
     ! Create core fields to send/recieve data from file and set I/O behaviours
     !----------------------------------------------------------------------------
     ! Create the core and dump field collections.
-    call core_fields%initialise( name='core_fields' )
-    call dump_fields%initialise( name='dump_fields' )
-    call alg_fields%initialise( name='alg_fields' )
+    call core_fields%initialise( name='core_fields', table_len=1 )
+    call dump_fields%initialise( name='dump_fields', table_len=1 )
+    call alg_fields%initialise( name='alg_fields', table_len=1 )
 
     if ( field_kind == field_kind_real ) then
       ! W0 (node) field

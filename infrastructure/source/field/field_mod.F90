@@ -386,9 +386,7 @@ contains
   end subroutine copy_field_properties
 
   !> DEPRECATED: Assignment operator between field_type pairs. Currently, this
-  !> routine generates a (hopefully) useful message, then performs a double
-  !> allocate to force an error stack trace (which should be useful to the
-  !> developer - tells them where they have called the deprecated routine from).
+  !> routine generates a (hopefully) useful message, then forces an error
   !>
   !> @param[out] dest   field_type lhs
   !> @param[in]  source field_type rhs
@@ -406,8 +404,6 @@ contains
               'Use "call field1%copy_field(field2)". Field: ', &
               source%get_name()
     call log_event(log_scratch_space,LOG_LEVEL_INFO )
-    allocate(dest%data(1))   ! allocate the same memory twice, to force
-    allocate(dest%data(2))   ! an error and generate a stack trace
 
   end subroutine field_type_assign
 

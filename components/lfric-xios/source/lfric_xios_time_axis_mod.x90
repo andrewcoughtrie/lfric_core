@@ -150,7 +150,7 @@ contains
     self%next_update = start_date + self%update_frequency
 
     ! Create object field collection
-    call self%fields%initialise(name=trim(name)//'_fields')
+    call self%fields%initialise(name=trim(name)//'_fields', table_len=1)
 
     ! Set optional attributes
     if ( present(yearly) ) self%yearly = yearly

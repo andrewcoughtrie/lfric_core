@@ -116,16 +116,16 @@ contains
 
     !========================== Set up collections ============================!
 
-    call w2boundary_mask_collection%initialise(name="w2_boundary_mask")
-    call w2_mask_collection%initialise(name="w2_mask")
-    call w3_mask_collection%initialise(name="w3_mask")
-    call wtheta_mask_collection%initialise(name="wtheta_mask")
-    call w2lbc_mask_collection%initialise(name="w2_lbc_mask")
-    call w3lbc_mask_collection%initialise(name="w3_lbc_mask")
-    call wthetalbc_mask_collection%initialise(name="wtheta_lbc_mask")
-    call w2blend_mask_collection%initialise(name="w2_blend_mask")
-    call w3blend_mask_collection%initialise(name="w3_blend_mask")
-    call wthetablend_mask_collection%initialise(name="wtheta_blend_mask")
+    call w2boundary_mask_collection%initialise(name="w2_boundary_mask", table_len=100)
+    call w2_mask_collection%initialise(name="w2_mask", table_len=100)
+    call w3_mask_collection%initialise(name="w3_mask", table_len=100)
+    call wtheta_mask_collection%initialise(name="wtheta_mask", table_len=100)
+    call w2lbc_mask_collection%initialise(name="w2_lbc_mask", table_len=100)
+    call w3lbc_mask_collection%initialise(name="w3_lbc_mask", table_len=100)
+    call wthetalbc_mask_collection%initialise(name="wtheta_lbc_mask", table_len=100)
+    call w2blend_mask_collection%initialise(name="w2_blend_mask", table_len=100)
+    call w3blend_mask_collection%initialise(name="w3_blend_mask", table_len=100)
+    call wthetablend_mask_collection%initialise(name="wtheta_blend_mask", table_len=100)
 
     !=========== Start loop and initialisation of function_spaces =============!
 

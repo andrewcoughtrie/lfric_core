@@ -88,7 +88,7 @@ IF (element_order > 0) CALL log_event('Finite difference fields requires ' //  &
                                       'lowest order elements', LOG_LEVEL_ERROR)
 
 ! Create the field collection
-CALL field_collection%initialise(name="lfric_fields")
+CALL field_collection%initialise(name="lfric_fields", table_len=100)
 
 DO i=1, SIZE(stash_list)
 

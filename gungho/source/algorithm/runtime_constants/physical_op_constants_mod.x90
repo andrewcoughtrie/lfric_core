@@ -155,13 +155,13 @@ contains
 
     !========================== Set up collections ============================!
 
-    call geopotential_collection%initialise(name="geopotential")
-    call delta_at_wtheta_collection%initialise (name="delta_at_wtheta")
-    call dx_at_w2_collection%initialise(name="dx_at_w2")
-    call dtrdz_fd2_collection%initialise(name="dtrdz_fd2")
-    call rdz_fd1_collection%initialise(name="rdz_fd1")
-    call dz_at_wtheta_collection%initialise(name="dz_at_wtheta")
-    call max_diff_wtheta_collection%initialise(name="max_diff_wtheta")
+    call geopotential_collection%initialise(name="geopotential", table_len=100)
+    call delta_at_wtheta_collection%initialise (name="delta_at_wtheta", table_len=100)
+    call dx_at_w2_collection%initialise(name="dx_at_w2", table_len=100)
+    call dtrdz_fd2_collection%initialise(name="dtrdz_fd2", table_len=100)
+    call rdz_fd1_collection%initialise(name="rdz_fd1", table_len=100)
+    call dz_at_wtheta_collection%initialise(name="dz_at_wtheta", table_len=100)
+    call max_diff_wtheta_collection%initialise(name="max_diff_wtheta", table_len=100)
 
     ! TODO: Following #2827 this can be an operator_collection_type
     allocate(coriolis_collection(num_meshes))

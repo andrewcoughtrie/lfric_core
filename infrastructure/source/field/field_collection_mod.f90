@@ -33,18 +33,21 @@ module field_collection_mod
 
   private
 
+  ! Set the default table length to 1 - which produces a field collection
+  ! constructed of a single linked list
+  integer(i_def), parameter :: default_table_len = 1
+
   !-----------------------------------------------------------------------------
   ! Type that holds a collection of fields in a linked list
   !-----------------------------------------------------------------------------
   type, extends(linked_list_data_type), public :: field_collection_type
-
     private
     !> The name of the field collection if provided.
     character(str_def)     :: name = 'unnamed_collection'
-
-    !> A linked list of the fields contained within the collection
-    type(linked_list_type) :: field_list
-
+    !> A hash table of linked lists of fields contained within the collection
+    type(linked_list_type), allocatable :: field_list(:)
+    !> The size of the hash table to use
+    integer(i_def) :: table_len
   contains
     procedure, public :: initialise
     procedure, public :: copy_collection
@@ -52,13 +55,14 @@ module field_collection_mod
     procedure, public :: add_reference_to_field
     procedure, public :: remove_field
     procedure, public :: field_exists
-    procedure, public :: get_first_item
+    procedure, public :: get_next_item
     procedure, public :: get_field
     procedure, public :: get_integer_field
     procedure, public :: get_r_solver_field
     procedure, public :: get_r_tran_field
     procedure, public :: get_length
     procedure, public :: get_name
+    procedure, public :: get_table_len
     procedure, public :: clear
 
     procedure, private :: collection_copy_constructor
@@ -71,14 +75,28 @@ contains
 
 !> Initialises a field collection
 !> @param [in] name The name given to the collection
-subroutine initialise(self, name)
+subroutine initialise(self, name, table_len)
 
   implicit none
 
   class(field_collection_type), intent(inout) :: self
   character(*),       optional, intent(in)    :: name
+  integer(i_def),     optional, intent(in)    :: table_len
 
-  self%field_list = linked_list_type()
+  integer(i_def) :: i
+
+  if(present(table_len))then
+    self%table_len = table_len
+  else
+    self%table_len = default_table_len
+  end if
+
+  ! Create the hash table of field lists
+  allocate(self%field_list(0:self%table_len-1))
+  do i = 0, self%table_len-1
+    self%field_list(i) = linked_list_type()
+  end do
+
   if(present(name))self%name = trim(name)
 
 end subroutine initialise
@@ -94,128 +112,88 @@ subroutine add_field(self, field)
 
   class(field_collection_type), intent(inout) :: self
   class(pure_abstract_field_type), intent(in) :: field
+  integer(i_def) :: hash
+  character(len=str_def) :: name
 
   ! Check field name is valid, if not then exit with error
   select type(infield => field)
     type is (field_type)
-      if ( trim(infield%get_name()) == 'none' .OR. &
-                                  trim(infield%get_name()) == 'unset') then
-        write(log_scratch_space, '(3A)') &
-        'Field name [', trim(infield%get_name()), &
-        '] is an invalid field name, please choose a unique field name.'
-        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-      end if
+      name = infield%get_name()
     type is (integer_field_type)
-      if ( trim(infield%get_name()) == 'none' .OR. &
-                                  trim(infield%get_name()) == 'unset') then
-        write(log_scratch_space, '(3A)') &
-        'Field name [', trim(infield%get_name()), &
-        '] is an invalid field name, please choose a unique field name.'
-        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-      end if
+      name = infield%get_name()
     type is (r_solver_field_type)
-      if ( trim(infield%get_name()) == 'none' .OR. &
-                                  trim(infield%get_name()) == 'unset') then
-        write(log_scratch_space, '(3A)') &
-        'Field name [', trim(infield%get_name()), &
-        '] is an invalid field name, please choose a unique field name.'
-        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-      end if
+      name = infield%get_name()
     type is (r_tran_field_type)
-      if ( trim(infield%get_name()) == 'none' .OR. &
-                                  trim(infield%get_name()) == 'unset') then
-        write(log_scratch_space, '(3A)') &
-        'Field name [', trim(infield%get_name()), &
-        '] is an invalid field name, please choose a unique field name.'
-        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-      end if
+      name = infield%get_name()
     type is (field_pointer_type)
-      if ( trim(infield%field_ptr%get_name()) == 'none' .OR. &
-                                  trim(infield%field_ptr%get_name()) == 'unset') then
-        write(log_scratch_space, '(3A)') &
-        'Field name [', trim(infield%field_ptr%get_name()), &
-        '] is an invalid field name, please choose a unique field name.'
-        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-      end if
+      name = infield%field_ptr%get_name()
     type is (integer_field_pointer_type)
-      if ( trim(infield%field_ptr%get_name()) == 'none' .OR. &
-                                  trim(infield%field_ptr%get_name()) == 'unset') then
-        write(log_scratch_space, '(3A)') &
-        'Field name [', trim(infield%field_ptr%get_name()), &
-        '] is an invalid field name, please choose a unique field name.'
-        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-      end if
-     type is (r_solver_field_pointer_type)
-      if ( trim(infield%field_ptr%get_name()) == 'none' .OR. &
-                                  trim(infield%field_ptr%get_name()) == 'unset') then
-        write(log_scratch_space, '(3A)') &
-        'Field name [', trim(infield%field_ptr%get_name()), &
-        '] is an invalid field name, please choose a unique field name.'
-        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-      end if
-     type is (r_tran_field_pointer_type)
-      if ( trim(infield%field_ptr%get_name()) == 'none' .OR. &
-                                  trim(infield%field_ptr%get_name()) == 'unset') then
-        write(log_scratch_space, '(3A)') &
-        'Field name [', trim(infield%field_ptr%get_name()), &
-        '] is an invalid field name, please choose a unique field name.'
-        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-      end if
+      name = infield%field_ptr%get_name()
+    type is (r_solver_field_pointer_type)
+      name = infield%field_ptr%get_name()
+    type is (r_tran_field_pointer_type)
+      name = infield%field_ptr%get_name()
   end select
+  if ( trim(name) == 'none' .OR. trim(name) == 'unset') then
+    write(log_scratch_space, '(3A)') &
+    'Field name [', trim(name), &
+    '] is an invalid field name, please choose a unique field name.'
+    call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+  end if
 
   ! Check if field exists in collection already, if it does, exit with error
   select type(infield => field)
     type is (field_type)
-      if ( self%field_exists( trim(infield%get_name()) ) ) then
+      if ( self%field_exists( trim(name) ) ) then
         write(log_scratch_space, '(4A)') &
           'Field [', trim(infield%get_name()), &
           '] already exists in field collection: ', trim(self%name)
         call log_event( log_scratch_space, LOG_LEVEL_ERROR)
       end if
     type is (integer_field_type)
-      if ( self%field_exists( trim(infield%get_name()) ) ) then
+      if ( self%field_exists( trim(name) ) ) then
         write(log_scratch_space, '(4A)') &
           'Field [', trim(infield%get_name()), &
           '] already exists in field collection: ', trim(self%name)
         call log_event( log_scratch_space, LOG_LEVEL_ERROR)
       end if
     type is (r_solver_field_type)
-      if ( self%field_exists( trim(infield%get_name()) ) ) then
+      if ( self%field_exists( trim(name) ) ) then
         write(log_scratch_space, '(4A)') &
           'Field [', trim(infield%get_name()), &
           '] already exists in field collection: ', trim(self%name)
         call log_event( log_scratch_space, LOG_LEVEL_ERROR)
       end if
     type is (r_tran_field_type)
-      if ( self%field_exists( trim(infield%get_name()) ) ) then
+      if ( self%field_exists( trim(name) ) ) then
         write(log_scratch_space, '(4A)') &
           'Field [', trim(infield%get_name()), &
           '] already exists in field collection: ', trim(self%name)
         call log_event( log_scratch_space, LOG_LEVEL_ERROR)
       end if
     type is (field_pointer_type)
-      if ( self%field_exists( trim(infield%field_ptr%get_name()) ) ) then
+      if ( self%field_exists( trim(name) ) ) then
         write(log_scratch_space, '(4A)') &
           'Field [', trim(infield%field_ptr%get_name()), &
           '] already exists in field collection: ', trim(self%name)
         call log_event( log_scratch_space, LOG_LEVEL_ERROR)
       end if
     type is (integer_field_pointer_type)
-      if ( self%field_exists( trim(infield%field_ptr%get_name()) ) ) then
+      if ( self%field_exists( trim(name) ) ) then
         write(log_scratch_space, '(4A)') &
           'Field [', trim(infield%field_ptr%get_name()), &
           '] already exists in field collection: ', trim(self%name)
         call log_event( log_scratch_space, LOG_LEVEL_ERROR)
       end if
     type is (r_solver_field_pointer_type)
-      if ( self%field_exists( trim(infield%field_ptr%get_name()) ) ) then
+      if ( self%field_exists( trim(name) ) ) then
         write(log_scratch_space, '(4A)') &
           'Field [', trim(infield%field_ptr%get_name()), &
           '] already exists in field collection: ', trim(self%name)
         call log_event( log_scratch_space, LOG_LEVEL_ERROR)
       end if
     type is (r_tran_field_pointer_type)
-      if ( self%field_exists( trim(infield%field_ptr%get_name()) ) ) then
+      if ( self%field_exists( trim(name) ) ) then
         write(log_scratch_space, '(4A)') &
           'Field [', trim(infield%field_ptr%get_name()), &
           '] already exists in field collection: ', trim(self%name)
@@ -224,7 +202,8 @@ subroutine add_field(self, field)
   end select
 
   ! Finished checking - so the field must be good to add - so add it
-  call self%field_list%insert_item( field )
+  hash = mod(sum_string(trim(name)),self%table_len)
+  call self%field_list(hash)%insert_item( field )
 
 end subroutine add_field
 
@@ -239,12 +218,16 @@ function field_exists(self, field_name) result(exists)
 
   character(*), intent(in) :: field_name
   logical(l_def)           :: exists
+  integer(i_def)           :: hash
 
   ! Pointer to linked list - used for looping through the list
   type(linked_list_item_type), pointer :: loop => null()
 
+  ! Calculate the hash of the field being searched for
+  hash = mod(sum_string(trim(field_name)),self%table_len)
+
   ! start at the head of the mesh collection linked list
-  loop => self%field_list%get_head()
+  loop => self%field_list(hash)%get_head()
 
   do
     ! If list is empty or we're at the end of list and we didn't find the
@@ -364,15 +347,19 @@ subroutine remove_field(self, field_name)
 
   ! Pointer to linked list - used for looping through the list
   type(linked_list_item_type), pointer :: loop => null()
+  integer(i_def) :: hash
 
-  ! start at the head of the mesh collection linked list
-  loop => self%field_list%get_head()
+  ! Calculate the hash of the field being removed
+  hash = mod(sum_string(trim(field_name)),self%table_len)
+
+  ! start at the head of the field collection linked list
+  loop => self%field_list(hash)%get_head()
 
   do
     ! If list is empty or we're at the end of list and we didn't find the
     ! field, fail with an error
     if ( .not. associated(loop) ) then
-      write(log_scratch_space, '(4A)') 'Cannot remove field. No field [', &
+      write(log_scratch_space, '(4A)') 'remove_field: No field [', &
          trim(field_name), '] in field collection: ', trim(self%name)
       call log_event( log_scratch_space, LOG_LEVEL_ERROR)
     end if
@@ -382,42 +369,42 @@ subroutine remove_field(self, field_name)
     select type(listfield => loop%payload)
       type is (field_type)
         if ( trim(field_name) == trim(listfield%get_name()) ) then
-          call self%field_list%remove_item(loop)
+          call self%field_list(hash)%remove_item(loop)
           exit
         end if
       type is (integer_field_type)
         if ( trim(field_name) == trim(listfield%get_name()) ) then
-          call self%field_list%remove_item(loop)
+          call self%field_list(hash)%remove_item(loop)
           exit
         end if
       type is (r_solver_field_type)
         if ( trim(field_name) == trim(listfield%get_name()) ) then
-          call self%field_list%remove_item(loop)
+          call self%field_list(hash)%remove_item(loop)
           exit
         end if
       type is (r_tran_field_type)
         if ( trim(field_name) == trim(listfield%get_name()) ) then
-          call self%field_list%remove_item(loop)
+          call self%field_list(hash)%remove_item(loop)
           exit
         end if
       type is (field_pointer_type)
         if ( trim(field_name) == trim(listfield%field_ptr%get_name()) ) then
-          call self%field_list%remove_item(loop)
+          call self%field_list(hash)%remove_item(loop)
           exit
         end if
       type is (integer_field_pointer_type)
         if ( trim(field_name) == trim(listfield%field_ptr%get_name()) ) then
-          call self%field_list%remove_item(loop)
+          call self%field_list(hash)%remove_item(loop)
           exit
         end if
       type is (r_solver_field_pointer_type)
         if ( trim(field_name) == trim(listfield%field_ptr%get_name()) ) then
-          call self%field_list%remove_item(loop)
+          call self%field_list(hash)%remove_item(loop)
           exit
         end if
       type is (r_tran_field_pointer_type)
         if ( trim(field_name) == trim(listfield%field_ptr%get_name()) ) then
-          call self%field_list%remove_item(loop)
+          call self%field_list(hash)%remove_item(loop)
           exit
         end if
     end select
@@ -427,23 +414,72 @@ subroutine remove_field(self, field_name)
 
 end subroutine remove_field
 
-!> Access the first item from the collection
-!> @return item Pointer to the first item in the collection
-function get_first_item(self) result(item)
+!> Access the next item from the collection that follows 'start'. If start
+!> is null then the routine returns the first item from the collection.
+!> @param [in] start The point to look for the next item from.
+!> @return item Pointer to the next item in the collection.
+function get_next_item(self, start) result(item)
 
   implicit none
 
-  class(field_collection_type), intent(in) :: self
+  class(field_collection_type),         intent(in) :: self
+  type(linked_list_item_type), pointer, intent(in) :: start
 
   type(linked_list_item_type), pointer :: item
+  type(linked_list_item_type), pointer :: new_item => null()
+  character(str_def) :: name
+  integer(i_def) :: i, hash
 
-  item => self%field_list%get_head()
+  if(associated(start))then
+    ! Find the item that follows 'start'
+    new_item => start%next
+    if (.not.associated(new_item) ) then
+      ! Next item is in the following linked list. Calculate the hash of 'start'
+      select type(listfield => start%payload)
+        type is (field_type)
+          name = listfield%get_name()
+        type is (integer_field_type)
+          name = listfield%get_name()
+        type is (r_solver_field_type)
+          name = listfield%get_name()
+        type is (r_tran_field_type)
+          name = listfield%get_name()
+        type is (field_pointer_type)
+          name = listfield%field_ptr%get_name()
+        type is (integer_field_pointer_type)
+          name = listfield%field_ptr%get_name()
+        type is (r_solver_field_pointer_type)
+          name = listfield%field_ptr%get_name()
+        type is (r_tran_field_pointer_type)
+          name = listfield%field_ptr%get_name()
+      end select
+      hash = mod(sum_string(trim(name)),self%table_len)
+      ! Find next valid item - or end of collection
+      do i = hash+1, self%table_len-1
+        new_item => self%field_list(i)%get_head()
+        ! If a field is found, this is the next one - so exit the loop
+        if (associated(new_item)) then
+          exit
+        end if
+      end do
+    end if
+  else
+    ! Find the first item in the collection
+    do i = 0, self%table_len-1
+      new_item => self%field_list(i)%get_head()
+      ! If a field is found, this is the first one - so exit the loop
+      if (associated(new_item)) then
+        exit
+      end if
+    end do
+  end if
+  item => new_item
 
-end function get_first_item
+end function get_next_item
 
-!> Access a field from the collection
-!> @param [in] field_name The name of the field to be accessed
-!> @return field Pointer to the field that is extracted
+!> Access an r_def field from the collection
+!> @param [in] field_name The name of the r_def field to be accessed
+!> @return field Pointer to the r_def field that is extracted
 function get_field(self, field_name) result(field)
 
   implicit none
@@ -456,15 +492,20 @@ function get_field(self, field_name) result(field)
   ! Pointer to linked list - used for looping through the list
   type(linked_list_item_type), pointer :: loop => null()
 
+  integer(i_def) :: hash
+
+  ! Calculate the hash of the field being searched for
+  hash = mod(sum_string(trim(field_name)),self%table_len)
+
   ! start at the head of the mesh collection linked list
-  loop => self%field_list%get_head()
+  loop => self%field_list(hash)%get_head()
 
   do
     ! If list is empty or we're at the end of list and we didn't find the
     ! field, fail with an error
     if ( .not. associated(loop) ) then
-      write(log_scratch_space, '(4A)') 'No field [', trim(field_name), &
-         '] in field collection: ', trim(self%name)
+      write(log_scratch_space, '(4A)') 'get_field: No r_def field [', &
+         trim(field_name), '] in field collection: ', trim(self%name)
       call log_event( log_scratch_space, LOG_LEVEL_ERROR)
     end if
     ! otherwise search list for the name of field we want
@@ -503,8 +544,13 @@ function get_integer_field(self, field_name) result(field)
   ! Pointer to linked list - used for looping through the list
   type(linked_list_item_type), pointer :: loop => null()
 
-  ! start at the head of the mesh collection linked list
-  loop => self%field_list%get_head()
+  integer(i_def) :: hash
+
+  ! Calculate the hash of the field being searched for
+  hash = mod(sum_string(trim(field_name)),self%table_len)
+
+  ! start at the head of the field collection linked list
+  loop => self%field_list(hash)%get_head()
 
   do
     ! If list is empty or we're at the end of list and we didn't find the
@@ -536,7 +582,7 @@ function get_integer_field(self, field_name) result(field)
 end function get_integer_field
 
 !> Access an r_solver field from the collection
-!> @param [in] field_name The name of the intager field to be accessed
+!> @param [in] field_name The name of the r_solver field to be accessed
 !> @return field Pointer to the r_solver field that is extracted
 function get_r_solver_field(self, field_name) result(field)
 
@@ -550,8 +596,13 @@ function get_r_solver_field(self, field_name) result(field)
   ! Pointer to linked list - used for looping through the list
   type(linked_list_item_type), pointer :: loop => null()
 
+  integer(i_def) :: hash
+
+  ! Calculate the hash of the field being searched for
+  hash = mod(sum_string(trim(field_name)),self%table_len)
+
   ! start at the head of the mesh collection linked list
-  loop => self%field_list%get_head()
+  loop => self%field_list(hash)%get_head()
 
   do
     ! If list is empty or we're at the end of list and we didn't find the
@@ -583,7 +634,7 @@ function get_r_solver_field(self, field_name) result(field)
 end function get_r_solver_field
 
 !> Access an r_tran field from the collection
-!> @param [in] field_name The name of the intager field to be accessed
+!> @param [in] field_name The name of the r_tran field to be accessed
 !> @return field Pointer to the r_tran field that is extracted
 function get_r_tran_field(self, field_name) result(field)
 
@@ -597,8 +648,13 @@ function get_r_tran_field(self, field_name) result(field)
   ! Pointer to linked list - used for looping through the list
   type(linked_list_item_type), pointer :: loop => null()
 
+  integer(i_def) :: hash
+
+  ! Calculate the hash of the field being searched for
+  hash = mod(sum_string(trim(field_name)),self%table_len)
+
   ! start at the head of the mesh collection linked list
-  loop => self%field_list%get_head()
+  loop => self%field_list(hash)%get_head()
 
   do
     ! If list is empty or we're at the end of list and we didn't find the
@@ -610,7 +666,7 @@ function get_r_tran_field(self, field_name) result(field)
     end if
     ! otherwise search list for the name of field we want
 
-    ! 'cast' to the r_tran_field_type
+    ! 'cast' to the r_solver_field_type
     select type(listfield => loop%payload)
       type is (r_tran_field_type)
       if ( trim(field_name) == trim(listfield%get_name()) ) then
@@ -629,15 +685,19 @@ function get_r_tran_field(self, field_name) result(field)
 
 end function get_r_tran_field
 
-!> Returns the size of the field collection
+!> Returns the number of entries in the field collection
 function get_length(self) result(length)
 
   implicit none
 
   class(field_collection_type), intent(in) :: self
   integer(kind=i_def) :: length
+  integer(kind=i_def) :: i
 
-  length = self%field_list%get_length()
+  length = 0
+  do i = 0, self%table_len-1
+    length = length + self%field_list(i)%get_length()
+  end do
 
 end function get_length
 
@@ -653,31 +713,35 @@ function get_name(self) result(name)
 
 end function get_name
 
+!> Returns the length of hash table for this field collection
+function get_table_len(self) result(table_len)
+
+  implicit none
+
+  class(field_collection_type), intent(in) :: self
+  integer(i_def) :: table_len
+
+  table_len = self%table_len
+
+end function get_table_len
+
 !> DEPRECATED: Assignment operator between field_collection_type pairs.
 !> Currently, this routine generates a (hopefully) useful message, then
-!> performs a double allocate to force an error stack trace (which should be
-!> useful to the developer - tells them where they have called the deprecated
-!> routine from).
+!> forces an error.
 !>
 !> @param[out] self   field_type lhs
 !> @param[in]  source field_type rhs
 subroutine collection_copy_constructor(self, source)
 
-  use log_mod,         only : log_event, &
-                              log_scratch_space, &
-                              LOG_LEVEL_INFO
   implicit none
   class(field_collection_type), intent(inout) :: self
   type(field_collection_type), intent(in) :: source
-  integer(i_def), allocatable :: ialloc(:)
 
   write(log_scratch_space,'(A,A)')&
      '"field_collection2=field_collection1" syntax no longer supported. '// &
      'Use "call field_collection1%copy_collection(field_collection2)". '// &
      'Field collection: ', source%get_name()
-  call log_event(log_scratch_space,LOG_LEVEL_INFO )
-  allocate(ialloc(1))   ! allocate the same memory twice, to force
-  allocate(ialloc(1))   ! an error and generate a stack trace
+  call log_event( log_scratch_space, LOG_LEVEL_ERROR )
 
 end subroutine collection_copy_constructor
 
@@ -693,53 +757,62 @@ subroutine copy_collection(self, dest, name)
   character(*),      optional,  intent(in)  :: name
 
   class(linked_list_item_type), pointer :: field_item => null()
+  integer(i_def) :: i
 
-  ! Make sure the destination field collection starts with no fields
-  call dest%clear()
+  ! First clear any existing fields in the "copy-to" collection.
+  if(allocated(dest%field_list))call dest%clear()
 
   ! Create a new field collection for the destination
   if (present(name)) then
-    call dest%initialise(name)
+    call dest%initialise(name=name, table_len=self%get_table_len())
   else
-    call dest%initialise(self%get_name())
+    call dest%initialise(name=self%get_name(), table_len=self%get_table_len())
   end if
 
   ! Populate the new collection with all the items from the source
   if (self%get_length() > 0) then
-    field_item => self%field_list%get_head()
-    do while (associated(field_item))
-      select type(item => field_item%payload)
-        type is (field_type)
-          call dest%add_field(item)
-        type is (integer_field_type)
-          call dest%add_field(item)
-        type is (r_solver_field_type)
-          call dest%add_field(item)
-        type is (r_tran_field_type)
-          call dest%add_field(item)
-        type is (field_pointer_type)
-          call dest%add_field(item)
-        type is (integer_field_pointer_type)
-          call dest%add_field(item)
-        type is (r_solver_field_pointer_type)
-          call dest%add_field(item)
-        type is (r_tran_field_pointer_type)
-          call dest%add_field(item)
-      end select
-      field_item => field_item%next
+    do i=-0, self%get_table_len()-1
+      field_item => self%field_list(i)%get_head()
+      do while (associated(field_item))
+        select type(item => field_item%payload)
+          type is (field_type)
+            call dest%add_field(item)
+          type is (integer_field_type)
+            call dest%add_field(item)
+          type is (r_solver_field_type)
+            call dest%add_field(item)
+          type is (r_tran_field_type)
+            call dest%add_field(item)
+          type is (field_pointer_type)
+            call dest%add_field(item)
+          type is (integer_field_pointer_type)
+            call dest%add_field(item)
+          type is (r_solver_field_pointer_type)
+            call dest%add_field(item)
+          type is (r_tran_field_pointer_type)
+            call dest%add_field(item)
+        end select
+        field_item => field_item%next
+      end do
     end do
   end if
 
 end subroutine copy_collection
 
-!> Clears all items from the field collection linked list
+!> Clears all items from the field collection
 subroutine clear(self)
 
   implicit none
 
   class(field_collection_type), intent(inout) :: self
+  integer(i_def) :: i
 
-  call self%field_list%clear()
+  if(allocated(self%field_list))then
+    do i = 0, self%table_len-1
+      call self%field_list(i)%clear()
+    end do
+    deallocate(self%field_list)
+  end if
 
   return
 end subroutine clear
@@ -755,5 +828,19 @@ subroutine field_collection_destructor(self)
 
   return
 end subroutine field_collection_destructor
+
+!> Private function to return the sum of the character values in a string
+!> @param [in] string The string to be summed
+!> @return The sum of the character values in the string
+function sum_string(string) result(ch_sum)
+  implicit none
+  character(len=*), intent(in)   :: string
+  integer :: ch_sum
+  integer :: i
+  ch_sum = 0
+  do i = 1,len(string)
+    ch_sum = ch_sum + ichar(string(i:i))
+  end do
+end function sum_string
 
 end module field_collection_mod

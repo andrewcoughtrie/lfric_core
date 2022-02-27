@@ -645,8 +645,8 @@ module coupler_mod
    write(log_scratch_space, * ) "cpl_fields: add coupling fields to repository"
    call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
-   call depository%initialise(name='depository')
-   call prognostic_fields%initialise(name="prognostics")
+   call depository%initialise(name='depository', table_len=100)
+   call prognostic_fields%initialise(name="prognostics", table_len=100)
 
    vector_space=> function_space_collection%get_fs( twod_mesh, 0, W3 )
    !coupling fields

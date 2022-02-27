@@ -100,7 +100,7 @@ contains
           "Setting up ls field collection"
     call log_event(log_scratch_space, LOG_LEVEL_INFO)
 
-    call ls_fields%initialise(name='ls_fields')
+    call ls_fields%initialise(name='ls_fields', table_len=100)
 
     select case( ls_option )
 

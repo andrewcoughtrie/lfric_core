@@ -170,8 +170,8 @@ contains
     type(integer_field_proxy_type)      :: returned_field2_p
     type(r_solver_field_proxy_type)     :: returned_field3_p
     type(r_tran_field_proxy_type)       :: returned_field4_p
-    class(linked_list_item_type), pointer &
-                                        :: first_field_item
+    type(linked_list_item_type), pointer &
+                                        :: field_item
 
     type(field_collection_type)         :: test_field_collectionA
     type(field_collection_type)         :: test_field_collectionB
@@ -209,7 +209,8 @@ contains
 
     !----------------- Create field collection 'A' & test extracts -------------------!
     ! Create a field_collection_A and put test_field1 and test_field2 in it
-    call test_field_collectionA%initialise()
+    call test_field_collectionA%initialise(name="test_field_collectionA1", &
+                                           table_len=5)
     call test_field_collectionA%add_field(test_field1)  ! a real field
     call test_field_collectionA%add_field(test_field2)  ! an integer field
     call test_field_collectionA%add_field(test_field3)  ! an r_solver field
@@ -232,16 +233,6 @@ contains
     ! Check that test_field1 has 99.0 in the first dof
     @assertEqual(99.0_r_def, returned_field1_p%data(1), tol)
 
-    !---Check that the real field is the first field in the collection
-    first_field_item => test_field_collectionA%get_first_item()
-    select type(listfield => first_field_item%payload)
-      type is (field_type)
-        @assertTrue(associated(returned_field1,listfield))
-      class default
-        !If we've got here, there's a problem - throw an assert failure
-        @assertTrue(.false.)
-    end select
-
     !---Integer field extract
     ! Extract the integer field called 'test_field2' into returned_field2
     returned_field2 => test_field_collectionA%get_integer_field('test_field2')
@@ -249,26 +240,73 @@ contains
     ! Check that test_field2 has 33 in the first dof
     @assertEqual(33_i_def, returned_field2_p%data(1))
 
-    !---Solver_field extract
+    !---Solver field extract
     ! Extract the r_solver field called 'test_field3' into returned_field3
     returned_field3 => test_field_collectionA%get_r_solver_field('test_field3')
     returned_field3_p = returned_field3%get_proxy()
     ! Check that test_field3 has 600 in the first dof
     @assertEqual(600.0_r_solver, returned_field3_p%data(1), tol_r_solver)
 
-    !---Transport_field extract
+    !---Transport field extract
     ! Extract the r_tran field called 'test_field4' into returned_field4
     returned_field4 => test_field_collectionA%get_r_tran_field('test_field4')
     returned_field4_p = returned_field4%get_proxy()
     ! Check that test_field4 has 333 in the first dof
     @assertEqual(333.0_r_tran, returned_field4_p%data(1), tol_r_tran)
 
+    !---Check the order of the fields in the collection.
+    !   For a collection with a hash table length of 5 the fields
+    !   with the above names should be ordered as follows:
+    !   "test_field3", "test_field_4", "test_field_1", "test_field2"
+
+    !---Check that first field is the r_solver field
+    nullify(field_item)
+    field_item => test_field_collectionA%get_next_item(field_item)
+    select type(listfield => field_item%payload)
+      type is (r_solver_field_type)
+        @assertTrue(associated(returned_field3,listfield))
+      class default
+        !If we've got here, there's a problem - throw an assert failure
+        @assertFail('First field in collection [test_field_collectionA1] is not an r_solver field.')
+    end select
+
+    !---Check that the second field is the r_tran field
+    field_item => test_field_collectionA%get_next_item(field_item)
+    select type(listfield => field_item%payload)
+      type is (r_tran_field_type)
+        @assertTrue(associated(returned_field4,listfield))
+      class default
+        !If we've got here, there's a problem - throw an assert failure
+        @assertFail('Second field in collection [test_field_collectionA1] is not an r_tran field.')
+
+    !---Check that the third field is the real r_def field
+    field_item => test_field_collectionA%get_next_item(field_item)
+    select type(listfield => field_item%payload)
+      type is (field_type)
+        @assertTrue(associated(returned_field1,listfield))
+      class default
+        !If we've got here, there's a problem - throw an assert failure
+        @assertFail('Third field in collection [test_field_collectionA1] is not a real field.')
+    end select
+
+    !---Check that the final field is the integer field
+    field_item => test_field_collectionA%get_next_item(field_item)
+    select type(listfield => field_item%payload)
+      type is (integer_field_type)
+        @assertTrue(associated(returned_field2,listfield))
+      class default
+        !If we've got here, there's a problem - throw an assert failure
+        @assertFail('Final field in collection [test_field_collectionA1] is not an integer field.')
+    end select
+
+
+    end select
 
     !------------------ Check updating of fields in Collection------------------------!
 
     ! Create a second field_collection and put a reference to the field that is
     ! stored in the first field_collection into it
-    call test_field_collectionB%initialise()
+    call test_field_collectionB%initialise(name="test_field_collectionB1", table_len=5)
     field_ptr => returned_field1
     call test_field_collectionB%add_reference_to_field(field_ptr)
 
@@ -317,18 +355,18 @@ contains
 
     real(r_def), parameter :: tol = 1.0e-6_r_def
 
-    call f_collection%initialise("test_field_collectionA")
+    call f_collection%initialise("test_field_collectionA2", table_len=5)
 
     ! Assert the copy has preserved the name.
     call f_collection%copy_collection(f_collection_copy)
-    @assertEqual(f_collection_copy % get_name(), "test_field_collectionA")
+    @assertEqual(f_collection_copy % get_name(), "test_field_collectionA2")
 
     ! Create field with the name 'test_field1' and put 42.0 in the first dof.
     call test_field1%initialise( self % w0_fs, name='test_field1' )
     proxy = test_field1%get_proxy()
     proxy%data(1) = 42.0
 
-    ! Check that adding a field added to one collection doesn't get result
+    ! Check that adding a field to one collection doesn't result
     ! in it being added to the copy.
     call f_collection % add_field( test_field1 )
     @assertEqual(f_collection_copy % get_length(), 0)
@@ -389,18 +427,18 @@ contains
     type(field_collection_type)                      :: f_collection_copy
 
 
-    call f_collection%initialise("test_field_collectionA")
+    call f_collection%initialise("test_field_collectionA3", table_len=5)
 
     ! Assert the copy has preserved the name.
     call f_collection%copy_collection(f_collection_copy)
-    @assertEqual(f_collection_copy % get_name(), "test_field_collectionA")
+    @assertEqual(f_collection_copy % get_name(), "test_field_collectionA3")
 
     ! Create field with the name 'test_field1' and put 42 in the first dof.
     call test_field1%initialise( self % w0_fs, name='test_field1' )
     proxy = test_field1%get_proxy()
     proxy%data(1) = 42
 
-    ! Check that adding a field added to one collection doesn't get result
+    ! Check that adding a field to one collection doesn't result
     ! in it being added to the copy.
     call f_collection % add_field( test_field1 )
     @assertEqual(f_collection_copy % get_length(), 0)
@@ -463,18 +501,18 @@ contains
 
     real(r_solver), parameter :: tol = 1.0e-6_r_solver
 
-    call f_collection%initialise("test_field_collectionA")
+    call f_collection%initialise("test_field_collectionA4", table_len=5)
 
     ! Assert the copy has preserved the name.
     call f_collection%copy_collection(f_collection_copy)
-    @assertEqual(f_collection_copy % get_name(), "test_field_collectionA")
+    @assertEqual(f_collection_copy % get_name(), "test_field_collectionA4")
 
     ! Create field with the name 'test_field1' and put 42.0 in the first dof.
     call test_field1%initialise( self % w0_fs, name='test_field1' )
     proxy = test_field1%get_proxy()
     proxy%data(1) = 42.0_r_solver
 
-    ! Check that adding a field added to one collection doesn't get result
+    ! Check that adding a field to one collection doesn't result
     ! in it being added to the copy.
     call f_collection % add_field( test_field1 )
     @assertEqual(f_collection_copy % get_length(), 0)
@@ -547,7 +585,7 @@ contains
     proxy = test_field1%get_proxy()
     proxy%data(1) = 42.0_r_tran
 
-    ! Check that adding a field added to one collection doesn't get result
+    ! Check that adding a field to one collection doesn't result
     ! in it being added to the copy.
     call f_collection % add_field( test_field1 )
     @assertEqual(f_collection_copy % get_length(), 0)

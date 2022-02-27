@@ -104,10 +104,10 @@ contains
 #endif
 
     if (create_depository) then
-       call depository%initialise(name='depository')
-       call prognostic_fields%initialise(name="prognostics")
+       call depository%initialise(name='depository', table_len=100)
+       call prognostic_fields%initialise(name="prognostics", table_len=100)
     endif
-    call diagnostic_fields%initialise(name="diagnostics")
+    call diagnostic_fields%initialise(name="diagnostics", table_len=100)
 
     ! Create prognostic fields
     call theta%initialise( vector_space = &

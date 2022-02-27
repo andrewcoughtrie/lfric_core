@@ -67,7 +67,7 @@ module create_lbcs_mod
 
     call log_event( 'Create LBC fields', LOG_LEVEL_INFO )
 
-    call lbc_fields%initialise( name='lbc_fields' )
+    call lbc_fields%initialise( name='lbc_fields', table_len=100 )
 
     select case( lbc_option )
 

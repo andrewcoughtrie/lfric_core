@@ -103,7 +103,7 @@ contains
     write(log_scratch_space,'(A,A)') "Create ancil fields: "// &
           "Setting up ancil field collection"
     call log_event(log_scratch_space, LOG_LEVEL_INFO)
-    call ancil_fields%initialise(name='ancil_fields')
+    call ancil_fields%initialise(name='ancil_fields', table_len=100)
 
     ! Here ancil fields are set up with a call to setup_ancil_field. For ancils
     ! that are time-varying, the time-axis is passed to the setup_ancil_field

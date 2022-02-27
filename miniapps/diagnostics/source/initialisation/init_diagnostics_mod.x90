@@ -81,7 +81,7 @@ contains
         allocate(new_field)
 
         ! Create the depository
-        call model_data%depository%initialise(name = 'depository')
+        call model_data%depository%initialise(name = 'depository', table_len=100)
 
         call log_event('diagnostics: Initialising miniapp ...', LOG_LEVEL_INFO)
 

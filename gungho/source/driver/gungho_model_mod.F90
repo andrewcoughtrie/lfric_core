@@ -305,8 +305,11 @@ contains
        call cpl_fields( twod_mesh, model_data%depository, &
                         model_data%prognostic_fields )
        ! Define coupling interface
+       call model_data%cpl_snd%initialise(name="cpl_snd")
+       call model_data%cpl_rcv%initialise(name="cpl_rcv")
        call cpl_define( twod_mesh, chi, model_data%depository, &
                         model_data%cpl_snd, model_data%cpl_rcv )
+
     endif
 #endif
 

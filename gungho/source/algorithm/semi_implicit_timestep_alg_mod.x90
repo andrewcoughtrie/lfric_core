@@ -735,6 +735,8 @@ contains
 
     logical(kind=l_def) :: l_advect
 
+    call generic_fields_after_slow%initialise()
+
     if ( generic_fields%get_length() > 0 ) then
 
       call iterator%initialise(generic_fields)

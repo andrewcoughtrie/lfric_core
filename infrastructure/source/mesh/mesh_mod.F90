@@ -595,10 +595,8 @@ contains
   !> partition object has been removed from the mesh. It will be removed from
   !> the API in a future update where all API changes will be consolidated
   !> (incremental updates to the API annoy other users). If called, the function
-  !> will now produce a message in the log, but that is well hidden when
-  !> running from a suite - so I have also added a double allocated to make sure
-  !> a traceback is also written to the error log (which is more easily found
-  !> in the suite output).
+  !> will now produce a message in the log, along with a stack trace to show
+  !> where it was called from
   !>
   !> @return (null) Pointer to a partition object.
   !>
@@ -607,15 +605,11 @@ contains
     implicit none
     class(mesh_type),     target  :: self
     type(partition_type), pointer :: partition
-    integer(i_def),   allocatable :: ierr(:)
 
     partition => null()
     call log_event( &
      "Error: The function mesh%get_partition() is deprecated. Do not call it", &
-     LOG_LEVEL_INFO )
-
-    allocate(ierr(1))   ! allocate the same memory twice, to force
-    allocate(ierr(2))   ! an error and generate a stack trace
+     LOG_LEVEL_ERROR )
 
   end function get_partition
 

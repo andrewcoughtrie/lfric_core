@@ -81,7 +81,7 @@ contains
     end if
 
     ! Create the field collection
-    call fd_field_collection%initialise(name="fd_prognostics")
+    call fd_field_collection%initialise(name="fd_prognostics", table_len=100)
 
     if ( read_w2h_wind )then
        ! In this case we read in directly onto the W2H dofs

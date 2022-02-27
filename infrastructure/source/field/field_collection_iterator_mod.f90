@@ -44,8 +44,8 @@ module field_collection_iterator_mod
     integer(i_def), allocatable :: dummy_for_gnu
     !> A pointer to the field collection being iterated over
     type(field_collection_type), pointer :: collection
-    !> A pointer to the field within the collection that will be
-    !> the next to be returned
+    !> A pointer to the linked list item within the collection that will
+    !> contain the next field to be returned
     type(linked_list_item_type), pointer :: current
   contains
     procedure, public :: initialise => initialise_iter
@@ -62,8 +62,8 @@ module field_collection_iterator_mod
     integer(i_def), allocatable :: dummy_for_gnu
     !> A pointer to the field collection being iterated over
     type(field_collection_type), pointer :: collection
-    !> A pointer to the real field within the collection that will be
-    !> the next to be returned
+    !> A pointer to the linked list item within the collection that will
+    !> contain the next real field to be returned
     type(linked_list_item_type), pointer :: current
   contains
     procedure, public :: initialise => initialise_real_iter
@@ -80,8 +80,8 @@ module field_collection_iterator_mod
     integer(i_def), allocatable :: dummy_for_gnu
     !> A pointer to the field collection being iterated over
     type(field_collection_type), pointer :: collection
-    !> A pointer to the integer field within the collection that will be
-    !> the next to be returned
+    !> A pointer to the linked list item within the collection that will
+    !> contain the next integer field to be returned
     type(linked_list_item_type), pointer :: current
   contains
     procedure, public :: initialise => initialise_integer_iter
@@ -98,8 +98,8 @@ module field_collection_iterator_mod
     integer(i_def), allocatable :: dummy_for_gnu
     !> A pointer to the field collection being iterated over
     type(field_collection_type), pointer :: collection
-    !> A pointer to the r_solver field within the collection that will be
-    !> the next to be returned
+    !> A pointer to the linked list item within the collection that will
+    !> contain the next r_solver field to be returned
     type(linked_list_item_type), pointer :: current
   contains
     procedure, public :: initialise => initialise_r_solver_iter
@@ -140,7 +140,8 @@ subroutine initialise_iter(self, collection)
   self%collection => collection
 
   ! Start the iterator at the beginning of the field list.
-  self%current => self%collection%get_first_item()
+  nullify(self%current)
+  self%current => self%collection%get_next_item(self%current)
 
   if(.not.associated(self%current))then
     write(log_scratch_space, '(2A)') &
@@ -164,12 +165,13 @@ subroutine initialise_real_iter(self, collection)
   self%collection => collection
 
   ! Start the iterator at the beginning of the field list.
-  self%current => collection%get_first_item()
+  nullify(self%current)
+  self%current => self%collection%get_next_item(self%current)
 
   do
     if(.not.associated(self%current))then
       write(log_scratch_space, '(2A)') &
-         'Cannot create a real field iterator on field collection: ', &
+         'Cannot create a r_def real field iterator on field collection: ', &
           trim(self%collection%get_name())
       call log_event( log_scratch_space, LOG_LEVEL_ERROR)
     end if
@@ -181,7 +183,7 @@ subroutine initialise_real_iter(self, collection)
       type is (field_pointer_type)
         exit
     end select
-    self%current => self%current%next
+    self%current => self%collection%get_next_item(self%current)
   end do
 
 end subroutine initialise_real_iter
@@ -200,7 +202,8 @@ subroutine initialise_integer_iter(self, collection)
   self%collection => collection
 
   ! Start the iterator at the beginning of the field list.
-  self%current => collection%get_first_item()
+  nullify(self%current)
+  self%current => self%collection%get_next_item(self%current)
 
   do
     if(.not.associated(self%current))then
@@ -217,7 +220,7 @@ subroutine initialise_integer_iter(self, collection)
       type is (integer_field_pointer_type)
         exit
     end select
-    self%current => self%current%next
+    self%current => self%collection%get_next_item(self%current)
   end do
 
 end subroutine initialise_integer_iter
@@ -236,7 +239,8 @@ subroutine initialise_r_solver_iter(self, collection)
   self%collection => collection
 
   ! Start the iterator at the beginning of the field list.
-  self%current => collection%get_first_item()
+  nullify(self%current)
+  self%current => self%collection%get_next_item(self%current)
 
   do
     if(.not.associated(self%current))then
@@ -253,7 +257,7 @@ subroutine initialise_r_solver_iter(self, collection)
       type is (r_solver_field_pointer_type)
         exit
     end select
-    self%current => self%current%next
+    self%current => self%collection%get_next_item(self%current)
   end do
 
 end subroutine initialise_r_solver_iter
@@ -271,7 +275,8 @@ subroutine initialise_r_tran_iter(self, collection)
   self%collection => collection
 
   ! Start the iterator at the beginning of the field list.
-  self%current => collection%get_first_item()
+  nullify(self%current)
+  self%current => self%collection%get_next_item(self%current)
 
   do
     if(.not.associated(self%current))then
@@ -281,14 +286,14 @@ subroutine initialise_r_tran_iter(self, collection)
       call log_event( log_scratch_space, LOG_LEVEL_ERROR)
     end if
 
-    ! Make sure first field pointed to in list is an r_tran field
+    ! Make sure first field pointed to in list is an r_solver field
     select type(listfield => self%current%payload)
       type is (r_tran_field_type)
         exit
       type is (r_tran_field_pointer_type)
         exit
     end select
-    self%current => self%current%next
+    self%current => self%collection%get_next_item(self%current)
   end do
 
 end subroutine initialise_r_tran_iter
@@ -322,8 +327,8 @@ function next(self) result (field)
     type is (r_tran_field_pointer_type)
       field => listfield%field_ptr
   end select
-  ! Move the current field pointer onto the next field in the collection
-  self%current => self%current%next
+  ! Move the current item pointer onto the next field in the collection
+  self%current => self%collection%get_next_item(self%current)
 
 end function next
 
@@ -343,8 +348,9 @@ function next_real(self) result (field)
     type is (field_pointer_type)
       field => listfield%field_ptr
   end select
-  ! Move the current field pointer onto the next (real) field in the collection
-  self%current => self%current%next
+
+  ! Move the current item pointer onto the next real field in the collection
+  self%current => self%collection%get_next_item(self%current)
   do
     if(.not.associated(self%current))then
       exit
@@ -356,7 +362,7 @@ function next_real(self) result (field)
       type is (field_pointer_type)
         exit
     end select
-    self%current => self%current%next
+    self%current => self%collection%get_next_item(self%current)
   end do
 
 end function next_real
@@ -377,8 +383,9 @@ function next_integer(self) result (field)
     type is (integer_field_pointer_type)
       field => listfield%field_ptr
   end select
-  ! Move the current field pointer onto the next (integer) field in the collection
-  self%current => self%current%next
+
+  ! Move the current item pointer onto the next integer field in the collection
+  self%current => self%collection%get_next_item(self%current)
   do
     if(.not.associated(self%current))then
       exit
@@ -390,7 +397,7 @@ function next_integer(self) result (field)
       type is (integer_field_pointer_type)
         exit
     end select
-    self%current => self%current%next
+    self%current => self%collection%get_next_item(self%current)
   end do
 
 end function next_integer
@@ -412,8 +419,9 @@ function next_r_solver(self) result (field)
     type is (r_solver_field_pointer_type)
       field => listfield%field_ptr
   end select
-  ! Move the current field pointer onto the next (r_solver) field in the collection
-  self%current => self%current%next
+
+  ! Move the current item pointer onto the next r_solver field in the collection
+  self%current => self%collection%get_next_item(self%current)
   do
     if(.not.associated(self%current))then
       exit
@@ -425,7 +433,7 @@ function next_r_solver(self) result (field)
       type is (r_solver_field_pointer_type)
         exit
     end select
-    self%current => self%current%next
+    self%current => self%collection%get_next_item(self%current)
   end do
 
 end function next_r_solver
@@ -446,20 +454,21 @@ function next_r_tran(self) result (field)
     type is (r_tran_field_pointer_type)
       field => listfield%field_ptr
   end select
-  ! Move the current field pointer onto the next (r_tran) field in the collection
-  self%current => self%current%next
+
+  ! Move the current item pointer onto the next r_solver field in the collection
+  self%current => self%collection%get_next_item(self%current)
   do
     if(.not.associated(self%current))then
       exit
     end if
-    ! Make sure field pointed to in list is an r_tran field
+    ! Make sure field pointed to in list is an r_solver field
     select type(listfield => self%current%payload)
       type is (r_tran_field_type)
         exit
       type is (r_tran_field_pointer_type)
         exit
     end select
-    self%current => self%current%next
+    self%current => self%collection%get_next_item(self%current)
   end do
 
 end function next_r_tran

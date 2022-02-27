@@ -262,7 +262,7 @@ contains
 
     type(field_collection_type) :: field_collection
 
-    call field_collection%initialise(name = field_collection_name)
+    call field_collection%initialise(name = field_collection_name, table_len=100)
 
     ! Make sure field collection is empty
     if ( field_collection%get_length() == 0 ) then

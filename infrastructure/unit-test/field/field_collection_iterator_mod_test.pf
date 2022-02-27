@@ -144,7 +144,6 @@ contains
     implicit none
 
     class(field_collection_iterator_test_type), intent(inout) :: this
-    class(pure_abstract_field_type), pointer                  :: field_ptr
 
     type(field_type)                    :: test_field1
     type(integer_field_type)            :: test_field2
@@ -167,7 +166,6 @@ contains
     type(r_tran_field_proxy_type)       :: returned_field4_p
 
     type(field_collection_type)         :: test_field_collectionA
-    type(field_collection_type)         :: test_field_collectionB
 
     type(field_collection_iterator_type)           :: iter
     type(field_collection_real_iterator_type)      :: iter_real
@@ -179,8 +177,7 @@ contains
     real(r_def), parameter              :: tol = 1.0e-6_r_def
     real(r_solver), parameter           :: tol_r_solver = 1.0e-6_r_solver
     real(r_tran), parameter             :: tol_r_tran = 1.0e-6_r_tran
-    integer(i_def)                      :: length, i
-    logical(l_def)                      :: exists
+    integer(i_def)                      :: i
 
     !-------------- Create real, integer, r_solver & r_tran fields -------------------!
     ! Create a field object with the name 'test_field1'
@@ -209,7 +206,8 @@ contains
 
     !----------------- Create field collection 'A' & test extracts -------------------!
     ! Create a field_collection_A and put test_field1 and test_field2 in it
-    call test_field_collectionA%initialise()
+    call test_field_collectionA%initialise(name="test_field_collectionA5", &
+                                           table_len=5)
     call test_field_collectionA%add_field(test_field1)  ! a real field
     call test_field_collectionA%add_field(test_field2)  ! an integer field
     call test_field_collectionA%add_field(test_field3)  ! an r_solver field
@@ -218,33 +216,34 @@ contains
     !----------------------Iterating over the 'A' Collection --------------------------!
 
     ! Check we can iterate over a collection
-    ! test_field_collectionA created above should contain:
-    ! 1. A real field with a first data item of 99.0
-    ! 2. An integer field with 33 as the first data item
-    ! 3. An r_solver field with 600.0 as the first data item
-    ! 4. An r_tran field with 333.0 as the first data item
+    ! test_field_collectionA created above with table_len=5 and the given
+    ! field names, should contain fields in the following order:
+    ! 1. The r_solver field with 600.0 as the first data item
+    ! 2. The r_tran field with 333.0 as the first data item
+    ! 3. The real field with a first data item of 99.0
+    ! 4. The integer field with 33 as the first data item
     !    - so check for that:
     call iter%initialise(test_field_collectionA)
     do i=1,10
       if(.not.iter%has_next())exit
       fld=>iter%next()
       select type(fld)
-        type is (field_type)  ! r_def
-          @assertEqual(1, i)
-          returned_field1_p = fld%get_proxy()
-          @assertEqual(99.0_r_def, returned_field1_p%data(1), tol)
-        type is (integer_field_type)
-          @assertEqual(2, i)
-          returned_field2_p = fld%get_proxy()
-          @assertEqual(33_i_def, returned_field2_p%data(1))
         type is (r_solver_field_type)
-          @assertEqual(3, i)
+          @assertEqual(1, i)
           returned_field3_p = fld%get_proxy()
           @assertEqual(600_r_solver, returned_field3_p%data(1), tol_r_solver)
         type is (r_tran_field_type)
-          @assertEqual(4, i)
+          @assertEqual(2, i)
           returned_field4_p = fld%get_proxy()
           @assertEqual(333_r_tran, returned_field4_p%data(1), tol_r_tran)
+        type is (field_type)  ! r_def
+          @assertEqual(3, i)
+          returned_field1_p = fld%get_proxy()
+          @assertEqual(99.0_r_def, returned_field1_p%data(1), tol)
+        type is (integer_field_type)
+          @assertEqual(4, i)
+          returned_field2_p = fld%get_proxy()
+          @assertEqual(33_i_def, returned_field2_p%data(1))
       end select
     end do
     ! Test that there were only four items in the collection (so the iteration

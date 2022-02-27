@@ -50,7 +50,7 @@ TYPE( mesh_type ),             INTENT( IN ), POINTER :: twod_mesh
 WRITE(log_scratch_space,'(A,A)') "Create ancil fields: "// &
      "Setting up ancil field collection"
 CALL log_event(log_scratch_space, LOG_LEVEL_INFO)
-CALL ancil_fields%initialise(name='ancil_fields')
+CALL ancil_fields%initialise(name='ancil_fields', table_len=100)
 
 IF (l_land_area_fraction) THEN
   ! Surface ancils
