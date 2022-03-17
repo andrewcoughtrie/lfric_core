@@ -7,18 +7,27 @@
 
 module ffsl_vert_conservative_alg_mod
 
+  ! Constants etc.
   use constants_mod,             only: r_def
   use field_mod,                 only: field_type
   use function_space_mod,        only: function_space_type
-  use psykal_lite_mod,           only: invoke_vertical_flux_kernel
-  use subgrid_config_mod,        only: rho_approximation_constant_subgrid,     &
+  use geometric_constants_mod,   only: get_dz_w3
+  use log_mod,                   only: log_event, &
+                                       LOG_LEVEL_ERROR
+
+  ! Configuration
+  use subgrid_config_mod,        only: rho_approximation,                      &
+                                       rho_approximation_constant_subgrid,     &
                                        rho_approximation_constant_positive,    &
                                        rho_approximation_ppm_no_limiter,       &
                                        rho_approximation_ppm_positive_only,    &
                                        rho_approximation_ppm_positive_monotone
-  use subgrid_config_mod,        only: rho_approximation
-  use log_mod,                   only: log_event, LOG_LEVEL_ERROR
-  use vert_ppm_no_limiter_kernel_mod, only: vert_ppm_no_limiter_kernel_type
+
+  ! Kernels
+  use ffsl_vertical_flux_kernel_mod,  &
+                                 only: ffsl_vertical_flux_kernel_type
+  use vert_ppm_no_limiter_kernel_mod, &
+                                 only: vert_ppm_no_limiter_kernel_type
 
   implicit none
 
@@ -50,7 +59,8 @@ contains
     real(r_def),      intent(in)    :: dt
 
     type(field_type) :: a0, a1, a2
-    type(function_space_type), pointer :: w3_fs     => null()
+    type(function_space_type), pointer :: w3_fs => null()
+    type(field_type),          pointer :: dz_w3 => null()
 
     w3_fs => rho%get_function_space()
 
@@ -62,11 +72,13 @@ contains
     ! of density where rho(x) = a0 + a1*x+a2*x**2 with 0<x<1.
     select case(rho_approximation)
       case (rho_approximation_constant_subgrid)
-        call invoke( setval_X(a0, rho) )
-        call invoke( setval_c(a1, 0.0_r_def) )
-        call invoke( setval_c(a2, 0.0_r_def) )
+        call invoke( setval_X(a0, rho),       &
+                     setval_c(a1, 0.0_r_def), &
+                     setval_c(a2, 0.0_r_def) )
       case (rho_approximation_ppm_no_limiter)
-        call invoke( vert_ppm_no_limiter_kernel_type(a0,a1,a2,rho) )
+        dz_w3 => get_dz_w3(rho%get_mesh_id())
+        call invoke( vert_ppm_no_limiter_kernel_type(a0, a1, a2, rho, dz_w3) )
+        nullify( dz_w3 )
       case (rho_approximation_constant_positive, &
             rho_approximation_ppm_positive_only, &
             rho_approximation_ppm_positive_monotone)
@@ -77,7 +89,7 @@ contains
 
     ! Calculate mass flux in one-dimesion.
     ! The integral summation allows for CFL values larger than 1.0.
-    call invoke_vertical_flux_kernel(mass_flux_z,dep_pts,rho,a0,a1,a2,dt)
+    call invoke( ffsl_vertical_flux_kernel_type(mass_flux_z, dep_pts, rho, a0, a1, a2, dt) )
 
     nullify( w3_fs )
 

@@ -212,13 +212,13 @@
                      resolutions=[("C32",4050.0)],
                      env={"nrun":288,
                           "directives":{"default":{"mpi_parts":6, "wallclock":"00:20:00"}}},
-                     plotstr="slices.py ' + appDiagStemName + ' $NODAL_DATA_DIR rho:theta:tracer:m_v T000288 -1 -91 0 $PLOT_DIR",
+                     plotstr="slices.py ' + appDiagStemName + ' $NODAL_DATA_DIR rho:theta:tracer T000288 -1 -91 0 $PLOT_DIR",
                      checkkgo=False )',
     'run_application("transport", "sbr_hori_cos_phi_ffsl",
                      resolutions=[("C32",4050.0)],
                      env={"nrun":288,
                           "directives":{"default":{"mpi_parts":6, "wallclock":"00:20:00"}}},
-                     plotstr="slices.py ' + appDiagStemName + ' $NODAL_DATA_DIR rho:theta:tracer:m_v T000288 -1 -91 0 $PLOT_DIR",
+                     plotstr="slices.py ' + appDiagStemName + ' $NODAL_DATA_DIR rho:theta:tracer T000288 -1 -91 0 $PLOT_DIR",
                      checkkgo=False )'],
 'nightly': [
     'null_task_graph()' ]

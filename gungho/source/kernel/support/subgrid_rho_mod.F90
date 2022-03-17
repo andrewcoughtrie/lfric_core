@@ -10,13 +10,15 @@
 !------------------------------------------------------------------------------
 module subgrid_rho_mod
 
-use constants_mod, only: r_def, EPS
+use constants_mod, only: i_def, r_def, l_def, EPS
 
 implicit none
 
 private
 
 public :: second_order_coeffs
+public :: fourth_order_vertical_edge
+public :: ppm_output
 
 contains
 
@@ -74,6 +76,92 @@ contains
 
   end function maxmod_function
 
+  !----------------------------------------------------------------------------
+  !> @brief Calculates the vertical edge values, taking into account the height
+  !!        between layers, using a fourth-order interpolation.
+  !> @details Uses a fourth-order interpolation to find the vertical cell edge
+  !!          values of rho. The vertical grid spacing is used to compute the
+  !!          mass, and a high-order polynomial is fit through the cumulative
+  !!          mass points. This polynomial is differentiated and evaluated
+  !!          at the height of the cell edge, to give the cell edge value.
+  !!
+  !> @param[in]   rho        Density values of four cells which have the ordering
+  !!                         | 1 | 2 | 3 | 4 |
+  !> @param[in]   dz         Height of each layer, with index the same as rho
+  !> @param[in]   edge_to_do Tells routine which edge to do based on
+  !!                         cells       | 1 | 2 | 3 | 4 |
+  !!                         with edges  0   1   2   3   4
+  !> @param[out]  edge_below The edge value located below layer k
+  !!                         (layer k corresponds to cell 3 index above)
+  !> @param[in]   positive   Ensures returned estimate of rho at the cell edge is
+  !!                         positive (not yet implemented, see #1419)
+  !> @param[in]   monotone   Ensures no over or undershoots are produced
+  !!                         (not yet implemented, see #1419)
+  !----------------------------------------------------------------------------
+  subroutine fourth_order_vertical_edge(rho, dz, edge_to_do, positive, monotone, edge_below)
+
+    implicit none
+
+    real(kind=r_def),    intent(in)    :: rho(1:4)
+    real(kind=r_def),    intent(in)    :: dz(1:4)
+    integer(kind=i_def), intent(in)    :: edge_to_do
+    logical(kind=l_def), intent(in)    :: positive
+    logical(kind=l_def), intent(in)    :: monotone
+    real(kind=r_def),    intent(out)   :: edge_below
+
+    real(kind=r_def) :: z(0:4), dzs(1:4), dzsum, edge_height
+    real(kind=r_def) :: dmass(1:4)
+    real(kind=r_def) :: cmass(0:4)
+    real(kind=r_def) :: poly_mass(1:4)
+    real(kind=r_def) :: dl_dz(1:4)
+
+    integer(kind=i_def) :: i
+
+    ! Get scaling value
+    dzsum = sum(dz)
+
+    ! Get scaled dz
+    dzs = dz / dzsum
+
+    ! Get heights of edges starting at 0 for lowest edge in stencil
+    z(0) = 0.0_r_def
+    do i = 1, 4
+      z(i) = z(i-1) + dzs(i)
+    end do
+
+    ! Get edge height to interpolate rho to
+    edge_height = z(edge_to_do)
+
+    ! Get mass scaled by height
+    dmass = rho * dzs
+
+    ! Get cumulative mass
+    cmass(0) = 0.0_r_def
+    do i = 1, 4
+      cmass(i) = cmass(i-1) + dmass(i)
+    end do
+
+    ! Get cumulative mass divided by denominator of polynomial
+    poly_mass(1) = cmass(1)/((z(1))*(z(1)-z(2))*(z(1)-z(3))*(z(1)-z(4)))
+    poly_mass(2) = cmass(2)/((z(2))*(z(2)-z(1))*(z(2)-z(3))*(z(2)-z(4)))
+    poly_mass(3) = cmass(3)/((z(3))*(z(3)-z(1))*(z(3)-z(2))*(z(3)-z(4)))
+    poly_mass(4) = cmass(4)/((z(4))*(z(4)-z(1))*(z(4)-z(2))*(z(4)-z(3)))
+
+    ! Calculate derivative of numerator of polynomial at edge height
+    dl_dz    = 4.0_r_def*edge_height**3
+    dl_dz(1) = dl_dz(1) - 3.0_r_def*(z(2)+z(3)+z(4))*edge_height**2 &
+               + 2.0_r_def*(z(3)*z(4) + z(2)*z(3) + z(2)*z(4))*edge_height - z(2)*z(3)*z(4)
+    dl_dz(2) = dl_dz(2) - 3.0_r_def*(z(1)+z(3)+z(4))*edge_height**2 &
+               + 2.0_r_def*(z(3)*z(4) + z(1)*z(3) + z(1)*z(4))*edge_height - z(1)*z(3)*z(4)
+    dl_dz(3) = dl_dz(3) - 3.0_r_def*(z(1)+z(2)+z(4))*edge_height**2 &
+               + 2.0_r_def*(z(2)*z(4) + z(1)*z(2) + z(1)*z(4))*edge_height - z(1)*z(2)*z(4)
+    dl_dz(4) = dl_dz(4) - 3.0_r_def*(z(1)+z(2)+z(3))*edge_height**2 &
+               + 2.0_r_def*(z(2)*z(3) + z(1)*z(2) + z(1)*z(3))*edge_height - z(1)*z(2)*z(3)
+
+    ! Calculate value of edge below layer k
+    edge_below = sum( poly_mass * dl_dz )
+
+  end subroutine fourth_order_vertical_edge
 
   !----------------------------------------------------------------------------
   !> @brief  Returns the coefficients,a0,a1,a2 which are a quadratic

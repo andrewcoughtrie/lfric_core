@@ -25,6 +25,7 @@ module vert_ppm_no_limiter_kernel_mod_test
   type, extends(AbstractTestParameter) :: rho_parameter_type
     integer(i_native) :: rho_approximation
     real(r_def)       :: rho(5)
+    real(r_def)       :: dz(5)
     real(r_def)       :: answer_level0(1:3)
     real(r_def)       :: answer_level1(1:3)
     real(r_def)       :: answer_level2(1:3)
@@ -39,6 +40,7 @@ module vert_ppm_no_limiter_kernel_mod_test
     private
     integer(i_native) :: rho_approximation
     real(r_def)       :: rho(5)
+    real(r_def)       :: dz(5)
     real(r_def)       :: answer_level0(1:3)
     real(r_def)       :: answer_level1(1:3)
     real(r_def)       :: answer_level2(1:3)
@@ -61,6 +63,7 @@ contains
 
     vert_ppm_no_limiter_test%rho_approximation = testParameter%rho_approximation
     vert_ppm_no_limiter_test%rho               = testParameter%rho
+    vert_ppm_no_limiter_test%dz                = testParameter%dz
     vert_ppm_no_limiter_test%answer_level0     = testParameter%answer_level0
     vert_ppm_no_limiter_test%answer_level1     = testParameter%answer_level1
     vert_ppm_no_limiter_test%answer_level2     = testParameter%answer_level2
@@ -100,20 +103,20 @@ contains
     parameters &
      = [ rho_parameter_type( rho_approximation_ppm_no_limiter,                 &
        (/ 1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def, 5.0_r_def /),            &
-                             (/ 1.0_r_def, 0.0_r_def, 0.0_r_def /),            &
-                             (/ 2.0_r_def, 0.0_r_def, 0.0_r_def /),            &
+       (/ 1.0_r_def, 1.0_r_def, 1.0_r_def, 1.0_r_def, 1.0_r_def /),            &
+                             (/ 0.5_r_def, 1.0_r_def, 0.0_r_def /),            &
+                             (/ 1.5_r_def, 1.0_r_def, 0.0_r_def /),            &
                              (/ 2.5_r_def, 1.0_r_def, 0.0_r_def /),            &
-                             (/ 4.0_r_def, 0.0_r_def, 0.0_r_def /),            &
-                             (/ 5.0_r_def, 0.0_r_def, 0.0_r_def /) ),          &
+                             (/ 3.5_r_def, 1.0_r_def, 0.0_r_def /),            &
+                             (/ 4.5_r_def, 1.0_r_def, 0.0_r_def /) ),          &
          rho_parameter_type( rho_approximation_ppm_no_limiter,                 &
-           (/ 10.0_r_def+5.0_r_def/6.0_r_def, 9.0_r_def+5.0_r_def/6.0_r_def,   &
-              10.0_r_def+5.0_r_def/6.0_r_def, 13.0_r_def+5.0_r_def/6.0_r_def,  &
-              18.0_r_def+5.0_r_def/6.0_r_def /),                               &
-           (/ 10.0_r_def+5.0_r_def/6.0_r_def, 0.0_r_def, 0.0_r_def /),         &
-           (/ 9.0_r_def+5.0_r_def/6.0_r_def, 0.0_r_def, 0.0_r_def /),          &
-           (/ 10.0_r_def, 1.0_r_def, 1.0_r_def /),                             &
-           (/ 13.0_r_def+5.0_r_def/6.0_r_def, 0.0_r_def, 0.0_r_def /),         &
-           (/ 18.0_r_def+5.0_r_def/6.0_r_def, 0.0_r_def, 0.0_r_def /) ) ]
+           (/  1.0_r_def,  4.0_r_def, 9.0_r_def, 16.0_r_def, 25.0_r_def /),    &
+           (/  1.0_r_def,  2.0_r_def, 3.0_r_def,  4.0_r_def,  5.0_r_def /),    &
+           (/  0.0_r_def,  2.0_r_def, 0.0_r_def /),                            &
+           (/  2.0_r_def,  4.0_r_def, 0.0_r_def /),                            &
+           (/  6.0_r_def,  6.0_r_def, 0.0_r_def /),                            &
+           (/ 12.0_r_def,  8.0_r_def, 0.0_r_def /),                            &
+           (/ 20.0_r_def, 10.0_r_def, 0.0_r_def /) ) ]
 
   end function getParameters
 
@@ -145,6 +148,7 @@ contains
                                    a1,                      &
                                    a2,                      &
                                    this%rho,                &
+                                   this%dz,                 &
                                    ndf_w3,                  &
                                    undf_w3,                 &
                                    map_w3                   )
@@ -152,7 +156,8 @@ contains
     if ( r_def == real64 ) then
       use_tol = tol
     else
-      use_tol = 10.0_r_def*spacing( maxval( (/ a0, a1, a2 /) ) )
+      ! Increase tolerance due to normalising dz in vert_ppm code
+      use_tol = 1000.0_r_def*spacing( maxval( (/ a0, a1, a2 /) ) )
     endif
 
     @assertEqual( this%answer_level0(1), a0(1), use_tol)

@@ -48,6 +48,7 @@ module geometric_constants_mod
   use calc_dA_at_w2_kernel_mod,           only: calc_dA_at_w2_kernel_type
   use compute_latlon_kernel_mod,          only: compute_latlon_kernel_type
   use get_height_kernel_mod,              only: get_height_kernel_type
+  use get_dz_w3_kernel_mod,               only: get_dz_w3_kernel_type
   use psykal_lite_mod,                    only: invoke_mpi_calc_cell_orientation
 
   implicit none
@@ -70,6 +71,7 @@ module geometric_constants_mod
   type(field_type), allocatable, target :: height_w2_list(:)
   type(field_type), allocatable, target :: height_w3_list(:)
   type(field_type), allocatable, target :: height_wth_list(:)
+  type(field_type), allocatable, target :: dz_w3_list(:)
   type(field_type), allocatable, target :: lat_w3_list(:)
   type(field_type), allocatable, target :: long_w3_list(:)
 
@@ -82,6 +84,7 @@ module geometric_constants_mod
   public :: get_cell_orientation
   public :: get_dA_at_w2
   public :: get_height
+  public :: get_dz_w3
   public :: get_latitude
   public :: get_longitude
 
@@ -133,6 +136,7 @@ contains
     allocate(height_w2_list(num_meshes))
     allocate(height_w3_list(num_meshes))
     allocate(height_wth_list(num_meshes))
+    allocate(dz_w3_list(num_meshes))
     allocate(dA_at_w2_list(num_meshes))
     allocate(long_w3_list(num_meshes))
     allocate(lat_w3_list(num_meshes))
@@ -215,6 +219,15 @@ contains
                      get_height_kernel_type( height_wth_list(i), &
                                              chi_in(:,i),        &
                                              scaled_radius )     )
+      end if
+
+      ! ======================= Calculate dz for w3 ===========================!
+      ! Calculate dz at W3 using the difference of the heights at vertical W2 dofs
+
+      if ( label_list(i) == primary_mesh_label .or. &
+           label_list(i) == shifted_mesh_label) then
+        call dz_w3_list(i)%initialise( vector_space = w3_k0_fs )
+        call invoke( get_dz_w3_kernel_type( dz_w3_list(i), height_w2_list(i)) )
       end if
 
       ! ================= Compute latitude and longitude maps =================!
@@ -357,6 +370,20 @@ contains
 
   end function get_height
 
+  !> @brief Returns a pointer to the delta z at W3 field.
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The dz at W3 field
+  function get_dz_w3(mesh_id) result(dz_w3)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(field_type),       pointer :: dz_w3
+    integer(kind=i_def)             :: mesh_index
+
+    mesh_index = find_mesh_index(mesh_id)
+    dz_w3 => dz_w3_list(mesh_index)
+
+  end function get_dz_w3
+
   !> @brief Returns a pointer to the latitude map
   !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The latitude field array
@@ -404,6 +431,7 @@ contains
     if (allocated(height_w3_list)) deallocate(height_w3_list)
     if (allocated(height_w2_list)) deallocate(height_w2_list)
     if (allocated(height_w1_list)) deallocate(height_w1_list)
+    if (allocated(dz_w3_list)) deallocate(dz_w3_list)
     if (allocated(cell_orientation_list)) deallocate(cell_orientation_list)
     if (allocated(panel_id_list)) deallocate(panel_id_list)
     if (allocated(chi_list)) deallocate(chi_list)
