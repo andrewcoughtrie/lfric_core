@@ -256,6 +256,12 @@
 "all"                    : ["standard",
                             "integration",],
 
+"spice"                  : ["integration-spice",
+                            "skeleton-spice",
+                            "scintelapi-spice",
+                            "lfric2um-spice",
+                            "um2lfric-spice",],
+
 "developer"              : ["standard-developer",
                             "integration-spice-safe",],
 
