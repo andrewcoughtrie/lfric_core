@@ -101,7 +101,7 @@ contains
 
     call halo_calls%counter('section_2')
 
-    call halo_calls%output_counters(COUNTER_UNIT)
+    call halo_calls%output_counters(opt_unit=COUNTER_UNIT)
 
     rewind( COUNTER_UNIT )
     read(COUNTER_UNIT,'(A47)')found_str1

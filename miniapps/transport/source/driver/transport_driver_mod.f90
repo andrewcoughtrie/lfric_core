@@ -29,7 +29,8 @@ module transport_driver_mod
                                               nodal_output_on_w3,              &
                                               write_diag,                      &
                                               use_xios_io,                     &
-                                              subroutine_timers
+                                              subroutine_timers,               &
+                                              timer_output_path
   use lfric_xios_io_mod,                only: initialise_xios
   use lfric_xios_clock_mod,             only: lfric_xios_clock_type
   use local_mesh_mod,                   only: local_mesh_type
@@ -185,7 +186,7 @@ contains
     !-------------------------------------------------------------------------
     call log_event( 'Initialising '//program_name//' ...', LOG_LEVEL_ALWAYS )
     if ( subroutine_timers ) then
-      call init_timer()
+      call init_timer(timer_output_path)
       call timer( program_name )
     end if
 

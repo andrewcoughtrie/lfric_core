@@ -45,7 +45,8 @@ module io_dev_model_mod
   ! Configuration
   use configuration_mod,          only : final_configuration
   use derived_config_mod,         only : set_derived_config
-  use io_config_mod,              only : use_xios_io, subroutine_timers
+  use io_config_mod,              only : use_xios_io, subroutine_timers, &
+                                         timer_output_path
   use time_config_mod,            only : timestep_end, timestep_start
   use timestepping_config_mod,    only : dt, spinup_period
   ! IO_Dev driver modules
@@ -170,7 +171,7 @@ contains
 
     ! Initialise timer
     if ( subroutine_timers ) then
-      call init_timer()
+      call init_timer(timer_output_path)
       call timer(program_name)
     end if
 

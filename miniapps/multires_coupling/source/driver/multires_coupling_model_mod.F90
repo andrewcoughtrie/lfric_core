@@ -44,7 +44,9 @@ module multires_coupling_model_mod
                                          subroutine_counters,     &
                                          use_xios_io,             &
                                          write_conservation_diag, &
-                                         write_minmax_tseries
+                                         write_minmax_tseries,    &
+                                         timer_output_path,       &
+                                         counter_output_suffix
   use io_context_mod,             only : io_context_type
   use lfric_xios_context_mod,     only : filelist_populator
   use lfric_xios_io_mod,          only : initialise_xios
@@ -247,7 +249,7 @@ contains
     ! Initialise timers and counters
     !-------------------------------------------------------------------------
     if ( subroutine_timers ) then
-      call init_timer()
+      call init_timer(timer_output_path)
       call timer(program_name)
     end if
 
@@ -549,7 +551,7 @@ contains
 
     if ( subroutine_counters ) then
       call halo_calls%counter(program_name)
-      call halo_calls%output_counters()
+      call halo_calls%output_counters(counter_output_suffix)
     end if
 
     !-------------------------------------------------------------------------

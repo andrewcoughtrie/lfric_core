@@ -108,7 +108,9 @@
   diagnostic_frequency      = 10
   nodal_output_on_w3        = .false.
   subroutine_timers         = .true.
+  timer_output_path         = 'timer.txt'
   subroutine_counters       = .true.
+  counter_output_suffix     = 'counter.txt'
   write_minmax_tseries      = .false.
   checkpoint_read           = .false.
   checkpoint_write          = .false.

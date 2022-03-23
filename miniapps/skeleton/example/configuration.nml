@@ -35,7 +35,9 @@ coord_system='alphabetaz'
   write_diag                = .true.
   diagnostic_frequency      = 1
   subroutine_timers         = .false.
+  timer_output_path         = 'timer.txt'
   subroutine_counters       = .false.
+  counter_output_suffix     = 'counter.txt'
   checkpoint_read           = .false.
   checkpoint_write          = .false.
 /

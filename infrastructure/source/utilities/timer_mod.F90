@@ -5,12 +5,15 @@
 !-----------------------------------------------------------------------------
 !> @brief A Simple subroutine timer based upon calls to cpu time
 module timer_mod
-   use constants_mod,   only: i_def, str_def, i_long, r_double
+   use constants_mod, only: i_def, str_def, str_max_filename, &
+                            i_long, r_double, cmdi
 
    implicit none
 
    private
 
+   character(str_max_filename), parameter      :: &
+                                              default_timer_path = "timer.txt"
    integer(i_def),        parameter            :: num_subs       = 300
    integer(i_def)                              :: num_tim_in_use = 0
    character(len=str_def)                      :: routine_name(num_subs)
@@ -22,9 +25,10 @@ module timer_mod
    integer(i_long),       dimension(num_subs)  :: num_calls
    logical,               dimension(num_subs)  :: start_stop
 
-   ! file unit for timer.txt. Defaults to 9.
-   integer :: timer_file_unit = 9
-   real(r_double)     :: clock_rate
+   ! File parameters for timer output
+   character(str_max_filename) :: timer_path
+   integer                     :: timer_file_unit = 9
+   real(r_double)              :: clock_rate
 
    public  :: timer, init_timer
    public  :: output_timer
@@ -40,24 +44,39 @@ contains
 
 !=============================================================================!
 !> @brief initialize system clock-related variables
-  subroutine init_timer()
+!> @param[in] timer_path  Path to the output file for the timer
+  subroutine init_timer(timer_output_path)
 
-     use log_mod,    only: log_event,         &
-                           log_scratch_space, &
-                           LOG_LEVEL_DEBUG
+    use log_mod,    only: log_event,         &
+                          log_scratch_space, &
+                          LOG_LEVEL_DEBUG
 
-     implicit none
+    implicit none
 
-     integer(i_long) :: count_rate
+    character(*), optional, intent(in) :: timer_output_path
 
-     ! Get the number of clock ticks per unit time from system_clock
-     call system_clock(count_rate=count_rate)
-     clock_rate = real(count_rate, r_double)
+    integer(i_long) :: count_rate
 
-     ! Only need to output this for debugging purposes
-     write(log_scratch_space,'(A,I0)') "system_clock rate for timers: ", count_rate
-     call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
-   end subroutine init_timer
+    ! Set timer path
+    if (present(timer_output_path)) then
+      if( timer_output_path == cmdi )then
+        timer_path = default_timer_path
+      else
+        timer_path = timer_output_path
+      end if
+    else
+      timer_path = default_timer_path
+    end if
+
+    ! Get the number of clock ticks per unit time from system_clock
+    call system_clock(count_rate=count_rate)
+    clock_rate = real(count_rate, r_double)
+
+    ! Only need to output this for debugging purposes
+    write(log_scratch_space,'(A,I0)') "system_clock rate for timers: ", count_rate
+    call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+
+  end subroutine init_timer
 
 !=============================================================================!
 !> @brief start/stop recording the runtime of a give section
@@ -174,7 +193,7 @@ contains
 
      if ( get_comm_rank() == 0 ) then
        timer_file_unit = claim_io_unit()
-       open( timer_file_unit, file='timer.txt', status="replace", iostat=stat)
+       open( timer_file_unit, file=trim(timer_path), status="replace", iostat=stat)
        if (stat /= 0) then
          call log_event( "Unable to open timer file", LOG_LEVEL_ERROR )
        end if

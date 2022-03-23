@@ -36,7 +36,8 @@ module gravity_wave_driver_mod
                                             diagnostic_frequency,  &
                                             use_xios_io,           &
                                             nodal_output_on_w3,    &
-                                            subroutine_timers
+                                            subroutine_timers,     &
+                                            timer_output_path
   use io_context_mod,                 only: io_context_type
   use runtime_constants_mod,          only: create_runtime_constants
   use checksum_alg_mod,               only : checksum_alg
@@ -111,7 +112,7 @@ contains
   endif
 
   if ( subroutine_timers ) then
-    call init_timer()
+    call init_timer(timer_output_path)
     call timer(program_name)
   end if
 

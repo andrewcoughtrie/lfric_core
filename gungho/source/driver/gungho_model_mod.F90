@@ -43,7 +43,9 @@ module gungho_model_mod
                                          use_xios_io,             &
                                          write_conservation_diag, &
                                          write_dump,              &
-                                         write_minmax_tseries
+                                         write_minmax_tseries,    &
+                                         timer_output_path,       &
+                                         counter_output_suffix
   use io_context_mod,             only : io_context_type
   use lfric_xios_clock_mod,       only : lfric_xios_clock_type
   use lfric_xios_context_mod,     only : lfric_xios_context_type, &
@@ -251,7 +253,7 @@ contains
     ! Initialise timers and counters
     !-------------------------------------------------------------------------
     if ( subroutine_timers ) then
-      call init_timer()
+      call init_timer(timer_output_path)
       call timer(program_name)
     end if
 
@@ -529,7 +531,7 @@ contains
 
     if ( subroutine_counters ) then
       call halo_calls%counter(program_name)
-      call halo_calls%output_counters()
+      call halo_calls%output_counters(counter_output_suffix)
     end if
 
     !-------------------------------------------------------------------------

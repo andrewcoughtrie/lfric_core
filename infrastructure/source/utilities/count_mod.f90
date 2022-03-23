@@ -8,12 +8,15 @@
 
 module count_mod
 
-  use constants_mod,      only: i_def, i_native, str_def
+  use constants_mod,      only: i_def, i_native, str_def, str_max_filename, &
+                                cmdi
 
   implicit none
   private
 
   integer(i_native), parameter :: num_counters = 100
+  character(str_max_filename), parameter  :: &
+                                         default_counter_suffix = "counter.txt"
 
   type, public :: count_type
     private
@@ -108,7 +111,7 @@ contains
   !> @brief write out timer information to file
   !> @param in opt_unit (optional) optional unit number to which the output
   !>                               should be written
-  subroutine output_counters(self, opt_unit)
+  subroutine output_counters(self, opt_suffix, opt_unit)
     use mpi_mod, only: get_comm_rank
     use log_mod,    only: log_event,         &
                           LOG_LEVEL_ERROR,   &
@@ -117,11 +120,13 @@ contains
     use io_utility_mod, only: claim_io_unit, release_io_unit
     implicit none
     class(count_type),           intent(inout) :: self
+    character(*),      optional, intent(in)    :: opt_suffix
     integer(i_native), optional, intent(in)    :: opt_unit
 
+    character(str_max_filename) :: suffix
     integer(i_native)    :: k, unit_no, stat
 
-    ! check all timers are closed
+    ! Check all timers are closed
     do k = 1, self%num_counters_in_use
       if( self%start_stop(k) ) then
         write( log_scratch_space, '(A,A,A)') &
@@ -136,12 +141,20 @@ contains
         unit_no=opt_unit
       else
         unit_no=claim_io_unit()
-        open( unit_no, file=trim(self%name)//'_counter.txt', status="replace", iostat=stat)
+        if (present(opt_suffix)) then
+          if( opt_suffix == cmdi )then
+            suffix = default_counter_suffix
+          else
+            suffix = opt_suffix
+          end if
+        else
+          suffix = default_counter_suffix
+        end if
+        open( unit_no, file=trim(self%name)//'_'//trim(suffix), status="replace", iostat=stat)
         if (stat /= 0) then
           call log_event( "Unable to open counter file", LOG_LEVEL_ERROR )
         end if
       end if
-
       ! Write out timer information in wiki formatted table
       write(unit_no,'(A)')  &
       '||=  Section name =||= Count within section =||'
@@ -158,12 +171,13 @@ contains
   end subroutine output_counters
 
 !=============================================================================!
-   !> @brief increments the overall counter
+  !> @brief increments the overall counter
   subroutine counter_inc(self)
     implicit none
     class(count_type), target, intent(inout)  :: self
     self%overall_counter = self%overall_counter + 1
   end subroutine counter_inc
+
 !=============================================================================!
 
 end module count_mod
