@@ -162,7 +162,7 @@ contains
 
   subroutine um_physics_init(ncells)
 
-    ! UM modules containing things that need setting
+    ! UM modules containing things that need setting and setup routines
     use bl_option_mod, only: i_bl_vn, sbl_op, ritrans,                     &
          cbl_op, lambda_min_nml, local_fa, keep_ri_fa,                     &
          sg_orog_mixing, fric_heating, idyndiag,                           &
@@ -254,6 +254,9 @@ contains
     use turb_diff_mod, only: l_subfilter_horiz, l_subfilter_vert,        &
          mix_factor, turb_startlev_vert, turb_endlev_vert, l_leonard_term
     use ukca_mode_setup, only: ukca_mode_sussbcocdu_7mode
+    use ukca_option_mod, only: l_ukca, l_ukca_plume_scav, mode_aitsol_cvscav
+    use ukca_scavenging_mod, only: ukca_mode_scavcoeff
+
 
     implicit none
 
@@ -587,6 +590,21 @@ contains
 
     ! Check the contents of the convection parameters module
     call check_run_convection()
+
+    ! ----------------------------------------------------------------
+    ! UM convection scheme settings for plume scavenging of UKCA 
+    ! aerosol tracers - contained in UM module ukca_option_mod
+    ! ----------------------------------------------------------------
+
+    if ( aerosol == aerosol_um .and. glomap_mode == glomap_mode_ukca ) then
+      l_ukca = .true.
+      l_ukca_plume_scav = .true.
+      if (l_ukca_plume_scav) then
+        mode_aitsol_cvscav = 0.5    ! Plume scavenging fraction for soluble
+                                    ! Aitken mode aerosol
+        call ukca_mode_scavcoeff()
+      end if
+    end if
 
     ! ----------------------------------------------------------------
     ! UM cloud scheme settings - contained in UM module cloud_inputs_mod

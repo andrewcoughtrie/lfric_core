@@ -79,6 +79,8 @@ contains
   !> @param[in,out] surface_fields      Fields for surface scheme
   !> @param[in,out] soil_fields         Fields for soil hydrology scheme
   !> @param[in,out] snow_fields         Fields for snow scheme
+  !> @param[in,out] chemistry_fields    Fields for chemistry scheme
+  !> @param[in,out] aerosol_fields      Fields for aerosol scheme
   !> @param[in]     outer               Outer loop counter
   !> @param[in]     clock               The clock object
   !> @param[in]     dt                  The model timestep length
@@ -89,6 +91,7 @@ contains
                             microphysics_fields, orography_fields,             &
                             turbulence_fields, convection_fields, cloud_fields,&
                             surface_fields, soil_fields, snow_fields,          &
+                            chemistry_fields, aerosol_fields,                  &
                             outer, clock, dt, rho_guess)
 
     implicit none
@@ -113,6 +116,8 @@ contains
     type( field_collection_type ), intent(inout) :: surface_fields
     type( field_collection_type ), intent(inout) :: soil_fields
     type( field_collection_type ), intent(inout) :: snow_fields
+    type( field_collection_type ), intent(inout) :: chemistry_fields
+    type( field_collection_type ), intent(inout) :: aerosol_fields
 
     ! scalars
     integer(kind=i_def), intent(in) :: outer
@@ -177,7 +182,8 @@ contains
         ! Call the UM Gregory Rowntree convection scheme
         call conv_gr_alg(mr, rho, exner, derived_fields,                  &
                          turbulence_fields, convection_fields,            &
-                         cloud_fields, surface_fields, outer)
+                         cloud_fields, surface_fields, chemistry_fields,  &
+                         aerosol_fields, outer)
       end if
 
       if ( cloud == cloud_um .and. scheme == scheme_pc2 ) then

@@ -433,7 +433,8 @@ contains
                         microphysics_fields, orography_fields,                 &
                         turbulence_fields, convection_fields, cloud_fields,    &
                         surface_fields, soil_fields, snow_fields,              &
-                        aerosol_fields, clock, dt, mesh, twod_mesh )
+                        chemistry_fields, aerosol_fields, clock, dt,           &
+                        mesh, twod_mesh )
       call invoke(name="update_from_slow_physics",                             &
                   inc_X_plus_Y(state_after_slow(igh_t), dtheta),               &
                   inc_X_plus_Y(state_after_slow(igh_u), du)                    &
@@ -503,6 +504,7 @@ contains
                           orography_fields, turbulence_fields,                 &
                           convection_fields, cloud_fields,                     &
                           surface_fields, soil_fields, snow_fields,            &
+                          chemistry_fields, aerosol_fields,                    &
                           outer, clock, dt, rho_guess)
 
         if (use_wavedynamics) then

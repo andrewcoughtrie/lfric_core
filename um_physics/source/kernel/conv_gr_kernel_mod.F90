@@ -32,7 +32,7 @@ module conv_gr_kernel_mod
   !>
   type, public, extends(kernel_type) :: conv_gr_kernel_type
     private
-    type(arg_type) :: meta_args(92) = (/                                          &
+    type(arg_type) :: meta_args(125) = (/                                         &
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                                &! outer
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! rho_in_w3
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! rho_in_wth
@@ -89,6 +89,39 @@ module conv_gr_kernel_mod
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! dcfl_conv
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! dcff_conv
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! dbcf_conv
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! h2o2
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! dms 
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! so2
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! h2so4 
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! dmso 
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! monoterpene 
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! secondary_organic 
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! n_nuc_sol
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! nuc_sol_su
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! nuc_sol_om
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! n_ait_sol
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! ait_sol_su
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! ait_sol_bc
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! ait_sol_om
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! n_acc_sol
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! acc_sol_su
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! acc_sol_bc
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! acc_sol_om
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! acc_sol_ss
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! acc_sol_du
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! n_cor_sol
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! cor_sol_su
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! cor_sol_bc
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! cor_sol_om
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! cor_sol_ss
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! cor_sol_du
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! n_ait_ins
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! ait_ins_bc
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! ait_ins_om
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! n_acc_ins 
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! acc_ins_du
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! n_cor_ins
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! cor_ins_du
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! deep_in_col
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! shallow_in_col
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! mid_in_col
@@ -196,6 +229,39 @@ contains
   !> @param[in,out] dcfl_conv            Increment to liquid cloud fraction from convection
   !> @param[in,out] dcff_conv            Increment to ice cloud fraction from convection
   !> @param[in,out] dbcf_conv            Increment to bulk cloud fraction from convection
+  !> @param[in,out] h2o2                 Hydrogen peroxide m.m.r.
+  !> @param[in,out] dms                  Dimethyl sulfide m.m.r.
+  !> @param[in,out] so2                  Sulfur dioxide m.m.r.      
+  !> @param[in,out] h2so4                Sulfuric acid m.m.r.           
+  !> @param[in,out] dmso                 Dimethyl sulfoxide m.m.r.         
+  !> @param[in,out] monoterpene          Monoterpene m.m.r.         
+  !> @param[in,out] secondary organic    Secondary organic m.m.r.           
+  !> @param[in,out] n_nuc_sol            Aerosol field: n.m.r. of soluble nucleation mode
+  !> @param[in,out] nuc_sol_su           Aerosol field: m.m.r. of H2SO4 in soluble nucleation mode
+  !> @param[in,out] nuc_sol_om           Aerosol field: m.m.r. of organic matter in soluble nucleation mode
+  !> @param[in,out] n_ait_sol            Aerosol field: n.m.r. of soluble Aitken mode
+  !> @param[in,out] ait_sol_su           Aerosol field: m.m.r. of H2SO4 in soluble Aitken mode
+  !> @param[in,out] ait_sol_bc           Aerosol field: m.m.r. of black carbon in soluble Aitken mode
+  !> @param[in,out] ait_sol_om           Aerosol field: m.m.r. of organic matter in soluble Aitken mode
+  !> @param[in,out] n_acc_sol            Aerosol field: n.m.r. of soluble accumulation mode
+  !> @param[in,out] acc_sol_su           Aerosol field: m.m.r. of H2SO4 in soluble accumulation mode
+  !> @param[in,out] acc_sol_bc           Aerosol field: m.m.r. of black carbon in soluble accumulation mode
+  !> @param[in,out] acc_sol_om           Aerosol field: m.m.r. of organic matter in soluble accumulation mode
+  !> @param[in,out] acc_sol_ss           Aerosol field: m.m.r. of sea salt in soluble accumulation mode
+  !> @param[in,out] acc_sol_du           Aerosol field: m.m.r. of dust in soluble accumulation mode
+  !> @param[in,out] n_cor_sol            Aerosol field: n.m.r. of soluble coarse mode
+  !> @param[in,out] cor_sol_su           Aerosol field: m.m.r. of H2SO4 in soluble coarse mode
+  !> @param[in,out] cor_sol_bc           Aerosol field: m.m.r. of black carbon in soluble coarse mode
+  !> @param[in,out] cor_sol_om           Aerosol field: m.m.r. of organic matter in soluble coarse mode
+  !> @param[in,out] cor_sol_ss           Aerosol field: m.m.r. of sea salt in soluble coarse mode
+  !> @param[in,out] cor_sol_du           Aerosol field: m.m.r. of dust in soluble coarse mode
+  !> @param[in,out] n_ait_ins            Aerosol field: n.m.r. of insoluble Aitken mode
+  !> @param[in,out] ait_ins_bc           Aerosol field: m.m.r. of black carbon in insoluble Aitken mode
+  !> @param[in,out] ait_ins_om           Aerosol field: m.m.r. of organic matter in insoluble Aitken mode
+  !> @param[in,out] n_acc_ins            Aerosol field: n.m.r. of insoluble accumulation mode
+  !> @param[in,out] acc_ins_du           Aerosol field: m.m.r. of dust in insoluble accumulation mode
+  !> @param[in,out] n_cor_ins            Aerosol field: n.m.r. of insoluble coarse mode
+  !> @param[in,out] cor_ins_du           Aerosol field: m.m.r. of dust in insoluble coarse mode
   !> @param[in,out] deep_in_col          Indicator of deep in column
   !> @param[in,out] shallow_in_col       Indicator of shallow in column
   !> @param[in,out] mid_in_col           Indicator of mid in column
@@ -301,6 +367,39 @@ contains
                           dcfl_conv,                         &
                           dcff_conv,                         &
                           dbcf_conv,                         &
+                          h2o2,                              &
+                          dms,                               &
+                          so2,                               &
+                          h2so4,                             &
+                          dmso,                              &
+                          monoterpene,                       &
+                          secondary_organic,                 &
+                          n_nuc_sol,                         &
+                          nuc_sol_su,                        &
+                          nuc_sol_om,                        &
+                          n_ait_sol,                         &
+                          ait_sol_su,                        &
+                          ait_sol_bc,                        &
+                          ait_sol_om,                        &
+                          n_acc_sol,                         &
+                          acc_sol_su,                        &
+                          acc_sol_bc,                        &
+                          acc_sol_om,                        &
+                          acc_sol_ss,                        &
+                          acc_sol_du,                        &
+                          n_cor_sol,                         &
+                          cor_sol_su,                        &
+                          cor_sol_bc,                        &
+                          cor_sol_om,                        &
+                          cor_sol_ss,                        &
+                          cor_sol_du,                        &
+                          n_ait_ins,                         &
+                          ait_ins_bc,                        &
+                          ait_ins_om,                        &
+                          n_acc_ins,                         &
+                          acc_ins_du,                        &
+                          n_cor_ins,                         &
+                          cor_ins_du,                        &
                           deep_in_col,                       &
                           shallow_in_col,                    &
                           mid_in_col,                        &
@@ -353,7 +452,44 @@ contains
     !---------------------------------------
     ! LFRic modules
     !---------------------------------------
+
     use jules_control_init_mod, only: n_land_tile
+
+    use um_ukca_init_mod, only: fldname_h2o2,                                  &
+                                fldname_dms,                                   &
+                                fldname_so2,                                   &
+                                fldname_h2so4,                                 &
+                                fldname_dmso,                                  &
+                                fldname_monoterpene,                           &
+                                fldname_secondary_organic,                     &
+                                fldname_n_nuc_sol,                             &
+                                fldname_nuc_sol_su,                            &
+                                fldname_nuc_sol_om,                            &
+                                fldname_n_ait_sol,                             &
+                                fldname_ait_sol_su,                            &
+                                fldname_ait_sol_bc,                            &
+                                fldname_ait_sol_om,                            &
+                                fldname_n_acc_sol,                             &
+                                fldname_acc_sol_su,                            &
+                                fldname_acc_sol_bc,                            &
+                                fldname_acc_sol_om,                            &
+                                fldname_acc_sol_ss,                            &
+                                fldname_acc_sol_du,                            &
+                                fldname_n_cor_sol,                             &
+                                fldname_cor_sol_su,                            &
+                                fldname_cor_sol_bc,                            &
+                                fldname_cor_sol_om,                            &
+                                fldname_cor_sol_ss,                            &
+                                fldname_cor_sol_du,                            &
+                                fldname_n_ait_ins,                             &
+                                fldname_ait_ins_bc,                            &
+                                fldname_ait_ins_om,                            &
+                                fldname_n_acc_ins,                             &
+                                fldname_acc_ins_du,                            &
+                                fldname_n_cor_ins,                             &
+                                fldname_cor_ins_du
+
+    use log_mod, only : log_event, log_scratch_space, LOG_LEVEL_ERROR
 
     !---------------------------------------
     ! UM modules containing switches or global constants
@@ -376,6 +512,7 @@ contains
 
     ! subroutines used
     use glue_conv_6a_mod, only: glue_conv_6a
+    use ukca_api_mod, only: ukca_get_tracer_varlist, ukca_maxlen_fieldname
 
     implicit none
 
@@ -432,6 +569,40 @@ contains
 
     real(kind=r_def), dimension(undf_2d), intent(inout) :: cape_diluted,  &
                                    conv_rain, conv_snow, cca_2d, dd_mf_cb
+
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: h2o2
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: dms 
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: so2
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: h2so4 
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: dmso 
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: monoterpene 
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: secondary_organic 
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: n_nuc_sol
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: nuc_sol_su
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: nuc_sol_om
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: n_ait_sol
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: ait_sol_su
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: ait_sol_bc
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: ait_sol_om
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: n_acc_sol
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: acc_sol_su
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: acc_sol_bc
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: acc_sol_om
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: acc_sol_ss
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: acc_sol_du
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: n_cor_sol
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: cor_sol_su
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: cor_sol_bc
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: cor_sol_om
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: cor_sol_ss
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: cor_sol_du
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: n_ait_ins
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: ait_ins_bc
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: ait_ins_om
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: n_acc_ins
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: acc_ins_du
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: n_cor_ins
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: cor_ins_du
 
     real(kind=r_def), pointer, intent(inout) :: deep_in_col(:),      &
                                                 shallow_in_col(:),   &
@@ -537,6 +708,10 @@ contains
 
     ! total tracer - has to be allocatable
     real(r_um), dimension(:,:,:,:), allocatable :: tot_tracer
+
+    ! Variables for retrieving tracer names for a UKCA configuration
+    integer :: ukca_errcode
+    character(len=ukca_maxlen_fieldname), save, pointer :: ukca_tracer_names(:)
 
     ! Fields which are not used and only required for subroutine argument list,
     ! hence are unset in the kernel
@@ -653,7 +828,16 @@ contains
 
     ! Current assumptions about setup based on GA7
 
-    l_tracer = .false.   ! not allowing tracers as none so far
+    ! If this is the last solver outer loop then tracers may need convecting.
+    ! Enable tracers for UKCA if a UKCA tracer list is available
+    ! (This indicates that a UKCA configuration has been set up)
+    if (outer == outer_iterations) then
+      call ukca_get_tracer_varlist(ukca_tracer_names, ukca_errcode)
+      l_tracer = (ukca_errcode == 0)
+    else
+      l_tracer = .false.
+    end if
+
     l_calc_dxek  = ( i_cld_vn == i_cld_pc2 )
     l_q_interact = l_calc_dxek
     l_congestus = .false. ! never used in GA7
@@ -730,18 +914,131 @@ contains
       end do ! k
     end if
 
+    ! Map tracer fields to UM tracer array
+
     if ( outer == outer_iterations .AND. l_tracer ) then
-      ! Need tracers no code for this at present
-      ntra_fld = 1             ! can't have 0 sized arrays
-      ntra_lev = 1
-      ! allocate tot_tracer
-      allocate( tot_tracer(1, 1, ntra_lev, ntra_fld) )
+
+      ntra_fld = size(ukca_tracer_names)
+      ntra_lev = nlayers
+      allocate(tot_tracer( 1, 1, ntra_lev, ntra_fld ))
+
+      do i = 1, ntra_fld
+        select case(ukca_tracer_names(i))
+        case(fldname_h2o2)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( h2o2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_dms)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( dms( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_so2)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( so2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_h2so4)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( h2so4( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_dmso)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( dmso( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_monoterpene)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( monoterpene( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_secondary_organic)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( secondary_organic( map_wth(1) + 1 : map_wth(1) + ntra_lev ), &
+                  r_um )
+        case(fldname_n_nuc_sol)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( n_nuc_sol( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_nuc_sol_su)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( nuc_sol_su( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_nuc_sol_om)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( nuc_sol_om( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_n_ait_sol)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( n_ait_sol( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_ait_sol_su)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( ait_sol_su( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_ait_sol_bc)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( ait_sol_bc( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_ait_sol_om)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( ait_sol_om( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_n_acc_sol)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( n_acc_sol( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_acc_sol_su)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( acc_sol_su( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_acc_sol_bc)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( acc_sol_bc( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_acc_sol_om)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( acc_sol_om( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_acc_sol_ss)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( acc_sol_ss( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_acc_sol_du)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( acc_sol_du( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_n_cor_sol)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( n_cor_sol( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_cor_sol_su)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( cor_sol_su( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_cor_sol_bc)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( cor_sol_bc( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_cor_sol_om)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( cor_sol_om( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_cor_sol_ss)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( cor_sol_ss( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_cor_sol_du)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( cor_sol_du( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_n_ait_ins)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( n_ait_ins( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_ait_ins_bc)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( ait_ins_bc( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_ait_ins_om)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( ait_ins_om( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_n_acc_ins)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( n_acc_ins( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_acc_ins_du)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( acc_ins_du( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_n_cor_ins)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( n_cor_ins( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_cor_ins_du)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( cor_ins_du( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case default
+          write( log_scratch_space, '(A,A)' )                                  &
+                 'Missing required UKCA tracer field: ', ukca_tracer_names(i)
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end select
+      end do
+
     else
-      ntra_fld = 1             ! can't have 0 sized arrays
+
+      ! No tracers: set up a dummy tracer array
+      ntra_fld = 1
       ntra_lev = 1
-      ! allocate dummy space in tot_tracer
-      allocate( tot_tracer(1, 1, ntra_lev, ntra_fld) )
-    end if
+      allocate(tot_tracer( 1, 1, ntra_lev, ntra_fld ))
+
+    end if  ! outer == outer_iterations .AND. l_tracer
 
     ! We do not want any sub-timestep SCM diagnostics but we still have
     ! to allocate some amount of memory to it as something is still trying
@@ -1246,7 +1543,146 @@ contains
       end do
     end if
 
-    ! Would need to copy tracers back!
+    ! Copy tracers back to LFRic fields
+    if ( outer == outer_iterations .AND. l_tracer ) then
+      do i = 1, ntra_fld
+        select case(ukca_tracer_names(i))
+        case(fldname_h2o2)
+          h2o2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          h2o2( map_wth(1) + 0 ) = h2o2( map_wth(1) + 1 )
+        case(fldname_dms)
+          dms( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                      &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          dms( map_wth(1) + 0 ) = dms( map_wth(1) + 1 )
+        case(fldname_so2)
+          so2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                      &
+           real( tot_tracer( 1, 1, :, i ), r_def )
+          so2( map_wth(1) + 0 ) = so2( map_wth(1) + 1 )
+        case(fldname_h2so4)
+          h2so4( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                    &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          h2so4( map_wth(1) + 0 ) = h2so4( map_wth(1) + 1 )
+        case(fldname_dmso)
+          dmso( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          dmso( map_wth(1) + 0 ) = dmso( map_wth(1) + 1 )
+        case(fldname_monoterpene)
+          monoterpene( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =              &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          monoterpene( map_wth(1) + 0 ) = monoterpene( map_wth(1) + 1 )
+        case(fldname_secondary_organic)
+          secondary_organic( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =        &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          secondary_organic( map_wth(1) + 0 ) =                                &
+            secondary_organic( map_wth(1) + 1 )
+        case(fldname_n_nuc_sol)
+          n_nuc_sol( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          n_nuc_sol( map_wth(1) + 0 ) = n_nuc_sol( map_wth(1) + 1 )
+        case(fldname_nuc_sol_su)
+          nuc_sol_su( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          nuc_sol_su( map_wth(1) + 0 ) = nuc_sol_su( map_wth(1) + 1 )
+        case(fldname_nuc_sol_om)
+          nuc_sol_om( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          nuc_sol_om( map_wth(1) + 0 ) = nuc_sol_om( map_wth(1) + 1 )
+        case(fldname_n_ait_sol)
+          n_ait_sol( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          n_ait_sol( map_wth(1) + 0 ) = n_ait_sol( map_wth(1) + 1 )
+        case(fldname_ait_sol_su)
+          ait_sol_su( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          ait_sol_su( map_wth(1) + 0 ) = ait_sol_su( map_wth(1) + 1 )
+        case(fldname_ait_sol_bc)
+          ait_sol_bc( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          ait_sol_bc( map_wth(1) + 0 ) = ait_sol_bc( map_wth(1) + 1 )
+        case(fldname_ait_sol_om)
+          ait_sol_om( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          ait_sol_om( map_wth(1) + 0 ) = ait_sol_om( map_wth(1) + 1 )
+        case(fldname_n_acc_sol)
+          n_acc_sol( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          n_acc_sol( map_wth(1) + 0 ) = n_acc_sol( map_wth(1) + 1 )
+        case(fldname_acc_sol_su)
+          acc_sol_su( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          acc_sol_su( map_wth(1) + 0 ) = acc_sol_su( map_wth(1) + 1 )
+        case(fldname_acc_sol_bc)
+          acc_sol_bc( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          acc_sol_bc( map_wth(1) + 0 ) = acc_sol_bc( map_wth(1) + 1 )
+        case(fldname_acc_sol_om)
+          acc_sol_om( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          acc_sol_om( map_wth(1) + 0 ) = acc_sol_om( map_wth(1) + 1 )
+        case(fldname_acc_sol_ss)
+          acc_sol_ss( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          acc_sol_ss( map_wth(1) + 0 ) = acc_sol_ss( map_wth(1) + 1 )
+        case(fldname_acc_sol_du)
+          acc_sol_du( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          acc_sol_du( map_wth(1) + 0 ) = acc_sol_du( map_wth(1) + 1 )
+        case(fldname_n_cor_sol)
+          n_cor_sol( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          n_cor_sol( map_wth(1) + 0 ) = n_cor_sol( map_wth(1) + 1 )
+        case(fldname_cor_sol_su)
+          cor_sol_su( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          cor_sol_su( map_wth(1) + 0 ) = cor_sol_su( map_wth(1) + 1 )
+        case(fldname_cor_sol_bc)
+          cor_sol_bc( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          cor_sol_bc( map_wth(1) + 0 ) = cor_sol_bc( map_wth(1) + 1 )
+        case(fldname_cor_sol_om)
+          cor_sol_om( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          cor_sol_om( map_wth(1) + 0 ) = cor_sol_om( map_wth(1) + 1 )
+        case(fldname_cor_sol_ss)
+          cor_sol_ss( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          cor_sol_ss( map_wth(1) + 0 ) = cor_sol_ss( map_wth(1) + 1 )
+        case(fldname_cor_sol_du)
+          cor_sol_du( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          cor_sol_du( map_wth(1) + 0 ) = cor_sol_du( map_wth(1) + 1 )
+        case(fldname_n_ait_ins)
+          n_ait_ins( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          n_ait_ins( map_wth(1) + 0 ) = n_ait_ins( map_wth(1) + 1 )
+        case(fldname_ait_ins_bc)
+          ait_ins_bc( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          ait_ins_bc( map_wth(1) + 0 ) = ait_ins_bc( map_wth(1) + 1 )
+        case(fldname_ait_ins_om)
+          ait_ins_om( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          ait_ins_om( map_wth(1) + 0 ) = ait_ins_om( map_wth(1) + 1 )
+        case(fldname_n_acc_ins)
+          n_acc_ins( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          n_acc_ins( map_wth(1) + 0 ) = n_acc_ins( map_wth(1) + 1 )
+        case(fldname_acc_ins_du)
+          acc_ins_du( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          acc_ins_du( map_wth(1) + 0 ) = acc_ins_du( map_wth(1) + 1 )
+        case(fldname_n_cor_ins)
+          n_cor_ins( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          n_cor_ins( map_wth(1) + 0 ) = n_cor_ins( map_wth(1) + 1 )
+        case(fldname_cor_ins_du)
+          cor_ins_du( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          cor_ins_du( map_wth(1) + 0 ) = cor_ins_du( map_wth(1) + 1 )
+        end select
+      end do
+    end if  ! outer == outer_iterations .AND. l_tracer
     deallocate(tot_tracer)
 
   end subroutine conv_gr_code

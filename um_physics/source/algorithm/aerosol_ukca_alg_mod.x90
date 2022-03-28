@@ -366,9 +366,9 @@ contains
     ait_ins_bc => aerosol_fields%get_field('ait_ins_bc')
     ait_ins_om => aerosol_fields%get_field('ait_ins_om')
     n_acc_ins  => aerosol_fields%get_field('n_acc_ins')
-    acc_ins_du  => aerosol_fields%get_field('acc_ins_du')
+    acc_ins_du => aerosol_fields%get_field('acc_ins_du')
     n_cor_ins  => aerosol_fields%get_field('n_cor_ins')
-    cor_ins_du  => aerosol_fields%get_field('cor_ins_du')
+    cor_ins_du => aerosol_fields%get_field('cor_ins_du')
 
     cloud_drop_no_conc => aerosol_fields%get_field('cloud_drop_no_conc')
     drydp_ait_sol => aerosol_fields%get_field('drydp_ait_sol') 

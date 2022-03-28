@@ -58,14 +58,258 @@ module um_ukca_init_mod
   ! Number of emission field entries required for the UKCA configuration
   integer(i_um) :: n_emiss_slots
 
-  ! UKCA field names for environmental drivers (subset used in this module):
-  ! GLOMAP-specific drivers in full-height group
+  ! --------------------------------------------------------------------------
+  ! UKCA field name definitions follow here.
+  ! All UKCA field names used in LFRic should be defined below and should be
+  ! used from this module as required. This is intended to be the master copy
+  ! that can be updated in the event of any changes to UKCA names in future
+  ! UKCA versions. 
+  ! --------------------------------------------------------------------------
+
+  ! -- UKCA field names - Tracers --
+  character(len=*), parameter, public :: fldname_h2o2 = 'H2O2'
+  character(len=*), parameter, public :: fldname_dms = 'DMS'
+  character(len=*), parameter, public :: fldname_so2 = 'SO2'
+  character(len=*), parameter, public :: fldname_h2so4 = 'H2SO4'
+  character(len=*), parameter, public :: fldname_dmso = 'DMSO'
+  character(len=*), parameter, public :: fldname_monoterpene = 'Monoterp'
+  character(len=*), parameter, public :: fldname_secondary_organic = 'Sec_Org'
+  character(len=*), parameter, public :: fldname_n_nuc_sol = 'Nuc_SOL_N'
+  character(len=*), parameter, public :: fldname_nuc_sol_su = 'Nuc_SOL_SU'
+  character(len=*), parameter, public :: fldname_nuc_sol_om = 'Nuc_SOL_OM'
+  character(len=*), parameter, public :: fldname_n_ait_sol = 'Ait_SOL_N'
+  character(len=*), parameter, public :: fldname_ait_sol_su = 'Ait_SOL_SU'
+  character(len=*), parameter, public :: fldname_ait_sol_bc = 'Ait_SOL_BC'
+  character(len=*), parameter, public :: fldname_ait_sol_om = 'Ait_SOL_OM'
+  character(len=*), parameter, public :: fldname_n_acc_sol = 'Acc_SOL_N'
+  character(len=*), parameter, public :: fldname_acc_sol_su = 'Acc_SOL_SU'
+  character(len=*), parameter, public :: fldname_acc_sol_bc = 'Acc_SOL_BC'
+  character(len=*), parameter, public :: fldname_acc_sol_om = 'Acc_SOL_OM'
+  character(len=*), parameter, public :: fldname_acc_sol_ss = 'Acc_SOL_SS'
+  character(len=*), parameter, public :: fldname_acc_sol_du = 'Acc_SOL_DU'
+  character(len=*), parameter, public :: fldname_n_cor_sol = 'Cor_SOL_N'
+  character(len=*), parameter, public :: fldname_cor_sol_su = 'Cor_SOL_SU'
+  character(len=*), parameter, public :: fldname_cor_sol_bc = 'Cor_SOL_BC'
+  character(len=*), parameter, public :: fldname_cor_sol_om = 'Cor_SOL_OM'
+  character(len=*), parameter, public :: fldname_cor_sol_ss = 'Cor_SOL_SS'
+  character(len=*), parameter, public :: fldname_cor_sol_du = 'Cor_SOL_DU'
+  character(len=*), parameter, public :: fldname_n_ait_ins = 'Ait_INS_N'
+  character(len=*), parameter, public :: fldname_ait_ins_bc = 'Ait_INS_BC'
+  character(len=*), parameter, public :: fldname_ait_ins_om = 'Ait_INS_OM'
+  character(len=*), parameter, public :: fldname_n_acc_ins = 'Acc_INS_N'
+  character(len=*), parameter, public :: fldname_acc_ins_du = 'Acc_INS_DU'
+  character(len=*), parameter, public :: fldname_n_cor_ins = 'Cor_INS_N'
+  character(len=*), parameter, public :: fldname_cor_ins_du = 'Cor_INS_DU'
+
+  ! -- UKCA field names - Non-transported prognostics --
+  character(len=*), parameter, public :: fldname_cloud_drop_no_conc =          &
+                                         'cdnc'
+  character(len=*), parameter, public :: fldname_surfarea =                    &
+                                         'surfarea'
+  character(len=*), parameter, public :: fldname_drydp_ait_sol =               &
+                                         'drydiam_ait_sol'
+  character(len=*), parameter, public :: fldname_drydp_acc_sol =               &
+                                         'drydiam_acc_sol'
+  character(len=*), parameter, public :: fldname_drydp_cor_sol =               &
+                                         'drydiam_cor_sol'
+  character(len=*), parameter, public :: fldname_drydp_ait_ins =               &
+                                         'drydiam_ait_insol'
+  character(len=*), parameter, public :: fldname_drydp_acc_ins =               &
+                                         'drydiam_acc_insol'
+  character(len=*), parameter, public :: fldname_drydp_cor_ins =               &
+                                         'drydiam_cor_insol'
+  character(len=*), parameter, public :: fldname_wetdp_ait_sol =               &
+                                         'wetdiam_ait_sol'
+  character(len=*), parameter, public :: fldname_wetdp_acc_sol =               &
+                                         'wetdiam_acc_sol'
+  character(len=*), parameter, public :: fldname_wetdp_cor_sol =               &
+                                         'wetdiam_cor_sol'
+  character(len=*), parameter, public :: fldname_rhopar_ait_sol =              &
+                                         'aerdens_ait_sol'
+  character(len=*), parameter, public :: fldname_rhopar_acc_sol =              &
+                                         'aerdens_acc_sol'
+  character(len=*), parameter, public :: fldname_rhopar_cor_sol =              &
+                                         'aerdens_cor_sol'
+  character(len=*), parameter, public :: fldname_rhopar_ait_ins =              &
+                                         'aerdens_ait_insol'
+  character(len=*), parameter, public :: fldname_rhopar_acc_ins =              &
+                                         'aerdens_acc_insol'
+  character(len=*), parameter, public :: fldname_rhopar_cor_ins =              &
+                                         'aerdens_cor_insol'
+  character(len=*), parameter, public :: fldname_pvol_su_ait_sol =             &
+                                         'pvol_su_ait_sol'
+  character(len=*), parameter, public :: fldname_pvol_bc_ait_sol =             &
+                                         'pvol_bc_ait_sol'
+  character(len=*), parameter, public :: fldname_pvol_om_ait_sol =             &
+                                         'pvol_oc_ait_sol'
+  character(len=*), parameter, public :: fldname_pvol_wat_ait_sol =            &
+                                         'pvol_h2o_ait_sol'
+  character(len=*), parameter, public :: fldname_pvol_su_acc_sol =             &
+                                         'pvol_su_acc_sol'
+  character(len=*), parameter, public :: fldname_pvol_bc_acc_sol =             &
+                                         'pvol_bc_acc_sol'
+  character(len=*), parameter, public :: fldname_pvol_om_acc_sol =             &
+                                         'pvol_oc_acc_sol'
+  character(len=*), parameter, public :: fldname_pvol_ss_acc_sol =             &
+                                         'pvol_ss_acc_sol'
+  character(len=*), parameter, public :: fldname_pvol_du_acc_sol =             &
+                                         'pvol_du_acc_sol'
+  character(len=*), parameter, public :: fldname_pvol_wat_acc_sol =            &
+                                         'pvol_h2o_acc_sol'
+  character(len=*), parameter, public :: fldname_pvol_su_cor_sol =             &
+                                         'pvol_su_cor_sol'
+  character(len=*), parameter, public :: fldname_pvol_bc_cor_sol =             &
+                                         'pvol_bc_cor_sol'
+  character(len=*), parameter, public :: fldname_pvol_om_cor_sol =             &
+                                         'pvol_oc_cor_sol'
+  character(len=*), parameter, public :: fldname_pvol_ss_cor_sol =             &
+                                         'pvol_ss_cor_sol'
+  character(len=*), parameter, public :: fldname_pvol_du_cor_sol =             &
+                                         'pvol_du_cor_sol'
+  character(len=*), parameter, public :: fldname_pvol_wat_cor_sol =            &
+                                         'pvol_h2o_cor_sol'
+  character(len=*), parameter, public :: fldname_pvol_bc_ait_ins =             &
+                                         'pvol_bc_ait_insol'
+  character(len=*), parameter, public :: fldname_pvol_om_ait_ins =             &
+                                         'pvol_oc_ait_insol'
+  character(len=*), parameter, public :: fldname_pvol_du_acc_ins =             &
+                                         'pvol_du_acc_insol'
+  character(len=*), parameter, public :: fldname_pvol_du_cor_ins =             &
+                                         'pvol_du_cor_insol'
+
+  ! -- UKCA field names - Environmental drivers --
+
+  ! - Drivers in scalar group -
+  character(len=*), parameter, public :: fldname_sin_declination =             &
+                                         'sin_declination'  
+  character(len=*), parameter, public :: fldname_equation_of_time =            &
+                                         'equation_of_time'  
+
+  ! - Drivers in flat grid groups (integer, real & logical) -
+
+  ! Photolysis & emissions-related drivers (integer)
+  character(len=*), parameter, public :: fldname_kent = 'kent'  
+  character(len=*), parameter, public :: fldname_kent_dsc = 'kent_dsc'
+  ! General purpose drivers (real)
+  character(len=*), parameter, public :: fldname_latitude = 'latitude'
+  character(len=*), parameter, public :: fldname_longitude = 'longitude'
+  character(len=*), parameter, public :: fldname_sin_latitude = 'sin_latitude'
+  character(len=*), parameter, public :: fldname_cos_latitude = 'cos_latitude'
+  character(len=*), parameter, public :: fldname_tan_latitude = 'tan_latitude'
+  character(len=*), parameter, public :: fldname_frac_seaice = 'seaice_frac'
+  character(len=*), parameter, public :: fldname_tstar = 'tstar'
+  character(len=*), parameter, public :: fldname_pstar = 'pstar'
+  character(len=*), parameter, public :: fldname_rough_length = 'rough_length'
+  character(len=*), parameter, public :: fldname_ustar = 'u_s'
+  character(len=*), parameter, public :: fldname_surf_hf = 'surf_hf'
+  character(len=*), parameter, public :: fldname_zbl = 'zbl'
+  ! Emissions-related drivers (real)
+  character(len=*), parameter, public :: fldname_u_scalar_10m =                &
+                                         'u_scalar_10m'
+  character(len=*), parameter, public :: fldname_dms_sea_conc =                &
+                                         'dms_sea_conc'
+  character(len=*), parameter, public :: fldname_dust_flux_div1 =              &
+                                         'dust_flux_div1'
+  character(len=*), parameter, public :: fldname_dust_flux_div2 =              &
+                                         'dust_flux_div2'
+  character(len=*), parameter, public :: fldname_dust_flux_div3 =              &
+                                         'dust_flux_div3'
+  character(len=*), parameter, public :: fldname_dust_flux_div4 =              &
+                                         'dust_flux_div4'
+  character(len=*), parameter, public :: fldname_dust_flux_div5 =              &
+                                         'dust_flux_div5'
+  character(len=*), parameter, public :: fldname_dust_flux_div6 =              &
+                                         'dust_flux_div6'
+  character(len=*), parameter, public :: fldname_zhsc =                        &
+                                         'zhsc'
+  ! General purpose drivers (logical)
+  character(len=*), parameter, public :: fldname_l_land = 'land_sea_mask'
+
+  ! - Drivers in flat grid plant functional type tile group -
+
+  character(len=*), parameter, public :: fldname_stcon = 'stcon'
+
+  ! - Drivers in full-height grid group -
+
+  ! General purpose drivers
+  character(len=*), parameter, public :: fldname_theta = 'theta'
+  character(len=*), parameter, public :: fldname_exner_theta_lev =             &
+                                         'exner_theta_levels'
+  character(len=*), parameter, public :: fldname_p_theta_lev = 'p_theta_levels'
+  character(len=*), parameter, public :: fldname_p_rho_lev = 'p_rho_levels'
+  character(len=*), parameter, public :: fldname_q = 'q'
+  character(len=*), parameter, public :: fldname_qcl = 'qcl'
+  character(len=*), parameter, public :: fldname_qcf = 'qcf'
+  character(len=*), parameter, public :: fldname_bulk_cloud_frac = 'cloud_frac'
+  character(len=*), parameter, public :: fldname_ls_rain3d = 'ls_rain3d'
+  character(len=*), parameter, public :: fldname_ls_snow3d = 'ls_snow3d'
+  character(len=*), parameter, public :: fldname_conv_rain3d = 'conv_rain3d'
+  character(len=*), parameter, public :: fldname_conv_snow3d = 'conv_snow3d'
+  character(len=*), parameter, public :: fldname_rho_r2 = 'rho_r2'
+  ! Offline chemical fields
+  character(len=*), parameter, public :: fldname_o3_offline = 'O3'
+  character(len=*), parameter, public :: fldname_no3_offline = 'NO3'
+  character(len=*), parameter, public :: fldname_oh_offline = 'OH'
+  character(len=*), parameter, public :: fldname_ho2_offline = 'HO2'
+  character(len=*), parameter, public :: fldname_h2o2_limit = 'H2O2'
+  ! GLOMAP-specific drivers
+  character(len=*), parameter, public :: fldname_liq_cloud_frac =              &
+                                         'cloud_liq_frac'
   character(len=*), parameter, public :: fldname_autoconv = 'autoconv'
   character(len=*), parameter, public :: fldname_accretion = 'accretion'
   character(len=*), parameter, public :: fldname_rim_cry = 'rim_cry'
   character(len=*), parameter, public :: fldname_rim_agg = 'rim_agg'
-  ! Activate-specific drivers in boundary levels group
+  ! Activate-specific drivers
+  character(len=*), parameter, public :: fldname_vertvel = 'vertvel'
+
+  ! - Drivers in full-height plus level 0 grid group -
+
+  character(len=*), parameter, public :: fldname_interf_z = 'interf_z'
+  
+  ! - Drivers in full-height plus one grid group -
+
+  character(len=*), parameter, public :: fldname_exner_rho_lev =               &
+                                         'exner_rho_levels'
+
+  ! - Drivers in boundary levels group -
+
+  ! General purpose drivers
+  character(len=*), parameter, public :: fldname_rhokh_rdz = 'rhokh_rdz'
+  character(len=*), parameter, public :: fldname_dtrdz = 'dtrdz'
+  ! Activate-specific drivers
   character(len=*), parameter, public :: fldname_bl_tke = 'bl_tke'
+
+  ! - Drivers in entrainment levels group -
+
+  character(len=*), parameter, public :: fldname_we_lim = 'we_lim'
+  character(len=*), parameter, public :: fldname_t_frac = 't_frac'
+  character(len=*), parameter, public :: fldname_zrzi = 'zrzi'
+  character(len=*), parameter, public :: fldname_we_lim_dsc = 'we_lim_dsc'
+  character(len=*), parameter, public :: fldname_t_frac_dsc = 't_frac_dsc'
+  character(len=*), parameter, public :: fldname_zrzi_dsc = 'zrzi_dsc'
+
+  ! - Drivers in land point group -
+
+  character(len=*), parameter, public :: fldname_frac_land = 'fland'
+  character(len=*), parameter, public :: fldname_soil_moisture_layer1 =        &
+                                         'soil_moisture_layer1'
+
+  ! - Drivers in land-point tile groups -
+
+  character(len=*), parameter, public :: fldname_frac_surft = 'frac_types'
+  character(len=*), parameter, public :: fldname_tstar_surft = 'tstar_tile'
+  character(len=*), parameter, public :: fldname_z0_surft = 'z0tile_lp'
+  character(len=*), parameter, public :: fldname_l_active_surft =              &
+                                         'l_tile_active'
+
+  ! - Drivers in land-point plant functional type tile group -
+
+  character(len=*), parameter, public :: fldname_lai_pft = 'laift_lp'
+  character(len=*), parameter, public :: fldname_canht_pft = 'canhtft_lp'
+
+  ! ------------------------------------------
+  ! Pointers for accessing UKCA variable lists
+  ! ------------------------------------------
 
   ! List of tracers required for the UKCA configuration
   character(len=ukca_maxlen_fieldname), pointer, public :: tracer_names(:) =>  &
@@ -168,10 +412,14 @@ contains
     ! UM module used
     use dms_flux_mod_4a, only: i_liss_merlivat
 
-    ! UM modules containing thing that needs setting
-    use mphys_diags_mod, ONLY: l_praut_diag, l_pracw_diag, l_piacw_diag,       &
+    ! UM modules containing things that needs setting and setup routines
+    use mphys_diags_mod, only: l_praut_diag, l_pracw_diag, l_piacw_diag,       &
                                l_psacw_diag
-    use bl_diags_mod, ONLY: bl_diag
+    use bl_diags_mod, only: bl_diag
+    use ukca_nmspec_mod, only: nm_spec_active, nmspec_len
+    use ukca_option_mod, only: i_mode_nucscav, l_ukca_plume_scav
+    use ukca_scavenging_mod, only: ukca_set_conv_indices, tracer_info
+    
 
     implicit none
 
@@ -221,8 +469,6 @@ contains
     ! is substituted for the Explicit backward-Euler scheme used in GA7
     ! which cannot be called by columns. Hence, configuration values for
     ! nrsteps and l_ukca_asad_columns are included.
-    ! In lieu of plume scavenging, which is not yet available in LFRic,
-    ! convective rainout is switched on (l_cv_rainout = .true.).
     ! Other configuration values, with the exception of temporary logicals
     ! specifiying fixes, are set to match GA7 science settings or taken
     ! from the LFRic context. Unlike GA7, all fixes that are controlled by
@@ -279,10 +525,10 @@ contains
            i_mode_setup=8,                                                     &
            l_mode_bhn_on=.true.,                                               &
            l_mode_bln_on=.false.,                                              &
-           i_mode_nucscav=3,                                                   &
+           i_mode_nucscav=i_mode_nucscav,                                      &
            mode_activation_dryr=37.5_r_um,                                     &
            mode_incld_so2_rfrac=0.25_r_um,                                     &
-           l_cv_rainout=.true.,                                                &
+           l_cv_rainout=.not.(l_ukca_plume_scav),                              &
            l_dust_slinn_impc_scav=.false.,                                     &
            ! GLOMAP emissions configuration options
            l_ukca_primsu=.true.,                                               &
@@ -311,6 +557,19 @@ contains
 
     ! Retrieve the lists of required fields for the configuration
     CALL get_ukca_field_lists()
+
+    ! Set up indexing data needed for plume scavenging of UKCA tracers in the
+    ! GR convection scheme
+    if (l_ukca_plume_scav) then
+      n = size(tracer_names)
+      allocate(nm_spec_active(n))
+      do i = 1, n 
+        nm_spec_active(i) = tracer_names(i)(1:nmspec_len)
+      end do
+      call ukca_set_conv_indices()
+      tracer_info%i_ukca_first = 1
+      tracer_info%i_ukca_last = n
+    end if
 
     ! Switch on optional UM microphysics diagnostics required by UKCA
     if (any(env_names_fullht_real(:) == fldname_autoconv))                     &

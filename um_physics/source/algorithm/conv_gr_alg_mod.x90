@@ -42,13 +42,16 @@ contains
   !>@param[in]     exner             Exner Pressure in the w3 space
   !>@param[in]     derived_fields    Group of derived fields
   !>@param[in]     turbulence_fields Fields for turbulence scheme
-  !>@param[in,out] convection_fields Fields for convection scheme
+  !>@param[in]     convection_fields Fields for convection scheme
   !>@param[in]     cloud_fields      Fields for cloud scheme
   !>@param[in]     surface_fields    Fields for surface scheme
+  !>@param[in]     chemistry_fields  Fields for chemistry scheme
+  !>@param[in]     aerosol_fields    Fields for aerosol scheme
   !>@param[in]     outer             Outer loop counter
   subroutine conv_gr_alg(mr, rho, exner, derived_fields,                  &
                          turbulence_fields, convection_fields,            &
-                         cloud_fields, surface_fields, outer)
+                         cloud_fields, surface_fields, chemistry_fields,  &
+                         aerosol_fields, outer)
 
     use conv_gr_kernel_mod, only: conv_gr_kernel_type
 
@@ -62,6 +65,8 @@ contains
     type( field_collection_type ), intent(in) :: convection_fields
     type( field_collection_type ), intent(in) :: cloud_fields
     type( field_collection_type ), intent(in) :: surface_fields
+    type( field_collection_type ), intent(in) :: chemistry_fields
+    type( field_collection_type ), intent(in) :: aerosol_fields
 
     integer(kind=i_def), intent(in)         :: outer
 
@@ -115,6 +120,41 @@ contains
     type( field_type ), pointer :: cf_bulk  => null()
 
     type( field_type ), pointer :: tile_fraction => null()
+
+    type( field_type ), pointer :: h2o2 => null()
+    type( field_type ), pointer :: dms => null()
+    type( field_type ), pointer :: so2 => null()
+    type( field_type ), pointer :: h2so4 => null()
+    type( field_type ), pointer :: dmso => null()
+    type( field_type ), pointer :: monoterpene => null()
+    type( field_type ), pointer :: secondary_organic => null()
+
+    type( field_type ), pointer :: n_nuc_sol => null()
+    type( field_type ), pointer :: nuc_sol_su => null()
+    type( field_type ), pointer :: nuc_sol_om => null()
+    type( field_type ), pointer :: n_ait_sol => null()
+    type( field_type ), pointer :: ait_sol_su => null()
+    type( field_type ), pointer :: ait_sol_bc => null()
+    type( field_type ), pointer :: ait_sol_om => null()
+    type( field_type ), pointer :: n_acc_sol => null()
+    type( field_type ), pointer :: acc_sol_su => null()
+    type( field_type ), pointer :: acc_sol_bc => null()
+    type( field_type ), pointer :: acc_sol_om => null()
+    type( field_type ), pointer :: acc_sol_ss => null()
+    type( field_type ), pointer :: acc_sol_du => null()
+    type( field_type ), pointer :: n_cor_sol => null()
+    type( field_type ), pointer :: cor_sol_su => null()
+    type( field_type ), pointer :: cor_sol_bc => null()
+    type( field_type ), pointer :: cor_sol_om => null()
+    type( field_type ), pointer :: cor_sol_ss => null()
+    type( field_type ), pointer :: cor_sol_du => null()
+    type( field_type ), pointer :: n_ait_ins => null()
+    type( field_type ), pointer :: ait_ins_bc => null()
+    type( field_type ), pointer :: ait_ins_om => null()
+    type( field_type ), pointer :: n_acc_ins => null()
+    type( field_type ), pointer :: acc_ins_du => null()
+    type( field_type ), pointer :: n_cor_ins => null()
+    type( field_type ), pointer :: cor_ins_du => null()
 
     type( field_type ), pointer :: height_w3 => null()
     type( field_type ), pointer :: height_wth => null()
@@ -194,8 +234,45 @@ contains
     cf_liq => cloud_fields%get_field('liquid_fraction')
     cf_bulk => cloud_fields%get_field('bulk_fraction')
 
-    ! Surface fields
+    ! Unpack surface fields
     tile_fraction   => surface_fields%get_field('tile_fraction')
+
+    ! Unpack chemistry fields
+    h2o2              => chemistry_fields%get_field('h2o2')
+    dms               => chemistry_fields%get_field('dms')
+    so2               => chemistry_fields%get_field('so2')
+    h2so4             => chemistry_fields%get_field('h2so4')
+    dmso              => chemistry_fields%get_field('dmso')
+    monoterpene       => chemistry_fields%get_field('monoterpene')
+    secondary_organic => chemistry_fields%get_field('secondary_organic')
+
+    ! Unpack aerosol fields
+    n_nuc_sol  => aerosol_fields%get_field('n_nuc_sol')
+    nuc_sol_su => aerosol_fields%get_field('nuc_sol_su')
+    nuc_sol_om => aerosol_fields%get_field('nuc_sol_om')
+    n_ait_sol  => aerosol_fields%get_field('n_ait_sol')
+    ait_sol_su => aerosol_fields%get_field('ait_sol_su')
+    ait_sol_bc => aerosol_fields%get_field('ait_sol_bc')
+    ait_sol_om => aerosol_fields%get_field('ait_sol_om')
+    n_acc_sol  => aerosol_fields%get_field('n_acc_sol')
+    acc_sol_su => aerosol_fields%get_field('acc_sol_su')
+    acc_sol_bc => aerosol_fields%get_field('acc_sol_bc')
+    acc_sol_om => aerosol_fields%get_field('acc_sol_om')
+    acc_sol_ss => aerosol_fields%get_field('acc_sol_ss')
+    acc_sol_du => aerosol_fields%get_field('acc_sol_du')
+    n_cor_sol  => aerosol_fields%get_field('n_cor_sol')
+    cor_sol_su => aerosol_fields%get_field('cor_sol_su')
+    cor_sol_bc => aerosol_fields%get_field('cor_sol_bc')
+    cor_sol_om => aerosol_fields%get_field('cor_sol_om')
+    cor_sol_ss => aerosol_fields%get_field('cor_sol_ss')
+    cor_sol_du => aerosol_fields%get_field('cor_sol_du')
+    n_ait_ins  => aerosol_fields%get_field('n_ait_ins')
+    ait_ins_bc => aerosol_fields%get_field('ait_ins_bc')
+    ait_ins_om => aerosol_fields%get_field('ait_ins_om')
+    n_acc_ins  => aerosol_fields%get_field('n_acc_ins')
+    acc_ins_du => aerosol_fields%get_field('acc_ins_du')
+    n_cor_ins  => aerosol_fields%get_field('n_cor_ins')
+    cor_ins_du => aerosol_fields%get_field('cor_ins_du')
 
     height_wth => get_height(Wtheta, mesh%get_id())
     height_w3  => get_height(W3, mesh%get_id())
@@ -282,6 +359,39 @@ contains
                           level_parcel_top, wstar, thv_flux,                  &
                           parcel_buoyancy, qsat_at_lcl,                       &
                           dcfl_conv, dcff_conv, dbcf_conv,                    &
+                          h2o2,                                               &
+                          dms,                                                &
+                          so2,                                                &
+                          h2so4,                                              &
+                          dmso,                                               &
+                          monoterpene,                                        &
+                          secondary_organic,                                  &
+                          n_nuc_sol,                                          &
+                          nuc_sol_su,                                         &
+                          nuc_sol_om,                                         &
+                          n_ait_sol,                                          &
+                          ait_sol_su,                                         &
+                          ait_sol_bc,                                         &
+                          ait_sol_om,                                         &
+                          n_acc_sol,                                          &
+                          acc_sol_su,                                         &
+                          acc_sol_bc,                                         &
+                          acc_sol_om,                                         &
+                          acc_sol_ss,                                         &
+                          acc_sol_du,                                         &
+                          n_cor_sol,                                          &
+                          cor_sol_su,                                         &
+                          cor_sol_bc,                                         &
+                          cor_sol_om,                                         &
+                          cor_sol_ss,                                         &
+                          cor_sol_du,                                         &
+                          n_ait_ins,                                          &
+                          ait_ins_bc,                                         &
+                          ait_ins_om,                                         &
+                          n_acc_ins,                                          &
+                          acc_ins_du,                                         &
+                          n_cor_ins,                                          &
+                          cor_ins_du,                                         &
                           deep_in_col,                                        &    ! 2-D local variables
                           shallow_in_col,                                     &
                           mid_in_col,                                         &

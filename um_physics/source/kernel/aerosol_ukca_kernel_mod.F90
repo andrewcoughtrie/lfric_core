@@ -527,11 +527,146 @@ subroutine aerosol_ukca_code( nlayers,                                         &
                               env_names_landpft_real,                          &
                               emiss_names_flat,                                &
                               emiss_names_fullht,                              &
+                              fldname_h2o2,                                    &
+                              fldname_dms,                                     &
+                              fldname_so2,                                     &
+                              fldname_h2so4,                                   &
+                              fldname_dmso,                                    &
+                              fldname_monoterpene,                             &
+                              fldname_secondary_organic,                       &
+                              fldname_n_nuc_sol,                               &
+                              fldname_nuc_sol_su,                              &
+                              fldname_nuc_sol_om,                              &
+                              fldname_n_ait_sol,                               &
+                              fldname_ait_sol_su,                              &
+                              fldname_ait_sol_bc,                              &
+                              fldname_ait_sol_om,                              &
+                              fldname_n_acc_sol,                               &
+                              fldname_acc_sol_su,                              &
+                              fldname_acc_sol_bc,                              &
+                              fldname_acc_sol_om,                              &
+                              fldname_acc_sol_ss,                              &
+                              fldname_acc_sol_du,                              &
+                              fldname_n_cor_sol,                               &
+                              fldname_cor_sol_su,                              &
+                              fldname_cor_sol_bc,                              &
+                              fldname_cor_sol_om,                              &
+                              fldname_cor_sol_ss,                              &
+                              fldname_cor_sol_du,                              &
+                              fldname_n_ait_ins,                               &
+                              fldname_ait_ins_bc,                              &
+                              fldname_ait_ins_om,                              &
+                              fldname_n_acc_ins,                               &
+                              fldname_acc_ins_du,                              &
+                              fldname_n_cor_ins,                               &
+                              fldname_cor_ins_du,                              &
+                              fldname_cloud_drop_no_conc,                      &
+                              fldname_surfarea,                                &
+                              fldname_drydp_ait_sol,                           &
+                              fldname_drydp_acc_sol,                           &
+                              fldname_drydp_cor_sol,                           &
+                              fldname_drydp_ait_ins,                           &
+                              fldname_drydp_acc_ins,                           &
+                              fldname_drydp_cor_ins,                           &
+                              fldname_wetdp_ait_sol,                           &
+                              fldname_wetdp_acc_sol,                           &
+                              fldname_wetdp_cor_sol,                           &
+                              fldname_rhopar_ait_sol,                          &
+                              fldname_rhopar_acc_sol,                          &
+                              fldname_rhopar_cor_sol,                          &
+                              fldname_rhopar_ait_ins,                          &
+                              fldname_rhopar_acc_ins,                          &
+                              fldname_rhopar_cor_ins,                          &
+                              fldname_pvol_su_ait_sol,                         &
+                              fldname_pvol_bc_ait_sol,                         &
+                              fldname_pvol_om_ait_sol,                         &
+                              fldname_pvol_wat_ait_sol,                        &
+                              fldname_pvol_su_acc_sol,                         &
+                              fldname_pvol_bc_acc_sol,                         &
+                              fldname_pvol_om_acc_sol,                         &
+                              fldname_pvol_ss_acc_sol,                         &
+                              fldname_pvol_du_acc_sol,                         &
+                              fldname_pvol_wat_acc_sol,                        &
+                              fldname_pvol_su_cor_sol,                         &
+                              fldname_pvol_bc_cor_sol,                         &
+                              fldname_pvol_om_cor_sol,                         &
+                              fldname_pvol_ss_cor_sol,                         &
+                              fldname_pvol_du_cor_sol,                         &
+                              fldname_pvol_wat_cor_sol,                        &
+                              fldname_pvol_bc_ait_ins,                         &
+                              fldname_pvol_om_ait_ins,                         &
+                              fldname_pvol_du_acc_ins,                         &
+                              fldname_pvol_du_cor_ins,                         &
+                              fldname_sin_declination,                         &
+                              fldname_equation_of_time,                        &
+                              fldname_kent,                                    &
+                              fldname_kent_dsc,                                &
+                              fldname_latitude,                                &
+                              fldname_longitude,                               &
+                              fldname_sin_latitude,                            &
+                              fldname_cos_latitude,                            &
+                              fldname_tan_latitude,                            &
+                              fldname_frac_seaice,                             &
+                              fldname_tstar,                                   &
+                              fldname_pstar,                                   &
+                              fldname_rough_length,                            &
+                              fldname_ustar,                                   &
+                              fldname_surf_hf,                                 &
+                              fldname_zbl,                                     &
+                              fldname_u_scalar_10m,                            &
+                              fldname_dms_sea_conc,                            &
+                              fldname_dust_flux_div1,                          &
+                              fldname_dust_flux_div2,                          &
+                              fldname_dust_flux_div3,                          &
+                              fldname_dust_flux_div4,                          &
+                              fldname_dust_flux_div5,                          &
+                              fldname_dust_flux_div6,                          &
+                              fldname_zhsc,                                    &
+                              fldname_l_land,                                  &
+                              fldname_stcon,                                   &
+                              fldname_theta,                                   &
+                              fldname_exner_theta_lev,                         &
+                              fldname_p_theta_lev,                             &
+                              fldname_p_rho_lev,                               &
+                              fldname_q,                                       &
+                              fldname_qcl,                                     &
+                              fldname_qcf,                                     &
+                              fldname_bulk_cloud_frac,                         &
+                              fldname_ls_rain3d,                               &
+                              fldname_ls_snow3d,                               &
+                              fldname_conv_rain3d,                             &
+                              fldname_conv_snow3d,                             &
+                              fldname_rho_r2,                                  &
+                              fldname_o3_offline,                              &
+                              fldname_no3_offline,                             &
+                              fldname_oh_offline,                              &
+                              fldname_ho2_offline,                             &
+                              fldname_h2o2_limit,                              &
+                              fldname_liq_cloud_frac,                          &
                               fldname_autoconv,                                &
                               fldname_accretion,                               &
                               fldname_rim_cry,                                 &
                               fldname_rim_agg,                                 &
+                              fldname_vertvel,                                 &
+                              fldname_interf_z,                                &
+                              fldname_exner_rho_lev,                           &
+                              fldname_rhokh_rdz,                               &
+                              fldname_dtrdz,                                   &
                               fldname_bl_tke,                                  &
+                              fldname_we_lim,                                  &
+                              fldname_t_frac,                                  &
+                              fldname_zrzi,                                    &
+                              fldname_we_lim_dsc,                              &
+                              fldname_t_frac_dsc,                              &
+                              fldname_zrzi_dsc,                                &
+                              fldname_frac_land,                               &
+                              fldname_soil_moisture_layer1,                    &
+                              fldname_frac_surft,                              &
+                              fldname_tstar_surft,                             &
+                              fldname_z0_surft,                                &
+                              fldname_l_active_surft,                          &
+                              fldname_lai_pft,                                 &
+                              fldname_canht_pft,                               &
                               nlev_ent_tr_mix
                               
   use log_mod,          only: log_event, log_scratch_space, LOG_LEVEL_ERROR
@@ -811,189 +946,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   real(r_um) :: catch_snow_surft( land_field, n_land_tile )
   real(r_um) :: catch_surft( land_field, n_land_tile )
   real(r_um) :: z0h_bare_surft( land_field, n_land_tile )
-
-  ! -- UKCA field names - Tracers --
-  character(len=*), parameter :: fldname_h2o2 = 'H2O2'
-  character(len=*), parameter :: fldname_dms = 'DMS'
-  character(len=*), parameter :: fldname_so2 = 'SO2'
-  character(len=*), parameter :: fldname_h2so4 = 'H2SO4'
-  character(len=*), parameter :: fldname_dmso = 'DMSO'
-  character(len=*), parameter :: fldname_monoterpene = 'Monoterp'
-  character(len=*), parameter :: fldname_secondary_organic = 'Sec_Org'
-  character(len=*), parameter :: fldname_n_nuc_sol = 'Nuc_SOL_N'
-  character(len=*), parameter :: fldname_nuc_sol_su = 'Nuc_SOL_SU'
-  character(len=*), parameter :: fldname_nuc_sol_om = 'Nuc_SOL_OM'
-  character(len=*), parameter :: fldname_n_ait_sol = 'Ait_SOL_N'
-  character(len=*), parameter :: fldname_ait_sol_su = 'Ait_SOL_SU'
-  character(len=*), parameter :: fldname_ait_sol_bc = 'Ait_SOL_BC'
-  character(len=*), parameter :: fldname_ait_sol_om = 'Ait_SOL_OM'
-  character(len=*), parameter :: fldname_n_acc_sol = 'Acc_SOL_N'
-  character(len=*), parameter :: fldname_acc_sol_su = 'Acc_SOL_SU'
-  character(len=*), parameter :: fldname_acc_sol_bc = 'Acc_SOL_BC'
-  character(len=*), parameter :: fldname_acc_sol_om = 'Acc_SOL_OM'
-  character(len=*), parameter :: fldname_acc_sol_ss = 'Acc_SOL_SS'
-  character(len=*), parameter :: fldname_acc_sol_du = 'Acc_SOL_DU'
-  character(len=*), parameter :: fldname_n_cor_sol = 'Cor_SOL_N'
-  character(len=*), parameter :: fldname_cor_sol_su = 'Cor_SOL_SU'
-  character(len=*), parameter :: fldname_cor_sol_bc = 'Cor_SOL_BC'
-  character(len=*), parameter :: fldname_cor_sol_om = 'Cor_SOL_OM'
-  character(len=*), parameter :: fldname_cor_sol_ss = 'Cor_SOL_SS'
-  character(len=*), parameter :: fldname_cor_sol_du = 'Cor_SOL_DU'
-  character(len=*), parameter :: fldname_n_ait_ins = 'Ait_INS_N'
-  character(len=*), parameter :: fldname_ait_ins_bc = 'Ait_INS_BC'
-  character(len=*), parameter :: fldname_ait_ins_om = 'Ait_INS_OM'
-  character(len=*), parameter :: fldname_n_acc_ins = 'Acc_INS_N'
-  character(len=*), parameter :: fldname_acc_ins_du = 'Acc_INS_DU'
-  character(len=*), parameter :: fldname_n_cor_ins = 'Cor_INS_N'
-  character(len=*), parameter :: fldname_cor_ins_du = 'Cor_INS_DU'
-
-  ! -- UKCA field names - Non-transported prognostics --
-  character(len=*), parameter :: fldname_cloud_drop_no_conc = 'cdnc'
-  character(len=*), parameter :: fldname_surfarea = 'surfarea'
-  character(len=*), parameter :: fldname_drydp_ait_sol = 'drydiam_ait_sol'
-  character(len=*), parameter :: fldname_drydp_acc_sol = 'drydiam_acc_sol'
-  character(len=*), parameter :: fldname_drydp_cor_sol = 'drydiam_cor_sol'
-  character(len=*), parameter :: fldname_drydp_ait_ins = 'drydiam_ait_insol'
-  character(len=*), parameter :: fldname_drydp_acc_ins = 'drydiam_acc_insol'
-  character(len=*), parameter :: fldname_drydp_cor_ins = 'drydiam_cor_insol'
-  character(len=*), parameter :: fldname_wetdp_ait_sol = 'wetdiam_ait_sol'
-  character(len=*), parameter :: fldname_wetdp_acc_sol = 'wetdiam_acc_sol'
-  character(len=*), parameter :: fldname_wetdp_cor_sol = 'wetdiam_cor_sol'
-  character(len=*), parameter :: fldname_rhopar_ait_sol = 'aerdens_ait_sol'
-  character(len=*), parameter :: fldname_rhopar_acc_sol = 'aerdens_acc_sol'
-  character(len=*), parameter :: fldname_rhopar_cor_sol = 'aerdens_cor_sol'
-  character(len=*), parameter :: fldname_rhopar_ait_ins = 'aerdens_ait_insol'
-  character(len=*), parameter :: fldname_rhopar_acc_ins = 'aerdens_acc_insol'
-  character(len=*), parameter :: fldname_rhopar_cor_ins = 'aerdens_cor_insol'
-  character(len=*), parameter :: fldname_pvol_su_ait_sol = 'pvol_su_ait_sol'
-  character(len=*), parameter :: fldname_pvol_bc_ait_sol = 'pvol_bc_ait_sol'
-  character(len=*), parameter :: fldname_pvol_om_ait_sol = 'pvol_oc_ait_sol'
-  character(len=*), parameter :: fldname_pvol_wat_ait_sol = 'pvol_h2o_ait_sol'
-  character(len=*), parameter :: fldname_pvol_su_acc_sol = 'pvol_su_acc_sol'
-  character(len=*), parameter :: fldname_pvol_bc_acc_sol = 'pvol_bc_acc_sol'
-  character(len=*), parameter :: fldname_pvol_om_acc_sol = 'pvol_oc_acc_sol'
-  character(len=*), parameter :: fldname_pvol_ss_acc_sol = 'pvol_ss_acc_sol'
-  character(len=*), parameter :: fldname_pvol_du_acc_sol = 'pvol_du_acc_sol'
-  character(len=*), parameter :: fldname_pvol_wat_acc_sol = 'pvol_h2o_acc_sol'
-  character(len=*), parameter :: fldname_pvol_su_cor_sol = 'pvol_su_cor_sol'
-  character(len=*), parameter :: fldname_pvol_bc_cor_sol = 'pvol_bc_cor_sol'
-  character(len=*), parameter :: fldname_pvol_om_cor_sol = 'pvol_oc_cor_sol'
-  character(len=*), parameter :: fldname_pvol_ss_cor_sol = 'pvol_ss_cor_sol'
-  character(len=*), parameter :: fldname_pvol_du_cor_sol = 'pvol_du_cor_sol'
-  character(len=*), parameter :: fldname_pvol_wat_cor_sol = 'pvol_h2o_cor_sol'
-  character(len=*), parameter :: fldname_pvol_bc_ait_ins = 'pvol_bc_ait_insol'
-  character(len=*), parameter :: fldname_pvol_om_ait_ins = 'pvol_oc_ait_insol'
-  character(len=*), parameter :: fldname_pvol_du_acc_ins = 'pvol_du_acc_insol'
-  character(len=*), parameter :: fldname_pvol_du_cor_ins = 'pvol_du_cor_insol'
-
-  ! -- UKCA field names - Environmental drivers --
-  ! This list excludes those declared in 'um_ukca_init_mod'
-
-  ! - Drivers in scalar group -
-  character(len=*), parameter :: fldname_sin_declination = 'sin_declination'  
-  character(len=*), parameter :: fldname_equation_of_time = 'equation_of_time'  
-
-  ! - Drivers in flat grid groups (integer, real & logical) -
-
-  ! Photolysis & emissions-related drivers (integer)
-  character(len=*), parameter :: fldname_kent = 'kent'  
-  character(len=*), parameter :: fldname_kent_dsc = 'kent_dsc'
-  ! General purpose drivers (real)
-  character(len=*), parameter :: fldname_latitude = 'latitude'
-  character(len=*), parameter :: fldname_longitude = 'longitude'
-  character(len=*), parameter :: fldname_sin_latitude = 'sin_latitude'
-  character(len=*), parameter :: fldname_cos_latitude = 'cos_latitude'
-  character(len=*), parameter :: fldname_tan_latitude = 'tan_latitude'
-  character(len=*), parameter :: fldname_frac_seaice = 'seaice_frac'
-  character(len=*), parameter :: fldname_tstar = 'tstar'
-  character(len=*), parameter :: fldname_pstar = 'pstar'
-  character(len=*), parameter :: fldname_rough_length = 'rough_length'
-  character(len=*), parameter :: fldname_ustar = 'u_s'
-  character(len=*), parameter :: fldname_surf_hf = 'surf_hf'
-  character(len=*), parameter :: fldname_zbl = 'zbl'
-  ! Emissions-related drivers (real)
-  character(len=*), parameter :: fldname_u_scalar_10m = 'u_scalar_10m'
-  character(len=*), parameter :: fldname_dms_sea_conc = 'dms_sea_conc'
-  character(len=*), parameter :: fldname_dust_flux_div1 = 'dust_flux_div1'
-  character(len=*), parameter :: fldname_dust_flux_div2 = 'dust_flux_div2'
-  character(len=*), parameter :: fldname_dust_flux_div3 = 'dust_flux_div3'
-  character(len=*), parameter :: fldname_dust_flux_div4 = 'dust_flux_div4'
-  character(len=*), parameter :: fldname_dust_flux_div5 = 'dust_flux_div5'
-  character(len=*), parameter :: fldname_dust_flux_div6 = 'dust_flux_div6'
-  character(len=*), parameter :: fldname_zhsc = 'zhsc'
-  ! General purpose drivers (logical)
-  character(len=*), parameter :: fldname_l_land = 'land_sea_mask'
-
-  ! - Drivers in flat grid plant functional type tile group -
-
-  character(len=*), parameter :: fldname_stcon = 'stcon'
-
-  ! - Drivers in full-height grid group -
-
-  ! General purpose drivers
-  character(len=*), parameter :: fldname_theta = 'theta'
-  character(len=*), parameter :: fldname_exner_theta_lev = 'exner_theta_levels'
-  character(len=*), parameter :: fldname_p_theta_lev = 'p_theta_levels'
-  character(len=*), parameter :: fldname_p_rho_lev = 'p_rho_levels'
-  character(len=*), parameter :: fldname_q = 'q'
-  character(len=*), parameter :: fldname_qcl = 'qcl'
-  character(len=*), parameter :: fldname_qcf = 'qcf'
-  character(len=*), parameter :: fldname_bulk_cloud_frac = 'cloud_frac'
-  character(len=*), parameter :: fldname_ls_rain3d = 'ls_rain3d'
-  character(len=*), parameter :: fldname_ls_snow3d = 'ls_snow3d'
-  character(len=*), parameter :: fldname_conv_rain3d = 'conv_rain3d'
-  character(len=*), parameter :: fldname_conv_snow3d = 'conv_snow3d'
-  character(len=*), parameter :: fldname_rho_r2 = 'rho_r2'
-  ! Offline chemical fields
-  character(len=*), parameter :: fldname_o3_offline = 'O3'
-  character(len=*), parameter :: fldname_no3_offline = 'NO3'
-  character(len=*), parameter :: fldname_oh_offline = 'OH'
-  character(len=*), parameter :: fldname_ho2_offline = 'HO2'
-  character(len=*), parameter :: fldname_h2o2_limit = 'H2O2'
-  ! GLOMAP-specific drivers
-  character(len=*), parameter :: fldname_liq_cloud_frac = 'cloud_liq_frac'
-  ! Activate-specific drivers
-  character(len=*), parameter :: fldname_vertvel = 'vertvel'
-
-  ! - Drivers in full-height plus level 0 grid group -
-
-  character(len=*), parameter :: fldname_interf_z = 'interf_z'
-  
-  ! - Drivers in full-height plus one grid group -
-
-  character(len=*), parameter :: fldname_exner_rho_lev = 'exner_rho_levels'
-
-  ! - Drivers in boundary levels group -
-
-  character(len=*), parameter :: fldname_rhokh_rdz = 'rhokh_rdz'
-  character(len=*), parameter :: fldname_dtrdz = 'dtrdz'
-
-  ! - Drivers in entrainment levels group -
-
-  character(len=*), parameter :: fldname_we_lim = 'we_lim'
-  character(len=*), parameter :: fldname_t_frac = 't_frac'
-  character(len=*), parameter :: fldname_zrzi = 'zrzi'
-  character(len=*), parameter :: fldname_we_lim_dsc = 'we_lim_dsc'
-  character(len=*), parameter :: fldname_t_frac_dsc = 't_frac_dsc'
-  character(len=*), parameter :: fldname_zrzi_dsc = 'zrzi_dsc'
-
-  ! - Drivers in land point group -
-
-  character(len=*), parameter :: fldname_frac_land = 'fland'
-  character(len=*), parameter :: fldname_soil_moisture_layer1 =                &
-                                   'soil_moisture_layer1'
-
-  ! - Drivers in land-point tile groups -
-
-  character(len=*), parameter :: fldname_frac_surft = 'frac_types'
-  character(len=*), parameter :: fldname_tstar_surft = 'tstar_tile'
-  character(len=*), parameter :: fldname_z0_surft = 'z0tile_lp'
-  character(len=*), parameter :: fldname_l_active_surft = 'l_tile_active'
-
-  ! - Drivers in land-point plant functional type tile group -
-
-  character(len=*), parameter :: fldname_lai_pft = 'laift_lp'
-  character(len=*), parameter :: fldname_canht_pft = 'canhtft_lp'
 
   ! UKCA error reporting variables
   character(len=ukca_maxlen_message)  :: ukca_errmsg  ! Error return message
