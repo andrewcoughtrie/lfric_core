@@ -214,7 +214,7 @@
                   mkdir -p `dirname $SOURCE_ROOT`
                   svn export --force {{SOURCE_LFRIC}} $SOURCE_ROOT
 
-                  HOST={{TARGET_HOST}}
+                  HOST={{get_target_property(PRIMARY_TARGET, 'hostname')}}
                   RELATIVE_SOURCE_DIRECTORY=`echo $SOURCE_DIRECTORY | sed "s|$HOME/||"`
                   ssh $HOST mkdir -p $RELATIVE_SOURCE_DIRECTORY
                   rsync -avz $SOURCE_DIRECTORY/ $HOST:$RELATIVE_SOURCE_DIRECTORY/
@@ -360,7 +360,7 @@
           ) }}
 
         [[[environment]]]
-            WORKING_DIR           = {{TARGET_BUILD_ROOT}}/{{label}}
+            WORKING_DIR           = {{get_target_property( PRIMARY_TARGET, 'build_root')}}/{{label}}
             TARGET                = build
             PROFILE               = {{build}}
             LFRIC_TARGET_PLATFORM = {{TARGET_OPT}}
@@ -388,7 +388,7 @@
         script = rose task-run --app-key=publish_compile
 
         [[[environment]]]
-            HOST     = {{TARGET_HOST}}
+            HOST     = {{get_target_property(PRIMARY_TARGET, 'hostname')}}
             CONTEXT  = {{build}}
             DIR_FILE = compile.log.path
             # This needs to be overridden as it is set to a none word-size
@@ -441,7 +441,7 @@
             DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{mesh_label}}
             MESH_DIR              = $OUTPUT_ROOT/{{mesh_label}}/meshes
             BIN_DIR               = $OUTPUT_ROOT/{{mesh_label}}/bin
-            WORKING_DIR           = {{TARGET_BUILD_ROOT}}/{{mesh_label}}
+            WORKING_DIR           = {{get_target_property( PRIMARY_TARGET, 'build_root')}}/{{mesh_label}}
             TARGET                = build
             PROFILE               = {{mesh_build}}
             LFRIC_TARGET_PLATFORM = {{TARGET_OPT}}
@@ -488,7 +488,7 @@ fi""",
 
         [[[environment]]]
             BIN_DIR               = $DESTINATION_DIRECTORY/bin
-            WORKING_DIR           = {{TARGET_BUILD_ROOT}}/{{label}}
+            WORKING_DIR           = {{get_target_property( PRIMARY_TARGET, 'build_root')}}/{{label}}
             TARGET                = unit-tests
             PROFILE               = {{build}}
             LFRIC_TARGET_PLATFORM = {{TARGET_OPT}}
@@ -524,7 +524,7 @@ fi""",
           )}}
 
         [[[environment]]]
-            WORKING_DIR    = {{TARGET_BUILD_ROOT}}/integration_{{label}}
+            WORKING_DIR    = {{get_target_property( PRIMARY_TARGET, 'build_root')}}/integration_{{label}}
             RDEF_PRECISION = {{precision}}
 {%-         if fix_enums %}
             FIX_ENUMS      = 1
@@ -920,7 +920,7 @@ echo $RELATIVE_LOG_ROOT > $DESTINATION_DIRECTORY/'+pathFragment+'/run.log.path
                      """
         script = rose task-run --app-key=publish_run
         [[[environment]]]
-            HOST          = {{TARGET_HOST}}
+            HOST          = {{get_target_property(PRIMARY_TARGET, 'hostname')}}
             DIR_FILE      = {{pathFragment}}/run.log.path
             APP_NAME      = {{appName}}
             CONTEXT       = {{build}}
@@ -939,7 +939,7 @@ echo $RELATIVE_LOG_ROOT > $DESTINATION_DIRECTORY/'+pathFragment+'/run.log.path
         script = """
                  mkdir -p $DESTINATION/{{compiler}}/{{build}}/{{pathFragment}}
                  RELATIVE_DESTINATION_DIRECTORY=`echo $DESTINATION_DIRECTORY | sed "s|$HOME/||"`
-                 rsync -avz {{TARGET_HOST}}:$RELATIVE_DESTINATION_DIRECTORY/{{pathFragment}}/plots/ \
+                 rsync -avz {{get_target_property(PRIMARY_TARGET, 'hostname')}}:$RELATIVE_DESTINATION_DIRECTORY/{{pathFragment}}/plots/ \
                             $DESTINATION/{{compiler}}/{{build}}/{{pathFragment}}/
                  """
         [[[job]]]

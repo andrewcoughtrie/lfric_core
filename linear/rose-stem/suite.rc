@@ -629,7 +629,7 @@ fi""",
 {%-                   set xios_server_opt = '' %}
 {%-                   set mpi_parts_xios  = default_mpi_parts_xios %}
 
-{%-                   set run_batcher = TARGET_RUN_BATCHER_DIRECTIVES %}
+{%-                   set run_batcher = get_target_property(PRIMARY_TARGET, 'queue.run.directives') %}
 
 {%-                   if configuration_label in scheduledTasksDict.keys() %}
 {#                      If the directives are configured by the suite, #}
@@ -806,7 +806,11 @@ mv $CYLC_TASK_WORK_DIR/lfric_averages.nc \
             RESTART_WRITE = $(if [ $CRUN_LENGTH -gt $CYLC_TASK_CYCLE_POINT ]; then echo ".true."; else echo ".false."; fi)
             RESOLUTION    = {{res_value|replace("_MG","")}}
 
-{{                    directives(PRIMARY_TARGET, 'run') }}
+        [[[directives]]]
+{%-                   for DIRECTIVE in run_batcher %}
+            {{DIRECTIVE}}
+{%-                   endfor %}
+
 {%-                 endif %} {# 'run_' + configuration_label_res #}
 
 {#- ######################################################################## #}
@@ -851,7 +855,7 @@ mv $CYLC_TASK_WORK_DIR/lfric_averages.nc \
             RES        = {{res_value}}{{dt_labels[i]}}
             RES_LABEL  = {{res_label}}{{dt_labels[i]}}
 
-{{                    directives( PRIMARY_TARGET, 'tech' ) }}
+{{                    directives(PRIMARY_TARGET, 'tech') }}
 {%-                 endif %}
 
 {#- ######################################################################## #}

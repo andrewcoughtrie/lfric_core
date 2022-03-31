@@ -57,7 +57,7 @@
             'build' : {
                 'launcher' : 'mpiexec',
                 'directives' : [
-                    '--partition=rhel7', '--time=00:30:00',
+                    '--partition=rhel7', '--time=00:45:00',
                     '--ntasks=6', '--mem-per-cpu=1G', '--gres=tmp:1024',
                     '--export=NONE'
                 ]
@@ -113,7 +113,7 @@
                 'launcher' : 'mpiexec',
                 'directives' : [
                     '-l select=1:ncpus=6:mem=6GB:tmpsize=2GB',
-                    '-l walltime=00:45:00',
+                    '-l walltime=01:00:00',
                     '-q=shared'
                 ]
             },
@@ -170,7 +170,7 @@
                 'launcher' : 'mpiexec',
                 'directives' : [
                     '-l select=1:ncpus=6:mem=6GB:tmpsize=2GB',
-                    '-l walltime=00:45:00',
+                    '-l walltime=01:00:00',
                     '-q=shared'
                 ]
             },
