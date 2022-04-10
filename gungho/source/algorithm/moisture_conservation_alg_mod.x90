@@ -42,19 +42,16 @@ contains
   !> m_X is the mixing ratio of the X-th moisture species.
   !> The total mass of moist air is the sum of all of these (dry + all moisture species).
   !> This routine is intended to be used at multiple points in the time-step.
-  !> @param[in] tstep Current timestep
   !> @param[in] rho Density field
   !> @param[in] mr Bundle of moisture mixing ratios
   !> @param[in] stage A string describing the point in time-step
-  subroutine moisture_conservation_alg( tstep,        &
-                                        rho,          &
+  subroutine moisture_conservation_alg( rho,          &
                                         mr,           &
                                         stage         &
                                       )
 
     implicit none
 
-    integer(kind=i_def),   intent( in ) :: tstep
     type(field_type),      intent( in ) :: rho
     type(field_type),      intent( in ) :: mr(nummr)
     character(len=*),      intent( in ) :: stage
@@ -104,13 +101,13 @@ contains
     end do
 
     ! Output diagnostic values to log
-    write( log_scratch_space, '(3A,I5,E32.12)' )                      &
-      'Conservation: dry mass, ', stage, ' at time step', tstep, total_dry
+    write( log_scratch_space, '(2A,E32.12)' ) &
+      'Conservation: dry mass, ', stage, total_dry
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
     do i_mr = 1, nummr
-      write( log_scratch_space, '(A,I3,3A,I5,E32.12)' )               &
-        'Conservation: mass of water species', i_mr, ', ', stage,     &
-        ' at time step', tstep, total_water_all(i_mr)
+      write( log_scratch_space, '(A,I3,2A,E32.12)' )              &
+        'Conservation: mass of water species', i_mr, ', ', stage, &
+        total_water_all(i_mr)
         call log_event( log_scratch_space, LOG_LEVEL_INFO )
     end do
 

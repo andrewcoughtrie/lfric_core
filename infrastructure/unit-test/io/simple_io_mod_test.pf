@@ -10,6 +10,7 @@ module simple_io_mod_test
   use clock_mod,             only : clock_type
   use constants_mod,         only : r_second
   use io_context_mod,        only : io_context_type
+  use model_clock_mod,       only : model_clock_type
   use pfunit_mod
   use simple_io_context_mod, only : simple_io_context_type
   use simple_io_mod,         only : initialise_simple_io
@@ -27,7 +28,7 @@ contains
     implicit none
 
     class(io_context_type), allocatable :: context
-    class(clock_type),      pointer     :: clock
+    class(clock_type), pointer          :: clock
 
     call initialise_simple_io( context, '3', '5', 1.2_r_second, 2.7_r_second )
 
@@ -35,7 +36,7 @@ contains
       type is (simple_io_context_type)
         clock => context%get_clock()
         select type(clock)
-          type is (clock_type)
+          type is (model_clock_type)
             @assertEqual( 3, clock%get_first_step() )
             @assertEqual( 5, clock%get_last_step() )
             @assertFalse( clock%is_spinning_up() )

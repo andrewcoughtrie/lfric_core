@@ -475,7 +475,7 @@ contains
                                            mr, mr_after_slow, moist_dyn, &
                                            cloud_fields,                 &
                                            cloud_fields_after_slow,      &
-                                           dt, clock%get_step(), outer,  &
+                                           dt, outer,                    &
                                            chemistry_fields,             &
                                            chemistry_fields_after_slow,  &
                                            aerosol_fields,               &
@@ -595,9 +595,9 @@ contains
           !--------------------------------------------------------------------
           ! Solve semi-implicit system: A*inc = rhs, and incement state by inc
           !--------------------------------------------------------------------
-          call semi_implicit_solver_alg_step( state, rhs_np1, &
+          call semi_implicit_solver_alg_step( state, rhs_np1,     &
                                               moist_dyn(gas_law), &
-                                              mr, clock%get_step(), &
+                                              mr,                 &
                                               rho_guess, write_moisture_diag )
           if (exner_from_eos) then
             call derive_exner_from_eos( state, &
@@ -651,7 +651,7 @@ contains
     !--------------------------------------------------------------------
     call mixing_alg(mr, state(igh_t),                             &
                     state(igh_u), visc_m, visc_h, derived_fields, &
-                    state(igh_d), clock%get_step(), dt )
+                    state(igh_d), dt )
 
     ! ----------------------------------------------------------------------
     ! Call cloud scheme to generate cloud and latent heating after pressure

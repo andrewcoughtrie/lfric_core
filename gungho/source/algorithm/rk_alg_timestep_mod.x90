@@ -15,7 +15,6 @@ module rk_alg_timestep_mod
                                                 log_scratch_space, &
                                                 LOG_LEVEL_INFO,    &
                                                 LOG_LEVEL_TRACE
-  use clock_mod,                          only: clock_type
 
   ! Configuration options
   use finite_element_config_mod,          only: element_order, &
@@ -184,8 +183,7 @@ contains
   !> @param[in,out] mr           Mixing ratios
   !> @param[in,out] cloud_fields Fields for cloud scheme
   !> @param[in] dt               The model timestep length
-  !> @param[in] clock            Model time
-  subroutine rk_alg_step(u, rho, theta, moist_dyn, exner, mr, cloud_fields, dt, clock)
+  subroutine rk_alg_step(u, rho, theta, moist_dyn, exner, mr, cloud_fields, dt )
 
     implicit none
     ! Prognostic fields
@@ -194,7 +192,6 @@ contains
     type(field_type),            intent(inout) :: mr(nummr)
     type(field_collection_type), intent(inout) :: cloud_fields
     real(kind=r_def),            intent(in)    :: dt
-    class(clock_type),           intent(in)    :: clock
 
     ! The quadrature object
     type( quadrature_xyoz_type ),  pointer :: qr => null()
@@ -250,7 +247,7 @@ contains
                                          state(igh_u), state(igh_u),     &
                                          mr, mr, moist_dyn,              &
                                          cloud_fields, cloud_fields,     &
-                                         dt, clock%get_step(), outer )
+                                         dt, outer )
       ! Compute new rhs
       if ( rotating ) then
         coriolis => get_coriolis(mesh_id)

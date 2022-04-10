@@ -4,10 +4,10 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
-module clock_mod_test
+module model_clock_mod_test
 
   use calendar_mod,  only : calendar_type
-  use clock_mod,     only : clock_type
+  use model_clock_mod,     only : model_clock_type
   use constants_mod, only : i_timestep, r_def, r_second
   use pFUnit_mod
 
@@ -108,7 +108,7 @@ contains
 
     class(clock_test_type), intent(inout) :: this
 
-    type(clock_type)              :: unit_under_test
+    type(model_clock_type)        :: unit_under_test
     type(calendar_stub_type)      :: stub_calendar
     class(calendar_type), pointer :: returned_calendar
     integer                       :: tally
@@ -267,4 +267,4 @@ contains
     read( string, '(I5)') parse_instance
   end function parse_instance
 
-end module clock_mod_test
+end module model_clock_mod_test

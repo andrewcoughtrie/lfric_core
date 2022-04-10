@@ -32,7 +32,7 @@ subroutine io_dev_timestep_alg(core_fields, clock)
     implicit none
 
     type(field_collection_type), intent(inout) :: core_fields
-    type(clock_type),            intent(in)    :: clock
+    class(clock_type),           intent(in)    :: clock
 
     type(field_collection_iterator_type) :: iter
     real(r_def)                          :: ts_scale_factor

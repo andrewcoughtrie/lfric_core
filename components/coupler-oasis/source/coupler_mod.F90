@@ -19,6 +19,7 @@ module coupler_mod
                                             namsrcfld, namdstfld, oasis_in,    &
                                             prism_real
 #endif
+  use clock_mod,                      only: clock_type
   use field_mod,                      only: field_type, field_proxy_type
   use field_parent_mod,               only: field_parent_type
   use pure_abstract_field_mod,        only: pure_abstract_field_type
@@ -34,7 +35,6 @@ module coupler_mod
   use constants_mod,                  only: i_def, r_def, i_halo_index, l_def, &
                                             imdi, rmdi
   use timestepping_config_mod,        only: dt
-  use clock_mod,                      only: clock_type
   use log_mod,                        only: log_event,       &
                                             LOG_LEVEL_INFO,  &
                                             LOG_LEVEL_ERROR, &

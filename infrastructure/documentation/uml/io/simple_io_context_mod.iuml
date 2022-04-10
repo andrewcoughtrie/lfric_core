@@ -5,3 +5,4 @@ class simple_io_context_type {
   +get_clock(): <<pointer>>clock_type
 }
 io_context_type ^-- simple_io_context_type
+simple_io_context_type -left- clock_type

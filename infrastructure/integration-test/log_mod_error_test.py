@@ -9,10 +9,6 @@
 The Fortran logging module terminates on error. This cannot be tested by the
 unit testing framework as it terminates the unit tests as well.
 '''
-
-from __future__ import print_function
-
-from __future__ import absolute_import
 import datetime
 import re
 
@@ -76,8 +72,8 @@ class log_mod_error_parallel_test( LFRicLoggingTest ):
   def __init__( self ):
     super(log_mod_error_parallel_test, self).__init__( processes=2 )
 
-    self._minimumTimestamp = datetime.datetime.utcnow()
-    self._linePattern = re.compile( r'(\d\d\d\d)(\d\d)(\d\d) (\d\d)(\d\d)(\d\d)\.(\d\d\d) (\S+)\s+PET(\d+)\s+(.*)' )
+    self._minimumTimestamp = datetime.datetime.now(datetime.timezone.utc)
+    self._linePattern = re.compile( r'(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)\.(\d{3})([+-])(\d\d)(\d\d):P(\d+):\s*(\w+):\s+(.+)' )
 
   def test( self, returncode, out, err ):
     expectedLevel = 'ERROR'
@@ -98,6 +94,12 @@ class log_mod_error_parallel_test( LFRicLoggingTest ):
     match = self._linePattern.match( petLog )
     if match:
       try:
+        tzsign = -1 if match.group(8) == '-' else 1
+        tzhours = int(match.group(9))
+        tzmins = int(match.group(10))
+        timezone = datetime.timezone(tzsign
+                                     * datetime.timedelta(hours=tzhours,
+                                                          minutes=tzmins))
         timestamp = datetime.datetime( int(match.group(1)), # Year
                                        int(match.group(2)), # Month
                                        int(match.group(3)), # Day
@@ -105,17 +107,22 @@ class log_mod_error_parallel_test( LFRicLoggingTest ):
                                        int(match.group(5)), # Minute
                                        int(match.group(6)), # Second
                                     int(match.group(7)) * 1000, # Microseconds
-                                       None ) # Timezone
+                                       timezone ) # Timezone
       except Exception as ex:
-        raise TestFailed( 'Bad timestamp format: {}'.format( petLog ) )
-      level = match.group(8)
-      report = match.group(10)
+        raise TestFailed( 'Bad timestamp format: {}'.format( petLog ), ex )
+      process = int(match.group(11))
+      level = match.group(12)
+      report = match.group(13)
     else:
       raise TestFailed( 'Unexpected log message: {}'.format( petLog ) )
 
     if timestamp < self._minimumTimestamp:
       message = 'Expected a timestamp after {} but read {}'
       raise TestFailed( message.format( minimumTimestamp, timestamp ) )
+
+    if process < 0:
+      message = 'Process number went negative'
+      raise TestFailed( message )
 
     if level != expectedLevel:
       message = 'Expected "{}" but read "{}"'

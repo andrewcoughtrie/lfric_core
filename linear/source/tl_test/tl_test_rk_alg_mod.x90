@@ -10,8 +10,8 @@
 !!          kutta algorithm, using the Taylor remainder convergence test.
 module tl_test_rk_alg_mod
 
-  use clock_mod,                      only: clock_type
   use assign_field_random_kernel_mod, only: assign_field_random_kernel_type
+  use clock_mod,                      only: clock_type
   use constants_mod,                  only: i_def, r_def, str_def
   use field_mod,                      only: field_type
   use field_bundle_mod,               only: clone_bundle
@@ -188,7 +188,7 @@ module tl_test_rk_alg_mod
     call rk_alg_init(mesh, u, rho, theta, exner)
 
     call rk_alg_step(u, rho, theta, moist_dyn, exner, &
-                     mr, cloud_fields, dt, clock)
+                     mr, cloud_fields, dt )
 
     call rk_alg_final()
 
@@ -228,7 +228,7 @@ module tl_test_rk_alg_mod
       call rk_alg_init(mesh, n_u, n_rho, n_theta, n_exner)
 
       call rk_alg_step(n_u, n_rho, n_theta, n_moist_dyn, n_exner, &
-                       n_mr, cloud_fields, dt, clock)
+                       n_mr, cloud_fields, dt )
 
       call rk_alg_final()
 

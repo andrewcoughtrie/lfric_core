@@ -148,7 +148,7 @@ module gungho_step_mod
                                     twod_mesh)
       case( method_rk )             ! RK
         call rk_alg_step(u, rho, theta, moist_dyn, exner, mr, cloud_fields,  &
-                         dt, clock)
+                         dt )
       case( method_no_timestepping )
         write( log_scratch_space, &
            '(A, A)' ) 'CAUTION: Running with no timestepping. ' // &
@@ -158,18 +158,15 @@ module gungho_step_mod
     end select
 
     if ( write_conservation_diag ) then
-      call conservation_algorithm( clock%get_step(), &
-                                   rho,              &
+      call conservation_algorithm( rho,              &
                                    u,                &
                                    theta,            &
                                    exner )
       if ( use_moisture ) then
-        call moisture_conservation_alg( clock%get_step(), &
-                                        rho,              &
+        call moisture_conservation_alg( rho,              &
                                         mr,               &
                                         'After timestep' )
-        if ( use_physics ) call moisture_fluxes_alg( clock%get_step(),    &
-                                                     microphysics_fields, &
+        if ( use_physics ) call moisture_fluxes_alg( microphysics_fields, &
                                                      convection_fields,   &
                                                      turbulence_fields,   &
                                                      dA,                  &

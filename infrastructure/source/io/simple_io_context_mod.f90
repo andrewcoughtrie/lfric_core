@@ -11,6 +11,7 @@ module simple_io_context_mod
   use constants_mod,     only : i_native, r_second
   use io_context_mod,    only : io_context_type, io_context_initialiser_type
   use log_mod,           only : log_event, log_level_error
+  use model_clock_mod,   only : model_clock_type
   use step_calendar_mod, only : step_calendar_type
 
   implicit none
@@ -24,7 +25,7 @@ module simple_io_context_mod
   !>
   type, public, extends(io_context_type) :: simple_io_context_type
     private
-    type(clock_type), allocatable :: clock
+    type(model_clock_type), allocatable :: clock
   contains
     private
     procedure, public :: initialise
@@ -69,8 +70,8 @@ contains
     if (rc /= 0) then
       call log_event( "Failed to allocate clock", log_level_error )
     end if
-    call this%clock%initialise( calendar, start_time, finish_time, &
-                                seconds_per_step, spinup_period )
+    this%clock = model_clock_type( calendar, start_time, finish_time, &
+                                   seconds_per_step, spinup_period )
 
     !> @todo Rather than using this callback we might prefer to pass arrays
     !>       of objects which describe things to be set up. Alternatively we

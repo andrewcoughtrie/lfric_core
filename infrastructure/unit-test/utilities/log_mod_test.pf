@@ -9,7 +9,7 @@
 !>
 module log_mod_test
 
-  use constants_mod, only: r_def, i_def, str_long
+  use constants_mod, only: i_def, r_def, str_long
   use log_mod,       only: finalise_logging, initialise_logging, log_event, &
                            log_level, log_level_debug, log_level_error,     &
                            log_level_info, log_level_trace,                 &
@@ -23,7 +23,8 @@ module log_mod_test
   !> @todo We shouldn't have to explicitly export setUp and tearDown but
   !>       ifort 14 borks badly if you don't.
   public log_test_constructor, getParameters, &
-         log_level_test, log_output_test, setUp, tearDown
+         log_level_test, log_output_test,     &
+         setUp, tearDown
 
   integer(i_def), parameter :: INFO_UNIT  = 12
   integer(i_def), parameter :: ALERT_UNIT = 13
@@ -47,6 +48,7 @@ module log_mod_test
     procedure :: setUp
     procedure :: tearDown
   end type log_test_type
+
 
 contains
 

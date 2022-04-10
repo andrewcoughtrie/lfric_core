@@ -8,17 +8,17 @@
 module lfric_xios_context_mod
 
   use clock_mod,            only : clock_type
-  use io_context_mod,       only : io_context_type, &
-                                   io_context_initialiser_type
-  use step_calendar_mod,    only : step_calendar_type
   use constants_mod,        only : i_native, &
                                    r_second, &
                                    l_def
+  use io_context_mod,       only : io_context_type, &
+                                   io_context_initialiser_type
   use lfric_xios_clock_mod, only : lfric_xios_clock_type
+  use lfric_xios_file_mod,  only : xios_file_type
   use log_mod,              only : log_event,       &
                                    log_level_error, &
                                    log_level_info
-  use lfric_xios_file_mod,  only : xios_file_type
+  use step_calendar_mod,    only : step_calendar_type
   use xios,                 only : xios_close_context_definition, &
                                    xios_context,                  &
                                    xios_context_finalize,         &
@@ -107,13 +107,16 @@ contains
       call log_event( "Unable to allocate calendar", log_level_error )
     end if
 
-    allocate( this%clock, stat=rc )
+    allocate( this%clock,                                            &
+              source=lfric_xios_clock_type( calendar,                &
+                                            start_time, finish_time, &
+                                            seconds_per_step,        &
+                                            spinup_period,           &
+                                            timer_flag=timer_flag ), &
+              stat=rc )
     if (rc /= 0) then
       call log_event( "Unable to allocate clock", log_level_error )
     end if
-    call this%clock%initialise( calendar, start_time, finish_time, &
-                                seconds_per_step, spinup_period,   &
-                                timer_flag=timer_flag )
 
     if (present(populate_filelist)) then
       call populate_filelist(this%filelist, this%clock)

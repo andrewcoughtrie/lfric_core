@@ -92,8 +92,8 @@ contains
 
     integer(i_native) :: log_level
 
-    type(clock_type), pointer :: clock
-    real(r_def)               :: dt_model
+    class(clock_type), pointer :: clock
+    real(r_def)                :: dt_model
 
     ! Initialise YAXT
     call xt_initialize(comm)

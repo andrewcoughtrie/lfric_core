@@ -8,12 +8,12 @@
 module tl_rk_alg_timestep_mod
 
   use constants_mod,                      only: i_def,r_def
+  use clock_mod,                          only: clock_type
   use log_mod,                            only: log_event,         &
                                                 log_scratch_space, &
                                                 LOG_LEVEL_INFO,    &
                                                 LOG_LEVEL_ERROR,   &
                                                 LOG_LEVEL_TRACE
-  use clock_mod,                          only: clock_type
 
   ! Configuration options
   use finite_element_config_mod,          only: element_order, &
@@ -302,7 +302,7 @@ contains
                                          ls_state_stage(igh_u,stage),  &
                                          ls_mr, ls_mr, ls_moist_dyn,   &
                                          cloud_fields, cloud_fields,   &
-                                         dt, clock%get_step(), 1_i_def )
+                                         dt, 1_i_def )
 
       ! Compute new rhs
       if ( rotating ) then
@@ -389,7 +389,7 @@ contains
                                      ls_state_stage(:,stage),          &
                                      ls_state_stage(igh_u,stage),      &
                                      ls_state_stage(igh_u,stage),      &
-                                     ls_mr, dt, clock%get_step() )
+                                     ls_mr, dt )
 
       ! Compute new rhs
       if ( rotating ) then

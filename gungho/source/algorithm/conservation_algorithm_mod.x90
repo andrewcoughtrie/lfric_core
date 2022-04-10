@@ -43,21 +43,16 @@ contains
   !>@brief Algorithm to compute various conserved quantities
   !>@details Computes various conserved quantities and checks how
   !> accurately they have been conserved
-  !> @param[in] tstep Current timestep
   !> @param[in] rho Density field
   !> @param[in] u Velocity field
   !> @param[in] theta Potential temperature field
   !> @param[in] exner Exner pressure field
-  subroutine conservation_algorithm( tstep,        &
-                                     rho,          &
+  subroutine conservation_algorithm( rho,          &
                                      u,            &
                                      theta,        &
                                      exner)
 
     implicit none
-
-    integer(kind=i_timestep), intent(in) :: tstep
-
 
     ! Prognostic fields
     type( field_type ), intent( in ) :: u, rho, theta, exner
@@ -111,14 +106,14 @@ contains
                                                qr),                       &
                  sum_X(total_aam, aam) )
 
-    write( log_scratch_space, '(A, I5, E32.24)')     &
-          'Conservation: dry mass at time step',   tstep, total_mass
+    write( log_scratch_space, '(A, E32.24)') &
+          'Conservation: dry mass ', total_mass
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
-    write( log_scratch_space, '(A, I5, E32.24)')     &
-          'Conservation: dry energy at time step', tstep, total_energy
+    write( log_scratch_space, '(A, E32.24)') &
+          'Conservation: dry energy ', total_energy
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
-    write( log_scratch_space, '(A, I5, E32.24)')     &
-          'Conservation: dry aam at time step',    tstep, total_aam
+    write( log_scratch_space, '(A, E32.24)') &
+          'Conservation: dry aam ', total_aam
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
 

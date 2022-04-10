@@ -229,13 +229,9 @@ contains
 
     implicit none
 
-    class(clock_type), pointer :: clock
-    clock => io_context%get_clock()
-
     call test_transport_control( model_data, &
                                  mesh,       &
-                                 twod_mesh,  &
-                                 clock )
+                                 twod_mesh )
 
   end subroutine run_transport_control
 

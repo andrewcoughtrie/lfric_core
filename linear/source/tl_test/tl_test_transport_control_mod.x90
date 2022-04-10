@@ -7,7 +7,6 @@
 
 module tl_test_transport_control_mod
 
-  use clock_mod,                      only: clock_type
   use assign_field_random_kernel_mod, only: assign_field_random_kernel_type
   use constants_mod,                  only: i_def, r_def, str_def
   use field_mod,                      only: field_type
@@ -45,17 +44,14 @@ module tl_test_transport_control_mod
   !> @param[in] model_data    The working data set for a model run
   !> @param[in] mesh          The current 3d mesh
   !> @param[in] twod_mesh     The current 2d mesh
-  !> @param[in] clock         Model time
   subroutine test_transport_control( model_data, &
                                      mesh,       &
-                                     twod_mesh,  &
-                                     clock )
+                                     twod_mesh )
     implicit none
 
     type(mesh_type), pointer,      intent(in) :: mesh
     type(mesh_type), pointer,      intent(in) :: twod_mesh
     type(model_data_type), target, intent(in) :: model_data
-    class(clock_type),             intent(in) :: clock
 
     character(str_def) :: label = "transport_control"
 
@@ -193,7 +189,6 @@ module tl_test_transport_control_mod
                                       cloud_fields,            &
                                       cloud_fields_after_slow, &
                                       dt,                      &
-                                      clock%get_step(),        &
                                       outer                    )
 
     gamma_u = 7.e8_r_def
@@ -249,7 +244,6 @@ module tl_test_transport_control_mod
                                         cloud_fields,            &
                                         cloud_fields_after_slow, &
                                         dt,                      &
-                                        clock%get_step(),        &
                                         outer                    )
 
       call tl_transport_control_alg(p_rhs,            &
@@ -263,8 +257,7 @@ module tl_test_transport_control_mod
                                     ls_state(igh_u),  &
                                     ls_state(igh_u),  &
                                     ls_mr,            &
-                                    dt,               &
-                                    clock%get_step()  )
+                                    dt                )
 
      ! diff = n2_rhs - n1_rhs
       call minus_bundle( n2_rhs, n1_rhs, diff, bundle_size )

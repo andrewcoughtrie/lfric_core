@@ -23,10 +23,9 @@ contains
   !> @param[in,out] visc_h         Smag diffusion coef for heat
   !> @param[in]     derived_fields Group of derived fields
   !> @param[in]     rho            Density
-  !> @param[in]     step           model timestep index
   !> @param[in]     dt             The model timestep length
   subroutine mixing_alg(mr, theta, u, visc_m, visc_h, derived_fields, &
-                        rho, step, dt)
+                        rho, dt)
 
     use constants_mod,                 only: i_def,r_def
     use log_mod,                       only: log_event,         &
@@ -52,7 +51,6 @@ contains
     type( field_type ), intent(in) :: rho
 
     ! Timestepping information
-    integer( i_def ),   intent(in) :: step
     real( r_def ),      intent(in) :: dt
 
     ! Increment fields
@@ -65,8 +63,8 @@ contains
     !--------------------------------------------------------------------
     ! Apply horizontal Smagorinsky subgrid mixing
     !--------------------------------------------------------------------
-    if ( smagorinsky ) call smagorinsky_alg(mr, theta, u, visc_m, visc_h,     &
-                                            derived_fields, rho, step, dt)
+    if ( smagorinsky ) call smagorinsky_alg(mr, theta, u, visc_m, visc_h, &
+                                            derived_fields, rho, dt)
     !--------------------------------------------------------------------
     ! Apply viscosity
     !--------------------------------------------------------------------

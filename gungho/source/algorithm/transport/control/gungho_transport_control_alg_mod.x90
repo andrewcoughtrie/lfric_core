@@ -153,7 +153,6 @@ contains
   !!                                Fields for cloud scheme with slow
   !!                                physics forcings added
   !> @param[in]     model_dt        Difference in time through model time step
-  !> @param[in]     t_step          Integer denoting current model timestep
   !> @param[in]     outer           Outer (advection) iteration number
   !> @param[in]     chemistry_fields Fields for chemistry scheme
   !> @param[in]     chemistry_fields_after_slow Fields for chemistry scheme
@@ -166,7 +165,7 @@ contains
                                           wind_np1, wind_n, mr_out, mr_in, &
                                           moist_dyn, cloud_fields,         &
                                           cloud_fields_after_slow,         &
-                                          model_dt, t_step, outer,         &
+                                          model_dt, outer,                 &
                                           chemistry_fields,                &
                                           chemistry_fields_after_slow,     &
                                           aerosol_fields,                  &
@@ -209,7 +208,6 @@ contains
     type(field_collection_type), intent(inout) :: cloud_fields
     type(field_collection_type), intent(in)    :: cloud_fields_after_slow
     real(kind=r_def),            intent(in)    :: model_dt
-    integer(kind=i_def),         intent(in)    :: t_step
     integer(kind=i_def),         intent(in)    :: outer
     type(field_collection_type), intent(inout), optional :: chemistry_fields
     type(field_collection_type), intent(in),    optional :: chemistry_fields_after_slow
@@ -311,7 +309,7 @@ contains
     if ( moisture_formulation /= moisture_formulation_dry ) then
       ! Write out moisture diagnostics
       if ( do_moisture_diagnostics ) then
-        call moisture_conservation_alg( t_step, advected_fields(igh_d), &
+        call moisture_conservation_alg( advected_fields(igh_d), &
                                         mr_in, 'Before transport' )
       end if
 
@@ -359,7 +357,7 @@ contains
       ! ---------------------------------------------------------------------- !
       ! Write out moisture diagnostics
       if (do_moisture_diagnostics) then
-        call moisture_conservation_alg( t_step, fields_np1(igh_d), mr_out, &
+        call moisture_conservation_alg( fields_np1(igh_d), mr_out, &
                                         'After transport' )
       end if
 

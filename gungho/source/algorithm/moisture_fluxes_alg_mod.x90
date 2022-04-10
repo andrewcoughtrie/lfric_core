@@ -42,14 +42,12 @@ contains
   !>    cannot be included. Then we will sum over tiles.)
   !> 2. Precipitation associated with the convection scheme (rain and snow).
   !> 3. Precipitation associated with the microphysics scheme (rain and snow).
-  !> @param[in] tstep Current timestep
   !> @param[in] microphysics_fields Bundle of microphysics fields
   !> @param[in] convection_fields Bundle of convection fields
   !> @param[in] turbulence_fields Bundle of turbulence fields
   !> @param[in] area W2 field with areas of faces
   !> @param[in] dt The model timestep length
-  subroutine moisture_fluxes_alg( tstep,               &
-                                  microphysics_fields, &
+  subroutine moisture_fluxes_alg( microphysics_fields, &
                                   convection_fields,   &
                                   turbulence_fields,   &
                                   area,                &
@@ -58,7 +56,6 @@ contains
 
     implicit none
 
-    integer(kind=i_def),         intent( in ) :: tstep
     type(field_collection_type), intent( in ) :: microphysics_fields
     type(field_collection_type), intent( in ) :: convection_fields
     type(field_collection_type), intent( in ) :: turbulence_fields
@@ -141,16 +138,16 @@ contains
     mp_sink_mass = ls_rain_mass + ls_snow_mass
     conv_sink_mass = conv_rain_mass + conv_snow_mass
 
-    write( log_scratch_space, '(A, I5, E32.12)' ) &
-          'Conservation: boundary layer moisture flux in at time step', tstep, bl_source_mass
+    write( log_scratch_space, '(A, E32.12)' ) &
+          'Conservation: boundary layer moisture flux in ', bl_source_mass
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
-    write( log_scratch_space, '(A, I5, E32.12)' ) &
-          'Conservation: microphysics moisture flux out at time step',  tstep, mp_sink_mass
+    write( log_scratch_space, '(A, E32.12)' ) &
+          'Conservation: microphysics moisture flux out ', mp_sink_mass
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
-    write( log_scratch_space, '(A, I5, E32.12)' ) &
-          'Conservation: convective moisture flux out at time step',    tstep, conv_sink_mass
+    write( log_scratch_space, '(A, E32.12)' ) &
+          'Conservation: convective moisture flux out ', conv_sink_mass
 
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 

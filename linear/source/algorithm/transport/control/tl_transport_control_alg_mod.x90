@@ -50,12 +50,11 @@ contains
   !> @param[in]     ls_wind_n          PASSIVE Start of timestep wind field
   !> @param[in]     ls_mr_in           PASSIVE Moisture fields before transport
   !> @param[in]     model_dt           Difference in time through model time step
-  !> @param[in]     t_step             Integer denoting current model timestep
   subroutine tl_transport_control_alg(advection_inc, advected_fields,   &
                                       wind_np1, wind_n, mr_out, mr_in,  &
                                       moist_dyn, ls_advected_fields,    &
                                       ls_wind_np1, ls_wind_n, ls_mr_in, &
-                                      model_dt, t_step)
+                                      model_dt )
 
     use check_configuration_mod,         only: check_any_scheme_ffsl
     use derived_config_mod,              only: bundle_size
@@ -94,7 +93,6 @@ contains
     type(field_type),            intent(in)    :: ls_advected_fields(bundle_size)
     type(field_type),            intent(in)    :: ls_mr_in(nummr)
     real(kind=r_def),            intent(in)    :: model_dt
-    integer(kind=i_def),         intent(in)    :: t_step
 
     ! Internal variables
     type(field_type)    :: temp_inc

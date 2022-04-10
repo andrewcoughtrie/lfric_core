@@ -15,15 +15,19 @@
 
 module log_mod
 
-  use constants_mod, only : str_long, str_max_filename
   use, intrinsic :: iso_fortran_env, only : output_unit, error_unit
+
+  use constants_mod,   only : i_timestep, &
+                              str_long,   &
+                              str_max_filename
   use lfric_abort_mod, only : parallel_abort
 
   implicit none
 
   private
-  public initialise_logging, finalise_logging, &
-         log_set_info_stream, log_set_alert_stream, &
+  public finalise_logging, initialise_logging,      &
+         log_set_alert_stream, log_set_info_stream, &
+         log_set_timestep, log_forget_timestep,     &
          log_set_level, log_level, log_event
 
   !> Named logging level.
@@ -58,9 +62,44 @@ module log_mod
   integer, private :: log_unit_number = 10
   logical, private :: is_parallel = .false.
   logical, private :: warning_trace = .false.
-  character(len=:), allocatable :: petno
+  character(len=:), private, allocatable :: petno
+  integer(i_timestep), private, allocatable :: timestep
 
 contains
+
+  !> Sets the current timestep.
+  !>
+  subroutine log_set_timestep( new_timestep )
+
+    implicit none
+
+    integer(i_timestep), intent(in) :: new_timestep
+
+    ! We could check to make sure that timesteps only ever increase or even
+    ! that they are monotonically increasing. It seems best to not bother,
+    ! at least to start with. If we do checks we then have to report when
+    ! those checks fail which means calling the logging framework from itself.
+    !
+    ! There shouldn't be a problem with that but one thing at a time.
+    !
+    if (.not. allocated(timestep)) then
+      allocate(timestep)
+    end if
+    timestep = new_timestep
+
+  end subroutine log_set_timestep
+
+
+  !> Makes the logger forget about the current timestep.
+  !>
+  subroutine log_forget_timestep
+
+    implicit none
+
+    if (allocated(timestep)) deallocate(timestep)
+
+  end subroutine log_forget_timestep
+
 
   !> Set where information goes.
   !>
@@ -79,6 +118,7 @@ contains
 
   end subroutine log_set_info_stream
 
+
   !> Set where alerts go.
   !>
   !> If this routine is never called then alerts will default to standard
@@ -96,6 +136,7 @@ contains
 
   end subroutine log_set_alert_stream
 
+
   !> Set the level this logger responds to.
   !>
   !> Events ranked lower than the logging level will be accepted and dropped
@@ -112,6 +153,7 @@ contains
     logging_level = level
 
   end subroutine log_set_level
+
 
   !> Gets the current logging level.
   !>
@@ -240,16 +282,21 @@ contains
           tag  = 'INFO'
       end select
 
-      call date_and_time( date=date_string, time=time_string, zone=zone_string)
+      if (is_parallel) unit = log_unit_number
 
-      if(is_parallel)then
-        unit = log_unit_number
-        write (unit, '(A," ",A," ",A,"            PET",A," ",A)') &
-                   date_string, time_string, tag, petno, trim( message )
-      else
-        write (unit, '(A,A,A,":",A,": ",A)') &
-                   date_string, time_string, zone_string, tag, trim( message )
+      call date_and_time( date=date_string, time=time_string, zone=zone_string)
+      write( unit, '(A, A, A)', &
+             advance='no' ) date_string, time_string, zone_string
+
+      if (is_parallel) then
+        write( unit, '(":P", A)', advance='no' ) petno
       end if
+
+      if (allocated(timestep)) then
+        write( unit, '(":S", I0)', advance='no' ) timestep
+      end if
+
+      write ( unit, '(":",A,": ",A)') tag, trim( message )
 
       if(trace) then
         call traceback()
@@ -264,8 +311,9 @@ contains
 
   end subroutine log_event
 
-  ! @brief   Close output unit and stop the model
 
+  ! @brief   Close output unit and stop the model
+  !
   subroutine abort_model()
 
     implicit none

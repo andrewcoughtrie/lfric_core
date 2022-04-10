@@ -36,10 +36,10 @@ module gungho_driver_mod
                                          ancil_option,             &
                                          ancil_option_updating
   use init_gungho_lbcs_alg_mod,   only : update_lbcs_file_alg
-  use log_mod,                    only : log_event,         &
-                                         log_scratch_space, &
-                                         LOG_LEVEL_ALWAYS,  &
-                                         LOG_LEVEL_INFO
+  use log_mod,                    only : log_event,           &
+                                         log_level_always,    &
+                                         log_level_info,      &
+                                         log_scratch_space
   use mesh_collection_mod,        only : mesh_collection
   use mesh_mod,                   only : mesh_type
 #ifdef UM_PHYSICS

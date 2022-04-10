@@ -679,7 +679,7 @@ contains
         call invoke( enforce_lower_bound_kernel_type (mr(i_mr), 0.0_r_def) )
       end do
       if (write_conservation_diag) &
-        call moisture_conservation_alg(clock%get_step(), rho, mr, 'After slow')
+        call moisture_conservation_alg( rho, mr, 'After slow' )
     end if
 
     if ( subroutine_timers ) call timer("slow_physics")

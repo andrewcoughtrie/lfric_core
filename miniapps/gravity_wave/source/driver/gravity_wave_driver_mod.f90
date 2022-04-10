@@ -43,12 +43,12 @@ module gravity_wave_driver_mod
   use checksum_alg_mod,               only : checksum_alg
 
   use boundaries_config_mod,          only: limited_area
-  use log_mod,                        only: log_event,          &
-                                            log_scratch_space,  &
-                                            LOG_LEVEL_ALWAYS,   &
-                                            LOG_LEVEL_INFO,     &
-                                            LOG_LEVEL_TRACE,    &
-                                            LOG_LEVEL_ERROR
+  use log_mod,                        only: log_event,           &
+                                            log_level_always,    &
+                                            log_level_info,      &
+                                            log_level_trace,     &
+                                            log_level_error,     &
+                                            log_scratch_space
   use mesh_mod,                       only: mesh_type
   use io_mod,                         only: ts_fname
   use files_config_mod,               only: checkpoint_stem_name

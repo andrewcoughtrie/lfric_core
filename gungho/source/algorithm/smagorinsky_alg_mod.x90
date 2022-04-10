@@ -52,10 +52,9 @@ contains
   !> @param[in,out] visc_h         Smag diffusion coef for heat
   !> @param[in]     derived_fields Group of derived fields
   !> @param[in]     rho            Density
-  !> @param[in]     step           Model timestep
   !> @param[in]     dt             The model timestep length
 subroutine smagorinsky_alg(mr, theta, u, visc_m,                   &
-                             visc_h, derived_fields, rho, step, dt )
+                             visc_h, derived_fields, rho, dt )
 
     implicit none
 
@@ -66,7 +65,6 @@ subroutine smagorinsky_alg(mr, theta, u, visc_m,                   &
 
     type( field_collection_type ), intent(in) :: derived_fields
 
-    integer( i_def ),   intent(in) :: step
     type( field_type ), intent(in) :: rho
     real( r_def ),      intent(in) :: dt
 
@@ -200,7 +198,7 @@ subroutine smagorinsky_alg(mr, theta, u, visc_m,                   &
                  inc_X_plus_bY( u,     dt, du ) )
 
     if (write_conservation_diag .and. use_moisture) &
-      call moisture_conservation_alg( step, rho, mr, 'After mixing' )
+      call moisture_conservation_alg( rho, mr, 'After mixing' )
 
     nullify( height_w1, height_w2 )
 

@@ -7,8 +7,8 @@
 !>@brief Calculate predictors required by fast physics
 module calc_phys_predictors_alg_mod
 
-  use constants_mod,            only: r_def
   use clock_mod,                only: clock_type
+  use constants_mod,            only: r_def
   use field_mod,                only: field_type
   use field_collection_mod,     only: field_collection_type
   use derived_config_mod,       only: bundle_size

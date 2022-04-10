@@ -480,7 +480,7 @@ contains
                                         ls_moist_dyn_itns(:, outer, 1), &
                                         cloud_fields,                   &
                                         cloud_fields_after_slow,        &
-                                        dt, clock%get_step(), outer)
+                                        dt, outer)
 
       if (use_wavedynamics) then
 
@@ -607,7 +607,6 @@ contains
                            ls_rhs_np1(:, outer, inner),                        &
                            ls_moist_dyn_itns(gas_law, next_outer, next_inner), &
                            ls_mr_itns(:, next_outer, next_inner),              &
-                           clock%get_step(),                                   &
                            rho_guess,                                          &
                            write_moisture_diag )
             if (exner_from_eos) then
@@ -710,8 +709,7 @@ contains
                                     ls_state_itns(igh_u, outer, 1), &
                                     ls_state_n(igh_u),              &
                                     ls_mr_after_slow,               &
-                                    dt,                             &
-                                    clock%get_step()                )
+                                    dt                              )
 
       if (use_wavedynamics) then
 
@@ -784,7 +782,7 @@ contains
           !--------------------------------------------------------------------
           call semi_implicit_solver_alg_step( state, rhs_np1,       &
                                               moist_dyn(gas_law),   &
-                                              mr, clock%get_step(), &
+                                              mr,                   &
                                               rho_guess, write_moisture_diag )
           if (exner_from_eos) then
             call tl_derive_exner_from_eos( state,              &
@@ -823,7 +821,7 @@ contains
     !--------------------------------------------------------------------
     call mixing_alg(mr, state(igh_t),                             &
                     state(igh_u), visc_m, visc_h, derived_fields, &
-                    state(igh_d), clock%get_step(), dt )
+                    state(igh_d), dt )
 
     !--------------------------------------------------------------------
     ! Update fields held in the driver layer

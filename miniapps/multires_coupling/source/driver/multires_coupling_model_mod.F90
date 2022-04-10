@@ -491,14 +491,12 @@ contains
         call semi_implicit_alg_init(dynamics_mesh, dynamics_u, dynamics_rho, &
                                     dynamics_theta, dynamics_exner, dynamics_mr)
         if ( write_conservation_diag ) then
-         call conservation_algorithm( clock%get_step(), &
-                                      dynamics_rho,     &
+         call conservation_algorithm( dynamics_rho,     &
                                       dynamics_u,       &
                                       dynamics_theta,   &
                                       dynamics_exner )
          if ( moisture_formulation /= moisture_formulation_dry ) &
-           call moisture_conservation_alg( clock%get_step(),     &
-                                           dynamics_rho,         &
+           call moisture_conservation_alg( dynamics_rho,         &
                                            dynamics_mr,          &
                                            'Before timestep' )
         end if
@@ -507,14 +505,12 @@ contains
         call rk_alg_init(dynamics_mesh, dynamics_u, dynamics_rho, &
                          dynamics_theta, dynamics_exner)
         if ( write_conservation_diag ) then
-         call conservation_algorithm( clock%get_step(), &
-                                      dynamics_rho,     &
+         call conservation_algorithm( dynamics_rho,     &
                                       dynamics_u,       &
                                       dynamics_theta,   &
                                       dynamics_exner )
          if ( moisture_formulation /= moisture_formulation_dry ) &
-           call moisture_conservation_alg( clock%get_step(),     &
-                                           dynamics_rho,         &
+           call moisture_conservation_alg( dynamics_rho,         &
                                            dynamics_mr,          &
                                            'Before timestep' )
         end if

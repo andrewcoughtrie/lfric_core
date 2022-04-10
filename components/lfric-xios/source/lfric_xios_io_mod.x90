@@ -418,7 +418,7 @@ contains
     implicit none
 
     type(xios_file_type), allocatable, intent(in) :: files_list(:)
-    type(clock_type),                  intent(in) :: clock
+    class(clock_type),                 intent(in) :: clock
 
     type(xios_file)        :: file_hdl
     type(xios_duration)    :: file_freq

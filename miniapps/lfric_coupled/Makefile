@@ -22,7 +22,7 @@ export EXTERNAL_STATIC_LIBRARIES = psmile.MPI1 mct mpeu scrip xios
 export UMPHYSICS_TARGETS = extract-um-physics
 export UMPHYSICS_CLEAN   = clean-um-physics
 export UM_FCM=$(UM_PHYS_DIR)/
-LFRIC_TARGET_PLATFORM ?= generic-x86
+export LFRIC_TARGET_PLATFORM ?= generic-x86
 export OPTIMISATION_PATH ?= $(wildcard optimisation/$(LFRIC_TARGET_PLATFORM))
 
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))

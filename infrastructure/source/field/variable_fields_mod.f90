@@ -6,12 +6,13 @@
 !>@brief Updates time-varying fields from linked list of time axis objects
 module variable_fields_mod
 
-  use constants_mod,                 only : r_def, r_second, str_def
   use clock_mod,                     only : clock_type
+  use constants_mod,                 only : r_def, r_second, str_def
   use field_collection_mod,          only : field_collection_type
   use lfric_xios_time_axis_mod,      only : time_axis_type
   use linked_list_mod,               only : linked_list_type, &
                                             linked_list_item_type
+
   implicit none
 
   private

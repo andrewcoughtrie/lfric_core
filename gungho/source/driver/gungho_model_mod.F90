@@ -466,14 +466,12 @@ contains
         call semi_implicit_alg_init(mesh, u, rho, theta, exner, mr)
 
         if ( write_conservation_diag ) then
-         call conservation_algorithm( clock%get_step(), &
-                                      rho,              &
+         call conservation_algorithm( rho,              &
                                       u,                &
                                       theta,            &
                                       exner )
          if ( use_moisture ) &
-           call moisture_conservation_alg( clock%get_step(), &
-                                           rho,              &
+           call moisture_conservation_alg( rho,              &
                                            mr,               &
                                            'Before timestep' )
         end if
@@ -481,14 +479,12 @@ contains
         ! Initialise and output initial conditions for first timestep
         call rk_alg_init(mesh, u, rho, theta, exner)
         if ( write_conservation_diag ) then
-         call conservation_algorithm( clock%get_step(), &
-                                      rho,              &
+         call conservation_algorithm( rho,              &
                                       u,                &
                                       theta,            &
                                       exner )
          if ( use_moisture ) &
-           call moisture_conservation_alg( clock%get_step(), &
-                                           rho,              &
+           call moisture_conservation_alg( rho,              &
                                            mr,               &
                                            'Before timestep' )
         end if

@@ -132,14 +132,12 @@ module linear_step_mod
     end select
 
     if ( write_conservation_diag ) then
-      call conservation_algorithm( clock%get_step(), &
-                                   rho,              &
+      call conservation_algorithm( rho,              &
                                    u,                &
                                    theta,            &
                                    exner )
       if ( moisture_formulation /= moisture_formulation_dry ) then
-        call moisture_conservation_alg( clock%get_step(), &
-                                        rho,              &
+        call moisture_conservation_alg( rho,              &
                                         mr,               &
                                         'After timestep' )
         if ( use_physics ) then

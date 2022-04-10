@@ -157,7 +157,7 @@ contains
 
     if (write_conservation_diag .and. outer == outer_iterations .and. &
         use_moisture ) then
-      call moisture_conservation_alg( clock%get_step(), rho_guess, mr, 'Before fast' )
+      call moisture_conservation_alg( rho_guess, mr, 'Before fast' )
     end if
 
     !--------------------------------------------------------------------
@@ -265,7 +265,7 @@ contains
       end do
 
       if (write_conservation_diag .and. outer == outer_iterations) &
-        call moisture_conservation_alg( clock%get_step(), rho_guess, mr, 'After fast' )
+        call moisture_conservation_alg( rho_guess, mr, 'After fast' )
     end if
 
     if ( subroutine_timers ) call timer("fast_physics")

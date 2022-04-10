@@ -8,8 +8,8 @@
 module um_clock_init_mod
 
   ! LFRic modules
-  use clock_mod,                   only : clock_type
-  use constants_mod,               only : r_um
+  use clock_mod,     only : clock_type
+  use constants_mod, only : r_um
 
   implicit none
 
@@ -20,14 +20,14 @@ contains
 
   !> @brief Initialise UM clock
   !> @param[in] clock  The LFRic model clock object
-  subroutine um_clock_init(clock)
+  subroutine um_clock_init( clock )
 
     ! UM modules containing things that need setting
     use timestep_mod, only: timestep
 
     implicit none
 
-    type(clock_type), intent(in)    :: clock
+    class(clock_type), intent(in) :: clock
 
     ! Timestep used in UM code - contained in UM timestep_mod.
     ! Set from LFRic input timestep.
