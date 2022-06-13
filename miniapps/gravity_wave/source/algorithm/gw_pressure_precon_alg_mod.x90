@@ -3,25 +3,26 @@
 ! For further details please refer to the file LICENCE which you should have
 ! received as part of this distribution.
 !-----------------------------------------------------------------------------
-!>@brief Vertical preconditioner for the pressure equation.
+!> @brief Vertical preconditioner for the pressure equation.
 !>
-!>
-!>@details This preconditioner calculates \f$y = Px = H_z^{-1}x\f$ where
-!> \f$H_z\f$ is the vertical part of the Helmholtz operator (scaled by the
-!> inverse pressure mass matrix), i.e.
-!>
-!> \f[
-!> H_z = 1 + M_3^{-1}\left(\omega_c^2 \Delta_h
-!>                       + \omega_c^2/(1+\omega_N^2) D_z M_{u,z,inv} D_z^T)
-!>                   \right)
-!> \f]
-!> and \f$\Delta_h = \diag(D_h M_{u,h,inv} D_h^T) \f$. The lumped inverse mass
-!> matrices are given by \f$M_{u,*,inv}\f$.
+!> @details This preconditioner calculates \f$y = Px = H_z^{-1}x\f$ where
+!!          \f$H_z\f$ is the vertical part of the Helmholtz operator (scaled
+!!          by the inverse pressure mass matrix), i.e.
+!!
+!!  \f[
+!!  H_z = 1 + M_3^{-1}\left(\omega_c^2 \Delta_h
+!!                       + \omega_c^2/(1+\omega_N^2) D_z M_{u,z,inv} D_z^T)
+!!                    \right)
+!!  \f]
+!!  and \f$\Delta_h = \diag(D_h M_{u,h,inv} D_h^T) \f$. The lumped inverse mass
+!!  matrices are given by \f$M_{u,*,inv}\f$.
 !>
 
 module gw_pressure_precon_alg_mod
+
   use vector_mod,                      only : abstract_vector_type
   use field_vector_mod,                only : field_vector_type
+  use field_mod,                       only : field_type
   use hierarchical_preconditioner_mod, only : abstract_hierarchical_preconditioner_type
   use log_mod,                         only : log_event, &
                                               LOG_LEVEL_INFO, &
@@ -73,11 +74,10 @@ module gw_pressure_precon_alg_mod
 
 contains
 
-  !> @brief Construct a <code> gw_pressure_preconditioner_type</code> object
+  !> @brief Construct a <code> gw_pressure_preconditioner_type</code> object.
   !>
   !> @param[in] level Multigrid level
-  !>
-  !> @return self the constructed preconditioner object
+  !> @return self The constructed preconditioner object
   function gw_pressure_preconditioner_constructor(level) result(self)
 
     use log_mod,                           only: log_event, LOG_LEVEL_INFO
@@ -87,13 +87,13 @@ contains
     use runtime_tools_mod,                 only: get_hierarchical_mesh_id
     implicit none
 
-    type(gw_pressure_preconditioner_type)  :: self
-    integer(kind=i_def), intent(in)        :: level
+    type(gw_pressure_preconditioner_type) :: self
+    integer(kind=i_def), intent(in)       :: level
 
     call log_event( 'Constructing pressure preconditioner...', &
          LOG_LEVEL_INFO )
 
-    ! set scaling constants
+    ! Set scaling constants
     self%omega2_c = alpha**2*dt**2*cs_square
     self%omega2_N = alpha**2*dt**2*bvf_square
     self%level = level
@@ -105,7 +105,9 @@ contains
 
   end function gw_pressure_preconditioner_constructor
 
-  !> @brief Build the vertical Helmholtz matrix \f$H_z\f$ in CMA representation
+  !> @brief Build the vertical Helmholtz matrix \f$H_z\f$ in CMA representation.
+  !>
+  !> @param[in,out] self Instance of type gw_pressure_preconditioner_type
   subroutine build_Hz(self)
 
     use fem_constants_mod,            only : get_div_v,                 &
@@ -217,7 +219,7 @@ contains
     ! STEP 4: tmp_4 = M_3 + tmp_3
     ! STEP 5: H_z = M_3^{-1} tmp_4
 
-    ! construct CMAs of the right size
+    ! Construct CMAs of the right size
     tmp_1 = mm_w2v_inv_diag_cma%columnwise_operator_product( grad_v_cma )
     tmp_2 = div_v_cma%columnwise_operator_product( tmp_1 )
     tmp_3 = diag_DhMDhT_cma%columnwise_operator_sum( tmp_2 )
@@ -255,44 +257,52 @@ contains
 
   end subroutine build_Hz
 
-  !>@brief Apply the preconditioner to calculate \f$y = P.x = x\f$
+  !> @brief Apply the preconditioner to calculate \f$y = P.x = x\f$.
   !>
-  !>@details Apply the vertical preconditioner \f$y = H_z^{-1}x\f$
+  !> @details Apply the vertical preconditioner \f$y = H_z^{-1}x\f$.
   !>
-  !>@param[inout] self instance of type gw_pressure_preconditioner_type
-  !>@param[inout] x field-vector containing the right hand side of the pressure
-  !>@param[inout] y field-vector containing the solution
+  !> @param[in,out] self Instance of type gw_pressure_preconditioner_type
+  !> @param[in] x Field vector containing the right hand side of the pressure
+  !> @param[in,out] y Field vector containing the solution
   subroutine apply_gw_pressure_preconditioner(self, x, y)
 
     implicit none
-    class(gw_pressure_preconditioner_type), intent(inout)    :: self
-    class(abstract_vector_type), intent(in) :: x
-    class(abstract_vector_type), intent(inout) :: y
+    class(gw_pressure_preconditioner_type), intent(inout) :: self
+    class(abstract_vector_type),            intent(in)    :: x
+    class(abstract_vector_type),            intent(inout) :: y
+
+    ! Workaround for PSyclone to get pointers of the correct type for x and y
+    type(field_type), pointer :: x_vec => null(), y_vec => null()
 
     select type(x)
     type is(field_vector_type)
-       select type(y)
-       type is(field_vector_type)
-          ! Set field to zero
-          call y%set_scalar(0.0_r_def)
-          ! Multiply by inverse of vertical operator \f$ H_z \f$
-          call invoke( columnwise_op_appinv_kernel_type( y%vector(1), &
-                                                         x%vector(1), &
-                                                         self%Hz_cma ) )
-       class default
-          write(log_scratch_space, '(A)') &
-                "gw_pressure_preconditioner_mod: incorrect vector_type argument y"
-          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-       end select
+      select type(y)
+      type is(field_vector_type)
+        ! Get pointers to x and y abstract types
+        x_vec => x%get_field(1)
+        y_vec => y%get_field(1)
+        ! Set field to zero
+        call y%set_scalar(0.0_r_def)
+        ! Multiply by inverse of vertical operator \f$ H_z \f$
+        call invoke( columnwise_op_appinv_kernel_type( y_vec, &
+                                                       x_vec, &
+                                                       self%Hz_cma ) )
+      class default
+        write(log_scratch_space, '(A)') &
+              "gw_pressure_preconditioner_mod: incorrect vector_type argument y"
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+     end select
     class default
-       write(log_scratch_space, '(A)') "gw_pressure_preconditioner_mod: incorrect vector_type argument x"
-       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      write(log_scratch_space, '(A)') "gw_pressure_preconditioner_mod: incorrect vector_type argument x"
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
     end select
+
+    nullify( x_vec, y_vec )
 
   end subroutine apply_gw_pressure_preconditioner
 
-  !> Performs a deep copy between gw_pressure_preconditioner_type pairs.
-  !> (for overriding the "=" operator)
+  !> @brief Performs a deep copy between gw_pressure_preconditioner_type pairs
+  !!        (for overriding the "=" operator).
   !>
   !> @param[out] dest   gw_pressure_preconditioner_type lhs
   !> @param[in]  source gw_pressure_preconditioner_type rhs
@@ -310,11 +320,11 @@ contains
 
   end subroutine gw_pressure_preconditioner_assign
 
-  !> Construct a coarsened version of the preconditioner on the next
-  !> level of the multigrid hierarchy
+  !> @brief Construct a coarsened version of the preconditioner on the next
+  !!        level of the multigrid hierarchy.
   !>
-  !>@param[inout] self instance of type gw_pressure_preconditioner_type
-  !>@param[inout] other coarsed version on next multigrid level
+  !> @param[in,out] self Instance of type gw_pressure_preconditioner_type
+  !> @param[in,out] other Coarsed version on next multigrid level
   subroutine coarsen_gw_pressure_preconditioner(self, other)
     implicit none
     class(gw_pressure_preconditioner_type), intent(inout) :: self
@@ -323,9 +333,9 @@ contains
              source=gw_pressure_preconditioner_type(self%level+1))
   end subroutine coarsen_gw_pressure_preconditioner
 
-  !>@brief Destructor
+  !> @brief Destructor
   !>
-  !>@param[inout] self Instance of type to be destroyed
+  !> @param[in,out] self Instance of type to be destroyed
   subroutine destroy_gw_pressure_preconditioner(self)
     implicit none
     type(gw_pressure_preconditioner_type), intent(inout) :: self

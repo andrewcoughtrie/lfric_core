@@ -4,8 +4,8 @@
 ! should have received as part of this distribution.
 !-------------------------------------------------------------------------------
 
-!>@brief Abstract vector type for fields to use the new solver API and
-!!       extended vector types for particular solvers.
+!> @brief Abstract vector type for fields to use the new solver API and
+!!        extended vector types for particular solvers.
 
 module field_vector_mod
 
@@ -27,64 +27,85 @@ module field_vector_mod
      !> Logical. Has data been set, needed for copy constructor.
      logical, private :: vector_set = .false.
    contains
-!   public procedures of the type
+     ! Public procedures of the type
      !> Import a field into the vector at the given position in the array
-     !> @param[in] field  field_type, the field to copy
-     !> @param[in] pos  the position in the array
+     !> @param[in,out] self      An instance of a field vector
+     !> @param[in]     field     The field to copy
+     !> @param[in]     position  The position in the array
      procedure, public  :: import_field
      !> Export a field from the vector at the given position in the array
-     !> @param[out] field  field_type, the field to copy to
-     !> @param[in] pos  the position in the array
+     !> @param[in]     self      An instance of a field vector
+     !> @param[in,out] field     The field to export
+     !> @param[in]     position  The position in the array
      procedure, public  :: export_field
-!   public procedures of the type
+     ! Public procedures of the type
      !> Initialise a field into the vector at the given position in the array
-     !> @param[in] field  field_type, the field to copy
-     !> @param[in] pos  the position in the array
-     !> @param[in] fs function_space to create field on
+     !> @param[in,out] self      An instance of a field vector
+     !> @param[in]     position  The position in the array
+     !> @param[in]     fs        Function space to create field on
      procedure, public  :: initialise_field
+     !> Return a pointer to a specific field in the field array
+     !> @param[in] self      An instance of a field vector
+     !> @param[in] position  The position in the array
+     !> @return    field     The field to return
+     procedure, public  :: get_field
 
-!   public procedures of the API overidden in the type
-     !> set the vector to a scalar value
-     !> @param[in] scalar  real the scalar value
+     ! Public procedures of the API overidden in the type
+     !> @brief Set the vector to a scalar value.
+     !> @param[in,out] self    An instance of a field vector
+     !> @param[in]     scalar  The scalar value
      procedure, public  :: set_scalar => set_field_vector_scalar
-     !> Compute y = y + alpha * x
-     !> @param[in] alpha  real
-     !> @param[in, out] x  vector, an array of fields
+     !> @brief Compute y = y + alpha * x.
+     !> @param[in,out] self   An instance of a field vector
+     !> @param[in]     alpha  A scalar
+     !> @param[in,out] x      Vector, an array of fields
      procedure, public  :: axpy => axpy_field_vector
-     !> Compute norm of the field vector, returns a real scalar
-     !! n = sqrt( sum_i( f_i*f_i )) where f_i is each field
+     !> @brief Compute norm of the field vector, returns a real scalar.
+     !!        n = sqrt( sum_i( f_i*f_i )) where f_i is each field.
+     !> @param[in] self    An instance of a field vector
+     !> @return    normal  The norm
      procedure, public  :: norm => norm_field_vector
-     !> Compute the dot product of two field_vectors returns a real scalar
-     !> @param[in] x field_vector to dot self with
+     !> @brief Compute the norm of a field in the vector.
+     !> @param[in] self    An instance of a field vector
+     !> @param[in] n       Index of a field to compute the norm for
+     !> @return    normal  The norm
      procedure, public  :: field_norm => field_norm_field_vector
-     !> Compute the dot product of two field_vectors returns a real scalar
-     !> @param[in] x field_vector to dot self with
+     !> @brief Compute the dot product of two field vectors and
+     !!        return a real scalar.
+     !> @param[in] self      An instance of a field vector
+     !> @param[in] x         Field vector to dot self with
+     !> @return    dot_prod  The dot product
      procedure, public  :: dot => dot_field_vector
-     !> multiply a field vector by a scalar
-     !> @param [in] scalar real
+     !> @brief Multiply a field vector by a scalar.
+     !> @param[in,out] self    An instance of a field vector
+     !> @param[in]     scalar  A scalar
      procedure, public  :: scale => scale_field_vector
-     !> Compute y = alpha*y + x
-     !> @param[in] alpha  real
-     !> @param[in, out] x  vector, an array of fields
+     !> @brief Compute y = alpha*y + x
+     !> @param[in,out] self   An instance of a field vector
+     !> @param[in]     alpha  A scalar
+     !> @param[in,out] x      Vector, an array of fields
      procedure, public  :: aypx => aypx_field_vector
-     !> multiply a field vector by a scalar
-     !> @param [in] scalar real
+     !> @brief Make a new field vector when called on abstract type.
+     !> @param[in]     self  An instance of a field vector
+     !> @param[in,out] vec   An instance of an abstract field vector
      procedure, public  :: duplicate => duplicate_field_vector
-     !> copy a vector of this type
-     !> param[in] source, the vector to be copied
-     ! copies a new field_vector when called on abstract type
+     !> @brief Copy a new field vector when called on abstract type.
+     !> @param[out] self    An instance of a field vector
+     !> @param[in]  source  The vector to be copied
      procedure, public  :: copy => field_vector_type_assign
-     !> Return the size of a vector of this type
+     !> @brief Return the size of the field vector.
+     !> @param[in] self     An instance of a field vector
+     !> @return    n_fields The size of a vector of this type
      procedure, public  :: vector_size => get_size_field_vector
-     !> Compute z = a*x + b*y
-     !> @param[in] a  real
-     !> @param[in] b  real
-     !> @param[in] x  vector, an array of fields
-     !> @param[in] y  vector, an array of fields
-     !> @param[in, out] z  vector, an array of fields
+     !> @brief Compute z = a*x + b*y.
+     !> @param[in,out] self  An instance of a field vector
+     !> @param[in]     a     A scalar
+     !> @param[in]     x     Vector, an array of fields
+     !> @param[in]     b     A scalar
+     !> @param[in]     y     Vector, an array of fields
      procedure, public  :: axpby => axpby_field_vector
 
-!   private procedure of the type which either implement the vector API
+     ! Private procedure of the type which either implement the vector API
      procedure, private :: set_field_vector_scalar
      procedure, private :: axpy_field_vector
      procedure, private :: axpby_field_vector
@@ -95,7 +116,7 @@ module field_vector_mod
      procedure, private :: scale_field_vector
      procedure, private :: duplicate_field_vector
      procedure, private :: get_size_field_vector
-!   infractructure procedures
+     ! Infrastructure procedures
      procedure, private :: field_vector_type_assign
      generic            :: assignment(=) => field_vector_type_assign
      final              :: field_vector_destroy
@@ -107,7 +128,7 @@ module field_vector_mod
 
 contains
 
-  ! compute the norm of a field vector
+  ! Compute the norm of a field vector
   function norm_field_vector(self) result(normal)
     implicit none
     class(field_vector_type), intent(in) :: self
@@ -124,18 +145,18 @@ contains
     normal = sqrt(normal)
   end function norm_field_vector
 
-  ! compute the norm of a field in the vector
+  ! Compute the norm of a field in the vector
   function field_norm_field_vector(self, n) result(normal)
     implicit none
     class(field_vector_type), intent(in) :: self
     integer(kind=i_def),      intent(in) :: n
-    real(kind=r_def)    :: normal
+    real(kind=r_def) :: normal
 
     call invoke( X_innerproduct_X(normal, self%vector(n)) )
     normal = sqrt(normal)
   end function field_norm_field_vector
 
-  ! compute the dot of inner product of a field vector
+  ! Compute the dot of inner product of a field vector
   function dot_field_vector(self, x) result(dot_prod)
     implicit none
     class(field_vector_type),    intent(in) :: self
@@ -160,7 +181,7 @@ contains
     end select
   end function dot_field_vector
 
-  ! computes y = alpha * x + y on a field vector
+  ! Computes y = alpha * x + y on a field vector
   subroutine axpy_field_vector(self, alpha, x)
     implicit none
     class(field_vector_type),    intent(inout) :: self
@@ -181,7 +202,7 @@ contains
     end select
   end subroutine axpy_field_vector
 
-  ! computes z = a*x + b*y on a field vector
+  ! Computes z = a*x + b*y on a field vector
   subroutine axpby_field_vector(self, a, x, b, y)
     implicit none
     class(field_vector_type),    intent(inout) :: self
@@ -193,7 +214,7 @@ contains
     type is(field_vector_type)
       select type(y)
       type is(field_vector_type)
-        nfctr =  size(self%vector)
+        nfctr = size(self%vector)
         do fctr = 1, nfctr
            call invoke(aX_plus_bY( self%vector(fctr), a, x%vector(fctr), b, y%vector(fctr) ))
         end do
@@ -209,7 +230,7 @@ contains
     end select
   end subroutine axpby_field_vector
 
-  ! sets a field to a scalar. If a field has not previously been set in
+  ! Sets a field to a scalar. If a field has not previously been set in
   ! the vector (array of fields) then there is no function space information
   ! so can't set the field to the scalar value. The procedure throws an error.
   subroutine set_field_vector_scalar(self, scalar)
@@ -227,7 +248,7 @@ contains
 
   end subroutine set_field_vector_scalar
 
-  ! computes y = alpha * y + x
+  ! Computes y = alpha * y + x
   ! where self is y
   subroutine aypx_field_vector(self, alpha, x)
     implicit none
@@ -250,7 +271,7 @@ contains
     end select
   end subroutine aypx_field_vector
 
-  ! multiply the field vector by a scalar
+  ! Multiply the field vector by a scalar
   subroutine scale_field_vector(self, scalar)
     implicit none
     class(field_vector_type), intent(inout) :: self
@@ -264,14 +285,19 @@ contains
 
   end subroutine scale_field_vector
 
-  ! Copy a field into the field vector
+  !> @brief Copy a field into the field vector.
+  !>
+  !> @param[in,out] self      An instance of a field vector
+  !> @param[in]     field     The field to copy
+  !> @param[in]     position  The position in the field array where the
+  !!                          field is located
   subroutine import_field(self, field, position)
     implicit none
     class(field_vector_type ), intent(inout) :: self
-    type(field_type),             intent(in)    :: field
-    integer(kind=i_def),          intent(in)    :: position
+    type(field_type),          intent(in)    :: field
+    integer(kind=i_def),       intent(in)    :: position
 
-    if(position > size(self%vector)) then
+    if (position > size(self%vector)) then
        write(log_scratch_space,'(A,2(":",I2))') &
             "field_vector_mod:field position bigger than nfields", &
             size(self%vector),position
@@ -282,17 +308,20 @@ contains
     call field%copy_field(self%vector(position))
   end subroutine import_field
 
-   ! Copies a field from the nominated position. The procedure a field has been
-   ! set in this postition
-   ! @param[in] field type(field_type), the field to export
-   ! @param[in] position integer postion in the field array where the field is
-   ! located.
+  !> @brief Copies a field from the nominated position. The procedure a
+  !!        field has been set in this position.
+  !>
+  !> @param[in]     self      An instance of a field vector
+  !> @param[in,out] field     The field to export
+  !> @param[in]     position  The position in the field array where the
+  !!                          field is located
   subroutine export_field(self, field, position)
     implicit none
     class(field_vector_type),  intent(in)    :: self
-    type(field_type),             intent(inout) :: field
-    integer(kind=i_def),          intent(in)    :: position
-    if(position > size(self%vector)) then
+    type(field_type),          intent(inout) :: field
+    integer(kind=i_def),       intent(in)    :: position
+
+    if (position > size(self%vector)) then
        write(log_scratch_space,'(A,2(":",I2))') &
             "field_vector_mod:export_field:field position bigger than nfields", &
             size(self%vector),position
@@ -302,14 +331,19 @@ contains
     call self%vector(position)%copy_field(field)
   end subroutine export_field
 
-  ! Copy a field into the field vector
+  !> @brief Initialise a field into the vector at the given position in the array.
+  !>
+  !> @param[in,out] self        An instance of a field vector
+  !> @param[in]     position    The position in the field array where the
+  !!                            field is located
+  !> @param[in]     fs          Function space to create field on
   subroutine initialise_field(self, position, fs)
     implicit none
-    class(field_vector_type ),       intent(inout) :: self
-    integer(kind=i_def),                intent(in) :: position
-    type(function_space_type), pointer, intent(in) :: fs
+    class(field_vector_type ),          intent(inout) :: self
+    integer(kind=i_def),                intent(in)    :: position
+    type(function_space_type), pointer, intent(in)    :: fs
 
-    if(position > size(self%vector)) then
+    if (position > size(self%vector)) then
        write(log_scratch_space,'(A,2(":",I2))') &
             "field_vector_mod:field position bigger than nfields", &
             size(self%vector),position
@@ -319,7 +353,22 @@ contains
     call self%vector(position)%initialise( vector_space = fs)
   end subroutine initialise_field
 
-  ! allocates the array of fields to the given size
+  !> @brief Return a pointer to a specific field in the field array.
+  !>
+  !> @param[in] self      An instance of a field vector
+  !> @param[in] position  The position in the field array where the
+  !!                      field is located
+  !> @return    field     The field to return
+  function get_field(self, position) result(field)
+    implicit none
+    class(field_vector_type), target, intent(in) :: self
+    integer(kind=i_def)                          :: position
+    type(field_type), pointer                    :: field
+
+    field => self%vector(position)
+  end function get_field
+
+  ! Allocates the array of fields to the given size
   function field_vector_constructor(nfields) result(self)
     implicit none
     integer(kind=i_def), intent(in) :: nfields
@@ -328,7 +377,7 @@ contains
   end function field_vector_constructor
 
   subroutine duplicate_field_vector(self, vec)
-    ! makes a new field_vector when called on abstract type
+    ! Makes a new field_vector when called on abstract type
     implicit none
     class(field_vector_type),                 intent(in)    :: self
     class(abstract_vector_type), allocatable, intent(inout) :: vec
@@ -339,8 +388,8 @@ contains
     allocate(field_vector_type::vec,stat=astat )
     select type (vec)
        type is (field_vector_type)
-          ! for each field in the duplicate vector needs its constructor called
-          if(.not.allocated(vec%vector)) then
+          ! For each field in the duplicate vector needs its constructor called
+          if (.not.allocated(vec%vector)) then
              allocate(vec%vector(size(self%vector)))
           end if
 
@@ -366,11 +415,12 @@ contains
     implicit none
     type(field_vector_type), intent(inout) :: self
 
-    if(allocated(self%vector)) then
+    if (allocated(self%vector)) then
        deallocate(self%vector)
     end if
   end subroutine field_vector_destroy
 
+  ! Copies a new field_vector when called on abstract type
   subroutine field_vector_type_assign(self, source)
     implicit none
     class(field_vector_type), intent(out) :: self
@@ -378,14 +428,14 @@ contains
     integer(kind=i_def) :: stat1
     integer(kind=i_def) :: pos, nfctr
 
-    ! make field_vector
+    ! Make field_vector
     select type (source)
     type is (field_vector_type)
        if (.not.allocated(self%vector)) then
           allocate(self%vector(size(source%vector)),stat=stat1)
        end if
 
-       ! if fields don't exist set false, otherwise copy and set true
+       ! If fields don't exist set 'false', otherwise copy and set 'true'
        if (source%vector_set) then
           nfctr = size(self%vector)
           do pos = 1, nfctr

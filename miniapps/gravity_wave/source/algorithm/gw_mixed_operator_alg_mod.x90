@@ -4,25 +4,25 @@
 ! should have received as part of this distribution.
 !-------------------------------------------------------------------------------
 
-!>@brief Linear operator type which applies the mixed (outer) operator in the
-!>  gravity-wave system
+!> @brief Linear operator type which applies the mixed (outer) operator in the
+!!        gravity-wave system.
 !>
 !> @details Calculates the left hand side of the implicit gravity wave system.
-!>  Given the field-vector \f$ x = (\mathbf{U'},P',B') \f$ this calculate the
-!>  field-vector \f$ y = (\mathbf{U},P,B) \f$ where the components are
-!>  calculated via the discretised version of the following set of equations:
-!>
-!>  \f[ \mathbf{u} = \mathbf{u}' - \alpha\Delta t(\nabla p' + b\mathbf{z})  \f]
-!>  \f[          p =          p' + \alpha\Delta t c^2\nabla.\mathbf{u}'     \f]
-!>  \f[          b =          b' + \alpha\Delta t N^2\mathbf{u}'.\mathbf{z} \f]
-!>
-!>  The primed terms are increments to the n timelevel field. Upon
-!>  discretisation, this leads to (note that the pressure-equation has been
-!>  divided by the mass-matrix \f$ M_3 \f$):
-!>
-!>  \f[ \mathbf{U} = M_2 \mathbf{U}' - \alpha\Delta t (D^T P' + Q B') \f]
-!>  \f[          P = P'  + \alpha\Delta t c^2 M_3^{-1} D \mathbf{U}'  \f]
-!>  \f[          B = M_theta B' + \alpha\Delta t N^2 Q^T \mathbf{U}'  \f]
+!!  Given the field-vector \f$ x = (\mathbf{U'},P',B') \f$ this calculate the
+!!  field-vector \f$ y = (\mathbf{U},P,B) \f$ where the components are
+!!  calculated via the discretised version of the following set of equations:
+!!
+!!  \f[ \mathbf{u} = \mathbf{u}' - \alpha\Delta t(\nabla p' + b\mathbf{z})  \f]
+!!  \f[          p =          p' + \alpha\Delta t c^2\nabla.\mathbf{u}'     \f]
+!!  \f[          b =          b' + \alpha\Delta t N^2\mathbf{u}'.\mathbf{z} \f]
+!!
+!!  The primed terms are increments to the n timelevel field. Upon
+!!  discretisation, this leads to (note that the pressure-equation has been
+!!  divided by the mass-matrix \f$ M_3 \f$):
+!!
+!!  \f[ \mathbf{U} = M_2 \mathbf{U}' - \alpha\Delta t (D^T P' + Q B') \f]
+!!  \f[          P = P'  + \alpha\Delta t c^2 M_3^{-1} D \mathbf{U}'  \f]
+!!  \f[          B = M_theta B' + \alpha\Delta t N^2 Q^T \mathbf{U}'  \f]
 
 module gw_mixed_operator_alg_mod
 
@@ -49,22 +49,22 @@ module gw_mixed_operator_alg_mod
 
      private
 
-     !> temporary for left-hand-side pressure field calculation
+     !> Temporary for left-hand-side pressure field calculation
      type(field_type) :: lhs_p
      !> Operator Q
      type(operator_type) :: Q
 
    contains
-     !> over-ride the abstract interface
-     !> param[in] self a linear operator
-     !> param[in] x a fieldvector the linear operator is applied to
-     !> param[inout] y a fieldvector, the result.
+     !> Over-ride the abstract interface
+     !> param[in,out] self A linear operator
+     !> param[in] x A field vector the linear operator is applied to
+     !> param[in,out] y A field vector, the result.
      procedure, public  :: apply => apply_gw_mixed_operator
      !> Applies the operator as LMA matrix matrix-vector kernels in all blocks
      procedure, private :: apply_gw_mixed_operator
      !> performs a deep copy (for overriding the "=" operator)
-     !> @param[out] dest   gw_mixed_operator_type lhs
-     !> @param[in]  source gw_mixed_operator_type rhs
+     !> @param[out] dest   gw_mixed_operator_type LHS
+     !> @param[in]  source gw_mixed_operator_type RHS
      procedure, public  :: gw_mixed_operator_assign
 
      !> Destroys the object
@@ -82,10 +82,11 @@ module gw_mixed_operator_alg_mod
 contains
   !> @brief Construct a <code>gw_mixed_operator_type</code> object.
   !>
-  !> @details Initialise the object by building the relevant operators
+  !> @details Initialise the object by building the relevant operators.
   !>
-  !> @param [in] state field-vector representing the current state. This is
-  !>             required to extract function spaces and initialise fields.
+  !> @param[in] state Field-vector representing the current state. This is
+  !!                  required to extract function spaces and initialise fields.
+  !> @return self Instance of the gravity wave mixed operator
   function gw_mixed_operator_constructor(state) result(self)
 
     use finite_element_config_mod,     only: element_order
@@ -128,11 +129,11 @@ contains
 
   end function gw_mixed_operator_constructor
 
-  !> Performs a deep copy between gw_mixed_operator_type pairs.
-  !> (for overriding the "=" operator)
+  !> @brief Performs a deep copy between gw_mixed_operator_type pairs
+  !!        (for overriding the "=" operator).
   !>
-  !> @param[out] dest   gw_mixed_operator_type lhs
-  !> @param[in]  source gw_mixed_operator_type rhs
+  !> @param[out] dest   gw_mixed_operator_type LHS
+  !> @param[in]  source gw_mixed_operator_type RHS
   subroutine gw_mixed_operator_assign(dest, source)
 
     implicit none
@@ -145,11 +146,11 @@ contains
 
   end subroutine gw_mixed_operator_assign
 
-  !> @brief Applies the GW mixed operator to the vector, \f$ y = M x \f$
+  !> @brief Applies the GW mixed operator to the vector, \f$ y = M x \f$.
   !>
-  !> @param [in] self instacen of the GW mixed operator
-  !> @param [in] x field vector to be read
-  !> @param [inout] y field vector to be written
+  !> @param[in,out] self Instance of the gravity wave mixed operator
+  !> @param[in] x Field vector to be read
+  !> @param[in,out] y Field vector to be written
   subroutine apply_gw_mixed_operator(self, x, y)
 
     use matrix_vector_kernel_mod,           only: matrix_vector_kernel_type
@@ -178,10 +179,18 @@ contains
     type(field_type), pointer    :: w2_mask => null()
     type(field_type), pointer    :: w3_mask => null()
     type(field_type), pointer    :: wtheta_mask => null()
-    integer(i_def)               :: buoyancy_space, mesh_id
+    integer(kind=i_def)          :: buoyancy_space, mesh_id
 
     ! Auxiliary constants to group invokes
     real(kind=r_def)             :: const1, const2, const3
+
+    ! Workaround for PSyclone to get pointers of the correct type for x and y
+    type(field_type), pointer :: x_vec_u => null(), &
+                                 x_vec_p => null(), &
+                                 x_vec_b => null(), &
+                                 y_vec_u => null(), &
+                                 y_vec_p => null(), &
+                                 y_vec_b => null()
 
     ! Extract mesh ID
     select type (y)
@@ -224,61 +233,78 @@ contains
     const3 = alpha*dt*cs_square
 
     select type (x)
+
     type is (field_vector_type)
-       select type (y)
-       type is (field_vector_type)
-          ! Compute GW lhs
+
+      select type (y)
+
+      type is (field_vector_type)
+
+        ! Get pointers to x and y abstract types
+        x_vec_u => x%get_field( igw_u )
+        x_vec_p => x%get_field( igw_p )
+        x_vec_b => x%get_field( igw_b )
+        y_vec_u => y%get_field( igw_u )
+        y_vec_p => y%get_field( igw_p )
+        y_vec_b => y%get_field( igw_b )
+
+        ! Compute GW LHS
+        call invoke( &
+                ! Initialise LHS
+                setval_c(y_vec_u, 0.0_r_def),                           &
+                setval_c(y_vec_b, 0.0_r_def),                           &
+                ! Compute LHS
+                transpose_matrix_vector_kernel_type(y_vec_u,            &
+                                                    x_vec_p,            &
+                                                    div),               &
+                matrix_vector_kernel_type          (y_vec_u,            &
+                                                    x_vec_b,            &
+                                                    self%Q),            &
+                dg_matrix_vector_kernel_type       (self%lhs_p,         &
+                                                    x_vec_u,            &
+                                                    div),               &
+                dg_matrix_vector_kernel_type       (y_vec_p,            &
+                                                    self%lhs_p,         &
+                                                    m3_inv),            &
+                transpose_matrix_vector_kernel_type(y_vec_b,            &
+                                                    x_vec_u,            &
+                                                    self%Q),            &
+                ! Scale LHS
+                inc_a_times_X(const1, y_vec_u),                         &
+                inc_a_times_X(const2, y_vec_b),                         &
+                ! Add time dependencies
+                matrix_vector_kernel_type(y_vec_u,                      &
+                                          x_vec_u,                      &
+                                          mm_w2),                       &
+                enforce_bc_kernel_type(y_vec_u),                        &
+                matrix_vector_kernel_type(y_vec_b,                      &
+                                          x_vec_b,                      &
+                                          mm_wt),                       &
+                inc_aX_plus_Y(const3, y_vec_p, x_vec_p) )
+
+        if (limited_area) then
+          ! Enforce lateral boundary condition (LBC) by setting values
+          ! to zero on boundary and exterior, as defined by the masks
           call invoke( &
-              ! Initialise lhs
-               setval_c(y%vector(igw_u), 0.0_r_def),                   &
-               setval_c(y%vector(igw_b), 0.0_r_def),                   &
-               ! Compute lhs
-               transpose_matrix_vector_kernel_type(y%vector(igw_u),    &
-                                                   x%vector(igw_p),    &
-                                                   div),               &
-               matrix_vector_kernel_type          (y%vector(igw_u),    &
-                                                   x%vector(igw_b),    &
-                                                   self%Q),            &
-               dg_matrix_vector_kernel_type       (self%lhs_p,         &
-                                                   x%vector(igw_u),    &
-                                                   div),               &
-               dg_matrix_vector_kernel_type       (y%vector(igw_p),    &
-                                                   self%lhs_p,         &
-                                                   m3_inv),            &
-               transpose_matrix_vector_kernel_type(y%vector(igw_b),    &
-                                                   x%vector(igw_u),    &
-                                                   self%Q),            &
-               ! Scale lhs
-               inc_a_times_X(const1, y%vector(igw_u)),                 &
-               inc_a_times_X(const2, y%vector(igw_b)),                 &
-               ! Add time dependencies
-               matrix_vector_kernel_type(y%vector(igw_u),              &
-                                         x%vector(igw_u),              &
-                                         mm_w2),                       &
-               enforce_bc_kernel_type(y%vector(igw_u)),                &
-               matrix_vector_kernel_type(y%vector(igw_b),              &
-                                         x%vector(igw_b),              &
-                                         mm_wt),                       &
-               inc_aX_plus_Y(const3, y%vector(igw_p), x%vector(igw_p)) )
+                inc_X_times_Y(y_vec_u, w2_mask),     &
+                inc_X_times_Y(y_vec_b, wtheta_mask), &
+                inc_X_times_Y(y_vec_p, w3_mask) )
+        endif
 
-          if (limited_area) then
-            ! Enforce lateral boundary condition (LBC) by setting values
-            ! to zero on boundary and exterior, as defined by the masks
-            call invoke( &
-                 inc_X_times_Y(y%vector(igw_u), w2_mask),              &
-                 inc_X_times_Y(y%vector(igw_b), wtheta_mask),          &
-                 inc_X_times_Y(y%vector(igw_p), w3_mask) )
-          endif
+      class default
 
-       class default
-          write(log_scratch_space, '(A)') &
-                "gw_mixed_operator_alg_mod: incorrect vector_type argument y"
-          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-       end select
+        write(log_scratch_space, '(A)') &
+              "gw_mixed_operator_alg_mod: incorrect vector_type argument y"
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+
+      end select
+
     class default
-       write(log_scratch_space, '(A)') &
-             "gw_mixed_operator_alg_mod: incorrect vector_type argument x"
-       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+
+      write(log_scratch_space, '(A)') &
+            "gw_mixed_operator_alg_mod: incorrect vector_type argument x"
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+
     end select
 
     if (limited_area) then
@@ -287,10 +313,13 @@ contains
       nullify(wtheta_mask)
     endif
 
+    nullify( x_vec_u, x_vec_p, x_vec_b, y_vec_u, y_vec_p, y_vec_b )
+
   end subroutine apply_gw_mixed_operator
 
-  !> @brief Finalizer for the gravity wave mixed operator
-  !> @param [inout] self the mixed operator
+  !> @brief Finalizer for the gravity wave mixed operator.
+  !>
+  !> @param[in,out] self The gravity wave mixed operator
   subroutine destroy_gw_mixed_operator(self)
     implicit none
     type(gw_mixed_operator_type), intent(inout) :: self

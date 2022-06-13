@@ -64,6 +64,7 @@ contains
     type(field_type), pointer :: q => null()
     type(field_type)          :: total_geopot
     type(field_type)          :: surface_geopot
+    type(field_type)          :: s_geopot
 
     ! Get pointers to field collections for use downstream
     prognostic_fields => model_data%prognostic_fields
@@ -78,7 +79,8 @@ contains
 
     ! Calculation and output of diagnostics
     call total_geopot%initialise( vector_space=geopot%get_function_space() )
-    call invoke( X_plus_Y(total_geopot, geopot, model_data%s_geopot) )
+    call model_data%s_geopot%copy_field(s_geopot)
+    call invoke( X_plus_Y(total_geopot, geopot, s_geopot) )
 
     if (initial_flag == 1) then
 

@@ -4,7 +4,10 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
+!> @brief Preconditioner for the multigrid solver.
+!>
 module multigrid_preconditioner_alg_mod
+
   use field_mod,                       only: field_type
   use function_space_mod,              only: function_space_type
   use function_space_chain_mod,        only: function_space_chain_type, &
@@ -72,24 +75,24 @@ module multigrid_preconditioner_alg_mod
 
   end type multigrid_preconditioner_type
 
-    ! Overload the default structure constructor
+  ! Overload the default structure constructor
   interface multigrid_preconditioner_type
      module procedure multigrid_preconditioner_constructor
   end interface multigrid_preconditioner_type
 
 contains
-  !> @brief constructor for the multigrid preconditioner
+  !> @brief Constructor for the multigrid preconditioner.
   !>
   !> @details Construct a new instance of the type by setting values of data members
-  !> and calling the subroutine which constructs the multigrid fields, operators
-  !> and preconditioners on all levels of the multigrid hierarchy.
+  !!          and calling the subroutine which constructs the multigrid fields,
+  !!          operators and preconditioners on all levels of the multigrid hierarchy.
   !>
-  !> @param[in] p_rhs the pressure field used in the RHS expression
-  !> @param[in] H_op pressure operator on finest level
-  !> @param[in] Hz_prec pressure preconditioner on finest level
-  !> @result self the constructed multigrid_preconditioner type
+  !> @param[in] p_rhs The pressure field used in the RHS expression
+  !> @param[in] H_op Pressure operator on finest level
+  !> @param[in] Hz_prec Pressure preconditioner on finest level
+  !> @return self The constructed multigrid_preconditioner type
   function multigrid_preconditioner_constructor(p_rhs, &
-                                                H_op, &
+                                                H_op,  &
                                                 Hz_prec) result(self)
     use multigrid_config_mod, only : smooth_relaxation, &
                                      n_presmooth,       &
@@ -117,16 +120,16 @@ contains
 
   end function multigrid_preconditioner_constructor
 
-  !> @brief Construct fields, operators and preconditioners on all multigrid levels
+  !> @brief Construct fields, operators and preconditioners on all multigrid levels.
   !>
-  !> @details Allocate fields on all levels and construct coarse level operators and
-  !> preconditioners are by calling the "coarsen" subroutines which guarantees that
-  !> they are allocated with the correct concrete type.
+  !> @details Allocate fields on all levels and construct coarse level operators
+  !!          and preconditioners are by calling the "coarsen" subroutines which
+  !!          guarantees that they are allocated with the correct concrete type.
   !>
-  !> @param[inout] self instance of type multigrid_preconditioner_type
+  !> @param[in,out] self Instance of type multigrid_preconditioner_type
   !> @param[in] p_rhs Pressure field (used to extract function spaces)
-  !> @param[in] H_operator_fine pressure operator on finest level
-  !> @param[in] Hz_preconditioner_fine pressure preconditioner on finest level
+  !> @param[in] H_operator_fine Pressure operator on finest level
+  !> @param[in] Hz_preconditioner_fine Pressure preconditioner on finest level
   subroutine construct_multigrid_fields(self,                  &
                                         p_rhs,                 &
                                         H_operator_fine,       &
@@ -155,8 +158,8 @@ contains
     call multigrid_function_space_chain%set_current(fs_fine_id)
 
     ! Allocate memory on all multigrid levels
-    allocate(self%fs_id(self%n_level))
-    allocate(self%mesh_id(self%n_level))
+    allocate( self%fs_id(self%n_level) )
+    allocate( self%mesh_id(self%n_level) )
     allocate( self%u_mg( self%n_level ) )
     allocate( self%b_mg( self%n_level ) )
     allocate( self%r_mg( self%n_level ) )
@@ -196,15 +199,15 @@ contains
     end do
   end subroutine construct_multigrid_fields
 
- !> @brief Multigrid V-cycle
+  !> @brief Multigrid V-cycle.
   !>
   !> @details Recursive implementation of a multigrid V-cycle on the
-  !>  multigrid fields.
+  !!          multigrid fields.
   !>
-  !> @param[inout] self instance of type gw_multigrid_preconditioner_type
+  !> @param[in,out] self Instance of type multigrid_preconditioner_type
   !> @param[in] level Current multigrid level
   !> @param[in] initial_solution_is_zero Can we implicitly assume that the
-  !>  solution is zero?
+  !!                                     solution is zero?
   recursive subroutine vcycle(self,level,initial_solution_is_zero)
 
     use restrict_kernel_mod, only: restrict_kernel_type
@@ -212,7 +215,7 @@ contains
 
     implicit none
 
-    class(multigrid_preconditioner_type), intent(inout)    :: self
+    class(multigrid_preconditioner_type), intent(inout) :: self
     integer(kind=i_def), intent(in) :: level
     logical(kind=l_def), intent(in) :: initial_solution_is_zero
 
@@ -247,56 +250,66 @@ contains
 
   end subroutine vcycle
 
-  !> @brief over-ridden apply procedure for abstract_preconditioner type
-  !! apply the preconditioner to x, store in y
-  !> @param[inout] self
-  !> @param[in]    x abstract_vector_type
-  !> @param[inout] y abstract_vector_type
+  !> @brief Over-ridden apply procedure for abstract_preconditioner type
+  !!        apply the preconditioner to x, store in y.
+  !>
+  !> @param[in,out] self Instance of type multigrid_preconditioner_type
+  !> @param[in] x abstract_vector_type
+  !> @param[in,out] y abstract_vector_type
   subroutine apply_multigrid_preconditioner(self,x,y)
     implicit none
     class(multigrid_preconditioner_type), intent(inout) :: self
     class(abstract_vector_type),          intent(in)    :: x
     class(abstract_vector_type),          intent(inout) :: y
 
+    ! Workaround for PSyclone to get pointers of the correct type for x and y
+    type(field_type), pointer :: x_vec => null(), y_vec => null()
+
     select type(x)
     type is(field_vector_type)
-       select type(y)
-       type is(field_vector_type)
-          ! Copy in RHS on finest level
-          call invoke(setval_X(self%b_mg(1)%vector(1), x%vector(1) ))
-          ! Solve using a multigrid V-cycle
-          call self%vcycle(1, .true.)
-          ! Copy out solution on finest level
-          call invoke(setval_X(y%vector(1), self%u_mg(1)%vector(1) ))
-       class default
-          write(log_scratch_space, '(A)') &
-                "multigrid_preconditioner_mod: incorrect vector_type argument y"
-          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-       end select
+      select type(y)
+      type is(field_vector_type)
+        ! Get pointers to x and y abstract types
+        x_vec => x%get_field(1)
+        y_vec => y%get_field(1)
+        ! Copy in RHS on finest level
+        call invoke(setval_X(self%b_mg(1)%vector(1), x_vec ))
+        ! Solve using a multigrid V-cycle
+        call self%vcycle(1, .true.)
+        ! Copy out solution on finest level
+        call invoke(setval_X(y_vec, self%u_mg(1)%vector(1) ))
+      class default
+        write(log_scratch_space, '(A)') &
+              "multigrid_preconditioner_mod: incorrect vector_type argument y"
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      end select
     class default
-       write(log_scratch_space, '(A)') "multigrid_preconditioner_mod: incorrect vector_type argument x"
-       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      write(log_scratch_space, '(A)') "multigrid_preconditioner_mod: incorrect vector_type argument x"
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
     end select
+
+    nullify( x_vec, y_vec )
 
   end subroutine apply_multigrid_preconditioner
 
   !> @brief Apply a number of Jacobi smoother iterations on a
-  !>   particular level.
+  !!        particular level.
   !>
   !> @details Calculate \f$ u^{(\ell)} \mapsto u^{(\ell)} + \rho H_z^{-1} (b^{(\ell)}-H u^{(\ell)}) \f$
-  !>   nsmooth times on a particular multigrid level. If the flag
-  !>   initial_solution_is_zero is set, set
-  !>   \f$ u^{(\ell)} \mapsto \rho H_z^{-1} b^{(\ell)}\f$ in the first
-  !>   iteration to save one operator application.
+  !!          nsmooth times on a particular multigrid level. If the flag
+  !!          initial_solution_is_zero is set, set
+  !!          \f$ u^{(\ell)} \mapsto \rho H_z^{-1} b^{(\ell)}\f$ in the first
+  !!          iteration to save one operator application.
   !>
-  !> @param[inout] self instance of type gw_multigrid_preconditioner_type
+  !> @param[in,out] self Instance of type multigrid_preconditioner_type
   !> @param[in] nsmooth Number of iterations
   !> @param[in] level Multigrid level
   !> @param[in] initial_solution_is_zero Can we implicitly assume that
-  !>   \f$ u^{(\ell)} \f$ is zero before the first iteration?
+  !!                                     \f$ u^{(\ell)} \f$ is zero before
+  !!                                     the first iteration?
   subroutine smooth(self,nsmooth,level,initial_solution_is_zero)
     implicit none
-    class(multigrid_preconditioner_type), intent(inout)    :: self
+    class(multigrid_preconditioner_type), intent(inout) :: self
     integer(kind=i_def), intent(in) :: nsmooth
     integer(kind=i_def), intent(in) :: level
     logical(kind=l_def), intent(in) :: initial_solution_is_zero
@@ -341,6 +354,9 @@ contains
 
   end subroutine smooth
 
+  !> @brief Finalizer for the multigrid preconditioner.
+  !>
+  !> @param[in,out] self Instance of type multigrid_preconditioner_type
   subroutine destroy_multigrid_preconditioner(self)
     implicit none
     type(multigrid_preconditioner_type), intent(inout) :: self

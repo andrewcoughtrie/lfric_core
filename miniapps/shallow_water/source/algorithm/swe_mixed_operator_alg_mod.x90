@@ -4,9 +4,9 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
-!>@brief Linear operator type which applies the mixed (outer) operator in the
-!!       thermal shallow water system.
-!!
+!> @brief Linear operator type which applies the mixed (outer) operator in the
+!!        thermal shallow water system.
+!>
 !> @details Calculates the left hand side of the implicit linearised thermal
 !!          shallow water system. Given the field-vector \f$ x = (\mathbf{U'},G',B') \f$
 !!          this calculates the field-vector \f$ y = (\mathbf{U},GP,B) \f$ where the
@@ -27,7 +27,7 @@
 
 module swe_mixed_operator_alg_mod
 
-  use constants_mod,                     only: r_def, i_def
+  use constants_mod,                     only: r_def
   use fem_constants_mod,                 only: get_mass_matrix,                &
                                                get_qr,                         &
                                                get_inverse_lumped_mass_matrix, &
@@ -58,20 +58,20 @@ module swe_mixed_operator_alg_mod
 
      private
 
-     !> temporary for left-hand-side geopotential field calculation
+     !> Temporary for left-hand-side geopotential field calculation
      type(field_type) :: lhs_u
      type(field_type) :: lhs_g
 
    contains
 
-     !> over-ride the abstract interface
-     !> param[in]     self a linear operator
-     !> param[in]     x    a fieldvector the linear operator is applied to
-     !> param[in,out] y    a fieldvector, the result.
+     !> Over-ride the abstract interface
+     !> param[in,out] self A linear operator
+     !> param[in]     x    A field vector the linear operator is applied to
+     !> param[in,out] y    A field vector, the result
      procedure, public  :: apply => apply_swe_mixed_operator
      !> Applies the operator as LMA matrix matrix-vector kernels in all blocks
      procedure, private :: apply_swe_mixed_operator
-     !> performs a deep copy (for overriding the "=" operator)
+     !> Performs a deep copy (for overriding the "=" operator)
      !> @param[out] dest   swe_mixed_operator_type lhs
      !> @param[in]  source swe_mixed_operator_type rhs
      procedure, public  :: swe_mixed_operator_assign
@@ -91,9 +91,10 @@ contains
 
   !> @brief Construct a <code>swe_mixed_operator_type</code> object.
   !> @details Initialise the object by building the relevant operators.
-  !!
-  !> @param [in] state field-vector representing the current state. This is
+  !>
+  !> @param [in] state Field-vector representing the current state. This is
   !!                   required to extract function spaces and initialise fields.
+  !> @return     self  Instance of the shallow water mixed operator
   function swe_mixed_operator_constructor(state) result(self)
 
     use finite_element_config_mod,       only: element_order
@@ -121,9 +122,9 @@ contains
 
   end function swe_mixed_operator_constructor
 
-  !> @brief Performs a deep copy between swe_mixed_operator_type pairs.
-  !!        (for overriding the "=" operator)
-  !!
+  !> @brief Performs a deep copy between swe_mixed_operator_type pairs
+  !!        (for overriding the "=" operator).
+  !>
   !> @param[out] dest   swe_mixed_operator_type lhs
   !> @param[in]  source swe_mixed_operator_type rhs
   subroutine swe_mixed_operator_assign(dest, source)
@@ -139,10 +140,10 @@ contains
   end subroutine swe_mixed_operator_assign
 
   !> @brief Applies the swe mixed operator to the vector, \f$ y = M x \f$.
-  !!
-  !> @param [in]     self instance of the swe mixed operator
-  !> @param [in]     x    field vector to be read
-  !> @param [in,out] y    field vector to be written
+  !>
+  !> @param[in,out] self Instance of the swe mixed operator
+  !> @param[in]     x    Field vector to be read
+  !> @param[in,out] y    Field vector to be written
   subroutine apply_swe_mixed_operator(self, x, y)
 
     use matrix_vector_kernel_mod,           only: matrix_vector_kernel_type
@@ -169,6 +170,14 @@ contains
 
     ! Auxiliary constants to group invokes
     real(kind=r_def) :: const1, const2, const3
+
+    ! Workaround for PSyclone to get pointers of the correct type for x and y
+    type(field_type), pointer :: x_vec_u => null(), &
+                                 x_vec_g => null(), &
+                                 x_vec_b => null(), &
+                                 y_vec_u => null(), &
+                                 y_vec_g => null(), &
+                                 y_vec_b => null()
 
     ! Get mesh
     select type (y)
@@ -198,62 +207,75 @@ contains
 
     select type (x)
     type is (field_vector_type)
-       select type (y)
-       type is (field_vector_type)
-          ! Compute swe lhs
-          call invoke(                                               &
-               ! Initialise lhs
-               setval_c( y%vector(isw_u), 0.0_r_def ),               &
-               setval_c( y%vector(isw_b), 0.0_r_def ),               &
-               ! Compute lhs
-               transpose_matrix_vector_kernel_type( y%vector(isw_u), &
-                                                    x%vector(isw_g), &
-                                                    div ),           &
-               dg_matrix_vector_kernel_type( self%lhs_g,             &
-                                             x%vector(isw_u),        &
-                                             div ),                  &
-               ! geopotential matrix inverse applied on div u'
-               dg_matrix_vector_kernel_type( y%vector(isw_g),        &
-                                             self%lhs_g,             &
-                                             m3_inv ) )
+      select type (y)
+      type is (field_vector_type)
 
-          if ( thermal_swe ) then
-            call invoke(                                            &
-              ! Compute buoyancy part of lhs
-              setval_c(self%lhs_u, 0.0_r_def),                      &
-              transpose_matrix_vector_kernel_type( self%lhs_u,      &
-                                                   x%vector(isw_b), &
-                                                   div ),           &
-              inc_X_plus_bY( y%vector(isw_u), const3, self%lhs_u ), &
-              matrix_vector_kernel_type( y%vector(isw_b),           &
-                                         x%vector(isw_b),           &
-                                         mm_wb ) )
-          end if
+        ! Get pointers to x and y abstract types
+        x_vec_u => x%get_field(isw_u)
+        x_vec_g => x%get_field(isw_g)
+        x_vec_b => x%get_field(isw_b)
+        y_vec_u => y%get_field(isw_u)
+        y_vec_g => y%get_field(isw_g)
+        y_vec_b => y%get_field(isw_b)
 
-          call invoke(                                     &
-               ! Scale lhs
-               inc_a_times_X( const1, y%vector(isw_u) ),   &
-               ! Add time dependencies
-               matrix_vector_kernel_type( y%vector(isw_u), &
-                                          x%vector(isw_u), &
-                                          mm_w2 ),         &
-               enforce_bc_kernel_type( y%vector(isw_u) ),  &
-               inc_aX_plus_Y( const2, y%vector(isw_g), x%vector(isw_g) ) )
-       class default
-          write(log_scratch_space, '(A)') &
-                "swe_mixed_operator_alg_mod: incorrect vector_type argument y"
-          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-       end select
+        ! Compute swe lhs
+        call invoke(                                              &
+            ! Initialise lhs
+            setval_c( y_vec_u, 0.0_r_def ),                       &
+            setval_c( y_vec_b, 0.0_r_def ),                       &
+            ! Compute lhs
+            transpose_matrix_vector_kernel_type( y_vec_u,         &
+                                                 x_vec_g,         &
+                                                 div ),           &
+            dg_matrix_vector_kernel_type( self%lhs_g,             &
+                                          x_vec_u,                &
+                                          div ),                  &
+            ! Geopotential matrix inverse applied on div u'
+            dg_matrix_vector_kernel_type( y_vec_g,                &
+                                          self%lhs_g,             &
+                                          m3_inv ) )
+
+        if ( thermal_swe ) then
+          call invoke(                                            &
+            ! Compute buoyancy part of lhs
+            setval_c(self%lhs_u, 0.0_r_def),                      &
+            transpose_matrix_vector_kernel_type( self%lhs_u,      &
+                                                 x_vec_b,         &
+                                                 div ),           &
+            inc_X_plus_bY( y_vec_u, const3, self%lhs_u ),         &
+            matrix_vector_kernel_type( y_vec_b,                   &
+                                       x_vec_b,                   &
+                                       mm_wb ) )
+        end if
+
+        call invoke(                                    &
+            ! Scale lhs
+            inc_a_times_X( const1, y_vec_u ),           &
+            ! Add time dependencies
+            matrix_vector_kernel_type( y_vec_u,         &
+                                       x_vec_u,         &
+                                       mm_w2 ),         &
+             enforce_bc_kernel_type( y_vec_u ),         &
+             inc_aX_plus_Y( const2, y_vec_g, x_vec_g ) )
+      class default
+        write(log_scratch_space, '(A)') &
+              "swe_mixed_operator_alg_mod: incorrect vector_type argument y"
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      end select
     class default
-       write(log_scratch_space, '(A)') &
-             "swe_mixed_operator_alg_mod: incorrect vector_type argument x"
-       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      write(log_scratch_space, '(A)') &
+            "swe_mixed_operator_alg_mod: incorrect vector_type argument x"
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
     end select
+
+    nullify( x_vec_u, x_vec_g, x_vec_b )
+    nullify( y_vec_u, y_vec_g, y_vec_b )
 
   end subroutine apply_swe_mixed_operator
 
   !> @brief Finalizer for the shallow water mixed operator.
-  !> @param [in,out] self the mixed operator
+  !>
+  !> @param[in,out] self the mixed operator
   subroutine destroy_swe_mixed_operator(self)
     implicit none
     type(swe_mixed_operator_type), intent(inout) :: self

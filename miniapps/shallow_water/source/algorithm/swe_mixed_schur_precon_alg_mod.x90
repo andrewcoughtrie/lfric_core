@@ -5,6 +5,7 @@
 !-----------------------------------------------------------------------------
 
 !> @brief Preconditioner for the shallow water system.
+!>
 !> @details This type is derived from the abstract preconditioner type and
 !!          implements a preconditioner for the mixed (thermal) shallow water
 !!          system in the variables \f$(\mathbf{U},GP,B)\f$.
@@ -96,6 +97,7 @@ module swe_mixed_schur_precon_alg_mod
   private
 
   !> @brief Mixed preconditioner type.
+  !>
   !> @details Implements mixed preconditioner which can be used in the
   !!          iterative solver algorithms.
   type, public, extends(abstract_preconditioner_type) :: &
@@ -129,7 +131,7 @@ module swe_mixed_schur_precon_alg_mod
         swe_geopot_solver
 
      contains
-     ! Overide the (abstract interface) for application of
+     ! Override the (abstract interface) for application of
      ! a preconditioner \f$y = P.x\f$
      procedure, public  :: apply => apply_swe_mixed_schur_preconditioner
      procedure, private :: apply_swe_mixed_schur_preconditioner
@@ -152,6 +154,7 @@ module swe_mixed_schur_precon_alg_mod
 
 contains
   !> @brief Construct a <code> swe_mixed_schur_preconditioner_type</code> object.
+  !>
   !> @details This constructs all required fields and builds operators such as
   !!          the lumped buoyancy mass matrix \f$\tilde{M}_b\f$ and the matrix
   !!          \f$H_B\f$. The current state is passed in as a field vector to be
@@ -160,11 +163,11 @@ contains
   !!          The matrix \f$\tilde{H}_b^{-1}\f$ is passed in as an argument
   !!          since this matrix is already required for and constructed in the
   !!          geopotential operator.
-  !!
-  !> @param [in] state         Current state (passed as a field-vector)
-  !> @param [in] Hb_lumped_inv Lumped inverse \f$\tilde{H}_b^{-1}\f$
-  !> @param [in] geopot_solver Solver object for Helmholtz system
-  !> @return self the constructed preconditioner object
+  !>
+  !> @param[in] state         Current state (passed as a field-vector)
+  !> @param[in] Hb_lumped_inv Lumped inverse \f$\tilde{H}_b^{-1}\f$
+  !> @param[in] geopot_solver Solver object for Helmholtz system
+  !> @return    self          The constructed preconditioner object
   function swe_mixed_schur_preconditioner_constructor( state,          &
                                                        Hb_lumped_inv,  &
                                                        geopot_solver ) &
@@ -187,7 +190,7 @@ contains
                                                   wb => null()
     type(field_type)                           :: ones, M_lumped
     type(operator_type), pointer               :: Mb => null()
-    integer(i_def)                             :: mesh_id
+    integer(kind=i_def)                        :: mesh_id
 
     call log_event( 'Constructing shallow water mixed preconditioner...', &
                     LOG_LEVEL_INFO )
@@ -213,7 +216,7 @@ contains
     call self%mb_rb%initialise(vector_space = wb)
     call self%hb_ru%initialise(vector_space = wu)
 
-    ! right hand side and solution as a one-component field-vector in
+    ! Right-hand side and solution as a one-component field-vector in
     ! geopotential space
     self%geopot_b = field_vector_type(1)
     self%geopot_x = field_vector_type(1)
@@ -241,16 +244,17 @@ contains
 
   !> @brief Apply the preconditioner to calculate \f$y = P.x\f$ for the
   !!        mixed system in velocity, geopotential and buoyancy.
+  !>
   !> @details Apply the preconditioner in three steps, as described above:
   !!          1. Construct right-hand side for Helmholtz system
   !!          2. Approximately solve Helmholtz-system
   !!          3. Reconstruct velocity and buoyancy from geopotential
-  !!
-  !>@param[in,out] self instance of type swe_mixed_schur_preconditioner_type
-  !>@param[in,out] x    field-vector containing the residuals
-  !!                    \f$(\textbf{R}_u,R_p,r_b)\f$
-  !>@param[in,out] y    field-vector containing the solution
-  !!                    \f$(\textbf{U},P,B)\f$ to be calculated
+  !>
+  !> @param[in,out] self Instance of type swe_mixed_schur_preconditioner_type
+  !> @param[in]     x    Field-vector containing the residuals
+  !!                     \f$(\textbf{R}_u,R_p,r_b)\f$
+  !> @param[in,out] y    Field-vector containing the solution
+  !!                     \f$(\textbf{U},P,B)\f$ to be calculated
   subroutine apply_swe_mixed_schur_preconditioner(self, x, y)
 
     implicit none
@@ -259,56 +263,71 @@ contains
     class(abstract_vector_type),                intent(in)    :: x
     class(abstract_vector_type),                intent(inout) :: y
 
+    ! Workaround for PSyclone to get pointers of the correct type for y
+    type(field_type), pointer :: y_vec_u => null(), &
+                                 y_vec_g => null(), &
+                                 y_vec_b => null()
+
     if ( subroutine_timers ) call timer('swe_mixed_schur_preconditioner_alg')
-      select type(x)
+
+    select type(x)
+    type is(field_vector_type)
+      select type(y)
       type is(field_vector_type)
-         select type(y)
-         type is(field_vector_type)
-            call invoke( setval_c( y%vector(isw_u), 0.0_r_def ), &
-                         setval_c( y%vector(isw_g), 0.0_r_def ), &
-                         setval_c( y%vector(isw_b), 0.0_r_def ) )
 
-            ! STEP 1: Build RHS for Helmholtz system
-            call self%build_geopot_rhs(x)
+        ! Get pointers to y abstract type
+        y_vec_u => y%get_field(isw_u)
+        y_vec_g => y%get_field(isw_g)
+        y_vec_b => y%get_field(isw_b)
 
-            ! STEP 2: Solve Helmholtz system
-            ! Krylov solver to obtain geopotential increment
-            call invoke (setval_c(self%p_inc, 0.0_r_def) )
-            call self%geopot_x%import_field(self%p_inc,1)
-            ! (import required to initialise field)
-            ! copy RHS into 1-component field-vector
-            call self%geopot_b%import_field(self%rhs_p,1)
-            call log_event('Schur preconditioner geopotential solve:', LOG_LEVEL_INFO)
-            call self%swe_geopot_solver%apply(self%geopot_x,self%geopot_b)
-            ! copy solution out of 1-component field-vector
-            call self%geopot_x%export_field(self%p_inc,1)
+        call invoke( setval_c( y_vec_u, 0.0_r_def ), &
+                     setval_c( y_vec_g, 0.0_r_def ), &
+                     setval_c( y_vec_b, 0.0_r_def ) )
 
-            ! STEP 3: Back substitute to obtain other fields
-            call self%back_substitute(y, x)
-         class default
-            write(log_scratch_space, '(A)') &
-                 "swe_mixed_schur_preconditioner_mod: incorrect vector_type argument y"
-            call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-         end select
+        ! STEP 1: Build RHS for Helmholtz system
+        call self%build_geopot_rhs(x)
 
+        ! STEP 2: Solve Helmholtz system
+        ! Krylov solver to obtain geopotential increment
+        call invoke (setval_c(self%p_inc, 0.0_r_def) )
+        call self%geopot_x%import_field(self%p_inc,1)
+        ! (import required to initialise field)
+        ! Copy RHS into 1-component field-vector
+        call self%geopot_b%import_field(self%rhs_p,1)
+        call log_event('Schur preconditioner geopotential solve:', LOG_LEVEL_INFO)
+        call self%swe_geopot_solver%apply(self%geopot_x,self%geopot_b)
+        ! Copy solution out of 1-component field-vector
+        call self%geopot_x%export_field(self%p_inc,1)
+
+        ! STEP 3: Back substitute to obtain other fields
+        call self%back_substitute(y, x)
       class default
-         write(log_scratch_space, '(A)') &
-               "swe_mixed_schur_preconditioner_mod: incorrect vector_type argument x"
-         call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+        write(log_scratch_space, '(A)') &
+              "swe_mixed_schur_preconditioner_mod: incorrect vector_type argument y"
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
       end select
+
+    class default
+      write(log_scratch_space, '(A)') &
+            "swe_mixed_schur_preconditioner_mod: incorrect vector_type argument x"
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end select
+
+    nullify( y_vec_u, y_vec_g, y_vec_b )
 
     if ( subroutine_timers ) call timer('swe_mixed_schur_preconditioner_alg')
 
   end subroutine apply_swe_mixed_schur_preconditioner
 
   !> @brief Compute the right-hand-side for the Helmholtz-equation.
+  !>
   !> @details Given the right-hand side \f$(\textbf{R}_u,R_p,R_b)\f$ for the
   !!          mixed system, build the right hand side \f$R^*_p\f$ for the
   !!          Helmholtz equation.
-  !!
+  !>
   !> @param[in,out] self Instance of type swe_mixed_schur_preconditioner_type
   !> @param[in]     rhs0 Initial residuals \f$(\textbf{R}_u,R_p,R_b)\f$ of the
-  !!                     mixed system.
+  !!                     mixed system
   subroutine build_geopot_rhs(self,rhs0)
 
     use matrix_vector_kernel_mod,    only: matrix_vector_kernel_type
@@ -326,7 +345,7 @@ contains
     real(kind=r_def) :: const1, const2
 
     ! Mesh ID
-    integer(i_def) :: mesh_id
+    integer(kind=i_def) :: mesh_id
 
     ! Thermal shallow water case
     ! rhs_u = R_u + alpha * dt * ref_gp/2 * D^T * Mb^-1 * R_b
@@ -366,9 +385,11 @@ contains
   end subroutine build_geopot_rhs
 
   !> @brief Reconstruct velocity and buoyancy from geopotential.
-  !> @details Given the geopotential \f$P\f$ from the solution of the Helmholtz
-  !!          equation, reconstruct the velocity \f$\textbf{U}\f$ and buoyancy \f$B\f$.
-  !!
+  !>
+  !> @details Given the geopotential \f$P\f$ from the solution of the
+  !!          Helmholtz equation, reconstruct the velocity \f$\textbf{U}\f$
+  !!          and buoyancy \f$B\f$.
+  !>
   !> @param[in,out] self  instance of type swe_mixed_schur_preconditioner_type
   !> @param[in,out] state Solution \f$(\textbf{U},P,B)\f$ of the mixed system
   !> @param[in]     rhs   Initial right hand side \f$(\textbf{R}_u,R_p,R_b)\f$
@@ -388,7 +409,7 @@ contains
     real(kind=r_def) :: const1
 
     ! Mesh ID
-    integer(i_def) :: mesh_id
+    integer(kind=i_def) :: mesh_id
 
     ! U increment
     mesh_id = rhs%vector(isw_u)%get_mesh_id()
@@ -420,8 +441,9 @@ contains
 
   end subroutine back_substitute
 
-  !>@brief Destructor.
-  !>@param[in,out] self Instance of type to be destroyed
+  !> @brief Destructor
+  !>
+  !> @param[in,out] self Instance of type to be destroyed
   subroutine destroy_swe_mixed_schur_preconditioner(self)
     implicit none
     type(swe_mixed_schur_preconditioner_type), intent(inout) :: self

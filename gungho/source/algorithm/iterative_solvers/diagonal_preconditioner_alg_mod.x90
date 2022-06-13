@@ -4,7 +4,7 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
-!> @brief Application of the diagonal of an operator
+!> @brief Application of the diagonal of an operator.
 module diagonal_preconditioner_alg_mod
 
   use preconditioner_mod, only: abstract_preconditioner_type
@@ -41,10 +41,11 @@ module diagonal_preconditioner_alg_mod
 
 contains
 
-  !> @brief Construct new instance of type
+  !> @brief Construct new instance of type.
   !>
-  !> @details Construct the diagonal preconditioner object
+  !> @details Construct the diagonal preconditioner object.
   !>
+  !> @param[in] mass_matrix_diagonal The mass matrix diagonal field
   !> @return Instance of the diagonal preconditioner
   function diagonal_preconditioner_constructor(mass_matrix_diagonal) result(self)
 
@@ -59,7 +60,7 @@ contains
 
   end function diagonal_preconditioner_constructor
 
-  !> @brief Apply diagonal preconditioner to a field to obtain \f$y=D^-1x\f$
+  !> @brief Apply diagonal preconditioner to a field to obtain \f$y=D^-1x\f$.
   !>
   !> @param[in] self Instance of diagonal_preconditioner_type
   !> @param[in] x Field \f$x\f$ to apply preconditioner to
@@ -73,6 +74,8 @@ contains
     class(abstract_vector_type),         intent(inout) :: y
     integer(kind=i_def)                                :: i, nfields
 
+    ! Workaround for PSyclone to get pointers of the correct type for x and y
+    type(field_type), pointer :: x_vec => null(), y_vec => null()
 
     select type (x)
     type is (field_vector_type)
@@ -80,7 +83,11 @@ contains
        type is (field_vector_type)
          nfields = size(x%vector)
          do i = 1, nfields
-           call invoke( X_divideby_Y( y%vector(i), x%vector(i), self%mass_matrix_diagonal%vector(i) ) )
+           ! Get pointers to x and y abstract types
+           x_vec => x%get_field(i)
+           y_vec => y%get_field(i)
+           call invoke( X_divideby_Y( y_vec, x_vec, self%mass_matrix_diagonal%vector(i) ) )
+           nullify( x_vec, y_vec )
          end do
        class default
           write(log_scratch_space, '(A)') &
@@ -95,7 +102,8 @@ contains
 
   end subroutine apply_diagonal_preconditioner
 
-  !> Finalizer for the diagonal preconditioner
+  !> @brief Finalizer for the diagonal preconditioner.
+  !>
   !> @param[in,out] self The diagonal preconditioner
   subroutine destroy_diagonal_preconditioner(self)
 

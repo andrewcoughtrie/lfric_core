@@ -5,6 +5,7 @@
 !-----------------------------------------------------------------------------
 
 !> @brief Application of the Helmholtz operator in the shallow water system.
+!>
 !> @details The Helmholtz operator is given by
 !!          \f[ H = Id + \alpha^2(\Delta t)^2 ref_gp M_3^{-1} D H_B^{-1} D^T \f]
 !!          with the lumped matrix \f$H_B\f$ defined by
@@ -49,13 +50,13 @@ module swe_geopot_operator_alg_mod
   contains
      !> Return the lumped inverse \f$\tilde{H}_B^{-1}\f$
      procedure, public :: get_Hb_lumped_inv
-     !> over-ride the abstract interface
-     !> param[in]     self a linear operator
-     !> param[in]     x a fieldvector the linear operator is applied to
-     !> param[in,out] y a fieldvector, the result.
+     !> Over-ride the abstract interface
+     !> param[in,out] self A linear operator
+     !> param[in]     x    A field vector the linear operator is applied to
+     !> param[in,out] y    A field vector, the result
      procedure, public  :: apply => apply_swe_geopot_operator
      procedure, private :: apply_swe_geopot_operator
-     !> performs a deep copy (for overriding the "=" operator)
+     !> Performs a deep copy (for overriding the "=" operator)
      !> @param[out] dest   swe_geopot_operator_type lhs
      !> @param[in]  source swe_geopot_operator_type rhs
      procedure, public  :: swe_geopot_operator_assign
@@ -74,16 +75,16 @@ module swe_geopot_operator_alg_mod
 contains
 
   !> @brief Construct new instance of type.
-  !!
+  !>
   !> @details Extract function spaces and build the lumped approximate
   !!          inverse \f$ \tilde{H}_b^{-1} \f$ as well as other operators
   !!          such as div and grad for the Helmholtz operator application.
-  !!
+  !>
   !> @param[in] state Field vector \f$(\textbf{U},P,B)\f$ representing
   !!                  current state. This is required for extracting the
   !!                  relevant function spaces required for operator
-  !!                  construction
-  !>@return instance of the Helmholtz operator
+  !!                  construction.
+  !> @return          Instance of the Helmholtz operator
   function swe_geopot_operator_constructor(state) result(self)
 
     use function_space_mod,                 only: function_space_type
@@ -100,7 +101,7 @@ contains
     type(operator_type), pointer        :: Mu => null()
 
     ! Mesh ID
-    integer(i_def) :: mesh_id
+    integer(kind=i_def) :: mesh_id
 
     call log_event( 'Constructing geopotential operator...', LOG_LEVEL_INFO )
 
@@ -133,12 +134,12 @@ contains
   end function swe_geopot_operator_constructor
 
   !> @brief Return lumped inverse matrix.
-  !!
+  !>
   !> @details Return the matrix \f$\tilde{H}_b^{-1}\f$. This matrix is also
   !!          used in the mixed preconditioner and returning it here avoids
   !!          building it twice.
-  !!
-  !> @param [in] self Instance of object
+  !>
+  !> @param[in] self Instance of object
   function get_Hb_lumped_inv(self) result(Hb_lumped_inv)
     implicit none
     class(swe_geopot_operator_type), intent(in) :: self
@@ -146,9 +147,9 @@ contains
     call self%Hb_lumped_inv%copy_field(Hb_lumped_inv)
   end function get_Hb_lumped_inv
 
-  !> @details Performs a deep copy between swe_operator_type pairs.
-  !!          (for overriding the "=" operator)
-  !!
+  !> @details Performs a deep copy between swe_operator_type pairs
+  !!          (for overriding the "=" operator).
+  !>
   !> @param[out] dest   swe_operator_type lhs
   !> @param[in]  source swe_operator_type rhs
   subroutine swe_geopot_operator_assign(dest, source)
@@ -165,9 +166,9 @@ contains
   end subroutine swe_geopot_operator_assign
 
   !> @brief Apply Helmholtz operator to a geopotential field to obtain \f$y=Hx\f$.
-  !!
-  !> @param[in]     self instance of swe_geopotential_operator_type
-  !> @param[in]     x    field \f$x\f$ to apply operator to
+  !>
+  !> @param[in,out] self Instance of swe_geopotential_operator_type
+  !> @param[in]     x    Field \f$x\f$ to apply operator to
   !> @param[in,out] y    Resulting field \f$y=Hx\f$ in geopotential space
   subroutine apply_swe_geopot_operator(self, x, y)
 
@@ -183,49 +184,60 @@ contains
     real(kind=r_def) :: const
 
     ! Mesh ID
-    integer(i_def) :: mesh_id
+    integer(kind=i_def) :: mesh_id
 
     type(operator_type), pointer :: div => null(), M3_inv => null()
 
-      select type (x)
+    ! Workaround for PSyclone to get pointers of the correct type for x and y
+    type(field_type), pointer :: x_vec_u => null(), &
+                                 y_vec_u => null()
+
+    select type (x)
+    type is (field_vector_type)
+      select type (y)
       type is (field_vector_type)
-         select type (y)
-         type is (field_vector_type)
-            mesh_id = y%vector(isw_u)%get_mesh_id()
-            div    => get_div(mesh_id)
-            M3_inv => get_inverse_w3_mass_matrix(mesh_id)
-            const = self%alpha**2*dt**2*ref_gp
-            call invoke( setval_c( self%grad_p, 0.0_r_def ),               &
-                         transpose_matrix_vector_kernel_type( self%grad_p, &
-                                                              x%vector(isw_u), &
-                                                              div ),       &
-                         enforce_bc_kernel_type( self%grad_p ),            &
-                         inc_X_times_Y( self%grad_p, self%Hb_lumped_inv ), &
-                         dg_matrix_vector_kernel_type( self%div_grad_p,    &
-                                                       self%grad_p,        &
-                                                       div ),              &
-                         dg_matrix_vector_kernel_type( y%vector(isw_u),        &
-                                                       self%div_grad_p,    &
-                                                       M3_inv ),           &
-                         inc_aX_plus_Y( const, y%vector(isw_u), x%vector(isw_u) ) )
 
+        ! Get pointers to x and y abstract types
+        x_vec_u => x%get_field(isw_u)
+        y_vec_u => y%get_field(isw_u)
 
-            nullify( div, M3_inv )
-         class default
-            write(log_scratch_space, '(A)') &
-                 "swe_geopot_operator_alg_mod: incorrect vector_type argument y"
-            call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-         end select
+        mesh_id = y%vector(isw_u)%get_mesh_id()
+        div    => get_div(mesh_id)
+        M3_inv => get_inverse_w3_mass_matrix(mesh_id)
+        const = self%alpha**2*dt**2*ref_gp
+        call invoke( setval_c( self%grad_p, 0.0_r_def ),               &
+                     transpose_matrix_vector_kernel_type( self%grad_p, &
+                                                          x_vec_u,     &
+                                                          div ),       &
+                     enforce_bc_kernel_type( self%grad_p ),            &
+                     inc_X_times_Y( self%grad_p, self%Hb_lumped_inv ), &
+                     dg_matrix_vector_kernel_type( self%div_grad_p,    &
+                                                   self%grad_p,        &
+                                                   div ),              &
+                     dg_matrix_vector_kernel_type( y_vec_u,            &
+                                                   self%div_grad_p,    &
+                                                   M3_inv ),           &
+                     inc_aX_plus_Y( const, y_vec_u, x_vec_u ) )
+
+        nullify( div, M3_inv )
       class default
-         write(log_scratch_space, '(A)') &
-               "swe_geopot_operator_alg_mod: incorrect vector_type argument x"
-         call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+        write(log_scratch_space, '(A)') &
+              "swe_geopot_operator_alg_mod: incorrect vector_type argument y"
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
       end select
+    class default
+      write(log_scratch_space, '(A)') &
+            "swe_geopot_operator_alg_mod: incorrect vector_type argument x"
+       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end select
+
+    nullify( x_vec_u, y_vec_u )
 
   end subroutine apply_swe_geopot_operator
 
   !> @brief Finalizer for the Helmholtz operator.
-  !> @param [in,out] self the geopotential operator
+  !>
+  !> @param[in,out] self The geopotential operator
   subroutine destroy_swe_geopot_operator(self)
     implicit none
     type(swe_geopot_operator_type), intent(inout) :: self

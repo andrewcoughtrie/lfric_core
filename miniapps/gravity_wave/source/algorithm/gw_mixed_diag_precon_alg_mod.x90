@@ -4,14 +4,14 @@
 ! received as part of this distribution.
 !-----------------------------------------------------------------------------
 
-!> @brief Diagonal preconditioner for the gravity-wave system
+!> @brief Diagonal preconditioner for the gravity-wave system.
 !>
 !> @details This type is derived from the abstract preconditioner type and
-!> implements a preconditioner for the mixed gravity-wave system in the
-!> variables \f$(\mathbf{U},P,B)\f$.
-!>
-!> This preconditioner simply divides each of the fields by the corresponding
-!> diagonal mass matrix.
+!!          implements a preconditioner for the mixed gravity-wave system
+!!          in the variables \f$(\mathbf{U},P,B)\f$.
+!!
+!!          This preconditioner simply divides each of the fields by the
+!!          corresponding diagonal mass matrix.
 
 module gw_mixed_diag_precon_alg_mod
 
@@ -32,10 +32,10 @@ module gw_mixed_diag_precon_alg_mod
 
   private
 
-  !> @brief Mixed diagonal preconditioner type
+  !> @brief Mixed diagonal preconditioner type.
   !>
-  !> @details Implements mixed diagonal preconditioner which can be used in the
-  !> iterative solver algorithms.
+  !> @details Implements mixed diagonal preconditioner which can be used in
+  !!          the iterative solver algorithms.
   type, public, extends(abstract_preconditioner_type) :: &
                         gw_mixed_diag_preconditioner_type
 
@@ -46,7 +46,7 @@ module gw_mixed_diag_precon_alg_mod
 
      contains
 
-     ! Overide the (abstract interface) for application of
+     ! Override the (abstract interface) for application of
      ! a preconditioner \f$y = P.x\f$
      procedure, public :: apply => apply_gw_mixed_diag_preconditioner
      procedure, private :: apply_gw_mixed_diag_preconditioner
@@ -69,7 +69,7 @@ module gw_mixed_diag_precon_alg_mod
 
 contains
 
-  !> @brief Construct a <code> gw_mixed_diag_preconditioner_type</code> object
+  !> @brief Construct a <code> gw_mixed_diag_preconditioner_type</code> object.
   !>
   !> @details This constructs all required fields and builds operators.
   !>
@@ -110,11 +110,11 @@ contains
 
   end function gw_mixed_diag_preconditioner_constructor
 
-  !> @brief Performs a deep copy between gw_mixed_diag_preconditioner_type pairs
-  !> (for overriding the "=" operator).
+  !> @brief Performs a deep copy between gw_mixed_diag_preconditioner_type
+  !!        pairs (for overriding the "=" operator).
   !>
-  !> @param[in]  source gw_mixed_diag_preconditioner_type rhs
   !> @param[out] dest   gw_mixed_diag_preconditioner_type lhs
+  !> @param[in]  source gw_mixed_diag_preconditioner_type rhs
   subroutine gw_mixed_diag_preconditioner_assign(dest, source)
 
     implicit none
@@ -130,16 +130,16 @@ contains
   end subroutine gw_mixed_diag_preconditioner_assign
 
   !> @brief Apply the preconditioner to calculate \f$y = P.x\f$ for the
-  !> mixed system in velocity, pressure and buoyancy
+  !!        mixed system in velocity, pressure and buoyancy.
   !>
-  !> @details Apply the preconditioner by dividing each of the fields in the
-  !> fieldvector by its associated mass matrix
+  !> @details Apply the preconditioner by dividing each of the fields in
+  !!          the field vector by its associated mass matrix.
   !>
   !> @param[in,out] self Instance of type gw_mixed_preconditioner_type
   !> @param[in]     x    Field-vector containing the residuals
-  !>                     \f$(\textbf{R}_u,R_p,r_b)\f$
+  !!                     \f$(\textbf{R}_u,R_p,r_b)\f$
   !> @param[in,out] y    Field-vector containing the solution
-  !>                     \f$(\textbf{U},P,B)\f$ to be calculated
+  !!                     \f$(\textbf{U},P,B)\f$ to be calculated
   subroutine apply_gw_mixed_diag_preconditioner(self, x, y)
 
     use field_indices_mod,          only: igw_u, igw_p, igw_b
@@ -150,37 +150,57 @@ contains
     class(abstract_vector_type),              intent(in)    :: x
     class(abstract_vector_type),              intent(inout) :: y
 
+    ! Workaround for PSyclone to get pointers of the correct type for x and y
+    type(field_type), pointer :: x_vec_u => null(), &
+                                 x_vec_p => null(), &
+                                 x_vec_b => null(), &
+                                 y_vec_u => null(), &
+                                 y_vec_p => null(), &
+                                 y_vec_b => null()
+
     if ( subroutine_timers ) call timer('gw_mixed_diag_precon_alg')
+
     select type(x)
     type is(field_vector_type)
-       select type(y)
-       type is(field_vector_type)
-          call invoke( X_divideby_Y(y%vector(igw_u),                &
-                                    x%vector(igw_u),                &
-                                    self%mm_diagonal_u),            &
-                       X_divideby_Y(y%vector(igw_p),                &
-                                    x%vector(igw_p),                &
-                                    self%mm_diagonal_p),            &
-                       X_divideby_Y(y%vector(igw_b),                &
-                                    x%vector(igw_b),                &
-                                    self%mm_diagonal_b) )
-       class default
-          write(log_scratch_space, '(A)') &
-               "gw_mixed_diag_preconditioner_mod: incorrect vector_type argument y"
-          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-       end select
+      select type(y)
+      type is(field_vector_type)
+        ! Get pointers to x and y abstract types
+        x_vec_u => x%get_field( igw_u )
+        x_vec_p => x%get_field( igw_p )
+        x_vec_b => x%get_field( igw_b )
+        y_vec_u => y%get_field( igw_u )
+        y_vec_p => y%get_field( igw_p )
+        y_vec_b => y%get_field( igw_b )
+
+        call invoke( X_divideby_Y(y_vec_u,                        &
+                                  x_vec_u,                        &
+                                  self%mm_diagonal_u),            &
+                     X_divideby_Y(y_vec_p,                        &
+                                  x_vec_p,                        &
+                                  self%mm_diagonal_p),            &
+                     X_divideby_Y(y_vec_b,                        &
+                                  x_vec_b,                        &
+                                  self%mm_diagonal_b) )
+      class default
+        write(log_scratch_space, '(A)') &
+             "gw_mixed_diag_preconditioner_mod: incorrect vector_type argument y"
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      end select
 
     class default
-       write(log_scratch_space, '(A)') &
-             "gw_mixed_diag_preconditioner_mod: incorrect vector_type argument x"
-       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      write(log_scratch_space, '(A)') &
+            "gw_mixed_diag_preconditioner_mod: incorrect vector_type argument x"
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
     end select
+
+    nullify( x_vec_u, x_vec_p, x_vec_b, y_vec_u, y_vec_p, y_vec_b )
 
     if ( subroutine_timers ) call timer('gw_mixed_diag_precon_alg')
 
   end subroutine apply_gw_mixed_diag_preconditioner
 
   !> @brief Destructor
+  !>
   !> @param[in,out] self Instance of type to be destroyed
   subroutine destroy_gw_mixed_diag_preconditioner(self)
 
