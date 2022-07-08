@@ -1,9 +1,0 @@
-To run the linear model:
-
-1. Build gungho (in the gungho directory, 'make gungho')
-2. Build linear (in the linear directory, 'make linear')
-3. Run the nonlinear model (in the linear/example directory, '../../gungho/bin/gungho config_nonlinear.nml')
-4. Create the linearisation state file ('. create_ls_file.sh')
-5. Run the linear model (in the linear/example directory, '../bin/linear config_linear.nml')
-
-Note: It won't be possible to run both the nonlinear and linear models in the rose suite, so to add this to the rose suite we will need to create the ls file and add to the example directory, and then run the linear model in the rose suite.

@@ -443,12 +443,12 @@ echo $RELATIVE_LOG_ROOT > $DESTINATION_DIRECTORY/compile.log.path
               PRIMARY_TARGET,
               ['base', 'compiler.'+compiler, 'run'],
               ['base'],
+              prescript='cp -r $SOURCE_DIRECTORY/example_cannedtest/* $CYLC_TASK_WORK_DIR',
               script='rose task-run --app-key=canned_test --command-key='+get_target_property(PRIMARY_TARGET, 'queue.run.launcher')
           )}}
 
         [[[environment]]]
             APP_NAME         = {{appName}}
-            BIN_DIR          = $DESTINATION_DIRECTORY/bin
             OMP_NUM_THREADS  = 1
 
 {{            directives(PRIMARY_TARGET, 'run') }}

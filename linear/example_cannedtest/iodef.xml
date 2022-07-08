@@ -9,9 +9,9 @@
    <axis_definition>
     <axis id="vert_axis_half_levels" name="half_levels"/>
     <axis id="vert_axis_full_levels" name="full_levels"/>
+    <axis id="radiation_levels" name="radiation_levels"/>
     <axis id="monthly_axis" name="monthly_axis" n_glo="12"/>
     <axis id="ls_axis" name="ls_axis" n_glo="6"/>
-    <axis id="radiation_levels" name="radiation_levels"/>
    </axis_definition>
 
 
@@ -122,13 +122,27 @@
        <field id="xi1" name="xi1" long_name="Xi1" unit="s-1" grid_ref="half_level_face_grid" />
        <field id="xi2" name="xi2" long_name="Xi2" unit="s-1" grid_ref="half_level_face_grid" />
        <field id="xi3" name="xi3" long_name="Xi3" unit="s-1" grid_ref="half_level_face_grid" />
-       <field id="u1" name="u1" long_name="eastward_wind" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
-       <field id="u2" name="u2" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
-       <field id="u3" name="u3" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
+       <field id="u_in_w2h" name="u_in_w2h" long_name="eastward_wind" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="v_in_w2h" name="v_in_w2h" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="w_in_wth" name="w_in_wth" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
        <field id="h_u" name="h_u" long_name="Horizontal flux (in computational space)" standard_name="horizontal_flux" unit="m-1 s-1" grid_ref="half_level_edge_grid" />
        <field id="v_u" name="v_u" long_name="Vertical flux (in computational space)" standard_name="vertical_flux" unit="m-1 s-1" grid_ref="full_level_face_grid" />
        <field id="divergence" name="divergence" long_name="divergence_of_wind" standard_name="divergence_of_wind" unit="s-1" grid_ref="half_level_face_grid" />
        <field id="exner" name="exner" long_name="exner_pressure" unit="1" grid_ref="half_level_face_grid" />
+       <field id="height_w3" name="height_w3" long_name="height_of_cell_centres_above_earth_radius" unit="m" grid_ref="half_level_face_grid" />
+       <field id="height_wth" name="height_wth" long_name="height_of_cell_interfaces_above_earth_radius" unit="m" grid_ref="full_level_face_grid" />
+        <!-- Processed diagnostics -->
+       <field id="processed__tot_col_dry_air_mass" name="tot_col_dry_air_mass" long_name="atmosphere_mass_of_air_per_unit_area" unit="kg m-2" domain_ref="face" />
+       <field id="processed__tot_col_m_v" name="tot_col_m_v" long_name="atmosphere_mass_content_of_water_vapor" unit="kg m-2" domain_ref="face" />
+       <field id="processed__tot_col_m_cl" name="tot_col_m_cl" long_name="atmosphere_mass_content_of_cloud_liquid_water" unit="kg m-2" domain_ref="face" />
+       <field id="processed__tot_col_m_r" name="tot_col_m_r" long_name="atmosphere_mass_content_of_liquid_precipitation" unit="kg m-2" domain_ref="face" />
+       <field id="processed__tot_col_m_ci" name="tot_col_m_ci" long_name="atmosphere_mass_content_of_cloud_ice" unit="kg m-2" domain_ref="face" />
+       <field id="processed__tot_col_m_s" name="tot_col_m_s" long_name="atmosphere_mass_content_of_snow" unit="kg m-2" domain_ref="face" />
+       <field id="processed__tot_col_m_g" name="tot_col_m_g" long_name="atmosphere_mass_content_of_graupel" unit="kg m-2" domain_ref="face" />
+       <field id="processed__tot_col_wetplusdry_mass" name="tot_col_wetplusdry_mass" long_name="atmosphere_wetplusdry_mass_per_unit_area" unit="kg m-2" domain_ref="face" />
+       <field id="processed__tot_col_int_energy" name="tot_col_int_energy" long_name="atmosphere_energy_content" unit="J m-2" domain_ref="face" />
+       <field id="processed__tot_col_pot_energy" name="tot_col_pot_energy" long_name="atmosphere_potential_energy_content" unit="J m-2" domain_ref="face" />
+       <field id="processed__wbig" name="wbig" long_name="wbig_eq_1_where_wphysics_gt_1" unit="1" grid_ref="full_level_face_grid" />
      </field_group>
 
       <!-- Initial conditions group -->
@@ -144,13 +158,15 @@
        <field id="init_xi1" name="xi1" long_name="Xi1" unit="s-1" grid_ref="half_level_face_grid" />
        <field id="init_xi2" name="xi2" long_name="Xi2" unit="s-1" grid_ref="half_level_face_grid" />
        <field id="init_xi3" name="xi3" long_name="Xi3" unit="s-1" grid_ref="half_level_face_grid" />
-       <field id="init_u1" name="u1" long_name="eastward_wind" standard_name="eastward_wind"  unit="m s-1" grid_ref="half_level_edge_grid" />
-       <field id="init_u2" name="u2" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
-       <field id="init_u3" name="u3" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
+       <field id="init_u_in_w2h" name="u_in_w2h" long_name="eastward_wind" standard_name="eastward_wind"  unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="init_v_in_w2h" name="v_in_w2h" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="init_w_in_wth" name="w_in_wth" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
        <field id="init_h_u" name="h_u" long_name="Horizontal flux (in computational space)" standard_name="horizontal_wind" unit="m-1 s-1" grid_ref="half_level_edge_grid" />
       <field id="init_v_u" name="v_u" long_name="Vertical flux (in computational space)" standard_name="vertical_wind" unit="m-1 s-1" grid_ref="full_level_face_grid" />
        <field id="init_divergence" name="divergence" long_name="divergence_of_wind" standard_name="divergence_of_wind" unit="s-1" grid_ref="half_level_face_grid" />
        <field id="init_exner" name="exner" long_name="exner_pressure" unit="1" grid_ref="half_level_face_grid" />
+       <field id="init_height_w3" name="height_w3" long_name="height_of_cell_centres_above_earth_radius" unit="m" grid_ref="half_level_face_grid" />
+       <field id="init_height_wth" name="height_wth" long_name="height_of_cell_interfaces_above_earth_radius" unit="m" grid_ref="full_level_face_grid" />
 
       <field id="init_ls_rho" name="ls_rho" long_name="LS values for air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
       <field id="init_ls_exner" name="ls_exner" long_name="LS values for exner_pressure" unit="1" grid_ref="half_level_face_grid" />
@@ -237,31 +253,26 @@
         <field field_ref="xi1"/>
         <field field_ref="xi2"/>
         <field field_ref="xi3"/>
-        <field field_ref="u1"/>
-        <field field_ref="u2"/>
-        <field field_ref="u3"/>
+        <field field_ref="u_in_w2h"/>
+        <field field_ref="v_in_w2h"/>
+        <field field_ref="w_in_wth"/>
         <field field_ref="h_u"/>
         <field field_ref="v_u"/>
         <field field_ref="divergence"/>
         <field field_ref="exner"/>
-        <field field_ref="ls_theta"/>
-        <field field_ref="ls_rho"/>
-        <field field_ref="ls_exner"/>
-        <field field_ref="ls_u1"/>
-        <field field_ref="ls_u2"/>
-        <field field_ref="ls_u3"/>
-        <field field_ref="h_ls_u"/>
-        <field field_ref="v_ls_u"/>
-        <field field_ref="h_readls_h_u"/>
-        <field field_ref="readls_v_u"/>
+        <field field_ref="processed__tot_col_dry_air_mass" />
+        <field field_ref="processed__tot_col_wetplusdry_mass" />        
+        <field field_ref="processed__tot_col_int_energy" />
+        <field field_ref="processed__tot_col_pot_energy" />
+        <field field_ref="processed__wbig" />
       </file>
 
       <file id="lfric_averages" name="lfric_averages" output_freq="12h" convention="UGRID" enabled=".TRUE.">
         <field field_ref="theta" operation="average" />
         <field field_ref="w_physics" operation="average" />
-        <field field_ref="u1" operation="average" />
-        <field field_ref="u2" operation="average" />
-        <field field_ref="u3" operation="average" />
+        <field field_ref="u_in_w2h" operation="average" />
+        <field field_ref="v_in_w2h" operation="average" />
+        <field field_ref="w_in_wth" operation="average" />
         <field field_ref="divergence" operation="average" />
         <field field_ref="exner" operation="average" />
       </file>
@@ -278,9 +289,9 @@
         <field field_ref="init_xi1"/>
         <field field_ref="init_xi2"/>
         <field field_ref="init_xi3"/>
-        <field field_ref="init_u1"/>
-        <field field_ref="init_u2"/>
-        <field field_ref="init_u3"/>
+        <field field_ref="init_u_in_w2h"/>
+        <field field_ref="init_v_in_w2h"/>
+        <field field_ref="init_w_in_wth"/>
         <field field_ref="init_divergence"/>
         <field field_ref="init_exner"/>
       </file>

@@ -16,10 +16,10 @@ dynamics='gungho',
 external_forcing=.false.,
 /
 &departure_points
-departure_grid='uniform',
+departure_grid='uniform'
 method='euler',
 n_dep_pt_iterations=1,
-vertical_limit='exponential',
+vertical_limit='exponential'
 vertical_method='trapezoidal',
 /
 &domain_size
@@ -125,6 +125,7 @@ checkpoint_read=.false.,
 checkpoint_write=.false.,
 counter_output_suffix='counter.txt',
 diagnostic_frequency=1,
+file_convention='UGRID',
 nodal_output_on_w3=.false.,
 subroutine_counters=.false.,
 subroutine_timers=.true.,
@@ -224,7 +225,7 @@ enforce_min_value=.false.,.false.,.false.,.false.,.false.,
 ffsl_advective_splitting='full',
 ffsl_flux_splitting='full',
 ffsl_scheme='three_dim',
-field_names='density','potential_temperature','wind','moisture','tracer',
+field_names='density','potential_temperature','wind','moisture','cloud',
 fv_vertical_order=2,
 fv_horizontal_order=2,
 horizontal_method=1,1,1,1,1,

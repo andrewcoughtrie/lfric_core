@@ -76,6 +76,7 @@
     'check_style_graph()',
     'api_documentation_graph(publish=True)',
     'check_compilers("fast-debug", publish=True)',
+    'canned_test("linear")',
     'run_application("linear", "runge-kutta",
                      resolutions=[("C12",1.0)], env={"nrun":20}, 
                      plotstr="linear.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR 5 linear-runge-kutta rho 120:0:3")',
