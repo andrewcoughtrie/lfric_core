@@ -14,6 +14,9 @@ module mphys_alg_mod
   ! xios output
   use io_config_mod,        only: write_diag, use_xios_io
   use mphys_diagnostics_mod,  only: superc_liq_flag, &
+                                    sfwater_flag,    &
+                                    sfrain_flag,     &
+                                    sfsnow_flag,     &
                                     output_diags_for_mphys
   use constants_mod,        only: r_def, i_def
 
@@ -43,6 +46,7 @@ contains
   !>@param[in]     cloud_fields           Fields for cloud scheme
   !>@param[in]     aerosol_fields         Fields for aerosol scheme
   !>@param[in]     turbulence_fields      Fields for turbulence scheme
+  !>@param[in]     orography_fields       Fields for orog drag scheme
   !>@param[in]     f_arr                  Fractional standard dev params
   !>@param[in,out] dmr_mphys      Mixing ratio increment due to microphysics
   !>@param[in,out] dtheta_mphys   Potential temperature increment in wth space
@@ -52,7 +56,8 @@ contains
   !>@param[in]     dt             The model timestep length
   subroutine mphys_alg( mr_n, theta, dry_rho_in_w3, derived_fields,            &
                         microphysics_fields, cloud_fields, aerosol_fields,     &
-                        turbulence_fields, f_arr, dmr_mphys, dtheta_mphys,     &
+                        turbulence_fields, orography_fields, f_arr,            &
+                        dmr_mphys, dtheta_mphys,                               &
                         dcfl_mphys, dcff_mphys, dbcf_mphys, dt )
 
     use pc2_conv_coupling_kernel_mod, only: pc2_conv_coupling_kernel_type
@@ -75,6 +80,7 @@ contains
     type( field_collection_type ), intent(in)    :: cloud_fields
     type( field_collection_type ), intent(in)    :: aerosol_fields
     type( field_collection_type ), intent(in)    :: turbulence_fields
+    type( field_collection_type ), intent(in)    :: orography_fields
     type( field_type ),            intent(in)    :: f_arr
     real( kind=r_def ),            intent(in)    :: dt
 
@@ -113,7 +119,13 @@ contains
     type( field_type ), pointer :: height_wth => null()
     type( field_type ), pointer :: dz_in_wth => null()
 
+    type( field_type ), pointer :: sd_orog            => null()
+
     type( field_type ) :: superc_liq
+
+    type( field_type ) :: sfwater
+    type( field_type ) :: sfrain
+    type( field_type ) :: sfsnow
 
     type(mesh_type), pointer :: mesh => null()
 
@@ -160,14 +172,22 @@ contains
 
     wvar               => turbulence_fields%get_field('wvar')
 
+    sd_orog            => orography_fields%get_field('sd_orog')
 
 
     ! Initialise diagnostics
-    ! Only one to do at present, so seems strange to have a whole
+    ! Only 4 to do at present, so seems strange to have a whole
     ! subroutine to perform two lines of code. Can look at adding a subroutine
     ! in the future if more code is added to the lines below.
     superc_liq_flag = .true.
     call bcf_in%copy_field_properties(superc_liq)
+    sfwater_flag = .true.
+    call bcf_in%copy_field_properties(sfwater)
+    sfrain_flag = .true.
+    call bcf_in%copy_field_properties(sfrain)
+    sfsnow_flag = .true.
+    call bcf_in%copy_field_properties(sfsnow)
+
     ! End of diagnostic initialisation.
 
     if (mphys_erosion) then
@@ -189,6 +209,7 @@ contains
                                      wetrho_in_w3, dry_rho_in_w3,              &
                                      height_w3, height_wth,                    &
                                      cloud_drop_no_conc,                       &
+                                     sd_orog,                                  &
                                      dmr_mphys(imr_v),  dmr_mphys(imr_cl),     &
                                      dmr_mphys(imr_ci), dmr_mphys(imr_r),      &
                                      dmr_mphys(imr_g), ls_rain, ls_snow,       &
@@ -196,7 +217,8 @@ contains
                                      autoconv, accretion,                      &
                                      rim_cry, rim_agg,                         &
                                      dtheta_mphys, dcfl_mphys, dcff_mphys,     &
-                                     dbcf_mphys, f_arr, superc_liq ) )
+                                     dbcf_mphys, f_arr, superc_liq,            &
+                                     sfwater, sfrain, sfsnow ) )
 
     if (turb_gen_mixph) then
       dz_in_wth => get_dz_at_wtheta( mesh%get_id() )
@@ -234,7 +256,8 @@ contains
                                      ls_rain, ls_snow, lsca_2d,    &
                                      ls_rain_3d, ls_snow_3d,       &
                                      autoconv, accretion,          &
-                                     rim_cry, rim_agg )
+                                     rim_cry, rim_agg,             &
+                                     sfwater, sfrain, sfsnow )
 
     end if
 

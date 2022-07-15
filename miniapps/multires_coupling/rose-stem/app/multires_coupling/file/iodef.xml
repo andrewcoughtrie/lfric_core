@@ -125,6 +125,9 @@
 	<field id="checkpoint_accretion" name="accretion" long_name="rain_accretion_rate" unit="kg kg-1 s-1" grid_ref="full_level_face_grid" />
 	<field id="checkpoint_rim_cry" name="rim_cry" long_name="riming_rate_for_ice_crystals" unit="kg kg-1 s-1" grid_ref="full_level_face_grid" />
 	<field id="checkpoint_rim_agg" name="rim_agg" long_name="riming_rate_for_ice_aggregates" unit="kg kg-1 s-1" grid_ref="full_level_face_grid" />
+        <field id="microphysics__sfwater" name="sfwater" long_name="water due to subgrid hills" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="microphysics__sfrain" name="sfrain" long_name="Seeder Feeder rain over subgrid hills" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="microphysics__sfsnow" name="sfsnow" long_name="Seeder Feeder snow over subgrid hills" unit="kg kg-1" grid_ref="full_level_face_grid" />
 	<!-- turbulence fields -->
 	<field id="checkpoint_tke_bl" name="tke_bl" long_name="turbulent_kinetic_energy" unit="m2 s-2" grid_ref="full_level_face_grid" />
 	<field id="checkpoint_zh" name="zh" long_name="boundary_layer_depth" unit="m" domain_ref="face" />

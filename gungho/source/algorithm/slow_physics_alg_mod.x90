@@ -340,6 +340,7 @@ contains
       call um_sizes_init(ncells)
       call mphys_alg( mr_n, theta, rho, derived_fields, microphysics_fields, &
                       cloud_fields, aerosol_fields, turbulence_fields,       &
+                      orography_fields,                                      &
                       f_arr, dmr_mphys, dtheta_mphys, dcfl_pc2_mphys,        &
                       dcff_pc2_mphys, dbcf_pc2_mphys, dt )
       ! Switch UM back to columns

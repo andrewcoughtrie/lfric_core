@@ -22,9 +22,15 @@ module mphys_diagnostics_mod
 
   logical (l_def) :: dt_mphys_flag
   logical (l_def) :: superc_liq_flag
+  logical (l_def) :: sfwater_flag
+  logical (l_def) :: sfrain_flag
+  logical (l_def) :: sfsnow_flag
 
   public :: output_diags_for_mphys
   public :: superc_liq_flag
+  public :: sfwater_flag
+  public :: sfrain_flag
+  public :: sfsnow_flag
 
 contains
 
@@ -33,7 +39,8 @@ contains
                                     dcfl_mphys, dcff_mphys, dbcf_mphys,       &
                                     superc_liq, ls_rain, ls_snow, lsca_2d,    &
                                     ls_rain_3d, ls_snow_3d, autoconv,         &
-                                    accretion, rim_cry, rim_agg )
+                                    accretion, rim_cry, rim_agg,              &
+                                    sfwater, sfrain, sfsnow )
 
     implicit none
 
@@ -54,7 +61,10 @@ contains
                                         autoconv,                             &
                                         accretion,                            &
                                         rim_cry,                              &
-                                        rim_agg
+                                        rim_agg,                              &
+                                        sfwater,                              &
+                                        sfrain,                               &
+                                        sfsnow
 
     type ( field_type) :: dt_mphys
 
@@ -91,6 +101,12 @@ contains
     call dcff_mphys%write_field('microphysics__dcff_mphys')
 
     if (superc_liq_flag) call superc_liq%write_field('microphysics__superc_liq')
+
+    if (sfwater_flag) call sfwater%write_field('microphysics__sfwater')
+
+    if (sfrain_flag) call sfrain%write_field('microphysics__sfrain')
+
+    if (sfsnow_flag) call sfsnow%write_field('microphysics__sfsnow')
 
     call ls_rain%write_field('microphysics__ls_rain')
 

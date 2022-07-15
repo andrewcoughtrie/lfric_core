@@ -88,7 +88,12 @@ module um_physics_init_mod
                                         qcl_rime,                            &
                                         ndrop_surf_in => ndrop_surf,         &
                                         z_surf_in => z_surf,                 &
-                                        turb_gen_mixph
+                                        turb_gen_mixph,                &
+                                        orog_rain, orog_rime,          &
+                                        orog_block,                    &
+                                        fcrit_in => fcrit,             &
+                                        nsigmasf_in => nsigmasf,       &
+                                        nscalesf_in => nscalesf
 
   use mixing_config_mod,         only : smagorinsky,                 &
                                         mixing_method => method,     &
@@ -247,7 +252,8 @@ contains
         check_run_precip, graupel_option, no_graupel, gr_srcols, a_ratio_exp,&
         a_ratio_fac, l_droplet_tpr, qclrime, l_shape_rime, ndrop_surf,       &
         z_surf, l_fsd_generator, mp_dz_scal, l_subgrid_qcl_mp, aut_qc,       &
-        l_mphys_nonshallow
+        l_mphys_nonshallow, l_orograin, l_orogrime, l_orograin_block,        &
+        fcrit, nsigmasf, nscalesf
     use pc2_constants_mod, only: i_cld_off, i_cld_smith, i_cld_pc2,        &
          i_cld_bimodal, rhcpt_off, acf_off, real_shear, rhcpt_tke_based,   &
          pc2eros_exp_rh,pc2eros_hybrid_sidesonly,                          &
@@ -808,6 +814,13 @@ contains
       timestep_mp_in = 120
       z_surf         = real(z_surf_in, r_um)
       aut_qc         = 2.47_r_um
+!     Needed by the Seeder Feeder scheme
+      l_orograin     = orog_rain
+      l_orogrime     = orog_rime
+      l_orograin_block = orog_block
+      nsigmasf       = real(nsigmasf_in, r_um)
+      nscalesf       = real(nscalesf_in, r_um)
+      fcrit          = real(fcrit_in, r_um)
 
       ! Domain top used in microphysics - contained in mphys_bypass_mod
       mphys_mod_top  = real(domain_top, r_um)

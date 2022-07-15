@@ -30,7 +30,7 @@ private
 
 type, public, extends(kernel_type) :: mphys_kernel_type
   private
-  type(arg_type) :: meta_args(38) = (/                                      &
+  type(arg_type) :: meta_args(42) = (/                                      &
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! mv_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! ml_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! mi_wth
@@ -49,6 +49,7 @@ type, public, extends(kernel_type) :: mphys_kernel_type
        arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                           & ! height_w3
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! height_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! cloud_drop_no_conc
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1),    & ! sd_orog
        arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA),                   & ! dmv_wth
        arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA),                   & ! dml_wth
        arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA),                   & ! dmi_wth
@@ -68,7 +69,10 @@ type, public, extends(kernel_type) :: mphys_kernel_type
        arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA),                   & ! dcff_wth
        arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA),                   & ! dbcf_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_2),    & ! f_arr_wth
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA)                        & ! superc_liq_wth
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                       & ! superc_liq_wth
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                       & ! sfwater
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                       & ! sfrain
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA)                        & ! sfsnow
        /)
    integer :: operates_on = DOMAIN
 contains
@@ -101,6 +105,7 @@ contains
 !> @param[in]     height_wth          Height of potential temperature space levels
 !!                                     above surface
 !> @param[in]     cloud_drop_no_conc  Cloud Droplet Number Concentration
+!> @param[in]     sd_orog             Standard deviation of sub-grid orog
 !> @param[in,out] dmv_wth             Increment to vapour mass mixing ratio
 !> @param[in,out] dml_wth             Increment to liquid cloud mass mixing ratio
 !> @param[in,out] dmi_wth             Increment to ice cloud mass mixing ratio
@@ -122,6 +127,9 @@ contains
 !> @param[in]     f_arr_wth           Parameters related to fractional standard
 !!                                     deviation of condensate
 !> @param[in,out] superc_liq_wth      Supercooled cloud liquid water content
+!> @param[in,out] sfwater             Sub-grid orographic water produced by Seeder Feeder scheme
+!> @param[in,out] sfrain              Extra rain produced by Seeder Feeder scheme
+!> @param[in,out] sfsnow              Extra snow produced by Seeder Feeder scheme
 !> @param[in]     ndf_wth             Number of degrees of freedom per cell for
 !!                                     potential temperature space
 !> @param[in]     undf_wth            Number unique of degrees of freedom in segment for
@@ -151,6 +159,7 @@ subroutine mphys_code( nlayers, seg_len,            &
                        dry_rho_in_w3,               &
                        height_w3, height_wth,       &
                        cloud_drop_no_conc,          &
+                       sd_orog,                     &
                        dmv_wth,  dml_wth,  dmi_wth, &
                        dmr_wth,  dmg_wth,           &
                        ls_rain_2d, ls_snow_2d,      &
@@ -162,6 +171,7 @@ subroutine mphys_code( nlayers, seg_len,            &
                        dcfl_wth, dcff_wth, dbcf_wth,&
                        f_arr_wth,                   &
                        superc_liq_wth,              &
+                       sfwater, sfrain, sfsnow,     &
                        ndf_wth, undf_wth, map_wth,  &
                        ndf_w3,  undf_w3,  map_w3,   &
                        ndf_2d,  undf_2d,  map_2d,   &
@@ -197,8 +207,17 @@ subroutine mphys_code( nlayers, seg_len,            &
 
 
     use mphys_diags_mod,            only: praut, pracw, piacw, psacw,          &
+                                          sfwater_um => sfwater,               &
+                                          sfrain_um => sfrain,                 &
+                                          sfsnow_um => sfsnow,                 &
                                           l_praut_diag, l_pracw_diag,          &
-                                          l_piacw_diag, l_psacw_diag
+                                          l_piacw_diag, l_psacw_diag,          &
+                                          l_sfwater_diag, l_sfrain_diag,       &
+                                          l_sfsnow_diag
+
+    use microphysics_config_mod,    only: orog_rain, orog_block, nsigmasf
+
+    use lsp_froude_moist_mod,       only: lsp_froude_moist
 
     implicit none
 
@@ -226,6 +245,7 @@ subroutine mphys_code( nlayers, seg_len,            &
     real(kind=r_def), intent(in),  dimension(undf_w3)  :: height_w3
     real(kind=r_def), intent(in),  dimension(undf_wth) :: height_wth
     real(kind=r_def), intent(in),  dimension(undf_wth) :: cloud_drop_no_conc
+    real(kind=r_def), intent(in),  dimension(undf_2d)  :: sd_orog
     real(kind=r_def), intent(in),  dimension(undf_farr):: f_arr_wth
 
     real(kind=r_def), intent(inout), dimension(undf_wth) :: dmv_wth
@@ -249,6 +269,10 @@ subroutine mphys_code( nlayers, seg_len,            &
 
     real(kind=r_def), pointer, intent(inout) :: superc_liq_wth(:)
 
+    real(kind=r_def), pointer, intent(inout) :: sfwater(:)
+    real(kind=r_def), pointer, intent(inout) :: sfrain(:)
+    real(kind=r_def), pointer, intent(inout) :: sfsnow(:)
+
     integer(kind=i_def), intent(in), dimension(ndf_wth, seg_len) :: map_wth
     integer(kind=i_def), intent(in), dimension(ndf_w3, seg_len)  :: map_w3
     integer(kind=i_def), intent(in), dimension(ndf_2d, seg_len)  :: map_2d
@@ -263,7 +287,7 @@ subroutine mphys_code( nlayers, seg_len,            &
          n_drop_pot, n_drop_3d, so4_accu_work, so4_diss_work,                  &
          aged_bmass_work, cloud_bmass_work, aged_ocff_work, cloud_ocff_work,   &
          nitr_acc_work, nitr_diss_work, aerosol_work, biogenic, rho_r2,        &
-         dry_rho, ukca_cdnc_array, tnuc_new
+         dry_rho, ukca_cdnc_array, tnuc_new, theta, z_rho, z_theta
 
     real(r_um), dimension(seg_len, 1, nlayers, 1) :: arcl
 
@@ -361,8 +385,6 @@ subroutine mphys_code( nlayers, seg_len,            &
     snow_depth = 0.0_r_um
     land_frac  = 0.0_r_um
 
-    hmteff = 0.0_r_um
-    zb = 0.0_r_um
     tnuc_new = 0.0_r_um
 
     do i = 1, npd_arcl_compnts
@@ -383,7 +405,6 @@ subroutine mphys_code( nlayers, seg_len,            &
 
     ! This assumes that map_wth(1) points to level 0
     ! and map_w3(1) points to level 1
-
     j = 1
     do k = 1, nlayers
       do i = 1, seg_len
@@ -551,8 +572,39 @@ subroutine mphys_code( nlayers, seg_len,            &
       end do
     end if ! i_cld_vn
 
-    ! CALL to lsp_froude_moist should be here once the orographic precipitation
-    !      scheme is coupled up.
+    l_sfwater_diag = .not. associated(sfwater, empty_real_data)
+    l_sfrain_diag = .not. associated(sfrain, empty_real_data)
+    l_sfsnow_diag = .not. associated(sfsnow, empty_real_data)
+
+    ! Calculate low-level blocking for the  Seeder Feeder scheme
+    if (orog_rain) then
+
+      zb = 0.0_r_um
+      j = 1
+      do i = 1, seg_len
+        hmteff(i,j) = sd_orog(map_2d(1,i)) * nsigmasf
+      end do
+
+      if (orog_block) then
+
+        ! Theta and level height above the surface
+        j = 1
+        do k = 1, nlayers
+          do i = 1, seg_len
+            theta(i,j,k)    = theta_in_wth(map_wth(1,i) + k)
+            z_rho(i,j,k)    = r_rho_levels(i,j,k) - r_theta_levels(i,j,0)
+            z_theta(i,j,k)  = r_theta_levels(i,j,k) - r_theta_levels(i,j,0)
+          end do ! i
+        end do ! k
+
+        CALL lsp_froude_moist( nlayers, seg_len,                              &
+                          u_on_p, v_on_p, theta,                              &
+                          z_rho, z_theta,                                     &
+                          hmteff, zb )
+
+      endif
+
+    endif
 
     ! Allocate arrays for diagnostics
     if (l_praut_diag) then
@@ -570,6 +622,18 @@ subroutine mphys_code( nlayers, seg_len,            &
     if (l_psacw_diag) then
       allocate(psacw( seg_len, 1, nlayers ))
       psacw = 0.0_r_um
+    endif
+    if (l_sfwater_diag) then
+      allocate(sfwater_um( seg_len, 1, nlayers ))
+      sfwater_um = 0.0_r_um
+    endif
+    if (l_sfrain_diag) then
+      allocate(sfrain_um( seg_len, 1, nlayers ))
+      sfrain_um = 0.0_r_um
+    endif
+    if (l_sfsnow_diag) then
+      allocate(sfsnow_um( seg_len, 1, nlayers ))
+      sfsnow_um = 0.0_r_um
     endif
 
     ! CALL to ls_ppn
@@ -710,10 +774,35 @@ end if
     end do ! seg_len
   end if ! not assoc. superc_liq_wth
 
+  if (l_sfwater_diag) then
+    do k=1,nlayers
+      do i=1,seg_len
+        sfwater(map_wth(1,i)+k) = sfwater_um(i,1,k)
+      end do
+    end do
+  end if
+  if (l_sfrain_diag) then
+    do k=1,nlayers
+      do i=1,seg_len
+        sfrain(map_wth(1,i)+k) = sfrain_um(i,1,k)
+      end do
+    end do
+  end if
+  if (l_sfsnow_diag) then
+    do k=1,nlayers
+      do i=1,seg_len
+        sfsnow(map_wth(1,i)+k) = sfsnow_um(i,1,k)
+      end do
+    end do
+  end if
+
   if (allocated(psacw)) deallocate (psacw)
   if (allocated(piacw)) deallocate (piacw)
   if (allocated(pracw)) deallocate (pracw)
   if (allocated(praut)) deallocate (praut)
+  if (allocated(sfwater_um)) deallocate (sfwater_um)
+  if (allocated(sfrain_um)) deallocate (sfrain_um)
+  if (allocated(sfsnow_um)) deallocate (sfsnow_um)
   deallocate( precfrac_work )
   deallocate( qgraup_work )
   deallocate( qrain_work  )

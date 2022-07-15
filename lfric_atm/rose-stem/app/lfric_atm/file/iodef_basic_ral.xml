@@ -552,6 +552,9 @@
 	<field id="microphysics__accretion" name="accretion" long_name="rain_accretion_rate" unit="kg kg-1 s-1" grid_ref="full_level_face_grid" />
 	<field id="microphysics__rim_cry" name="rim_cry" long_name="riming_rate_for_ice_crystals" unit="kg kg-1 s-1" grid_ref="full_level_face_grid" />
 	<field id="microphysics__rim_agg" name="rim_agg" long_name="riming rate_for_ice aggregates" unit="kg kg-1 s-1" grid_ref="full_level_face_grid" />
+        <field id="microphysics__sfwater" name="sfwater" long_name="water due to subgrid hills" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="microphysics__sfrain" name="sfrain" long_name="Seeder-Feeder rain over subgrid hills" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="microphysics__sfsnow" name="sfsnow" long_name="Seeder-Feeder snow over subgrid hills" unit="kg kg-1" grid_ref="full_level_face_grid" />
 	<!-- spectral GWD diagnostics -->
 	<field id="spectral_gwd__dtheta_spectral_gwd" name="dtheta_spectral_gwd" long_name="spectral_gravity_wave_drag_theta_increment" unit="K" grid_ref="full_level_face_grid" />
 	<field id="spectral_gwd__dtemp_spectral_gwd" name="dtemp_spectral_gwd" long_name="spectral_gravity_wave_drag_T_increment" unit="K" grid_ref="full_level_face_grid" />
