@@ -30,7 +30,7 @@ implicit none
 
 type, public, extends(kernel_type) :: aerosol_ukca_kernel_type
   private
-  type(arg_type) :: meta_args(153) = (/            &
+  type(arg_type) :: meta_args(154) = (/            &
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! h2o2
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! dms
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! so2
@@ -153,6 +153,7 @@ type, public, extends(kernel_type) :: aerosol_ukca_kernel_type
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! stellar_eqn_of_time_rts
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! soil_roughness
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! z0m
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1 ), & ! urbztm
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! ustar
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! wspd10m
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! chloro_sea
@@ -293,6 +294,7 @@ contains
 !> @param[in]     stellar_eqn_of_time Stellar equation of time (radians)
 !> @param[in]     soil_roughness      Bare soil surface roughness length (m)
 !> @param[in]     z0m                 Cell surface roughness length (m)
+!> @param[in]     urbztm              Urban effective roughness length
 !> @param[in]     ustar               Friction velocity (m s-1)
 !> @param[in]     wspd10m             Wind speed at 10 m (m s-1)
 !> @param[in]     chloro_sea          Sea surface chlorophyll content
@@ -472,6 +474,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
                               stellar_eqn_of_time_rts,                         &
                               soil_roughness,                                  &
                               z0m,                                             &
+                              urbztm,                                          &
                               ustar,                                           &
                               wspd10m,                                         &
                               chloro_sea,                                      &
@@ -860,6 +863,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   real(kind=r_def), intent(in), dimension(undf_2d) :: stellar_eqn_of_time_rts
   real(kind=r_def), intent(in), dimension(undf_2d) :: soil_roughness
   real(kind=r_def), intent(in), dimension(undf_2d) :: z0m
+  real(kind=r_def), intent(in), dimension(undf_2d) :: urbztm
   real(kind=r_def), intent(in), dimension(undf_2d) :: ustar
   real(kind=r_def), intent(in), dimension(undf_2d) :: wspd10m
   real(kind=r_def), intent(in), dimension(undf_2d) :: chloro_sea
@@ -1283,7 +1287,8 @@ subroutine aerosol_ukca_code( nlayers,                                         &
       canht_pft( 1, i ) = real( canopy_height(map_pft(1) + i - 1), r_um )
     end do
     ! Roughness length on tiles (z0_surft) from JULES
-    z0m_soil_gb(1) = real( soil_roughness(map_2d(1)), r_um )
+    z0m_soil_gb(1)     = real( soil_roughness(map_2d(1)), r_um )
+    urban_param%ztm_gb = real(urbztm(map_2d(1)), r_um)
     call sparm( n_land_pts, n_land_tile, n_surft_pts, surft_index,             &
                 frac_surft, canht_pft, lai_pft, z0m_soil_gb,                   &
                 catch_snow_surft, catch_surft, z0_surft, z0h_bare_surft,       &

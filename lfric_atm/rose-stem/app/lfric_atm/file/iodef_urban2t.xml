@@ -8,12 +8,12 @@
     <axis_definition>
       <axis id="vert_axis_half_levels" name="half_levels"/>
       <axis id="vert_axis_full_levels" name="full_levels"/>
-      <axis id="land_tiles" name="land_tiles" n_glo="9"/>
-      <axis id="surface_tiles" name="surface_tiles" n_glo="11"/>
-      <axis id="snow_layers_and_tiles" name="snow_layers_and_tiles" n_glo="27"/>
+      <axis id="land_tiles" name="land_tiles" n_glo="10"/>
+      <axis id="surface_tiles" name="surface_tiles" n_glo="12"/>
+      <axis id="snow_layers_and_tiles" name="snow_layers_and_tiles" n_glo="30"/>
       <axis id="soil_levels" name="soil_levels" n_glo="4"/>
       <axis id="plant_func_types" name="plant_func_types" n_glo="5"/>
-      <axis id="land_tile_rad_band" name="land_tile_rad_band" n_glo="18"/>
+      <axis id="land_tile_rad_band" name="land_tile_rad_band" n_glo="20"/>
       <axis id="monthly_axis" name="monthly_axis" n_glo="12"/>
       <axis id="bl_types" name="bl_types" n_glo="7"/>
       <axis id="sea_ice_categories" name="sea_ice_categories" n_glo="1"/>
@@ -80,7 +80,6 @@
         <field id="checkpoint_oh" name="oh" long_name="mass_fraction_of_hydroxyl_radical_in_air" unit="1" grid_ref="full_level_face_grid" />
         <field id="checkpoint_ho2" name="ho2" long_name="mass_fraction_of_hydroperoxyl_radical_in_air" unit="1" grid_ref="full_level_face_grid" />
         <field id="checkpoint_h2o2_limit" name="h2o2_limit" long_name="Upper_limit_for_mass_fraction_of_hydrogen_peroxide_in_air" unit="1" grid_ref="full_level_face_grid" />
-	<field id="checkpoint_ageofair" name="ageofair" long_name="ageofair" unit="s" domain_ref="checkpoint_W3" />
 	<!-- aerosol fields -->
         <field id="checkpoint_emiss_bc_biofuel" name="emiss_bc_biofuel" long_name="tendency_of_atmosphere_mass_content_of_black_carbon_dry_aerosol_due_to_emission_from_biofuel_burning" unit="kg m-2 s-1" domain_ref="face" />
         <field id="checkpoint_emiss_bc_fossil" name="emiss_bc_fossil" long_name="tendency_of_atmosphere_mass_content_of_black_carbon_dry_aerosol_due_to_emission_from_fossil_fuel_burning" unit="kg m-2 s-1" domain_ref="face" />
@@ -329,7 +328,6 @@
 	<field id="chemistry__dmso" name="dmso" long_name="dimethyl_sulfoxide_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
 	<field id="chemistry__monoterpene" name="monoterpene" long_name="monoterpene_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
 	<field id="chemistry__secondary_organic" name="secondary_organic" long_name="secondary_organic_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
-	<field id="ageofair" name="ageofair" long_name="ageofair" unit="s" grid_ref="half_level_face_grid" />
 	<!-- aerosol diagnostics -->
         <field id="aerosol__dust_flux" name="dust_flux" long_name="dust_emissions_flux_in_size_bins" unit="kg m-2 s-1" domain_ref="face" axis_ref="dust_divisions" />
         <field id="aerosol__n_nuc_sol" name="n_nuc_sol" long_name="nucleation_soluble_mode_number" unit="1" grid_ref="full_level_face_grid" />
@@ -902,7 +900,6 @@
         <field id="restart_oh" name="oh" long_name="mass_fraction_of_hydroxyl_radical_in_air" unit="1" operation="instant" grid_ref="full_level_face_grid" />
         <field id="restart_ho2" name="ho2" long_name="mass_fraction_of_hydroperoxyl_radical_in_air" unit="1" operation="instant" grid_ref="full_level_face_grid" />
         <field id="restart_h2o2_limit" name="h2o2_limit" long_name="Upper_limit_for_mass_fraction_of_hydrogen_peroxide_in_air" unit="1" operation="instant" grid_ref="full_level_face_grid" />
-        <field id="restart_ageofair" name="ageofair" long_name="ageofair" unit="s" operation="instant" domain_ref="checkpoint_W3" />
 	<!-- aerosol fields -->
         <field id="restart_emiss_bc_biofuel" name="emiss_bc_biofuel" long_name="tendency_of_atmosphere_mass_content_of_black_carbon_dry_aerosol_due_to_emission_from_biofuel_burning" unit="kg m-2 s-1" operation="instant" domain_ref="face" />
         <field id="restart_emiss_bc_fossil" name="emiss_bc_fossil" long_name="tendency_of_atmosphere_mass_content_of_black_carbon_dry_aerosol_due_to_emission_from_fossil_fuel_burning" unit="kg m-2 s-1" operation="instant" domain_ref="face" />
@@ -1177,7 +1174,6 @@
 	<field field_ref="surface__tile_heat_flux"/>
 	<field field_ref="surface__latent_heat"/>
 	<field field_ref="surface__tile_moisture_flux"/>
-	<field field_ref="ageofair"/>
       </file>
 
       <file id="lfric_averages" name="lfric_averages" output_freq="12h" convention="UGRID" enabled=".TRUE.">

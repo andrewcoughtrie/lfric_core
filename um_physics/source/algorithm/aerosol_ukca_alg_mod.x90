@@ -145,6 +145,7 @@ contains
     type( field_type ), pointer :: ustar => null()
     type( field_type ), pointer :: wspd10m => null()
     type( field_type ), pointer :: chloro_sea => null()
+    type( field_type ), pointer :: urbztm => null()
 
     ! Soil fields
     type( field_type ), pointer :: soil_moisture => null()
@@ -333,6 +334,7 @@ contains
 
     call soil_fields%get_field('soil_moisture', soil_moisture)
     call soil_fields%get_field('soil_roughness', soil_roughness)
+    call surface_fields%get_field('urbztm', urbztm)
 
     call chemistry_fields%get_field('o3', o3)
     call chemistry_fields%get_field('no3', no3)
@@ -560,6 +562,7 @@ contains
                                           stellar_eqn_of_time_rts,             &
                                           soil_roughness,                      &
                                           z0m,                                 &
+                                          urbztm,                              &
                                           ustar,                               &
                                           wspd10m,                             &
                                           chloro_sea,                          &

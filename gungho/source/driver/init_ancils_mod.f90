@@ -35,7 +35,7 @@ module init_ancils_mod
   use initialization_config_mod,      only : ancil_option,ancil_option_updating
   use aerosol_config_mod,             only : glomap_mode, glomap_mode_ukca, &
                                              glomap_mode_climatology
-  use jules_surface_config_mod,       only : l_vary_z0m_soil
+  use jules_surface_config_mod,       only : l_vary_z0m_soil, l_urban2t
   use surface_config_mod,             only : sea_alb_var_chl, albedo_obs
   use radiation_config_mod,           only : topography, topography_slope, &
                                              topography_horizon, &
@@ -131,6 +131,23 @@ contains
                               time_axis=pft_time_axis)
     call pft_time_axis%set_update_behaviour(tmp_update_ptr)
     call ancil_times_list%insert_item(pft_time_axis)
+
+    if ( l_urban2t ) then
+      call setup_ancil_field("urbwrr", depository, ancil_fields, &
+                                mesh, twod_mesh, twod=.true.)
+      call setup_ancil_field("urbhwr", depository, ancil_fields, &
+                                mesh, twod_mesh, twod=.true.)
+      call setup_ancil_field("urbhgt", depository, ancil_fields, &
+                                mesh, twod_mesh, twod=.true.)
+      call setup_ancil_field("urbalbwl", depository, ancil_fields, &
+                                mesh, twod_mesh, twod=.true.)
+      call setup_ancil_field("urbalbrd", depository, ancil_fields, &
+                                mesh, twod_mesh, twod=.true.)
+      call setup_ancil_field("urbemisw", depository, ancil_fields, &
+                                mesh, twod_mesh, twod=.true.)
+      call setup_ancil_field("urbemisr", depository, ancil_fields, &
+                                mesh, twod_mesh, twod=.true.)
+    endif
 
     !=====  SEA ANCILS  =====
     if ( sea_alb_var_chl ) then

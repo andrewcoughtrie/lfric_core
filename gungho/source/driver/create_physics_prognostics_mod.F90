@@ -1146,6 +1146,33 @@ contains
     call add_physics_field( surface_fields, depository, prognostic_fields,     &
       adv_fields_last_outer, &
       'wspd10m', twod_space, twod=.true. )
+    call add_physics_field( surface_fields, depository, prognostic_fields,     &
+      adv_fields_last_outer, &
+      'urbwrr', twod_space, twod=.true. )
+    call add_physics_field( surface_fields, depository, prognostic_fields,     &
+      adv_fields_last_outer, &
+      'urbhwr', twod_space, twod=.true. )
+    call add_physics_field( surface_fields, depository, prognostic_fields,     &
+      adv_fields_last_outer, &
+      'urbhgt', twod_space, twod=.true. )
+    call add_physics_field( surface_fields, depository, prognostic_fields,     &
+      adv_fields_last_outer, &
+      'urbdisp', twod_space, twod=.true. )
+    call add_physics_field( surface_fields, depository, prognostic_fields,     &
+      adv_fields_last_outer, &
+      'urbztm', twod_space, twod=.true. )
+    call add_physics_field( surface_fields, depository, prognostic_fields,     &
+      adv_fields_last_outer, &
+      'urbalbwl', twod_space, twod=.true. )
+    call add_physics_field( surface_fields, depository, prognostic_fields,     &
+      adv_fields_last_outer, &
+      'urbalbrd', twod_space, twod=.true. )
+    call add_physics_field( surface_fields, depository, prognostic_fields,     &
+      adv_fields_last_outer, &
+      'urbemisw', twod_space, twod=.true. )
+    call add_physics_field( surface_fields, depository, prognostic_fields,     &
+      adv_fields_last_outer, &
+      'urbemisr', twod_space, twod=.true. )
 
     ! Space for variables required for regridding to cell faces
     vector_space => function_space_collection%get_fs(twod_mesh, 0, W2,         &

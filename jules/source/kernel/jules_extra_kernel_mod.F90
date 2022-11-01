@@ -32,7 +32,7 @@ module jules_extra_kernel_mod
   !>
   type, public, extends(kernel_type) :: jules_extra_kernel_type
     private
-    type(arg_type) :: meta_args(56) = (/                                       &
+    type(arg_type) :: meta_args(57) = (/                                       &
          arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! ls_rain
          arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! conv_rain
          arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! ls_snow
@@ -64,6 +64,7 @@ module jules_extra_kernel_mod
          arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_2), & ! canopy_evap
          arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_4), & ! water_extraction
          arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! thermal_cond_wet_soil
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! urbztm
          arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_4), & ! soil_temperature
          arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_4), & ! soil_moisture
          arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_4), & ! unfrozen_soil_moisture
@@ -137,6 +138,7 @@ contains
   !> @param[in]     canopy_evap            Canopy evaporation from land tiles (kg m-2 s-1)
   !> @param[in]     water_extraction       Extraction of water from each soil layer (kg m-2 s-1)
   !> @param[in]     thermal_cond_wet_soil  Thermal conductivity of soil (W m-1 K-1)
+  !> @param[in]     urbztm                 Urban effective roughness length
   !> @param[in,out] soil_temperature       Soil temperature (K)
   !> @param[in,out] soil_moisture          Soil moisture content (kg m-2)
   !> @param[in,out] unfrozen_soil_moisture Unfrozen soil moisture proportion
@@ -210,6 +212,7 @@ contains
                canopy_evap,                &
                water_extraction,           &
                thermal_cond_wet_soil,      &
+               urbztm,                     &
                soil_temperature,           &
                soil_moisture,              &
                unfrozen_soil_moisture,     &
@@ -400,6 +403,7 @@ contains
     real(kind=r_def), intent(in)    :: c_wet_frac(undf_2d)
     real(kind=r_def), intent(in)    :: net_prim_prod(undf_2d)
     real(kind=r_def), intent(in)    :: thermal_cond_wet_soil(undf_2d)
+    real(kind=r_def), intent(in)    :: urbztm(undf_2d)
 
     real(kind=r_def), intent(inout) :: canopy_water(undf_tile)
     real(kind=r_def), intent(inout) :: tile_snow_mass(undf_tile)
@@ -677,6 +681,7 @@ contains
 
     ! Soil roughness
     psparms%z0m_soil_gb = real(soil_roughness(map_2d(1)), r_um)
+    urban_param%ztm_gb  = real(urbztm(map_2d(1)), r_um)
 
     ! Get catch_snow_surft and catch_surft from call to sparm
     call sparm(land_pts, n_land_tile, surft_pts, ainfo%surft_index,                   &

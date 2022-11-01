@@ -94,6 +94,10 @@ subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
   type( field_type ), pointer :: melt_pond_fraction => null()
   type( field_type ), pointer :: melt_pond_depth   => null()
   type( field_type ), pointer :: z0msea            => null()
+  type( field_type ), pointer :: urbhwr            => null()
+  type( field_type ), pointer :: urbztm            => null()
+  type( field_type ), pointer :: urbalbwl          => null()
+  type( field_type ), pointer :: urbalbrd          => null()
 
   type( field_type ), pointer :: soil_albedo       => null()
   type( field_type ), pointer :: soil_roughness    => null()
@@ -177,6 +181,10 @@ subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
     call surface_fields%get_field('melt_pond_fraction', melt_pond_fraction)
     call surface_fields%get_field('melt_pond_depth', melt_pond_depth)
     call surface_fields%get_field('z0msea', z0msea)
+    call surface_fields%get_field('urbhwr', urbhwr)
+    call surface_fields%get_field('urbztm', urbztm)
+    call surface_fields%get_field('urbalbwl', urbalbwl)
+    call surface_fields%get_field('urbalbrd', urbalbrd)
 
     call soil_fields%get_field('soil_albedo', soil_albedo)
     call soil_fields%get_field('soil_roughness', soil_roughness)
@@ -212,7 +220,8 @@ subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
         chloro_sea, sea_ice_thickness, &
         melt_pond_fraction, melt_pond_depth, &
         u_in_w3, v_in_w3, dz_wth, z0msea, &
-        cos_zenith_angle_rts, n_sw_band))
+        cos_zenith_angle_rts, urbhwr, urbztm, urbalbwl, urbalbrd, &
+        n_sw_band))
     end if
 
     if (l_inc_radstep) then
@@ -231,7 +240,8 @@ subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
           chloro_sea, sea_ice_thickness, &
           melt_pond_fraction, melt_pond_depth, &
           u_in_w3, v_in_w3, dz_wth, z0msea, &
-          cos_zenith_angle_rts, n_swinc_band))
+          cos_zenith_angle_rts, urbhwr, urbztm, urbalbwl, urbalbrd, &
+          n_swinc_band))
 
         call invoke(lw_rad_tile_kernel_type(tile_lwinc_albedo, &
                                             tile_fraction, n_lwinc_band))

@@ -20,6 +20,7 @@ module process_inputs_alg_mod
   use process_ssi_kernel_mod,     only: process_ssi_kernel_type
   use process_soil_kernel_mod,    only: process_soil_kernel_type
   use process_snow_kernel_mod,    only: process_snow_kernel_type
+  use process_urban_kernel_mod,   only: process_urban_kernel_type
   use log_mod,                    only: LOG_LEVEL_INFO
   use jules_control_init_mod,     only: n_land_tile, &
                                         first_sea_tile, n_sea_tile, &
@@ -69,6 +70,14 @@ contains
 
     type( field_type ), pointer :: canopy_water => null()
     type( field_type ), pointer :: can_water_in => null()
+
+    type( field_type ), pointer :: urbwrr            => null()
+    type( field_type ), pointer :: urbhwr            => null()
+    type( field_type ), pointer :: urbhgt            => null()
+    type( field_type ), pointer :: urbztm            => null()
+    type( field_type ), pointer :: urbdisp           => null()
+    type( field_type ), pointer :: urbemisw          => null()
+    type( field_type ), pointer :: urbemisr          => null()
 
     type( field_type ), pointer :: soil_moist_sat    => null()
     type( field_type ), pointer :: soil_moist_wilt   => null()
@@ -137,6 +146,14 @@ contains
       call fd_fields%get_field('can_water_in', can_water_in)
       call surface_fields%get_field('canopy_water', canopy_water)
 
+      call surface_fields%get_field('urbwrr', urbwrr)
+      call surface_fields%get_field('urbhwr', urbhwr)
+      call surface_fields%get_field('urbhgt', urbhgt)
+      call surface_fields%get_field('urbztm', urbztm)
+      call surface_fields%get_field('urbdisp', urbdisp)
+      call surface_fields%get_field('urbemisw', urbemisw)
+      call surface_fields%get_field('urbemisr', urbemisr)
+
       call soil_fields%get_field('soil_moist_sat', soil_moist_sat)
       call soil_fields%get_field('soil_moist_wilt', soil_moist_wilt)
       call soil_fields%get_field('mean_topog_index', mean_topog_index)
@@ -185,6 +202,9 @@ contains
                                          first_sea_ice_tile, n_sea_ice_tile ),&
                   multi_insert_kernel_type(canopy_water, can_water_in,        &
                                            1, n_land_tile),                   &
+      ! Urban fields (contained in surface fields)
+                  process_urban_kernel_type( urbwrr, urbhwr, urbhgt,          &
+                                             urbztm, urbdisp ),               &
       ! Soil fields
                   process_soil_kernel_type( soil_moist_sat,                   &
                                             soil_moist_wilt,                  &

@@ -50,7 +50,6 @@ contains
   subroutine jules_control_init()
 
     ! LFRic namelists which have been read
-    use well_mixed_gases_config_mod, only : co2_mix_ratio
     use jules_surface_types_config_mod, only : npft_in => npft, &
                                                nnvg_in => nnvg,     &
                                                brd_leaf_in => brd_leaf, &
@@ -59,6 +58,8 @@ contains
                                                c4_grass_in => c4_grass, &
                                                shrub_in => shrub,    &
                                                urban_in => urban,    &
+                                               urban_canyon_in => urban_canyon,&
+                                               urban_roof_in => urban_roof,    &
                                                lake_in => lake,     &
                                                soil_in => soil,     &
                                                ice_in => ice
@@ -69,16 +70,16 @@ contains
     use atm_step_local, only: co2_dim_len, co2_dim_row, &
         dim_cs1
     use jules_soil_mod, only: jules_sm_levels => sm_levels
-    use jules_surface_types_mod, only: nnpft, npft, nnvg, ntype, brd_leaf, &
-        ndl_leaf, c3_grass, c4_grass, shrub, urban, lake, soil, ice
+    use jules_surface_types_mod, only: npft, nnvg, ntype, brd_leaf, ndl_leaf,  &
+        c3_grass, c4_grass, shrub, urban, urban_canyon, urban_roof, lake,      &
+        soil, ice
     use jules_vegetation_mod, only: l_triffid
     use jules_model_environment_mod, only: lsm_id, jules
     use nlsizes_namelist_mod, only: land_field, ntiles, sm_levels
     use rad_input_mod, only: co2_mmr
-
-    use jules_surface_types_mod, only: &
-       set_derived_variables_jules_surface_types, &
-       print_nlist_jules_surface_types, check_jules_surface_types
+    use jules_surface_types_mod, only:                                         &
+        set_derived_variables_jules_surface_types,                             &
+        print_nlist_jules_surface_types, check_jules_surface_types
     use land_tile_ids_mod, only: set_surface_type_ids
 
     use log_mod, only : log_event, log_scratch_space, LOG_LEVEL_INFO
@@ -94,17 +95,19 @@ contains
     if (surface == surface_jules) then
       write( log_scratch_space, '(A)' ) 'JULES surface scheme is being used.'
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
-      npft     = npft_in
-      nnvg     = nnvg_in
-      brd_leaf = brd_leaf_in
-      ndl_leaf = ndl_leaf_in
-      c3_grass = c3_grass_in
-      c4_grass = c4_grass_in
-      shrub    = shrub_in
-      urban    = urban_in
-      lake     = lake_in
-      soil     = soil_in
-      ice      = ice_in
+      npft         = npft_in
+      nnvg         = nnvg_in
+      brd_leaf     = brd_leaf_in
+      ndl_leaf     = ndl_leaf_in
+      c3_grass     = c3_grass_in
+      c4_grass     = c4_grass_in
+      shrub        = shrub_in
+      urban        = urban_in
+      urban_canyon = urban_canyon_in
+      urban_roof   = urban_roof_in
+      lake         = lake_in
+      soil         = soil_in
+      ice          = ice_in
       ! Calculate ntype and nnpft
       call set_derived_variables_jules_surface_types()
       call print_nlist_jules_surface_types()

@@ -36,7 +36,7 @@ CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName='SW_RAD_TILE_KERNEL_MOD'
 ! Contains the metadata needed by the PSy layer.
 type, extends(kernel_type) :: sw_rad_tile_kernel_type
   private
-  type(arg_type) :: meta_args(27) = (/                                &
+  type(arg_type) :: meta_args(31) = (/                                &
     arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! tile_sw_direct_albedo
     arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! tile_sw_diffuse_albedo
     arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_2), & ! tile_fraction
@@ -63,6 +63,10 @@ type, extends(kernel_type) :: sw_rad_tile_kernel_type
     arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    & ! dz_wth
     arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! z0msea
     arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! cos_zenith_angle_rts
+    arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), & ! urbhwr
+    arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), & ! urbztm
+    arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), & ! urbalbwl
+    arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), & ! urbalbrd
     arg_type(GH_SCALAR, GH_INTEGER, GH_READ)                          & ! n_band
     /)
   integer :: operates_on = DOMAIN
@@ -103,6 +107,10 @@ contains
 !> @param[in]     dz_wth                 Delta z at wtheta levels
 !> @param[in]     z0msea                 Roughness length of sea
 !> @param[in]     cos_zenith_angle_rts   Cosine of the stellar zenith angle
+!> @param[in]     urbhwr                 Urban height-to-width ratio
+!> @param[in]     urbztm                 Urban effective roughness length
+!> @param[in]     urbalbwl               Urban wall albedo
+!> @param[in]     urbalbrd               Urban road albedo
 !> @param[in]     n_band                 Number of spectral bands
 !> @param[in]     ndf_sw_tile            DOFs per cell for tiles and sw bands
 !> @param[in]     undf_sw_tile           Total DOFs for tiles and sw bands
@@ -134,7 +142,7 @@ subroutine sw_rad_tile_code(nlayers, seg_len,                       &
                             tile_fraction,                          &
                             leaf_area_index,                        &
                             canopy_height,                          &
-                            sd_orog_2d,                             & 
+                            sd_orog_2d,                             &
                             soil_albedo,                            &
                             soil_roughness,                         &
                             albedo_obs_vis,                         &
@@ -155,6 +163,10 @@ subroutine sw_rad_tile_code(nlayers, seg_len,                       &
                             dz_wth,                                 &
                             z0msea,                                 &
                             cos_zenith_angle_rts,                   &
+                            urbhwr,                                 &
+                            urbztm,                                 &
+                            urbalbwl,                               &
+                            urbalbrd,                               &
                             n_band,                                 &
                             ndf_sw_tile, undf_sw_tile, map_sw_tile, &
                             ndf_tile, undf_tile, map_tile,          &
@@ -274,6 +286,10 @@ subroutine sw_rad_tile_code(nlayers, seg_len,                       &
   real(r_def), intent(in)    :: chloro_sea(undf_2d)
   real(r_def), intent(in)    :: z0msea(undf_2d)
   real(r_def), intent(in)    :: cos_zenith_angle_rts(undf_2d)
+  real(r_def), intent(in)    :: urbhwr(undf_2d)
+  real(r_def), intent(in)    :: urbztm(undf_2d)
+  real(r_def), intent(in)    :: urbalbwl(undf_2d)
+  real(r_def), intent(in)    :: urbalbrd(undf_2d)
 
   real(r_def), intent(in)    :: sea_ice_thickness(undf_sice)
   real(r_def), intent(in)    :: melt_pond_fraction(undf_sice)
@@ -525,6 +541,17 @@ subroutine sw_rad_tile_code(nlayers, seg_len,                       &
     psparms%z0m_soil_gb(l) = real(soil_roughness(map_2d(1,ainfo%land_index(l))), r_um)
   end do ! l
 
+  if ( l_urban2t ) then
+    ! Urban fields (including morphology required for surf_couple_radiation).
+    ! Allocated with size(1) if not l_urban2t
+    do l = 1, land_field
+      urban_param%ztm_gb(l)   = real(urbztm(map_2d(1,ainfo%land_index(l))), r_um)
+      urban_param%hwr_gb(l)   = real(urbhwr(map_2d(1,ainfo%land_index(l))), r_um)
+      urban_param%albwl_gb(l) = real(urbalbwl(map_2d(1,ainfo%land_index(l))), r_um)
+      urban_param%albrd_gb(l) = real(urbalbrd(map_2d(1,ainfo%land_index(l))), r_um)
+    end do
+  end if
+
   call sparm(land_field, n_land_tile, type_pts, ainfo%surft_index,         &
     ainfo%frac_surft, progs%canht_pft, progs%lai_pft, psparms%z0m_soil_gb, &
     psparms%catch_snow_surft, psparms%catch_surft, psparms%z0_surft,       &
@@ -666,7 +693,7 @@ subroutine sw_rad_tile_code(nlayers, seg_len,                       &
       do i = 1, seg_len
         r1 = map_tile(1,i)+n-1
         r2 = map_sw_tile(1,i)+df_rtile-1
-        if ( tile_fraction(r1) > 0.0_r_def ) then      
+        if ( tile_fraction(r1) > 0.0_r_def ) then
           tile_sw_direct_albedo(r2) &
                = weight_blue(i_band) &
                * real(sea_ice_albedo(i,1,1), r_def) &

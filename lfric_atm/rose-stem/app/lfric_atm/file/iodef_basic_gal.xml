@@ -626,6 +626,15 @@
 	<field id="surface__net_prim_prod" name="net_prim_prod" long_name="net_primary_productivity" unit="kgC m-2 s-1" domain_ref="face" />
 	<field id="surface__gc_tile" name="gc_tile" long_name="stomatal_conductance_on_tiles" unit="m s-1" domain_ref="face" axis_ref="surface_tiles"/>
 	<field id="surface__soil_respiration" name="soil_respiration" long_name="surface_upward_mass_flux_of_carbon_due_to_heterotrophic_respiration_in_soil" unit="kg m-2 s-1" domain_ref="face" />
+	<field id="surface__wrr" name="urbwrr" long_name="Urban repeating width ratio" unit="1" domain_ref="face" />
+	<field id="surface__hwr" name="urbhwr" long_name="Urban height-to-width ratio" unit="1" domain_ref="face" />
+	<field id="surface__hgt" name="urbhgt" long_name="Urban building height" unit="m" domain_ref="face" />
+	<field id="surface__ztm" name="urbztm" long_name="Urban effective roughess length" unit="m" domain_ref="face" />
+	<field id="surface__disp" name="urbdisp" long_name="Urban displacement height" unit="m" domain_ref="face" />
+	<field id="surface__albwl" name="urbalbwl" long_name="Urban wall abedo" unit="1" domain_ref="face" />
+	<field id="surface__albrd" name="urbalbrd" long_name="Urban road abedo" unit="1" domain_ref="face" />
+	<field id="surface__emisw" name="urbemisw" long_name="Urban wall emissivity" unit="1" domain_ref="face" />
+	<field id="surface__emisr" name="urbemisr" long_name="Urban road emissivity" unit="1" domain_ref="face" />
 	<!-- Jules snow diagnostics -->
 	<field id="snow__snow_mass" name="snow_mass_on_tiles" long_name="surface_snow_amount" unit="kg m-2" domain_ref="face" axis_ref="surface_tiles"/>
 	<field id="snow__grid_snow_mass" name="grid_snow_mass" long_name="grid_surface_snow_amount" unit="kg m-2" domain_ref="face"/>

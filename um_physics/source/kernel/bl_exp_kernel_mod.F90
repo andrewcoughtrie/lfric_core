@@ -7,8 +7,8 @@
 module bl_exp_kernel_mod
 
   use argument_mod,           only : arg_type,                   &
-                                     GH_FIELD, GH_REAL,          &
-                                     GH_INTEGER,                 &
+                                     GH_FIELD, GH_SCALAR,        &
+                                     GH_REAL, GH_INTEGER,        &
                                      GH_READ, GH_WRITE,          &
                                      GH_READWRITE, CELL_COLUMN,  &
                                      ANY_DISCONTINUOUS_SPACE_1,  &
@@ -55,7 +55,7 @@ module bl_exp_kernel_mod
   !>
   type, public, extends(kernel_type) :: bl_exp_kernel_type
     private
-    type(arg_type) :: meta_args(143) = (/                                      &
+    type(arg_type) :: meta_args(151) = (/                                      &
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! theta_in_wth
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      W3),                       &! rho_in_w3
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! wetrho_in_wth
@@ -196,6 +196,14 @@ module bl_exp_kernel_mod
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1), &! soil_sand_2d
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_12),&! dust_div_mrel
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_12),&! dust_div_flux
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ                             ), &! day_of_year
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1), &! urbwrr
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1), &! urbhwr
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1), &! urbhgt
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1), &! urbztm
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1), &! urbdisp
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1), &! urbemisw
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1), &! urbemisr
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1), &! diag__zht
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1), &! diag__z0h_eff
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1)  &! diag__oblen
@@ -355,6 +363,14 @@ contains
   !> @param[in] soil_sand_2d               Soil sand fraction
   !> @param[in] dust_div_mrel              Relative soil mass in CLASSIC size divisions
   !> @param[in,out] dust_div_flux          Dust emission fluxes in CLASSIC size divisions (kg m-2 s-1)
+  !> @param[in]     day_of_year            The day of the year
+  !> @param[in]     urbwrr                 Urban repeating width ratio
+  !> @param[in]     urbhwr                 Urban height-to-width ratio
+  !> @param[in]     urbhgt                 Urban building height
+  !> @param[in]     urbztm                 Urban effective roughness length
+  !> @param[in]     urbdisp                Urban displacement height
+  !> @param[in]     urbemisw               Urban wall emissivity
+  !> @param[in]     urbemisr               Urban road emissivity
   !> @param[in,out] zht                    Diagnostic: turb mixing height
   !> @param[in,out] z0h_eff                Diagnostic: Gridbox mean effective roughness length for scalars
   !> @param[in,out] oblen                  Diagnostic: Obukhov length
@@ -545,6 +561,14 @@ contains
                          soil_sand_2d,                          &
                          dust_div_mrel,                         &
                          dust_div_flux,                         &
+                         day_of_year,                           &
+                         urbwrr,                                &
+                         urbhwr,                                &
+                         urbhgt,                                &
+                         urbztm,                                &
+                         urbdisp,                               &
+                         urbemisw,                              &
+                         urbemisr,                              &
                          zht,                                   &
                          z0h_eff,                               &
                          oblen,                                 &
@@ -675,7 +699,7 @@ contains
     implicit none
 
     ! Arguments
-    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers, day_of_year
     integer(kind=i_def), intent(in) :: ndf_wth, ndf_w3
     integer(kind=i_def), intent(in) :: ndf_2d, undf_2d
     integer(kind=i_def), intent(in) :: undf_wth, undf_w3
@@ -815,6 +839,15 @@ contains
     real(kind=r_def), intent(inout) :: net_prim_prod(undf_2d)
     real(kind=r_def), intent(inout) :: soil_respiration(undf_2d)
     real(kind=r_def), intent(inout) :: thermal_cond_wet_soil(undf_2d)
+
+    ! Urban morphology fields (surface_fields)
+    real(kind=r_def), intent(in) :: urbwrr(undf_2d)
+    real(kind=r_def), intent(in) :: urbhwr(undf_2d)
+    real(kind=r_def), intent(in) :: urbhgt(undf_2d)
+    real(kind=r_def), intent(in) :: urbztm(undf_2d)
+    real(kind=r_def), intent(in) :: urbdisp(undf_2d)
+    real(kind=r_def), intent(in) :: urbemisw(undf_2d)
+    real(kind=r_def), intent(in) :: urbemisr(undf_2d)
 
     real(kind=r_def), intent(in) :: soil_moist_wilt(undf_2d)
     real(kind=r_def), intent(in) :: soil_moist_crit(undf_2d)
@@ -975,7 +1008,6 @@ contains
     ! hence are unset in the kernel
     ! if they become set, please move up to be with other variables
     integer(i_um) :: asteps_since_triffid
-    integer(i_um) :: curr_day_number
     integer(i_um), parameter :: nscmdpkgs=15
     logical,       parameter :: l_scmdiags(nscmdpkgs)=.false.
 
@@ -1370,6 +1402,15 @@ contains
       canht_pft(1, n) = real(canopy_height(map_pft(1)+n-1), r_um)
     end do
 
+    ! Urban ancillaries
+    urban_param%wrr_gb   = real(urbwrr(map_2d(1)), r_um)
+    urban_param%hwr_gb   = real(urbhwr(map_2d(1)), r_um)
+    urban_param%hgt_gb   = real(urbhgt(map_2d(1)), r_um)
+    urban_param%ztm_gb   = real(urbztm(map_2d(1)), r_um)
+    urban_param%disp_gb  = real(urbdisp(map_2d(1)), r_um)
+    urban_param%emisw_gb = real(urbemisw(map_2d(1)), r_um)
+    urban_param%emisr_gb = real(urbemisr(map_2d(1)), r_um)
+
     ! Roughness length (z0_tile)
     z0m_soil_gb = real(soil_roughness(map_2d(1)), r_um)
     call sparm(land_field, n_land_tile, surft_pts, surft_index,         &
@@ -1624,7 +1665,7 @@ contains
     !     IN parameters for SISL scheme
          outer_iterations, l_jules_call,                                       &
     !     IN time stepping information
-         curr_day_number,                                                      &
+         day_of_year,                                                          &
     !     IN switches
          L_aero_classic,                                                       &
     !     IN data fields.
@@ -1764,7 +1805,7 @@ contains
     !     IN parameters for SISL scheme
          outer_iterations, l_jules_call,                                &
     !     IN time stepping information
-         curr_day_number,                                               &
+         day_of_year,                                                   &
     !     IN switches
          L_aero_classic,                                                &
     !     IN data fields.

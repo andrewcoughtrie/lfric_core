@@ -76,6 +76,7 @@ contains
     use interp_bl_kernel_mod, only: interp_bl_kernel_type
     use bl_exp_du_kernel_mod, only: bl_exp_du_kernel_type
     use planet_constants_mod, only: lcrcp, lsrcp
+    use xios, only: xios_date, xios_get_current_date, xios_date_get_day_of_year
 
     implicit none
 
@@ -202,6 +203,13 @@ contains
     type( field_type ), pointer :: tau_land_w2         => null()
     type( field_type ), pointer :: tau_ssi_w2          => null()
     type( field_type ), pointer :: albedo_obs_scaling  => null()
+    type( field_type ), pointer :: urbwrr              => null()
+    type( field_type ), pointer :: urbhwr              => null()
+    type( field_type ), pointer :: urbhgt              => null()
+    type( field_type ), pointer :: urbztm              => null()
+    type( field_type ), pointer :: urbdisp             => null()
+    type( field_type ), pointer :: urbemisw            => null()
+    type( field_type ), pointer :: urbemisr            => null()
 
     type( field_type ), pointer :: sd_orog              => null()
     type( field_type ), pointer :: peak_to_trough_orog  => null()
@@ -252,6 +260,9 @@ contains
          surf_interp, zht, z0h_eff, oblen, soil_respiration
 
     integer(i_def) :: stencil_depth
+
+    type(xios_date)      :: datetime
+    integer(i_def), save :: day_of_year
 
     if ( subroutine_timers ) call timer('bl_exp_alg')
 
@@ -374,6 +385,13 @@ contains
     call surface_fields%get_field('tau_land_w2', tau_land_w2)
     call surface_fields%get_field('tau_ssi_w2', tau_ssi_w2)
     call surface_fields%get_field('albedo_obs_scaling', albedo_obs_scaling)
+    call surface_fields%get_field('urbwrr', urbwrr)
+    call surface_fields%get_field('urbhwr', urbhwr)
+    call surface_fields%get_field('urbhgt', urbhgt)
+    call surface_fields%get_field('urbztm', urbztm)
+    call surface_fields%get_field('urbdisp', urbdisp)
+    call surface_fields%get_field('urbemisw', urbemisw)
+    call surface_fields%get_field('urbemisr', urbemisr)
 
     ! Soil fields
     call soil_fields%get_field('soil_albedo', soil_albedo)
@@ -444,6 +462,10 @@ contains
       stencil_depth = 0
     end if
 
+    ! Get date and time
+    call xios_get_current_date(datetime)
+    day_of_year = int(xios_date_get_day_of_year(datetime), i_def) + 1_i_def
+
                 ! Calculate TL = T - (lc/cp)*mcl - ((lc+lf)/cp)*mci
     call invoke(     X_times_Y(dtl_mphys, dtheta_mphys, exner_in_wth),         &
                 inc_X_minus_bY(dtl_mphys, lcrcp, dmr_mphys(imr_cl)),           &
@@ -502,6 +524,8 @@ contains
                            ent_we_lim, ent_t_frac, ent_zrzi,                   &
                            ent_we_lim_dsc, ent_t_frac_dsc, ent_zrzi_dsc,       &
                            soil_clay, soil_sand, dust_mrel, dust_flux,         &
+                           day_of_year, urbwrr, urbhwr, urbhgt, urbztm,        &
+                           urbdisp, urbemisw, urbemisr,                        &
                            zht, z0h_eff, oblen ),                              &
 
                 setval_c(rhokm_w2,       0.0_r_def),                           &

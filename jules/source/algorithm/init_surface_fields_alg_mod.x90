@@ -28,6 +28,7 @@ contains
   subroutine init_surface_fields_alg(surface_fields)
 
     use initial_surface_kernel_mod, only: initial_surface_kernel_type
+    use process_urban_kernel_mod,   only: process_urban_kernel_type
     use missing_data_mod,           only: rmdi
 
     implicit none
@@ -45,6 +46,15 @@ contains
     type( field_type ), pointer :: chloro_sea          => null()
     type( field_type ), pointer :: sea_ice_thickness   => null()
     type( field_type ), pointer :: sea_ice_temperature => null()
+    type( field_type ), pointer :: urbwrr              => null()
+    type( field_type ), pointer :: urbhwr              => null()
+    type( field_type ), pointer :: urbhgt              => null()
+    type( field_type ), pointer :: urbztm              => null()
+    type( field_type ), pointer :: urbdisp             => null()
+    type( field_type ), pointer :: urbalbwl            => null()
+    type( field_type ), pointer :: urbalbrd            => null()
+    type( field_type ), pointer :: urbemisr            => null()
+    type( field_type ), pointer :: urbemisw            => null()
 
     ! Diagnostic fields
     type( field_type ), pointer :: tau_ssi_w2          => null()
@@ -75,6 +85,15 @@ contains
     call surface_fields%get_field('chloro_sea', chloro_sea)
     call surface_fields%get_field('sea_ice_thickness', sea_ice_thickness)
     call surface_fields%get_field('sea_ice_temperature', sea_ice_temperature)
+    call surface_fields%get_field('urbwrr', urbwrr)
+    call surface_fields%get_field('urbhwr', urbhwr)
+    call surface_fields%get_field('urbhgt', urbhgt)
+    call surface_fields%get_field('urbztm', urbztm)
+    call surface_fields%get_field('urbdisp', urbdisp)
+    call surface_fields%get_field('urbalbwl', urbalbwl)
+    call surface_fields%get_field('urbalbrd', urbalbrd)
+    call surface_fields%get_field('urbemisw', urbemisw)
+    call surface_fields%get_field('urbemisr', urbemisr)
     call surface_fields%get_field('tau_ssi_w2', tau_ssi_w2)
     call surface_fields%get_field('tile_fraction', tile_fraction)
     call surface_fields%get_field('leaf_area_index', leaf_area_index)
@@ -102,6 +121,16 @@ contains
                  setval_c(chloro_sea,          5.0e-7_r_def),                 &
                  setval_c(sea_ice_thickness,   1.0_r_def),                    &
                  setval_c(sea_ice_temperature, 260.0_r_def),                  &
+                 setval_c(urbwrr,              0.5_r_def),                    &
+                 setval_c(urbhwr,              1.0_r_def),                    &
+                 setval_c(urbhgt,              10.0_r_def),                   &
+      		 ! Calculated urban areodynamic fields
+                 process_urban_kernel_type( urbwrr, urbhwr, urbhgt,           &
+                                             urbztm, urbdisp ),               &
+                 setval_c(urbalbwl,            0.375_r_def),                  &
+                 setval_c(urbalbrd,            0.08_r_def),                   &
+                 setval_c(urbemisw,            0.875_r_def),                  &
+                 setval_c(urbemisr,            0.95_r_def),                   &
                  ! Diagnostics
                  setval_c(tau_ssi_w2,          0.0_r_def),                    &
                  ! Set land prognostics for use in SCM testing or when no

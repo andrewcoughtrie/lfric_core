@@ -170,6 +170,8 @@ z0hm_nvg_io=1.0e-7,2.5e-1,2.0e-2,2.0e-1,
 cor_mo_iter='lim_oblen',
 fd_stability_dep='none',
 formdrag='eff_z0',
+l_anthrop_heat_src=.false.,
+l_urban2t=.false.,
 l_vary_z0m_soil=.false.
 srf_ex_cnv_gust=.true.,
 /
@@ -185,6 +187,13 @@ npft=5
 shrub=5
 soil=8
 urban=6
+/
+&jules_urban
+anthrop_heat_scale=1.0
+l_moruses_albedo=.false.
+l_moruses_emissivity=.false.
+l_moruses_rough=.false.
+l_moruses_storage=.false.
 /
 &jules_vegetation
 can_rad_mod='four',

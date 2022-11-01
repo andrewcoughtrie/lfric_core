@@ -27,6 +27,9 @@ module jules_physics_init_mod
                                      fd_stability_dep_in => fd_stability_dep,  &
                                      fd_stability_dep_none,                    &
                                      fd_stability_dep_surf_ri,                 &
+                                     l_anthrop_heat_src_in =>                  &
+                                        l_anthrop_heat_src,                    &
+                                     l_urban2t_in => l_urban2t,                &
                                      l_variable_soil_z0m => l_vary_z0m_soil
   use jules_vegetation_config_mod, only :                                      &
                                      canopy_radiation_model => can_rad_mod,    &
@@ -34,6 +37,13 @@ module jules_physics_init_mod
                                      can_rad_mod_five, can_rad_mod_six,        &
                                      l_limit_canhc_pft => l_limit_canhc,       &
                                      l_spec_z0_pft => l_spec_veg_z0
+  use jules_urban_config_mod, only :                                           &
+                             anthrop_heat_scale_in => anthrop_heat_scale,      &
+                             l_moruses_albedo_in => l_moruses_albedo,          &
+                             l_moruses_emissivity_in => l_moruses_emissivity,  &
+                             l_moruses_rough_in => l_moruses_rough,            &
+                             l_moruses_storage_in => l_moruses_storage,        &
+                             l_moruses_storage_thin_in => l_moruses_storage_thin
   use surface_config_mod,     only : use_hydrology,                            &
                                      l_variable_rainfraction => l_var_rainfrac,&
                                      fixed_sea_albedo_in => fixed_sea_albedo,  &
@@ -102,8 +112,8 @@ module jules_physics_init_mod
 
   use derived_config_mod,      only: l_esm_couple
 
-  use log_mod,                 only : log_event,         &
-                                      LOG_LEVEL_INFO
+  use log_mod,                 only : log_event, log_scratch_space,        &
+                                      LOG_LEVEL_INFO, LOG_LEVEL_ERROR
   implicit none
 
   ! Decrease in saturated hydraulic conductivity with depth (m-1)
@@ -189,7 +199,11 @@ contains
          fd_stability_dep, orog_drag_param, check_jules_surface,            &
          Improve_Initial_Guess, formdrag, beta_cnv_bl, fd_hill_option,      &
          i_modiscopt, l_land_ice_imp, no_drag, effective_z0,                &
-         capped_lowhill, explicit_stress, l_vary_z0m_soil
+         capped_lowhill, explicit_stress, l_anthrop_heat_src, l_urban2t,    &
+         l_vary_z0m_soil
+    use jules_urban_mod, only: anthrop_heat_scale, l_moruses_albedo,        &
+         l_moruses_emissivity, l_moruses_rough, l_moruses_storage,          &
+         l_moruses_storage_thin, check_jules_urban, print_nlist_jules_urban
     use jules_vegetation_mod, only: can_rad_mod, ilayers, l_vegcan_soilfx,  &
          photo_model, photo_collatz, check_jules_vegetation,                &
          l_spec_veg_z0, l_limit_canhc, l_crop, l_triffid, l_phenol
@@ -210,6 +224,8 @@ contains
     use check_compatible_options_mod, only: check_compatible_options
 
     implicit none
+
+    integer(kind=i_def) :: errorstatus = 0
 
     call log_event( 'jules_physics_init', LOG_LEVEL_INFO )
 
@@ -453,13 +469,15 @@ contains
       case(formdrag_dist_drag)
         formdrag = explicit_stress
     end select
-    i_modiscopt     = 1
-    iscrntdiag      = ip_scrndecpl2
+    i_modiscopt        = 1
+    iscrntdiag         = ip_scrndecpl2
     if (srf_ex_cnv_gust_in) srf_ex_cnv_gust = IP_SrfExWithCnv
-    l_epot_corr     = .true.
-    l_land_ice_imp  = .true.
-    l_vary_z0m_soil = l_variable_soil_z0m
-    orog_drag_param = 0.15_r_um
+    l_epot_corr        = .true.
+    l_land_ice_imp     = .true.
+    l_anthrop_heat_src = l_anthrop_heat_src_in
+    l_urban2t          = l_urban2t_in
+    l_vary_z0m_soil    = l_variable_soil_z0m
+    orog_drag_param    = 0.15_r_um
 
     ! The minimum sea ice fraction
     ! This is 0.0 for coupled models and 0.1 for atmosphere only models
@@ -493,6 +511,20 @@ contains
 
     ! Check the contents of the vegetation parameters module
     call check_jules_vegetation()
+
+    ! ----------------------------------------------------------------
+    ! JULES urban settings - contained in module jules_urban
+    ! ----------------------------------------------------------------
+
+    anthrop_heat_scale     = anthrop_heat_scale_in
+    l_moruses_albedo       = l_moruses_albedo_in
+    l_moruses_emissivity   = l_moruses_emissivity_in
+    l_moruses_rough        = l_moruses_rough_in
+    l_moruses_storage      = l_moruses_storage_in
+    l_moruses_storage_thin = l_moruses_storage_thin_in
+
+    call print_nlist_jules_urban()
+    call check_jules_urban()
 
     ! ----------------------------------------------------------------
     ! Temporary logicals used to fix bugs in JULES
@@ -534,8 +566,7 @@ contains
 
     call pftparm_alloc(npft)
 
-    call trif_alloc(npft,                                                         &
-                    l_triffid, l_phenol)
+    call trif_alloc(npft, l_triffid, l_phenol)
 
     call veg3_parm_allocate(land_pts,nsurft,nnpft,npft)
     call veg3_field_allocate(land_pts,nsurft,nnpft,nmasst)
@@ -544,6 +575,28 @@ contains
     ! ----------------------------------------------------------------
     ! JULES non-vegetated tile settings - contained in module nvegparm
     ! ----------------------------------------------------------------
+    ! Check that the size of the input array is correct. Has to be done
+    ! before copying to allocated array otherwise errors arise, which cannot
+    ! be caught by check_jules_nvegparm.
+
+    IF ( ALL ( [0, nnvg] /= SIZE(albsnc_nvg_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, nnvg] /= SIZE(albsnf_nvg_io)) )   errorstatus = 1
+    IF ( ALL ( [0, nnvg] /= SIZE(albsnf_nvgl_io) ) ) errorstatus = 1
+    IF ( ALL ( [0, nnvg] /= SIZE(albsnf_nvgu_io) ) ) errorstatus = 1
+    IF ( ALL ( [0, nnvg] /= SIZE(catch_nvg_io) ) )   errorstatus = 1
+    IF ( ALL ( [0, nnvg] /= SIZE(ch_nvg_io) ) )      errorstatus = 1
+    IF ( ALL ( [0, nnvg] /= SIZE(emis_nvg_io) ) )    errorstatus = 1
+    IF ( ALL ( [0, nnvg] /= SIZE(gs_nvg_io) ) )      errorstatus = 1
+    IF ( ALL ( [0, nnvg] /= SIZE(infil_nvg_io) ) )   errorstatus = 1
+    IF ( ALL ( [0, nnvg] /= SIZE(vf_nvg_io) ) )      errorstatus = 1
+    IF ( ALL ( [0, nnvg] /= SIZE(z0_nvg_io) ) )      errorstatus = 1
+
+    IF ( errorstatus == 1 ) THEN
+      write(log_scratch_space,'(A)')                                         &
+         'jules_nvegparm input(s) incorrect length; run `rose macro -V`.'
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR)
+    END IF
+
     albsnc_nvg  = real(albsnc_nvg_io, r_um)
     albsnf_nvg  = real(albsnf_nvg_io, r_um)
     albsnf_nvgl = real(albsnf_nvgl_io, r_um)
