@@ -10,9 +10,11 @@ module ncdf_quad_mod
 
 use constants_mod,  only : r_def, i_def, l_def, str_def, str_long,             &
                            str_longlong, str_max_filename, r_ncdf, i_ncdf,     &
-                           i_native, rmdi
+                           i_native, rmdi, imdi, cmdi
 use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
 use global_mesh_map_mod,            only: global_mesh_map_type
+use local_mesh_map_collection_mod,  only: local_mesh_map_collection_type
+use local_mesh_map_mod,             only: local_mesh_map_type
 use ugrid_file_mod, only : ugrid_file_type
 use netcdf,         only : nf90_max_name, nf90_open, nf90_write, nf90_noerr,   &
                            nf90_strerror, nf90_put_var, nf90_get_var,          &
@@ -48,9 +50,19 @@ integer(i_def), parameter :: MESH_NODE_X_RANK     = 1  !< Rank of node x coordin
 integer(i_def), parameter :: MESH_NODE_Y_RANK     = 1  !< Rank of node y coordinate array
 integer(i_def), parameter :: MESH_FACE_X_RANK     = 1  !< Rank of face x coordinate array
 integer(i_def), parameter :: MESH_FACE_Y_RANK     = 1  !< Rank of face y coordinate array
+integer(i_def), parameter :: MESH_FACE_RANK       = 1  !< Rank of face arrays
+integer(i_def), parameter :: MESH_NODE_RANK       = 1  !< Rank of node arrays
+integer(i_def), parameter :: MESH_EDGE_RANK       = 1  !< Rank of edge arrays
+integer(i_def), parameter :: MESH_HALO_RANK       = 1  !< Rank of halo arrays
 
 ! Note: For spherical coordinates x is equivalent to longitude
 !                                 y is equivalent to latitude
+
+integer(i_def), parameter :: GLOBAL_MESH_FLAG = 15
+integer(i_def), parameter :: LOCAL_MESH_FLAG  = 11
+
+integer(i_def), parameter :: GLOBAL_MODEL_FLAG = 136
+integer(i_def), parameter :: REGION_MODEL_FLAG = 172
 
 !-------------------------------------------------------------------------------
 !> @brief   NetCDF quad file type
@@ -61,37 +73,85 @@ type, extends(ugrid_file_type), public :: ncdf_quad_type
 
   private
 
+  !> @todo Some data variables introduced here were to expedite OP-PoC
+  !>       Mesh data should be passed for reading and writing but not held
+  !>       in <ncdf_quad_type>. This should be corrected with Ticket #3493.
+
   integer(i_def)              :: ncid       !< NetCDF file ID
   character(str_max_filename) :: file_name  !< Filename
-  character(nf90_max_name)    :: mesh_name
+  integer(i_def)              :: model_extents = imdi
+  integer(i_def)              :: mesh_extents  = imdi
 
-  character(nf90_max_name)    :: geometry
-  character(nf90_max_name)    :: topology
-  character(nf90_max_name)    :: coord_sys
-  integer(i_def)              :: max_stencil_depth
-
-  logical(l_def)              :: periodic_x !< Periodic in E-W direction
-  logical(l_def)              :: periodic_y !< Periodic in N-S direction
-
-  character(str_longlong) :: constructor_inputs !< Inputs to ugrid_generator for this mesh
-
-  character(str_def)  :: coord_units_x
-  character(str_def)  :: coord_units_y
-
-  character(nf90_max_name), allocatable :: target_mesh_names(:)
-
-  type(global_mesh_map_collection_type) :: target_global_mesh_maps
-
+  ! Common mesh type data
+  character(nf90_max_name) :: mesh_name
+  character(nf90_max_name) :: geometry
+  character(nf90_max_name) :: coord_sys
+  character(str_def)       :: coord_units_x = cmdi
+  character(str_def)       :: coord_units_y = cmdi
+  integer(i_def)           :: npanels       = imdi
+  character(str_longlong)  :: constructor_inputs = cmdi
+                                                 !< Inputs to ugrid_generator
+                                                 !< for this mesh
+  real(r_def) :: north_pole(2)  = [rmdi, rmdi]   !< [Longitude,Latitude] of
+                                                 !< north pole for domain
+                                                 !< orientation (degrees)
+  real(r_def) :: null_island(2) = [rmdi, rmdi]   !< [Longitude,Latitude] of
+                                                 !< null island for domain
+                                                 !< orientation (degrees)
   ! Dimension values
-  integer(i_def) :: nmesh_nodes       !< Number of nodes
-  integer(i_def) :: nmesh_edges       !< Number of edges
-  integer(i_def) :: nmesh_faces       !< Number of faces
-  integer(i_def) :: nmesh_targets     !< Number of mesh(es) to map to
+  integer(i_def) :: nmesh_nodes   = imdi  !< Number of nodes
+  integer(i_def) :: nmesh_edges   = imdi  !< Number of edges
+  integer(i_def) :: nmesh_faces   = imdi  !< Number of faces
+  integer(i_def) :: nmesh_targets = imdi  !< Number of mesh(es) to map to
+
+  ! Partition data
+  character(str_def) :: partition_of = cmdi
+
+  integer(i_def) :: inner_depth = imdi
+  integer(i_def) :: halo_depth  = imdi
+  integer(i_def) :: num_edge    = imdi
+  integer(i_def) :: num_ghost   = imdi
+
+  integer(i_def) :: max_stencil_depth  = imdi
+  integer(i_def) :: last_edge_cell     = imdi
+  integer(i_def) :: last_ghost_cell    = imdi
+  integer(i_def) :: nmesh_faces_global = imdi
+
+  integer(i_def), allocatable :: num_inner(:), last_inner_cell(:)
+  integer(i_def), allocatable :: num_halo(:),  last_halo_cell(:)
+  integer(i_def), allocatable :: node_cell_owner(:)
+  integer(i_def), allocatable :: edge_cell_owner(:)
+
+  ! Global metadata
+  character(str_def) :: global_var     = cmdi
+  integer(i_def)     :: rim_depth      = imdi
+  real(r_def)        :: domain_size(2) = [rmdi, rmdi]
+  logical(l_def)     :: periodic_x     = .false. !< Periodic in E-W direction
+  logical(l_def)     :: periodic_y     = .false. !< Periodic in N-S direction
+  character(nf90_max_name)    :: topology
+  integer(i_def), allocatable :: cell_gid(:)
+  integer(i_def), allocatable :: node_on_cell_gid(:,:)
+  integer(i_def), allocatable :: edge_on_cell_gid(:,:)
+
+  ! InterGrid map variables
+  character(nf90_max_name), allocatable :: target_mesh_names(:)
+  type(global_mesh_map_collection_type), pointer :: target_global_mesh_maps => null()
+  type(local_mesh_map_collection_type),  pointer :: target_local_mesh_maps  => null()
+
+  !==============================
+  ! NetCDF id variables
+  !==============================
 
   ! Dimension ids
+  integer(i_def) :: one_dim_id           !< NetCDF-assigned ID for constant one
+  integer(i_def) :: two_dim_id           !< NetCDF-assigned ID for constant two
+  integer(i_def) :: four_dim_id          !< NetCDF-assigned ID for constant four
   integer(i_def) :: nmesh_nodes_dim_id   !< NetCDF-assigned ID for number of nodes
   integer(i_def) :: nmesh_edges_dim_id   !< NetCDF-assigned ID for number of edges
   integer(i_def) :: nmesh_faces_dim_id   !< NetCDF-assigned ID for number of faces
+
+  integer(i_def) :: nmesh_map_faces_dim_id !< number of faces in mesh which have
+                                           !< an integrid map
 
   integer(i_def), allocatable :: ntargets_per_source_dim_id(:)
                                          !< NetCDF-assigned ID for number of mesh targets
@@ -99,9 +159,6 @@ type, extends(ugrid_file_type), public :: ncdf_quad_type
                                          !< NetCDF-assigned ID for number of mesh targets in x-dir
   integer(i_def), allocatable :: ntargets_per_source_y_dim_id(:)
                                          !< NetCDF-assigned ID for number of mesh targets in y-dir
-  integer(i_def) :: one_dim_id           !< NetCDF-assigned ID for constant one
-  integer(i_def) :: two_dim_id           !< NetCDF-assigned ID for constant two
-  integer(i_def) :: four_dim_id          !< NetCDF-assigned ID for constant four
 
   ! Variable ids
   integer(i_def) :: mesh_id              !< NetCDF-assigned ID this mesh
@@ -117,15 +174,21 @@ type, extends(ugrid_file_type), public :: ncdf_quad_type
   integer(i_def), allocatable :: mesh_mesh_links_id(:)
                                          !< NetCDF-assigned ID for the mesh-mesh connectivity
 
-  ! Information about the mesh rotation
-  real(r_def)    :: north_pole(2) = [rmdi, rmdi]  !< [Longitude,Latitude] of
-                                                  !< north pole for domain
-                                                  !< orientation (degrees)
-  real(r_def)    :: null_island(2) = [rmdi, rmdi] !< [Longitude,Latitude] of
-                                                  !< null island for domain
-                                                  !< orientation (degrees)
+  integer(i_def) :: partition_id
+  integer(i_def) :: node_cell_owner_id
+  integer(i_def) :: edge_cell_owner_id
+  integer(i_def) :: num_inner_id
+  integer(i_def) :: num_halo_id
+  integer(i_def) :: last_inner_cell_id
+  integer(i_def) :: last_halo_cell_id
+  integer(i_def) :: n_inner_dim_id
+  integer(i_def) :: n_halos_dim_id
+  integer(i_def) :: global_mesh_id
+  integer(i_def) :: global_cells_id
+  integer(i_def) :: global_face_node_id
+  integer(i_def) :: global_face_edge_id
+  integer(i_def) :: domain_size_id
 
-  integer(i_def) :: npanels
   integer(i_def) :: void_cell
 
 contains
@@ -240,8 +303,6 @@ end subroutine file_new
 !>  @details Sets dimension lengths in the NetCDF file, and sets the associated
 !>           dimension ids in the NetCDF file object. The dimension lengths are
 !>           used for sizes of other arrays within the NetCDF file.
-!>
-!>  @param[in,out]  self   The NetCDF file object.
 !-------------------------------------------------------------------------------
 
 subroutine define_dimensions(self)
@@ -259,25 +320,7 @@ subroutine define_dimensions(self)
   character(nf90_max_name) :: target_mesh_name
 
   type(global_mesh_map_type), pointer :: global_mesh_map => null()
-
-  ! Define dimensions connected to the mesh
-  dim_name = 'n'//trim(self%mesh_name)//'_node'
-  cmess = 'Defining '//trim(dim_name)
-  ierr = nf90_def_dim( self%ncid, trim(dim_name), &
-                       self%nmesh_nodes, self%nmesh_nodes_dim_id )
-  call check_err(ierr, routine, cmess)
-
-  dim_name = 'n'//trim(self%mesh_name)//'_edge'
-  cmess = 'Defining '//trim(dim_name)
-  ierr = nf90_def_dim( self%ncid, trim(dim_name), &
-                       self%nmesh_edges,self%nmesh_edges_dim_id )
-  call check_err(ierr, routine, cmess)
-
-  dim_name = 'n'//trim(self%mesh_name)//'_face'
-  cmess = 'Defining '//trim(dim_name)
-  ierr = nf90_def_dim( self%ncid, trim(dim_name), &
-                       self%nmesh_faces, self%nmesh_faces_dim_id )
-  call check_err(ierr, routine, cmess)
+  type(local_mesh_map_type),  pointer :: local_mesh_map  => null()
 
   ! If the file is being appended to, constants may already exist
   ! in the NetCDF file. Trying to redefine the same variable name
@@ -301,63 +344,202 @@ subroutine define_dimensions(self)
   if (ierr /= nf90_noerr) then
     cmess = 'Defining Four'
     ierr = nf90_def_dim(self%ncid, 'Four', FOUR, self%four_dim_id)
-    call check_err(ierr,routine, cmess)
+    call check_err(ierr, routine, cmess)
   end if
+
+
+  ! Define dimensions connected to the mesh
+  dim_name = 'n'//trim(self%mesh_name)//'_node'
+  cmess = 'Defining '//trim(dim_name)
+  ierr = nf90_def_dim( self%ncid, trim(dim_name), &
+                       self%nmesh_nodes, self%nmesh_nodes_dim_id )
+  call check_err(ierr, routine, cmess)
+
+  dim_name = 'n'//trim(self%mesh_name)//'_edge'
+  cmess = 'Defining '//trim(dim_name)
+  ierr = nf90_def_dim( self%ncid, trim(dim_name), &
+                       self%nmesh_edges,self%nmesh_edges_dim_id )
+  call check_err(ierr, routine, cmess)
+
+  dim_name = 'n'//trim(self%mesh_name)//'_face'
+  cmess = 'Defining '//trim(dim_name)
+  ierr = nf90_def_dim( self%ncid, trim(dim_name), &
+                       self%nmesh_faces, self%nmesh_faces_dim_id )
+  call check_err(ierr, routine, cmess)
 
 
   ! Define dimensions required for each of the cell maps
   ! n<target mesh name> cells per <source mesh name> cell
   source_id = 1
-  do i=1, self%nmesh_targets
+  select case( self%mesh_extents )
 
-    nullify(global_mesh_map)
-    target_mesh_name = self%target_mesh_names(i)
-    dim_name = 'n'//trim(target_mesh_name)// &
-               '_cells_per_'//trim(self%mesh_name)//'_x'
+  case( GLOBAL_MESH_FLAG )
 
+    ! Global mesh intergrid maps
+    !---------------------------
+    if (self%nmesh_targets > 0) then
 
-    global_mesh_map => self%target_global_mesh_maps%get_global_mesh_map(source_id,i+1)
-
-    ierr = nf90_inq_dimid(self%ncid, trim(dim_name), self%ntargets_per_source_x_dim_id(i))
-
-    if (ierr /= nf90_noerr) then
-      ierr = nf90_def_dim( self%ncid, trim(dim_name),                        &
-                           global_mesh_map%get_ntarget_cells_per_source_x(), &
-                           self%ntargets_per_source_x_dim_id(i) )
-
-      cmess = 'Defining '//trim(dim_name)
+      dim_name = 'n'//trim(self%mesh_name)//'_map_face'
+      cmess    = 'Defining '//trim(dim_name)
+      ierr     = nf90_def_dim( self%ncid, trim(dim_name), &
+                               self%nmesh_faces,          &
+                               self%nmesh_map_faces_dim_id )
       call check_err(ierr, routine, cmess)
     end if
 
-    dim_name = 'n'//trim(target_mesh_name)// &
-               '_cells_per_'//trim(self%mesh_name)//'_y'
+    do i=1, self%nmesh_targets
 
-    ierr = nf90_inq_dimid(self%ncid, trim(dim_name), self%ntargets_per_source_y_dim_id(i))
+      nullify(global_mesh_map)
+      target_mesh_name = self%target_mesh_names(i)
+      dim_name = 'n'//trim(target_mesh_name)// &
+                 '_cells_per_'//trim(self%mesh_name)//'_x'
 
-    if (ierr /= nf90_noerr) then
-      ierr = nf90_def_dim( self%ncid, trim(dim_name),                         &
-                           global_mesh_map%get_ntarget_cells_per_source_y(),  &
-                           self%ntargets_per_source_y_dim_id(i) )
+      global_mesh_map => self%target_global_mesh_maps%get_global_mesh_map(source_id,i+1)
 
+      ierr = nf90_inq_dimid( self%ncid, trim(dim_name), &
+                             self%ntargets_per_source_x_dim_id(i) )
+
+      if (ierr /= nf90_noerr) then
+        ierr = nf90_def_dim( self%ncid, trim(dim_name),                        &
+                             global_mesh_map%get_ntarget_cells_per_source_x(), &
+                             self%ntargets_per_source_x_dim_id(i) )
+
+        cmess = 'Defining '//trim(dim_name)
+        call check_err(ierr, routine, cmess)
+      end if
+
+      dim_name = 'n'//trim(target_mesh_name)// &
+                 '_cells_per_'//trim(self%mesh_name)//'_y'
+
+      ierr = nf90_inq_dimid( self%ncid, trim(dim_name), &
+                             self%ntargets_per_source_y_dim_id(i) )
+
+      if (ierr /= nf90_noerr) then
+        ierr = nf90_def_dim( self%ncid, trim(dim_name),                        &
+                             global_mesh_map%get_ntarget_cells_per_source_y(), &
+                             self%ntargets_per_source_y_dim_id(i) )
+
+        cmess = 'Defining '//trim(dim_name)
+        call check_err(ierr, routine, cmess)
+      end if
+
+      dim_name = 'n'//trim(target_mesh_name)// &
+                 '_cells_per_'//trim(self%mesh_name)//'_cell'
+
+      ierr = nf90_inq_dimid( self%ncid, trim(dim_name), &
+                             self%ntargets_per_source_dim_id(i) )
+
+      if (ierr /= nf90_noerr) then
+        ierr = nf90_def_dim( self%ncid, trim(dim_name),                           &
+                             global_mesh_map%get_ntarget_cells_per_source_cell(), &
+                             self%ntargets_per_source_dim_id(i) )
+
+        cmess = 'Defining '//trim(dim_name)
+        call check_err(ierr, routine, cmess)
+      end if
+
+    end do ! nmesh_targets
+
+  case ( LOCAL_MESH_FLAG )
+
+    ! Local mesh intergrid maps
+    !--------------------------
+    if (self%nmesh_targets > 0) then
+      dim_name = 'n'//trim(self%mesh_name)//'_map_face'
       cmess = 'Defining '//trim(dim_name)
+      ierr = nf90_def_dim( self%ncid, trim(dim_name),         &
+                           self%nmesh_faces - self%num_ghost, &
+                           self%nmesh_map_faces_dim_id )
       call check_err(ierr, routine, cmess)
     end if
 
-    dim_name = 'n'//trim(target_mesh_name)// &
-               '_cells_per_'//trim(self%mesh_name)//'_cell'
+    do i=1, self%nmesh_targets
+      nullify(local_mesh_map)
+      target_mesh_name = self%target_mesh_names(i)
+      dim_name = 'n'//trim(target_mesh_name)// &
+                 '_cells_per_'//trim(self%mesh_name)//'_x'
+      !===============================================================================
+      ! Source id when writing meshes are source=1 , other ids are incremental
+      !===============================================================================
+      local_mesh_map => self%target_local_mesh_maps%get_local_mesh_map(source_id,i+1)
 
-    ierr = nf90_inq_dimid(self%ncid, trim(dim_name), self%ntargets_per_source_dim_id(i))
+      ierr = nf90_inq_dimid( self%ncid, trim(dim_name), &
+                             self%ntargets_per_source_x_dim_id(i) )
 
-    if (ierr /= nf90_noerr) then
-      ierr = nf90_def_dim( self%ncid, trim(dim_name),                            &
-                           global_mesh_map%get_ntarget_cells_per_source_cell(),  &
-                           self%ntargets_per_source_dim_id(i) )
+      if (ierr /= nf90_noerr) then
+        ierr = nf90_def_dim( self%ncid, trim(dim_name),                            &
+                             local_mesh_map%get_ntarget_cells_per_source_cell_x(), &
+                             self%ntargets_per_source_x_dim_id(i) )
 
-      cmess = 'Defining '//trim(dim_name)
-      call check_err(ierr, routine, cmess)
+        cmess = 'Defining '//trim(dim_name)
+        call check_err(ierr, routine, cmess)
+      end if
+
+      dim_name = 'n'//trim(target_mesh_name)// &
+                 '_cells_per_'//trim(self%mesh_name)//'_y'
+
+      ierr = nf90_inq_dimid( self%ncid, trim(dim_name), &
+                             self%ntargets_per_source_y_dim_id(i) )
+
+      if (ierr /= nf90_noerr) then
+        ierr = nf90_def_dim( self%ncid, trim(dim_name),                            &
+                             local_mesh_map%get_ntarget_cells_per_source_cell_y(), &
+                             self%ntargets_per_source_y_dim_id(i) )
+
+        cmess = 'Defining '//trim(dim_name)
+        call check_err(ierr, routine, cmess)
+      end if
+
+      dim_name = 'n'//trim(target_mesh_name)// &
+                 '_cells_per_'//trim(self%mesh_name)//'_cell'
+
+      ierr = nf90_inq_dimid(self%ncid, trim(dim_name), self%ntargets_per_source_dim_id(i))
+
+      if (ierr /= nf90_noerr) then
+        ierr = nf90_def_dim( self%ncid, trim(dim_name),                            &
+                             local_mesh_map%get_ntarget_cells_per_source_cell_x()* &
+                             local_mesh_map%get_ntarget_cells_per_source_cell_y(), &
+                             self%ntargets_per_source_dim_id(i) )
+
+        cmess = 'Defining '//trim(dim_name)
+        call check_err(ierr, routine, cmess)
+      end if
+
+    end do ! nmesh_targets
+
+    ! Halo dimensions
+    !----------------
+    if (self%inner_depth > 0) then
+      dim_name = 'n'//trim(self%mesh_name)//'_inner'
+
+      ierr = nf90_inq_dimid( self%ncid, trim(dim_name), self%n_inner_dim_id )
+
+      if (ierr /= nf90_noerr) then
+        ierr = nf90_def_dim( self%ncid, trim(dim_name), &
+                             self%inner_depth,          &
+                             self%n_inner_dim_id )
+
+        cmess = 'Defining '//trim(dim_name)
+        call check_err(ierr, routine, cmess)
+      end if
     end if
 
-  end do
+    if (self%halo_depth > 0) then
+      dim_name = 'n'//trim(self%mesh_name)//'_halos'
+
+      ierr = nf90_inq_dimid( self%ncid, trim(dim_name), self%n_halos_dim_id )
+
+      if (ierr /= nf90_noerr) then
+        ierr = nf90_def_dim( self%ncid, trim(dim_name), &
+                             self%halo_depth,           &
+                             self%n_halos_dim_id )
+
+        cmess = 'Defining '//trim(dim_name)
+        call check_err(ierr, routine, cmess)
+      end if
+    end if
+
+  end select
 
   return
 end subroutine define_dimensions
@@ -368,8 +550,6 @@ end subroutine define_dimensions
 !>  @details Tells NetCDF what variables are going to be in the file.
 !>           Array lengths are specified via the pre-existing NetCDF dimension
 !>           IDs, which were obtained elsewhere in this module.
-!>
-!>  @param[in,out]  self   The NetCDF file object.
 !-------------------------------------------------------------------------------
 
 subroutine define_variables(self)
@@ -394,6 +574,15 @@ subroutine define_variables(self)
   integer(i_def) :: mesh_face_x_dims(MESH_FACE_X_RANK)
   integer(i_def) :: mesh_face_y_dims(MESH_FACE_Y_RANK)
 
+  integer(i_def) :: local_node_cell_owner_dims(MESH_NODE_RANK)
+  integer(i_def) :: local_edge_cell_owner_dims(MESH_EDGE_RANK)
+  integer(i_def) :: local_inner_dims(MESH_HALO_RANK)
+  integer(i_def) :: local_halos_dims(MESH_HALO_RANK)
+  integer(i_def) :: global_cell_dims(MESH_FACE_RANK)
+  integer(i_def) :: global_face_nodes_dims(MESH_FACE_NODES_RANK)
+  integer(i_def) :: global_face_edges_dims(MESH_FACE_EDGES_RANK)
+  integer(i_def) :: domain_size_dims(1)
+
   character(*), parameter :: routine = 'define_variables'
   character(str_long) :: cmess
   character(str_long) :: var_name
@@ -401,34 +590,24 @@ subroutine define_variables(self)
 
   cmess = 'Defining '//trim(self%mesh_name)
   ierr = nf90_def_var( self%ncid, trim(self%mesh_name), &
-                      nf90_int, zero_sized, self%mesh_id )
+                       nf90_int, zero_sized, self%mesh_id )
   call check_err(ierr, routine, cmess)
-
 
   mesh_face_nodes_dims(1) = self%four_dim_id
   mesh_face_nodes_dims(2) = self%nmesh_faces_dim_id
   var_name = trim(self%mesh_name)//'_face_nodes'
   cmess = 'Defining '//trim(var_name)
-  ierr = nf90_def_var( self%ncid, trim(var_name),       &
-                       nf90_int, mesh_face_nodes_dims,  &
+  ierr = nf90_def_var( self%ncid, trim(var_name),      &
+                       nf90_int, mesh_face_nodes_dims, &
                        self%mesh_face_nodes_id )
-  call check_err(ierr, routine, cmess)
-
-  mesh_edge_nodes_dims(1) = self%two_dim_id
-  mesh_edge_nodes_dims(2) =self%nmesh_edges_dim_id
-  var_name = trim(self%mesh_name)//'_edge_nodes'
-  cmess = 'Defining '//trim(var_name)
-  ierr = nf90_def_var( self%ncid, trim(var_name),       &
-                       nf90_int, mesh_edge_nodes_dims,  &
-                       self%mesh_edge_nodes_id )
   call check_err(ierr, routine, cmess)
 
   mesh_face_edges_dims(1) = self%four_dim_id
   mesh_face_edges_dims(2) = self%nmesh_faces_dim_id
   var_name = trim(self%mesh_name)//'_face_edges'
   cmess = 'Defining '//trim(var_name)
-  ierr = nf90_def_var( self%ncid, trim(var_name),       &
-                       nf90_int, mesh_face_edges_dims,  &
+  ierr = nf90_def_var( self%ncid, trim(var_name),      &
+                       nf90_int, mesh_face_edges_dims, &
                        self%mesh_face_edges_id )
   call check_err(ierr, routine, cmess)
 
@@ -436,24 +615,33 @@ subroutine define_variables(self)
   mesh_face_links_dims(2) = self%nmesh_faces_dim_id
   var_name = trim(self%mesh_name)//'_face_links'
   cmess = 'Defining '//trim(var_name)
-  ierr = nf90_def_var( self%ncid, trim(var_name),       &
-                       nf90_int, mesh_face_links_dims,  &
+  ierr = nf90_def_var( self%ncid, trim(var_name),      &
+                       nf90_int, mesh_face_links_dims, &
                        self%mesh_face_links_id )
+  call check_err(ierr, routine, cmess)
+
+  mesh_edge_nodes_dims(1) = self%two_dim_id
+  mesh_edge_nodes_dims(2) = self%nmesh_edges_dim_id
+  var_name = trim(self%mesh_name)//'_edge_nodes'
+  cmess = 'Defining '//trim(var_name)
+  ierr = nf90_def_var( self%ncid, trim(var_name),      &
+                       nf90_int, mesh_edge_nodes_dims, &
+                       self%mesh_edge_nodes_id )
   call check_err(ierr, routine, cmess)
 
   mesh_node_x_dims(1) = self%nmesh_nodes_dim_id
   var_name = trim(self%mesh_name)//'_node_x'
   cmess = 'Defining '//trim(var_name)
-  ierr = nf90_def_var( self%ncid, trim(var_name),       &
-                       nf90_double, mesh_node_x_dims,   &
+  ierr = nf90_def_var( self%ncid, trim(var_name),      &
+                       nf90_double, mesh_node_x_dims,  &
                        self%mesh_node_x_id )
   call check_err(ierr, routine, cmess)
 
   mesh_node_y_dims(1) = self%nmesh_nodes_dim_id
   var_name = trim(self%mesh_name)//'_node_y'
   cmess = 'Defining '//trim(var_name)
-  ierr = nf90_def_var( self%ncid, trim(var_name),       &
-                       nf90_double, mesh_node_y_dims,   &
+  ierr = nf90_def_var( self%ncid, trim(var_name),      &
+                       nf90_double, mesh_node_y_dims,  &
                        self%mesh_node_y_id )
   call check_err(ierr, routine, cmess)
 
@@ -461,18 +649,137 @@ subroutine define_variables(self)
   mesh_face_x_dims(1) = self%nmesh_faces_dim_id
   var_name = trim(self%mesh_name)//'_face_x'
   cmess = 'Defining '//trim(var_name)
-  ierr = nf90_def_var( self%ncid, trim(var_name),       &
-                       nf90_double, mesh_face_x_dims,   &
+  ierr = nf90_def_var( self%ncid, trim(var_name),      &
+                       nf90_double, mesh_face_x_dims,  &
                        self%mesh_face_x_id )
   call check_err(ierr, routine, cmess)
 
   mesh_face_y_dims(1) = self%nmesh_faces_dim_id
   var_name = trim(self%mesh_name)//'_face_y'
   cmess = 'Defining '//trim(var_name)
-  ierr = nf90_def_var( self%ncid, trim(var_name),       &
-                       nf90_double, mesh_face_y_dims,   &
+  ierr = nf90_def_var( self%ncid, trim(var_name),      &
+                       nf90_double, mesh_face_y_dims,  &
                        self%mesh_face_y_id )
   call check_err(ierr, routine, cmess)
+
+
+  ! Define partition variables if this a local mesh
+  if ( self%mesh_extents == LOCAL_MESH_FLAG ) then
+
+    ! Partition_of <global_mesh>
+    cmess = 'Defining '//trim(self%partition_of)
+    ierr = nf90_def_var( self%ncid, trim(self%partition_of), &
+                         nf90_int, zero_sized, self%partition_id )
+    call check_err(ierr, routine, cmess)
+
+
+    ! Node cell owners
+    local_node_cell_owner_dims(1) = self%nmesh_nodes_dim_id
+    var_name = trim(self%mesh_name)//'_node_cell_owner'
+    cmess = 'Defining '//trim(var_name)
+    ierr = nf90_def_var( self%ncid, trim(var_name),            &
+                         nf90_int, local_node_cell_owner_dims, &
+                         self%node_cell_owner_id )
+    call check_err(ierr, routine, cmess)
+
+
+    ! Edge cell owners
+    local_edge_cell_owner_dims(1) = self%nmesh_edges_dim_id
+    var_name = trim(self%mesh_name)//'_edge_cell_owner'
+    cmess = 'Defining '//trim(var_name)
+    ierr = nf90_def_var( self%ncid, trim(var_name),            &
+                         nf90_int, local_edge_cell_owner_dims, &
+                         self%edge_cell_owner_id )
+    call check_err(ierr, routine, cmess)
+
+
+    ! Inner layers
+    if (self%inner_depth >0) then
+
+      local_inner_dims(1) = self%n_inner_dim_id
+
+      var_name = trim(self%mesh_name)//'_num_inner'
+      cmess = 'Defining '//trim(var_name)
+      ierr = nf90_def_var( self%ncid, trim(var_name),  &
+                           nf90_int, local_inner_dims, &
+                           self%num_inner_id )
+      call check_err(ierr, routine, cmess)
+
+      var_name = trim(self%mesh_name)//'_last_inner_cell'
+      cmess = 'Defining '//trim(var_name)
+      ierr = nf90_def_var( self%ncid, trim(var_name),  &
+                           nf90_int, local_inner_dims, &
+                           self%last_inner_cell_id )
+      call check_err(ierr, routine, cmess)
+    end if
+
+
+    ! Halo layers
+    if (self%halo_depth > 0) then
+      local_halos_dims(1) = self%n_halos_dim_id
+
+      var_name = trim(self%mesh_name)//'_num_halo'
+      cmess = 'Defining '//trim(var_name)
+      ierr = nf90_def_var( self%ncid, trim(var_name),  &
+                           nf90_int, local_halos_dims, &
+                           self%num_halo_id )
+      call check_err(ierr, routine, cmess)
+
+
+      var_name = trim(self%mesh_name)//'_last_halo_cell'
+      cmess = 'Defining '//trim(var_name)
+      ierr = nf90_def_var( self%ncid, trim(var_name),  &
+                           nf90_int, local_halos_dims, &
+                           self%last_halo_cell_id )
+      call check_err(ierr, routine, cmess)
+    end if
+
+
+    ! Netcdf variable to hold details about the global
+    ! mesh of which this local mesh is a partition of.
+    var_name = trim(self%mesh_name)//'_global'
+    cmess = 'Defining '//trim(var_name)
+    ierr = nf90_def_var( self%ncid, trim(var_name), &
+                         nf90_int, zero_sized, self%global_mesh_id )
+    call check_err(ierr, routine, cmess)
+
+    ! Global cells which this local mesh maps to.
+    global_cell_dims(1) = self%nmesh_faces_dim_id
+    var_name = trim(self%mesh_name)//'_cell_gids'
+    cmess = 'Defining '//trim(var_name)
+    ierr = nf90_def_var( self%ncid, trim(var_name),  &
+                         nf90_int, global_cell_dims, &
+                         self%global_cells_id )
+    call check_err(ierr, routine, cmess)
+
+    ! Global mesh domain size
+    domain_size_dims(1) = self%two_dim_id
+    var_name = trim(self%mesh_name)//'_domain_size'
+    cmess = 'Defining '//trim(var_name)
+    ierr = nf90_def_var( self%ncid, trim(var_name),     &
+                         nf90_double, domain_size_dims, &
+                         self%domain_size_id )
+    call check_err(ierr, routine, cmess)
+
+    ! Global ids of nodes on local cells
+    global_face_nodes_dims = [self%four_dim_id, self%nmesh_faces_dim_id]
+    var_name = trim(self%mesh_name)//'_node_gids_on_cell'
+    cmess = 'Defining '//trim(var_name)
+    ierr = nf90_def_var( self%ncid, trim(var_name),        &
+                         nf90_int, global_face_nodes_dims, &
+                         self%global_face_node_id )
+    call check_err(ierr, routine, cmess)
+
+    ! Global ids of edges on local cells
+    global_face_edges_dims = [self%four_dim_id, self%nmesh_faces_dim_id]
+    var_name = trim(self%mesh_name)//'_edge_gids_on_cell'
+    cmess = 'Defining '//trim(var_name)
+    ierr = nf90_def_var( self%ncid, trim(var_name),        &
+                         nf90_int, global_face_edges_dims, &
+                         self%global_face_edge_id )
+    call check_err(ierr, routine, cmess)
+
+  end if ! LOCAL_MESH_FLAG
 
   ! Define variables which this mesh maps to
   do i=1, self%nmesh_targets
@@ -482,7 +789,7 @@ subroutine define_variables(self)
 
     mesh_mesh_links_dims(1) = self%ntargets_per_source_x_dim_id(i)
     mesh_mesh_links_dims(2) = self%ntargets_per_source_y_dim_id(i)
-    mesh_mesh_links_dims(3) = self%nmesh_faces_dim_id
+    mesh_mesh_links_dims(3) = self%nmesh_map_faces_dim_id
 
     ierr = nf90_def_var( self%ncid, trim(var_name),      &
                          nf90_int, mesh_mesh_links_dims, &
@@ -528,6 +835,8 @@ subroutine assign_attributes(self)
   character(str_def)  :: lchar_py
 
   character(nf90_max_name) :: var_name
+  character(nf90_max_name) :: var_value
+
   character(nf90_max_name) :: source_mesh_name
   character(nf90_max_name) :: target_mesh_name
 
@@ -569,13 +878,6 @@ subroutine assign_attributes(self)
                        trim(self%coord_sys) )
   call check_err(ierr, routine, cmess)
 
-  attname = 'max_stencil_depth'
-  cmess   = 'Adding attribute "'//trim(attname)// &
-            '" to variable "'//trim(var_name)//'"'
-  ierr = nf90_put_att( self%ncid, id, trim(attname), &
-                       self%max_stencil_depth )
-  call check_err(ierr, routine, cmess)
-
   attname = 'periodic_x'
   write(lchar_px, '(L1)') self%periodic_x
   cmess   = 'Adding attribute "'//trim(attname)// &
@@ -599,6 +901,18 @@ subroutine assign_attributes(self)
                        trim(self%constructor_inputs) )
   call check_err(ierr, routine, cmess)
 
+  ! Note: This will be removed in a future ticket
+  !       max_stencil_depth is only revelevant for
+  !       local meshes, although existing code reads
+  !       it in for the global meshes
+  !
+  attname = 'max_stencil_depth'
+  cmess   = 'Adding attribute "'//trim(attname)// &
+            '" to variable "'//trim(var_name)//'"'
+  ierr = nf90_put_att( self%ncid, id, trim(attname), &
+                       self%max_stencil_depth )
+  call check_err(ierr, routine, cmess)
+  !
   attname = 'n_mesh_maps'
   cmess   = 'Adding attribute "'//trim(attname)// &
             '" to variable "'//trim(var_name)//'"'
@@ -632,6 +946,18 @@ subroutine assign_attributes(self)
             '" to variable "'//trim(var_name)//'"'
   ierr = nf90_put_att( self%ncid, id, trim(attname), [2])
   call check_err(ierr, routine, cmess)
+
+
+  if ( self%model_extents == GLOBAL_MODEL_FLAG .and. &
+       self%rim_depth > 0 ) then
+
+    attname = 'rim_depth'
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(var_name)//'"'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), self%rim_depth )
+    call check_err(ierr, routine, cmess)
+
+  end if
 
   attname = 'node_coordinates'
   cmess   = 'Adding attribute "'//trim(attname)// &
@@ -677,8 +1003,8 @@ subroutine assign_attributes(self)
                        trim(self%mesh_name)//'_face_links' )
   call check_err(ierr, routine, cmess)
 
-
-  ! Only present for spherical lon-lat domains (geometry=spherical, coord_sys=ll)
+  ! Only present for spherical lon-lat domains
+  ! (geometry=spherical, coord_sys=ll)
   if ( trim(self%coord_sys) == 'll' .and. &
        trim(self%geometry)  == 'spherical' ) then
     attname = 'north_pole'
@@ -692,6 +1018,25 @@ subroutine assign_attributes(self)
     ierr = nf90_put_att( self%ncid, id, trim(attname), &
                          self%null_island )
     call check_err(ierr, routine, cmess)
+  end if
+
+  ! For a local mesh, add information
+  ! about the partition and the global mesh it is a part of
+  if (self%mesh_extents == LOCAL_MESH_FLAG) then
+    attname = 'partition_info'
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(var_name)//'"'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), &
+                         trim(self%partition_of))
+    call check_err(ierr, routine, cmess)
+
+    attname = 'global_info'
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(var_name)//'"'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), &
+                         trim(self%mesh_name)//'_global')
+    call check_err(ierr, routine, cmess)
+
   end if
 
   !===================================================================
@@ -990,6 +1335,190 @@ subroutine assign_attributes(self)
     end do
 
   end if
+
+
+  !===================================================================
+  ! 9.0 Add attributes for local meshes info.
+  !===================================================================
+  if ( self%mesh_extents == LOCAL_MESH_FLAG ) then
+
+    !============================================================
+    ! 9.1 Add data about local mesh's partition.
+    !============================================================
+    id = self%partition_id
+
+    attname = 'inner_depth'
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(self%partition_of)//'"'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), self%inner_depth )
+    call check_err(ierr, routine, cmess)
+
+    attname = 'halo_depth'
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(self%partition_of)//'"'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), self%halo_depth )
+    call check_err(ierr, routine, cmess)
+
+    attname = 'n_edge_cells'
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(self%partition_of)//'"'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), self%num_edge )
+    call check_err(ierr, routine, cmess)
+
+    attname = 'n_ghost_cells'
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(self%partition_of)//'"'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), self%num_ghost )
+    call check_err(ierr, routine, cmess)
+
+    attname = 'last_edge_cell_index'
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(self%partition_of)//'"'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), self%last_edge_cell )
+    call check_err(ierr, routine, cmess)
+
+    attname = 'last_ghost_cell_index'
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(self%partition_of)//'"'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), self%last_ghost_cell )
+    call check_err(ierr, routine, cmess)
+
+    attname = 'max_stencil_depth'
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(self%partition_of)//'"'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), self%max_stencil_depth )
+    call check_err(ierr, routine, cmess)
+
+    attname = 'node_owner'
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(self%partition_of)//'"'
+    var_value = trim(self%mesh_name)//'_node_cell_owner'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), var_value )
+    call check_err(ierr, routine, cmess)
+
+    attname = 'edge_owner'
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(self%partition_of)//'"'
+    var_value = trim(self%mesh_name)//'_edge_cell_owner'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), var_value )
+    call check_err(ierr, routine, cmess)
+
+    attname = 'num_inner'
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(self%partition_of)//'"'
+    var_value = trim(self%mesh_name)//'_num_inner'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), var_value )
+    call check_err(ierr, routine, cmess)
+
+    attname = 'num_halo'
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(self%partition_of)//'"'
+    var_value = trim(self%mesh_name)//'_num_halo'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), var_value )
+    call check_err(ierr, routine, cmess)
+
+    attname = 'last_inner_cell'
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(self%partition_of)//'"'
+    var_value = trim(self%mesh_name)//'_last_inner_cell'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), var_value )
+    call check_err(ierr, routine, cmess)
+
+    attname = 'last_halo_cell'
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(self%partition_of)//'"'
+    var_value = trim(self%mesh_name)//'_last_halo_cell'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), var_value )
+    call check_err(ierr, routine, cmess)
+
+
+    !============================================================
+    ! 9.2 Add data about local mesh's global parent.
+    !============================================================
+    id = self%global_mesh_id
+
+    attname = 'constructor_inputs'
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(var_name)//'"'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), &
+                         trim(self%constructor_inputs) )
+    call check_err(ierr, routine, cmess)
+
+    attname = 'npanels'
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(self%mesh_name)//'_global"'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), self%npanels )
+    call check_err(ierr, routine, cmess)
+
+    attname = 'ncells'
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(self%mesh_name)//'_global"'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), &
+                         self%nmesh_faces_global )
+    call check_err(ierr, routine, cmess)
+
+    attname = 'domain_size'
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(self%mesh_name)//'_global"'
+    var_value = trim(self%mesh_name)//'_domain_size'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), var_value )
+    call check_err(ierr, routine, cmess)
+
+    attname = 'topology'
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(var_name)//'"'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), &
+                         trim(self%topology))
+    call check_err(ierr, routine, cmess)
+
+    attname = 'periodic_x'
+    write(lchar_px, '(L1)') self%periodic_x
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(var_name)//'"'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), &
+                         trim(adjustl(lchar_px)))
+    call check_err(ierr, routine, cmess)
+
+    attname = 'periodic_y'
+    write(lchar_py, '(L1)') self%periodic_y
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(var_name)//'"'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), &
+                         trim(adjustl(lchar_py)))
+    call check_err(ierr, routine, cmess)
+
+    if ( self%model_extents == REGION_MODEL_FLAG ) then
+      if ( self%rim_depth > 0 ) then
+        attname = 'rim_depth'
+        cmess   = 'Adding attribute "'//trim(attname)// &
+                  '" to variable "'//trim(self%mesh_name)//'_global"'
+        ierr = nf90_put_att( self%ncid, id, trim(attname), self%rim_depth )
+        call check_err(ierr, routine, cmess)
+      end if
+    end if ! REGION_MODEL_FLAG
+
+    attname = 'cells'
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(self%mesh_name)//'_global"'
+    var_value = trim(self%mesh_name)//'_cell_gids'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), var_value )
+    call check_err(ierr, routine, cmess)
+
+    attname = 'nodes_on_cell'
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(self%mesh_name)//'_global"'
+    var_value = trim(self%mesh_name)//'_node_gids_on_cell'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), var_value )
+    call check_err(ierr, routine, cmess)
+
+    attname = 'edges_on_cell'
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(self%mesh_name)//'_global"'
+    var_value = trim(self%mesh_name)//'_edge_gids_on_cell'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), var_value )
+    call check_err(ierr, routine, cmess)
+
+  end if ! LOCAL_MESH_FLAG
 
   return
 end subroutine assign_attributes
@@ -1571,7 +2100,8 @@ subroutine read_mesh( self, mesh_name, geometry, topology, coord_sys, &
     void_cell = self%void_cell
   end if
 
-  ! Only present for spherical lon-lat domains (geometry=spherical, coord_sys=ll)
+  ! Only present for spherical lon-lat domains,
+  ! (geometry=spherical, coord_sys=ll)
   if ( trim(coord_sys) == 'll' .and. &
        trim(geometry)  == 'spherical' ) then
 
@@ -1753,79 +2283,110 @@ subroutine read_map( self,             &
 
 end subroutine read_map
 
+
 !-------------------------------------------------------------------------------
-!>  @brief   Writes data to the NetCDF file.
-!>  @details Writes dimension, coordinate and connectivity information
-!>           to the NetCDF file.
+!> @brief   Adds mesh data to a new NetCDF file.
+!> @details Adds mesh data to NetCDF UGRID mesh file:
+!>          * dimension
+!>          * coordinates
+!>          * connectivity information
+!>          * partition information
+!>          * mesh metadata
 !>
-!>  @param[in,out]  self                     The NetCDF file object.
-!>  @param[in]      mesh_name                Name of the mesh topology.
-!>  @param[in]      geometry                 Mesh domain geometry.
-!>  @param[in]      topology                 Indicates layout of mesh connectivity
-!>  @param[in]      coord_sys                Co-ordinate system used to convey
-!>                                           node locations.
-!>  @param[in]      periodic_x               Periodic in E-W direction.
-!>  @param[in]      periodic_y               Periodic in N-S direction.
-!>  @param[in]      npanels                  Number of panels in this mesh
-!>  @param[in]      north_pole               [Longitude, Latitude] of north pole
-!>                                           for domain orientation
-!>  @param[in]      null_island              [Longitude, Latitude] of null
-!>                                           island for domain orientation
-!>  @param[in]      max_stencil_depth        The max stencil depth that this
-!>                                           mesh supports.
-!>  @param[in]      constructor_inputs       Inputs used to create this mesh
-!>                                           from the ugrid_generator
-!>  @param[in]      num_nodes                The number of nodes on the mesh.
-!>  @param[in]      num_edges                The number of edges on the mesh.
-!>  @param[in]      num_faces                The number of faces on the mesh.
-!>  @param[in]      node_coordinates         Coordinates of each node.
-!>  @param[in]      face_coordinates         Coordinates of each face.
-!>  @param[in]      coord_units_x            Units of x coordinates.
-!>  @param[in]      coord_units_y            Units of y coordinates.
-!>  @param[in]      void_cell                Values to mark a cell as external
-!>                                           to domain.
-!>  @param[in]      face_node_connectivity   Nodes adjoining each face.
-!>  @param[in]      edge_node_connectivity   Nodes adjoining each edge.
-!>  @param[in]      face_edge_connectivity   Edges adjoining each face.
-!>  @param[in]      face_face_connectivity   Faces adjoining each face (links).
-!>  @param[in]      num_targets              Number of mesh maps from mesh
-!>  @param[in]      target_mesh_names        Mesh(es) that this mesh has maps for
-!>  @param[in]      target_global_mesh_maps  Mesh maps from this mesh to target mesh(es)
-
+!> @param[in] mesh_name                Name of the mesh topology.
+!> @param[in] geometry                 Mesh domain geometry.
+!> @param[in] coord_sys                Co-ordinate system used to convey
+!>                                     node locations.
+!> @param[in] north_pole               [Longitude, Latitude] of north pole
+!>                                     for domain orientation
+!> @param[in] null_island              [Longitude, Latitude] of null
+!>                                     island for domain orientation
+!> @param[in] num_nodes                The number of nodes on the mesh.
+!> @param[in] num_edges                The number of edges on the mesh.
+!> @param[in] num_faces                The number of faces on the mesh.
+!> @param[in] node_coordinates         Coordinates of each node.
+!> @param[in] face_coordinates         Coordinates of each face.
+!> @param[in] coord_units_x            Units of x coordinates.
+!> @param[in] coord_units_y            Units of y coordinates.
+!> @param[in] void_cell                Values to mark a cell as external
+!>                                     to domain.
+!> @param[in] face_node_connectivity   Nodes adjoining each face.
+!> @param[in] face_edge_connectivity   Edges adjoining each face.
+!> @param[in] face_face_connectivity   Faces adjoining each face (links).
+!> @param[in] edge_node_connectivity   Nodes adjoining each edge.
+!> @param[in] topology                 Indicates layout of mesh connectivity
+!> @param[in] periodic_x               Periodic in E-W direction.
+!> @param[in] periodic_y               Periodic in N-S direction.
+!> @param[in] domain_size              Size of global mesh domain in x/y-axes.
+!> @param[in] npanels                  Number of panels in this mesh
+!> @param[in] rim_depth                Depth in cells of global mesh rim (LBC meshes).
+!> @param[in] constructor_inputs       Inputs used to create this mesh
+!>                                     from the ugrid_generator
+!> @param[in] partition_of             Name of mesh that (local mesh) is a partition of.
+!> @param[in] num_faces_global         Number of cells in the global mesh given by `partition_of`
+!> @param[in] max_stencil_depth        Maximum stencil supported by this local mesh.
+!> @param[in] inner_depth              Depth (in cells) of inner halos inward from edge cell layer.
+!> @param[in] num_inner                Number of cells at each inner halo depth.
+!> @param[in] last_inner_cell          Local id of the last cell at each inner halo depth.
+!> @param[in] halo_depth               Depth (in cells) of halos outward from edge cell layer.
+!> @param[in] num_halo                 Number of cells at each halo depth.
+!> @param[in] last_halo_cell           Local id of the last cell at each halo depth.
+!> @param[in] num_edge                 Number of cells in the partition edge cell layer.
+!> @param[in] last_edge_cell           Local id of the last cell in the edge cell layer.
+!> @param[in] num_ghost                Number of cells in the ghost cell layer.
+!> @param[in] last_ghost_cell          Local id of the last cell in the ghost cell layer.
+!> @param[in] node_cell_owner          Cell that "owns" a given node.
+!> @param[in] edge_cell_owner          Cell that "owns" a given edge.
+!> @param[in] cell_gid                 Global ids of local mesh cells.
+!>                                     (partition, halos and ghost cells).
+!> @param[in] node_on_cell_gid         Local node on cell connectivities listed with
+!>                                     the node global ids.
+!> @param[in] edge_on_cell_gid         Local node on cell connectivities listed with
+!>                                     the node global ids.
+!> @param[in] num_targets              Number of mesh maps from mesh.
+!> @param[in] target_mesh_names        Mesh(es) that this mesh has maps for.
+!> @param[in] target_global_mesh_maps  Mesh maps from this global mesh to target mesh(es).
+!> @param[in] target_local_mesh_maps   Mesh maps from this local mesh to target mesh(es).
 !-------------------------------------------------------------------------------
+subroutine write_mesh( self,                                              &
 
-subroutine write_mesh( self, mesh_name, geometry, topology, coord_sys, &
-                       periodic_x, periodic_y, npanels,                &
-                       north_pole, null_island, max_stencil_depth,     &
-                       constructor_inputs,                             &
-                       num_nodes, num_edges, num_faces,                &
-                       node_coordinates, face_coordinates,             &
-                       coord_units_x, coord_units_y,                   &
-                       void_cell,                                      &
-                       face_node_connectivity, edge_node_connectivity, &
-                       face_edge_connectivity, face_face_connectivity, &
+                       ! Common mesh type variables.
+                       mesh_name, geometry, coord_sys,                    &
+                       north_pole, null_island,                           &
+                       num_nodes, num_edges, num_faces,                   &
+                       node_coordinates, face_coordinates,                &
+                       coord_units_x, coord_units_y, void_cell,           &
+                       face_node_connectivity, face_edge_connectivity,    &
+                       face_face_connectivity, edge_node_connectivity,    &
 
-                       ! Intergrid maps
-                       num_targets, target_mesh_names, &
-                       target_global_mesh_maps )
+                       ! Global mesh only variables.
+                       topology, periodic_x, periodic_y, domain_size,     &
+                       npanels, rim_depth, constructor_inputs,            &
+
+                       ! Partition variables.
+                       partition_of, num_faces_global, max_stencil_depth, &
+                       inner_depth, num_inner, last_inner_cell,           &
+                       halo_depth,  num_halo,  last_halo_cell,            &
+                       num_edge,  last_edge_cell,                         &
+                       num_ghost, last_ghost_cell,                        &
+                       node_cell_owner, edge_cell_owner,                  &
+                       cell_gid, node_on_cell_gid, edge_on_cell_gid,      &
+
+                       ! Intergrid maps.
+                       num_targets, target_mesh_names,                    &
+                       target_global_mesh_maps, target_local_mesh_maps )
 
   implicit none
 
-  ! Arguments
+  ! Arguments.
   class(ncdf_quad_type),  intent(inout) :: self
 
+  ! Common mesh variables.
   character(str_def),  intent(in) :: mesh_name
-
   character(str_def),  intent(in) :: geometry
-  character(str_def),  intent(in) :: topology
   character(str_def),  intent(in) :: coord_sys
-  logical(l_def),      intent(in) :: periodic_x
-  logical(l_def),      intent(in) :: periodic_y
-  integer(i_def),      intent(in) :: npanels
-  integer(i_def),      intent(in) :: max_stencil_depth
-
-  character(str_longlong), intent(in) :: constructor_inputs
-
+  real(r_def),         intent(in) :: north_pole(2)
+  real(r_def),         intent(in) :: null_island(2)
   integer(i_def),      intent(in) :: num_nodes
   integer(i_def),      intent(in) :: num_edges
   integer(i_def),      intent(in) :: num_faces
@@ -1833,30 +2394,56 @@ subroutine write_mesh( self, mesh_name, geometry, topology, coord_sys, &
   real(r_def),         intent(in) :: face_coordinates(:,:)
   character(str_def),  intent(in) :: coord_units_x
   character(str_def),  intent(in) :: coord_units_y
+  integer(i_def),      intent(in) :: void_cell
   integer(i_def),      intent(in) :: face_node_connectivity(:,:)
-  integer(i_def),      intent(in) :: edge_node_connectivity(:,:)
   integer(i_def),      intent(in) :: face_edge_connectivity(:,:)
   integer(i_def),      intent(in) :: face_face_connectivity(:,:)
-  integer(i_def),      intent(in) :: void_cell
+  integer(i_def),      intent(in) :: edge_node_connectivity(:,:)
 
-  integer(i_def),      intent(in) :: num_targets
+  ! Global mesh variables.
+  character(str_def),  intent(in) :: topology
+  logical(l_def),      intent(in) :: periodic_x
+  logical(l_def),      intent(in) :: periodic_y
+  real(r_def),         intent(in) :: domain_size(2)
+  integer(i_def),      intent(in) :: npanels
+  integer(i_def),      intent(in) :: rim_depth
 
-  character(str_def),  intent(in), allocatable :: target_mesh_names(:)
+  character(str_longlong), intent(in) :: constructor_inputs
+
+  ! Partition variables.
+  character(str_def), intent(in) :: partition_of
+  integer(i_def),     intent(in) :: num_faces_global
+  integer(i_def),     intent(in) :: max_stencil_depth
+
+  integer(i_def), intent(in) :: inner_depth, num_inner(:), last_inner_cell(:)
+  integer(i_def), intent(in) :: halo_depth,  num_halo(:),  last_halo_cell(:)
+  integer(i_def), intent(in) :: num_edge,  last_edge_cell
+  integer(i_def), intent(in) :: num_ghost, last_ghost_cell
+  integer(i_def), intent(in) :: node_cell_owner(:)
+  integer(i_def), intent(in) :: edge_cell_owner(:)
+  integer(i_def), intent(in) :: cell_gid(:)
+  integer(i_def), intent(in) :: node_on_cell_gid(:,:)
+  integer(i_def), intent(in) :: edge_on_cell_gid(:,:)
+
+  ! Inter-grid maps
+  integer(i_def),     intent(in) :: num_targets
+  character(str_def), intent(in), allocatable :: target_mesh_names(:)
   type(global_mesh_map_collection_type), &
-                       intent(in), pointer :: target_global_mesh_maps
+                      intent(in), pointer :: target_global_mesh_maps
+  type(local_mesh_map_collection_type),  &
+                      intent(in), pointer :: target_local_mesh_maps
 
-  ! Information about the mesh rotation
-  real(r_def),         intent(in) :: north_pole(2)
-  real(r_def),         intent(in) :: null_island(2)
 
   ! Internal variables
-  integer(i_def)      :: ierr, i, ratio_x, ratio_y, cell
   character(*), parameter :: routine = 'write_mesh'
-  character(str_long) :: cmess
+  character(str_long)     :: cmess
+  integer(i_def)          :: ierr, i, ratio_x, ratio_y, cell
+  integer(i_def)          :: cells_in_layer
 
   integer(i_def), allocatable :: cell_map(:,:,:), tmp_cell_map(:,:,:)
 
-  type(global_mesh_map_type), pointer :: mesh_map => null()
+  type(global_mesh_map_type), pointer :: global_mesh_map => null()
+  type(local_mesh_map_type),  pointer :: local_mesh_map  => null()
 
   ! We need to ensure that netcdf receives data with the appropriate
   ! precision to create temporary arrays to hold real data
@@ -1864,6 +2451,7 @@ subroutine write_mesh( self, mesh_name, geometry, topology, coord_sys, &
 
   real(r_ncdf), allocatable :: node_coordinates_ncdf(:,:)
   real(r_ncdf), allocatable :: face_coordinates_ncdf(:,:)
+  real(r_ncdf)              :: domain_size_ncdf(2)
 
   integer(i_def) :: lower1,upper1,lower2,upper2
 
@@ -1882,45 +2470,86 @@ subroutine write_mesh( self, mesh_name, geometry, topology, coord_sys, &
   node_coordinates_ncdf(:,:) =  real( node_coordinates(:,:), kind=r_ncdf )
   face_coordinates_ncdf(:,:) =  real( face_coordinates(:,:), kind=r_ncdf )
 
-  self%mesh_name     = mesh_name
-  self%geometry      = geometry
-  self%topology      = topology
-  self%coord_sys     = coord_sys
-  self%periodic_x    = periodic_x
-  self%periodic_y    = periodic_y
-  self%npanels       = npanels
-  self%max_stencil_depth  = max_stencil_depth
+  ! Determine if the contents of object is a global/regional model
+  self%domain_size = domain_size
+  if ( .not. any(domain_size == rmdi) ) then
+    self%model_extents = REGION_MODEL_FLAG
+    domain_size_ncdf(:) = real( self%domain_size(:), kind=r_ncdf )
+  else
+    self%model_extents = GLOBAL_MODEL_FLAG
+    domain_size_ncdf(:) = real( rmdi, kind=r_ncdf )
+  end if
+
+  ! Determine if the contents of object is a global/local mesh
+  self%partition_of = partition_of
+  if ( trim(self%partition_of) /= trim(cmdi) ) then
+    self%mesh_extents = LOCAL_MESH_FLAG
+  else
+    self%mesh_extents = GLOBAL_MESH_FLAG
+  end if
+
+  self%mesh_name      = mesh_name
+  self%geometry       = geometry
+  self%topology       = topology
+  self%coord_sys      = coord_sys
+  self%north_pole(:)  = north_pole(:)
+  self%null_island(:) = null_island(:)
+  self%periodic_x     = periodic_x
+  self%periodic_y     = periodic_y
+  self%npanels        = npanels
+  self%coord_units_x  = coord_units_x
+  self%coord_units_y  = coord_units_y
+  self%void_cell      = void_cell
+
   self%constructor_inputs = constructor_inputs
 
-  self%nmesh_nodes   = num_nodes
-  self%nmesh_edges   = num_edges
-  self%nmesh_faces   = num_faces
+  self%nmesh_nodes = num_nodes
+  self%nmesh_edges = num_edges
+  self%nmesh_faces = num_faces
+  self%rim_depth   = rim_depth
 
+  ! Partition info
+  self%nmesh_faces_global = num_faces_global
+  self%inner_depth        = inner_depth
+  self%halo_depth         = halo_depth
+  self%num_edge           = num_edge
+  self%last_edge_cell     = last_edge_cell
+  self%num_ghost          = num_ghost
+  self%last_ghost_cell    = last_ghost_cell
+  self%max_stencil_depth  = max_stencil_depth
+
+  ! InterGrid maps
   self%nmesh_targets = num_targets
 
-  self%coord_units_x = coord_units_x
-  self%coord_units_y = coord_units_y
+  if ( self%nmesh_targets > 0 ) then
 
-  self%void_cell = void_cell
+    if ( allocated(self%ntargets_per_source_dim_id)   ) deallocate( self%ntargets_per_source_dim_id   )
+    if ( allocated(self%ntargets_per_source_x_dim_id) ) deallocate( self%ntargets_per_source_x_dim_id )
+    if ( allocated(self%ntargets_per_source_y_dim_id) ) deallocate( self%ntargets_per_source_y_dim_id )
 
-  if ( self%nmesh_targets >0 ) then
+    if ( allocated(self%mesh_mesh_links_id) ) deallocate( self%mesh_mesh_links_id )
+    if ( allocated(self%target_mesh_names)  ) deallocate( self%target_mesh_names )
 
-    allocate(self%ntargets_per_source_dim_id(self%nmesh_targets))
-    allocate(self%ntargets_per_source_x_dim_id(self%nmesh_targets))
-    allocate(self%ntargets_per_source_y_dim_id(self%nmesh_targets))
-    allocate(self%mesh_mesh_links_id(self%nmesh_targets))
+    allocate( self%ntargets_per_source_dim_id   (self%nmesh_targets) )
+    allocate( self%ntargets_per_source_x_dim_id (self%nmesh_targets) )
+    allocate( self%ntargets_per_source_y_dim_id (self%nmesh_targets) )
 
-    self%target_global_mesh_maps = target_global_mesh_maps
+    allocate( self%mesh_mesh_links_id (self%nmesh_targets) )
+    allocate( self%target_mesh_names  (self%nmesh_targets) )
 
-    allocate(self%target_mesh_names(self%nmesh_targets))
     do i=1, self%nmesh_targets
       self%target_mesh_names(i) = trim(target_mesh_names(i))
     end do
 
-  end if
+    select case (self%mesh_extents)
+    case (GLOBAL_MESH_FLAG)
+      self%target_global_mesh_maps => target_global_mesh_maps
+    case (LOCAL_MESH_FLAG)
+      self%target_local_mesh_maps  => target_local_mesh_maps
+    end select
 
-  self%north_pole(:) = north_pole(:)
-  self%null_island(:) = null_island(:)
+  end if ! nmesh_targets
+
 
   ! Set up NetCDF header
   call define_dimensions (self)
@@ -1934,7 +2563,7 @@ subroutine write_mesh( self, mesh_name, geometry, topology, coord_sys, &
   call check_err(ierr, routine, cmess)
 
 
-  ! Node coordinates
+  ! Node coordinates.
   cmess = 'Writing node x-coords for mesh, "'//trim(mesh_name)//'"'
   ierr = nf90_put_var( self%ncid, self%mesh_node_x_id, node_coordinates_ncdf(1,:) )
   call check_err(ierr, routine, cmess)
@@ -1943,7 +2572,7 @@ subroutine write_mesh( self, mesh_name, geometry, topology, coord_sys, &
   ierr = nf90_put_var( self%ncid, self%mesh_node_y_id, node_coordinates_ncdf(2,:) )
   call check_err(ierr, routine, cmess)
 
-  ! Face coordinates
+  ! Face coordinates.
   cmess = 'Writing face x-coords for mesh, "'//trim(mesh_name)//'"'
   ierr = nf90_put_var( self%ncid, self%mesh_face_x_id, face_coordinates_ncdf(1,:) )
   call check_err(ierr, routine, cmess)
@@ -1952,50 +2581,142 @@ subroutine write_mesh( self, mesh_name, geometry, topology, coord_sys, &
   ierr = nf90_put_var( self%ncid, self%mesh_face_y_id, face_coordinates_ncdf(2,:) )
   call check_err(ierr, routine, cmess)
 
-  ! Face node connectivity
+  ! Face-Node connectivity.
   cmess = 'Writing face-node connectivity for mesh, "'//trim(mesh_name)//'"'
   ierr = nf90_put_var( self%ncid, self%mesh_face_nodes_id, &
                        face_node_connectivity(:,:) )
   call check_err(ierr, routine, cmess)
 
-  ! Edge node connectivity
-  cmess = 'Writing edge-node connectivity for mesh, "'//trim(mesh_name)//'"'
-  ierr = nf90_put_var( self%ncid, self%mesh_edge_nodes_id, &
-                       edge_node_connectivity(:,:) )
-  call check_err(ierr, routine, cmess)
-
-  ! Face edge connectivity
+  ! Face-Edge connectivity.
   cmess = 'Writing face-edge connectivity for mesh, "'//trim(mesh_name)//'"'
   ierr = nf90_put_var( self%ncid, self%mesh_face_edges_id, &
                        face_edge_connectivity(:,:) )
   call check_err(ierr, routine, cmess)
 
-  ! Face face connectivity
+!print*,'Face-Face ',face_face_connectivity(:,:)
+  ! Face-Face connectivity.
   cmess = 'Writing face-face connectivity for mesh, "'//trim(mesh_name)//'"'
   ierr = nf90_put_var( self%ncid, self%mesh_face_links_id, &
                        face_face_connectivity(:,:) )
   call check_err(ierr, routine, cmess)
 
-  ! Mesh_Mesh connectivity
-  do i=1, num_targets
-    nullify(mesh_map)
-    mesh_map => self%target_global_mesh_maps%get_global_mesh_map(1,i+1)
-    ratio_x = mesh_map%get_ntarget_cells_per_source_x()
-    ratio_y = mesh_map%get_ntarget_cells_per_source_y()
-    allocate(cell_map(ratio_x, ratio_y, self%nmesh_faces))
-    allocate(tmp_cell_map(ratio_x, ratio_y, 1))
-    do cell=1, self%nmesh_faces
-      call mesh_map%get_cell_map([cell], tmp_cell_map)
-      cell_map(:,:,cell) = tmp_cell_map(:,:,1)
-    end do
-    cmess = 'Writing mesh-mesh connectivity for meshes, "'// &
-            trim(self%mesh_name)//'"->"'//                   &
-            trim(self%target_mesh_names(i))//'"'
-    ierr = nf90_put_var( self%ncid, self%mesh_mesh_links_id(i), cell_map(:,:,:) )
-    deallocate(cell_map)
-    deallocate(tmp_cell_map)
+  ! Edge-Node connectivity.
+  cmess = 'Writing edge-node connectivity for mesh, "'//trim(mesh_name)//'"'
+  ierr = nf90_put_var( self%ncid, self%mesh_edge_nodes_id, &
+                       edge_node_connectivity(:,:) )
+  call check_err(ierr, routine, cmess)
+
+
+  ! Write partition/global info for local meshes.
+  if (self%mesh_extents == LOCAL_MESH_FLAG) then
+
+    ! Cell owners of nodes.
+    cmess = 'Writing partition '// trim(self%mesh_name) // ' cell ownership of nodes.'
+    ierr = nf90_put_var( self%ncid, self%node_cell_owner_id, node_cell_owner(:) )
     call check_err(ierr, routine, cmess)
-  end do
+
+    ! Cell owners of edges.
+    cmess = 'Writing partition '// trim(self%mesh_name) // ' cell ownership of edges.'
+    ierr = nf90_put_var( self%ncid, self%edge_cell_owner_id, edge_cell_owner(:) )
+    call check_err(ierr, routine, cmess)
+
+    ! Inner layers.
+    if (self%inner_depth > 0) then
+      cmess = 'Writing partition '// trim(self%mesh_name) // ' num inner.'
+      ierr = nf90_put_var( self%ncid, self%num_inner_id, num_inner(:) )
+      call check_err(ierr, routine, cmess)
+
+      cmess = 'Writing partition '// trim(self%mesh_name) // ' last inner cell.'
+      ierr = nf90_put_var( self%ncid, self%last_inner_cell_id, last_inner_cell(:) )
+      call check_err(ierr, routine, cmess)
+    end if
+
+    ! Halo layers.
+    if (self%halo_depth > 0) then
+      cmess = 'Writing partition '// trim(self%mesh_name) // ' num halo.'
+      ierr = nf90_put_var( self%ncid, self%num_halo_id, num_halo(:) )
+      call check_err(ierr, routine, cmess)
+
+      cmess = 'Writing partition '// trim(self%mesh_name) // ' last halo cell.'
+      ierr = nf90_put_var( self%ncid, self%last_halo_cell_id, last_halo_cell(:) )
+      call check_err(ierr, routine, cmess)
+    end if
+
+    ! Global mesh domain size.
+    cmess = 'Writing global mesh '// trim(self%mesh_name) // ' domain size.'
+    ierr = nf90_put_var( self%ncid, self%domain_size_id, domain_size_ncdf(:) )
+    call check_err(ierr, routine, cmess)
+
+    ! Global cell ids on this partition (including those of ghost cells).
+    cmess = 'Writing global mesh '// trim(self%mesh_name) // ' cell ids.'
+    ierr = nf90_put_var( self%ncid, self%global_cells_id, cell_gid(:) )
+    call check_err(ierr, routine, cmess)
+
+    ! Local node on cell connectivity (Node IDs are as GIDs).
+    cmess = 'Writing global mesh '// trim(self%mesh_name) // ' node on cell ids.'
+    ierr = nf90_put_var( self%ncid, self%global_face_node_id, node_on_cell_gid(:,:) )
+    call check_err(ierr, routine, cmess)
+
+    ! Local edge on cell connectivity (Eode IDs are as GIDs).
+    cmess = 'Writing global mesh '// trim(self%mesh_name) // ' edge on cell ids.'
+    ierr = nf90_put_var( self%ncid, self%global_face_edge_id, edge_on_cell_gid(:,:) )
+    call check_err(ierr, routine, cmess)
+
+  end if
+
+
+  ! Mesh_Mesh connectivity (Inter-grid maps)
+  select case (self%mesh_extents)
+
+  case (GLOBAL_MESH_FLAG)
+
+    do i=1, num_targets
+      nullify(global_mesh_map)
+      global_mesh_map => self%target_global_mesh_maps%get_global_mesh_map(1,i+1)
+      ratio_x = global_mesh_map%get_ntarget_cells_per_source_x()
+      ratio_y = global_mesh_map%get_ntarget_cells_per_source_y()
+      allocate(cell_map(ratio_x, ratio_y, self%nmesh_faces))
+      allocate(tmp_cell_map(ratio_x, ratio_y, 1))
+      do cell=1, self%nmesh_faces
+        call global_mesh_map%get_cell_map([cell], tmp_cell_map)
+        cell_map(:,:,cell) = tmp_cell_map(:,:,1)
+      end do
+      cmess = 'Writing mesh-mesh connectivity for meshes, "'// &
+              trim(self%mesh_name)//'"->"'//                   &
+              trim(self%target_mesh_names(i))//'"'
+      ierr = nf90_put_var( self%ncid, self%mesh_mesh_links_id(i), cell_map(:,:,:) )
+      deallocate(cell_map)
+      deallocate(tmp_cell_map)
+      call check_err(ierr, routine, cmess)
+    end do
+
+  case (LOCAL_MESH_FLAG)
+
+    ! Local mesh will only have mesh maps up to the halo cells, i.e.
+    ! ghost cells will not have maps
+    cells_in_layer = self%nmesh_faces - self%num_ghost
+
+    do i=1, num_targets
+      nullify(local_mesh_map)
+      local_mesh_map => self%target_local_mesh_maps%get_local_mesh_map(1,i+1)
+      ratio_x = local_mesh_map%get_ntarget_cells_per_source_cell_x()
+      ratio_y = local_mesh_map%get_ntarget_cells_per_source_cell_y()
+      allocate(cell_map(ratio_x, ratio_y, cells_in_layer))
+      allocate(tmp_cell_map(ratio_x, ratio_y, 1))
+      do cell=1, cells_in_layer
+        call local_mesh_map%get_cell_map([cell], tmp_cell_map)
+        cell_map(:,:,cell) = tmp_cell_map(:,:,1)
+      end do
+      cmess = 'Writing mesh-mesh connectivity for meshes, "'// &
+              trim(self%mesh_name)//'"->"'//                   &
+              trim(self%target_mesh_names(i))//'"'
+      ierr = nf90_put_var( self%ncid, self%mesh_mesh_links_id(i), cell_map(:,:,:) )
+      deallocate(cell_map)
+      deallocate(tmp_cell_map)
+      call check_err(ierr, routine, cmess)
+    end do
+
+  end select
 
   deallocate(node_coordinates_ncdf)
   deallocate(face_coordinates_ncdf)
@@ -2043,97 +2764,157 @@ function is_mesh_present(self, mesh_name) result(answer)
 
 end function is_mesh_present
 
-!-------------------------------------------------------------------------------
-!>  @brief Adds a mesh to an existing NetCDF ugrid file
-!>
-!>  @param[in,out]  self                     The NetCDF file object.
-!>  @param[in]      mesh_name                Name of the mesh topology
-!>  @param[in]      geometry                 Mesh domain geometry.
-!>  @param[in]      topology                 Indicates layout of mesh connectivity
-!>  @param[in]      coord_sys                Co-ordinate system used to convey
-!>                                           node locations.
-!>  @param[in]      periodic_x               Periodic in E-W direction.
-!>  @param[in]      periodic_y               Periodic in N-S direction.
-!>  @param[in]      npanels                  Number of panels in this mesh
-!>  @param[in]      north_pole               [Longitude, Latitude] of norht pole
-!>                                           for domain orientation (degrees)
-!>  @param[in]      null_island              [Longitude, Latitude] of null
-!>                                           island for domain orientation (degrees)
-!>  @param[in]      max_stencil_depth        The max stencil depth that this
-!>                                           mesh supports.
-!>  @param[in]      constructor_inputs       Inputs used to create this mesh
-!>                                           from the ugrid_generator
-!>  @param[in]      num_nodes                The number of nodes on the mesh.
-!>  @param[in]      num_edges                The number of edges on the mesh.
-!>  @param[in]      num_faces                The number of faces on the mesh.
-!>  @param[in]      node_coordinates         Coordinates of each node.
-!>  @param[in]      face_coordinates         Coordinates of each face.
-!>  @param[in]      coord_units_x            Units of x coordinates.
-!>  @param[in]      coord_units_y            Units of y coordinates.
-!>  @param[in]      void_cell                Values to mark a cell as external
-!>                                           to domain.
-!>  @param[in]      face_node_connectivity   Nodes adjoining each face.
-!>  @param[in]      edge_node_connectivity   Nodes adjoining each edge.
-!>  @param[in]      face_edge_connectivity   Edges adjoining each face.
-!>  @param[in]      face_face_connectivity   Faces adjoining each face (links).
-!>  @param[in]      num_targets              Number of mesh maps from mesh
-!>  @param[in]      target_mesh_names        Mesh(es) that this mesh has maps for
-!>  @param[in]      target_global_mesh_maps  Mesh maps from this mesh to target mesh(es)
 
 !-------------------------------------------------------------------------------
-subroutine append_mesh( self, mesh_name, geometry, topology, coord_sys,    &
-                        periodic_x, periodic_y, npanels,                   &
+!> @brief Adds a mesh to an existing NetCDF ugrid file
+!> @details Adds mesh data to NetCDF UGRID mesh file:
+!>          * dimension
+!>          * coordinates
+!>          * connectivity information
+!>          * partition information
+!>          * mesh metadata
+!>
+!> @param[in] mesh_name                Name of the mesh topology.
+!> @param[in] geometry                 Mesh domain geometry.
+!> @param[in] coord_sys                Co-ordinate system used to convey
+!>                                     node locations.
+!> @param[in] north_pole               [Longitude, Latitude] of north pole
+!>                                     for domain orientation
+!> @param[in] null_island              [Longitude, Latitude] of null
+!>                                     island for domain orientation
+!> @param[in] num_nodes                The number of nodes on the mesh.
+!> @param[in] num_edges                The number of edges on the mesh.
+!> @param[in] num_faces                The number of faces on the mesh.
+!> @param[in] node_coordinates         Coordinates of each node.
+!> @param[in] face_coordinates         Coordinates of each face.
+!> @param[in] coord_units_x            Units of x coordinates.
+!> @param[in] coord_units_y            Units of y coordinates.
+!> @param[in] void_cell                Values to mark a cell as external
+!>                                     to domain.
+!> @param[in] face_node_connectivity   Nodes adjoining each face.
+!> @param[in] face_edge_connectivity   Edges adjoining each face.
+!> @param[in] face_face_connectivity   Faces adjoining each face (links).
+!> @param[in] edge_node_connectivity   Nodes adjoining each edge.
+!> @param[in] topology                 Indicates layout of mesh connectivity
+!> @param[in] periodic_x               Periodic in E-W direction.
+!> @param[in] periodic_y               Periodic in N-S direction.
+!> @param[in] domain_size              Size of global mesh domain in x/y-axes.
+!> @param[in] npanels                  Number of panels in this mesh
+!> @param[in] rim_depth                Depth in cells of global mesh rim (LBC meshes).
+!> @param[in] constructor_inputs       Inputs used to create this mesh
+!>                                     from the ugrid_generator
+!> @param[in] partition_of             Name of mesh that (local mesh) is a partition of.
+!> @param[in] num_faces_global         Number of cells in the global mesh given by `partition_of`
+!> @param[in] max_stencil_depth        Maximum stencil supported by this local mesh.
+!> @param[in] inner_depth              Depth (in cells) of inner halos inward from edge cell layer.
+!> @param[in] num_inner                Number of cells at each inner halo depth.
+!> @param[in] last_inner_cell          Local id of the last cell at each inner halo depth.
+!> @param[in] halo_depth               Depth (in cells) of halos outward from edge cell layer.
+!> @param[in] num_halo                 Number of cells at each halo depth.
+!> @param[in] last_halo_cell           Local id of the last cell at each halo depth.
+!> @param[in] num_edge                 Number of cells in the partition edge cell layer.
+!> @param[in] last_edge_cell           Local id of the last cell in the edge cell layer.
+!> @param[in] num_ghost                Number of cells in the ghost cell layer.
+!> @param[in] last_ghost_cell          Local id of the last cell in the ghost cell layer.
+!> @param[in] node_cell_owner          Cell that "owns" a given node.
+!> @param[in] edge_cell_owner          Cell that "owns" a given edge.
+!> @param[in] cell_gid                 Global ids of local mesh cells.
+!>                                     (partition, halos and ghost cells).
+!> @param[in] node_on_cell_gid         Local node on cell connectivities listed with
+!>                                     the node global ids.
+!> @param[in] edge_on_cell_gid         Local node on cell connectivities listed with
+!>                                     the node global ids.
+!> @param[in] num_targets              Number of mesh maps from mesh.
+!> @param[in] target_mesh_names        Mesh(es) that this mesh has maps for.
+!> @param[in] target_global_mesh_maps  Mesh maps from this global mesh to target mesh(es).
+!> @param[in] target_local_mesh_maps   Mesh maps from this local mesh to target mesh(es).
+!-------------------------------------------------------------------------------
+subroutine append_mesh( self,                                              &
+
+                        ! Common mesh type variables.
+                        mesh_name, geometry, coord_sys,                    &
                         north_pole, null_island,                           &
-                        max_stencil_depth,                                 &
-                        constructor_inputs,                                &
                         num_nodes, num_edges, num_faces,                   &
                         node_coordinates, face_coordinates,                &
-                        coord_units_x, coord_units_y,                      &
-                        void_cell,                                         &
-                        face_node_connectivity, edge_node_connectivity,    &
-                        face_edge_connectivity, face_face_connectivity,    &
+                        coord_units_x, coord_units_y, void_cell,           &
+                        face_node_connectivity, face_edge_connectivity,    &
+                        face_face_connectivity, edge_node_connectivity,    &
 
-                        ! Intergrid maps
-                        num_targets, target_mesh_names, &
-                        target_global_mesh_maps )
+                        ! Global mesh variables.
+                        topology, periodic_x, periodic_y, domain_size,     &
+                        npanels, rim_depth, constructor_inputs,            &
+
+                        ! Partition variables.
+                        partition_of, num_faces_global, max_stencil_depth, &
+                        inner_depth, num_inner, last_inner_cell,           &
+                        halo_depth,  num_halo,  last_halo_cell,            &
+                        num_edge,  last_edge_cell,                         &
+                        num_ghost, last_ghost_cell,                        &
+                        node_cell_owner, edge_cell_owner,                  &
+                        cell_gid, node_on_cell_gid, edge_on_cell_gid,      &
+
+                        ! Inter-grid maps.
+                        num_targets, target_mesh_names,                    &
+                        target_global_mesh_maps, target_local_mesh_maps )
 
   implicit none
 
   ! Arguments
-  class(ncdf_quad_type), intent(inout) :: self
+  class(ncdf_quad_type),  intent(inout) :: self
 
-  character(str_def),      intent(in)  :: mesh_name
-  character(str_def),      intent(in)  :: geometry
-  character(str_def),      intent(in)  :: topology
-  character(str_def),      intent(in)  :: coord_sys
-  logical(l_def),          intent(in)  :: periodic_x
-  logical(l_def),          intent(in)  :: periodic_y
-  integer(i_def),          intent(in)  :: npanels
-  integer(i_def),          intent(in)  :: max_stencil_depth
-  character(str_longlong), intent(in)  :: constructor_inputs
-  integer(i_def),          intent(in)  :: num_nodes
-  integer(i_def),          intent(in)  :: num_edges
-  integer(i_def),          intent(in)  :: num_faces
-  real(r_def),             intent(in)  :: node_coordinates(:,:)
-  real(r_def),             intent(in)  :: face_coordinates(:,:)
-  character(str_def),      intent(in)  :: coord_units_x
-  character(str_def),      intent(in)  :: coord_units_y
-  integer(i_def),          intent(in)  :: void_cell
-  integer(i_def),          intent(in)  :: face_node_connectivity(:,:)
-  integer(i_def),          intent(in)  :: edge_node_connectivity(:,:)
-  integer(i_def),          intent(in)  :: face_edge_connectivity(:,:)
-  integer(i_def),          intent(in)  :: face_face_connectivity(:,:)
-
-  integer(i_def),          intent(in)  :: num_targets
-
-  character(str_def),      intent(in),    &
-                           allocatable :: target_mesh_names(:)
-  type(global_mesh_map_collection_type),  &
-                           intent(in), pointer  :: target_global_mesh_maps
-
-  ! Information about the domain orientation
+  ! Common mesh variables.
+  character(str_def),  intent(in) :: mesh_name
+  character(str_def),  intent(in) :: geometry
+  character(str_def),  intent(in) :: coord_sys
   real(r_def),         intent(in) :: north_pole(2)
   real(r_def),         intent(in) :: null_island(2)
+
+  integer(i_def),      intent(in) :: num_nodes
+  integer(i_def),      intent(in) :: num_edges
+  integer(i_def),      intent(in) :: num_faces
+  real(r_def),         intent(in) :: node_coordinates(:,:)
+  real(r_def),         intent(in) :: face_coordinates(:,:)
+  character(str_def),  intent(in) :: coord_units_x
+  character(str_def),  intent(in) :: coord_units_y
+  integer(i_def),      intent(in) :: void_cell
+  integer(i_def),      intent(in) :: face_node_connectivity(:,:)
+  integer(i_def),      intent(in) :: face_edge_connectivity(:,:)
+  integer(i_def),      intent(in) :: face_face_connectivity(:,:)
+  integer(i_def),      intent(in) :: edge_node_connectivity(:,:)
+
+  ! Global mesh only variables
+  character(str_def),  intent(in) :: topology
+  logical(l_def),      intent(in) :: periodic_x
+  logical(l_def),      intent(in) :: periodic_y
+  real(r_def),         intent(in) :: domain_size(2)
+  integer(i_def),      intent(in) :: npanels
+  integer(i_def),      intent(in) :: rim_depth
+
+  character(str_longlong), intent(in) :: constructor_inputs
+
+  ! Partition variables
+  character(str_def), intent(in) :: partition_of
+  integer(i_def),     intent(in) :: num_faces_global
+  integer(i_def),     intent(in) :: max_stencil_depth
+
+  integer(i_def), intent(in) :: inner_depth, num_inner(:), last_inner_cell(:)
+  integer(i_def), intent(in) :: halo_depth,  num_halo(:),  last_halo_cell(:)
+  integer(i_def), intent(in) :: num_edge,  last_edge_cell
+  integer(i_def), intent(in) :: num_ghost, last_ghost_cell
+  integer(i_def), intent(in) :: node_cell_owner(:)
+  integer(i_def), intent(in) :: edge_cell_owner(:)
+  integer(i_def), intent(in) :: cell_gid(:)
+  integer(i_def), intent(in) :: node_on_cell_gid(:,:)
+  integer(i_def), intent(in) :: edge_on_cell_gid(:,:)
+
+  ! Inter-grid maps
+  integer(i_def),     intent(in) :: num_targets
+  character(str_def), intent(in), allocatable :: target_mesh_names(:)
+  type(global_mesh_map_collection_type), &
+                      intent(in), pointer     :: target_global_mesh_maps
+  type(local_mesh_map_collection_type),  &
+                      intent(in), pointer     :: target_local_mesh_maps
+
 
   ! Internal variables
   character(*), parameter :: routine = 'append_mesh'
@@ -2154,33 +2935,61 @@ subroutine append_mesh( self, mesh_name, geometry, topology, coord_sys,    &
   ierr = nf90_redef(self%ncid)
   call check_err(ierr, routine, cmess)
 
-  call self%write_mesh(                                  &
-      mesh_name  = mesh_name,                            &
-      geometry   = geometry,                             &
-      topology   = topology,                             &
-      coord_sys  = coord_sys,                            &
-      periodic_x = periodic_x,                           &
-      periodic_y = periodic_y,                           &
-      npanels    = npanels,                              &
-      max_stencil_depth  = max_stencil_depth,            &
-      constructor_inputs = constructor_inputs,           &
-      num_nodes  = num_nodes,                            &
-      num_edges  = num_edges,                            &
-      num_faces  = num_faces,                            &
-      node_coordinates = node_coordinates,               &
-      face_coordinates = face_coordinates,               &
-      coord_units_x    = coord_units_x,                  &
-      coord_units_y    = coord_units_y,                  &
-      void_cell        = void_cell,                      &
-      face_node_connectivity = face_node_connectivity,   &
-      edge_node_connectivity = edge_node_connectivity,   &
-      face_edge_connectivity = face_edge_connectivity,   &
-      face_face_connectivity = face_face_connectivity,   &
-      num_targets       = num_targets,                   &
-      target_mesh_names = target_mesh_names,             &
-      target_global_mesh_maps = target_global_mesh_maps, &
-      north_pole = north_pole,                           &
-      null_island = null_island )
+  call self%write_mesh(                                 &
+       ! Common variables
+       mesh_name              = mesh_name,              &
+       geometry               = geometry,               &
+       coord_sys              = coord_sys,              &
+       north_pole             = north_pole,             &
+       null_island            = null_island,            &
+       num_nodes              = num_nodes,              &
+       num_edges              = num_edges,              &
+       num_faces              = num_faces,              &
+       node_coordinates       = node_coordinates,       &
+       face_coordinates       = face_coordinates,       &
+       coord_units_x          = coord_units_x,          &
+       coord_units_y          = coord_units_y,          &
+       void_cell              = void_cell,              &
+       face_node_connectivity = face_node_connectivity, &
+       face_edge_connectivity = face_edge_connectivity, &
+       face_face_connectivity = face_face_connectivity, &
+       edge_node_connectivity = edge_node_connectivity, &
+
+       ! Global mesh info
+       topology           = topology,             &
+       periodic_x         = periodic_x,           &
+       periodic_y         = periodic_y,           &
+       domain_size        = domain_size,          &
+       npanels            = npanels,              &
+       rim_depth          = rim_depth,            &
+       constructor_inputs = constructor_inputs,   &
+
+       ! Partition info
+       partition_of       = partition_of,         &
+       num_faces_global   = num_faces_global,     &
+       max_stencil_depth  = max_stencil_depth,    &
+       inner_depth        = inner_depth,          &
+       num_inner          = num_inner,            &
+       last_inner_cell    = last_inner_cell,      &
+       halo_depth         = halo_depth,           &
+       num_halo           = num_halo,             &
+       last_halo_cell     = last_halo_cell,       &
+       num_edge           = num_edge,             &
+       last_edge_cell     = last_edge_cell,       &
+       num_ghost          = num_ghost,            &
+       last_ghost_cell    = last_ghost_cell,      &
+       node_cell_owner    = node_cell_owner,      &
+       edge_cell_owner    = edge_cell_owner,      &
+       cell_gid           = cell_gid,             &
+       node_on_cell_gid   = node_on_cell_gid,     &
+       edge_on_cell_gid   = edge_on_cell_gid,     &
+
+       ! Intergrid maps
+       num_targets             = num_targets,             &
+       target_mesh_names       = target_mesh_names,       &
+       target_global_mesh_maps = target_global_mesh_maps, &
+       target_local_mesh_maps  = target_local_mesh_maps )
+
   return
 end subroutine append_mesh
 

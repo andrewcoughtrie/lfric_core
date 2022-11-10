@@ -48,6 +48,8 @@ module local_mesh_mod
 
     private
 
+  ! Variables referring to local mesh
+  !====================================
   ! Tag name of mesh.
     character(str_def) :: mesh_name
   ! Domain surface geometry.
@@ -56,12 +58,38 @@ module local_mesh_mod
     integer(i_native)  :: topology = emdi
   ! Co-ordinate system used to specify node locations.
     integer(i_native)  :: coord_sys = emdi
+  ! Co-ordinate units along xy-axes.
+    character(str_def) :: coord_units_xy(2) = cmdi
+  ! Marker id for cells that do not exist for mesh.
+    integer(i_def)     :: void_cell = 0_i_def
+  ! North pole location [lon,lat] for ll/spherical mesh.
+    real(r_def)        :: north_pole(2)  = rmdi
+  ! Null island location [lon,lat] for ll/spherical mesh.
+    real(r_def)        :: null_island(2) = rmdi
   ! Number of vertices on each cell.
     integer(i_def)     :: nverts_per_cell
   ! Number of vertices on each edge.
     integer(i_def)     :: nverts_per_edge
   ! Number of edges on each cell.
     integer(i_def)     :: nedges_per_cell
+  ! Number of unique vertices in the local mesh.
+    integer(i_def)     :: n_unique_vertices
+  ! Number of unique edges in the local mesh.
+    integer(i_def)     :: n_unique_edges
+  ! Horizontal coords of vertices in local domain.
+    real(r_def),    allocatable :: vert_coords(:,:)
+  ! Local domain cell to cell lid connectivities.
+    integer(i_def), allocatable :: cell_next(:,:)
+  ! Local IDs of vertices connected to local 2D cell.
+    integer(i_def), allocatable :: vert_on_cell(:,:)
+  ! Local IDs of edges connected to local 2D cell.
+    integer(i_def), allocatable :: edge_on_cell(:,:)
+  ! Local IDs of vertices connected to local 2D edge.
+    integer(i_def), allocatable :: vert_on_edge(:,:)
+
+
+  ! Variables referring to local partition
+  !========================================
   ! Number of cells in a 2D slice of the local partition.
   ! (not inc ghost cells).
     integer(i_def)     :: num_cells_in_layer
@@ -69,26 +97,16 @@ module local_mesh_mod
   ! cells first followed by the edge cells and finally the halo cells ordered
   ! by depth of halo.
     integer(i_def), allocatable :: global_cell_id( : )
-  ! Number of unique vertices in the local mesh.
-    integer(i_def) :: n_unique_vertices
-  ! Number of unique edges in the local mesh.
-    integer(i_def) :: n_unique_edges
-  ! Horizontal coords of vertices in local domain.
-    real(r_def), allocatable    :: vert_coords(:,:)
-  ! Local IDs of vertices connected to local 2D cell.
-    integer(i_def), allocatable :: vert_on_cell(:,:)
-  ! Local IDs of edges connected to local 2D cell.
-    integer(i_def), allocatable :: edge_on_cell(:,:)
   ! Global IDs of vertices connected to local 2D cell.
     integer(i_def), allocatable :: vert_on_cell_gid(:,:)
   ! Global IDs of edges connected to local 2D cell.
     integer(i_def), allocatable :: edge_on_cell_gid(:,:)
+  ! Global IDs of vertices connected to local 2D edge.
+    integer(i_def), allocatable :: vert_on_edge_gid(:,:)
   ! Cell that "owns" each vertex.
     integer(i_def), allocatable :: vert_cell_owner(:)
   ! Cell that "owns" each edge.
     integer(i_def), allocatable :: edge_cell_owner(:)
-  ! Local domain cell to cell lid connectivities.
-    integer(i_def), allocatable :: cell_next(:,:)
   ! A list of the ranks that own all the cells known to this partition
   ! held in the order of cells in the <code>global_cell_id</code> array
     integer(i_def), allocatable :: cell_owner( : )
@@ -116,33 +134,40 @@ module local_mesh_mod
     integer(i_def)              :: num_ghost
   ! The index of the last "ghost" cell in the <code>global_cell_id</code> list.
     integer(i_def)              :: last_ghost_cell
+  ! Maximum stencil depth supported by this mesh partition.
+    integer(i_def)              :: max_stencil_depth = imdi
+
+
+  ! Variables referring to integrid maps
+  !================================================================
+  ! Number of intergrid mesh maps assigned to this mesh.
+    integer(i_def) :: ntarget_meshes
+
+  ! Mesh names or target meshes for intergrid maps.
+    character(str_def), allocatable :: target_mesh_names(:)
+
   ! Collection of local mesh maps associated with this mesh.
-    type(local_mesh_map_collection_type), allocatable :: &
-                                   local_mesh_maps
+    type(local_mesh_map_collection_type), allocatable :: local_mesh_maps
+
+
+  ! Variables referring to the global mesh of which this
+  ! local mesh is a member
+  !================================================================
   ! Number of panels in the global mesh.
-    integer(i_def)              :: npanels
+    integer(i_def) :: npanels
 
   ! Number of cells in the global mesh.
-    integer(i_def)              :: ncells_global_mesh
+    integer(i_def) :: ncells_global_mesh
 
-  ! Max stencil depth supported by this mesh partition.
-    integer(i_def)           :: max_stencil_depth = imdi
+  ! Domain size of global mesh along x/y-axes
+    real(r_def)    :: domain_size(2) = rmdi
 
-    integer(i_def)           :: ntarget_meshes
-    character(str_def)       :: coord_units_xy(2) = cmdi
+  ! Rim depth in cells (LBC meshes)
+    integer(i_def) :: rim_depth = imdi
+
+  ! Contructor arguments use to instantiate global mesh
     character(str_longlong)  :: constructor_inputs
 
-    real(r_def)              :: north_pole(2)  = rmdi
-    real(r_def)              :: null_island(2) = rmdi
-
-    real(r_def)              :: domain_size(2) = rmdi
-    integer(i_def)           :: rim_depth      = imdi
-
-  ! Local IDs of vertices connected to local 2D edge.
-    integer(i_def), allocatable :: vert_on_edge(:,:)
-    integer(i_def), allocatable :: vert_on_edge_gid(:,:)
-
-    character(str_def), allocatable :: target_mesh_names(:)
 
   contains
     procedure, public  :: initialise_full
@@ -187,6 +212,8 @@ module local_mesh_mod
     procedure, public  :: add_local_mesh_map
     procedure, public  :: get_local_mesh_map
     procedure, public  :: get_mesh_maps
+    procedure, public  :: get_all_gid
+    procedure, public  :: get_void_cell
 
     procedure, public :: is_geometry_spherical
     procedure, public :: is_geometry_planar
@@ -196,7 +223,7 @@ module local_mesh_mod
     procedure, public :: is_coord_sys_xyz
     procedure, public :: is_coord_sys_ll
 
-    procedure, public :: get_all_gid
+    procedure, public :: as_ugrid_2d
 
     final :: local_mesh_destructor
   end type local_mesh_type
@@ -282,6 +309,7 @@ contains
     self%domain_size = global_mesh%get_domain_size()
     self%north_pole  = global_mesh%get_north_pole()
     self%null_island = global_mesh%get_null_island()
+    self%void_cell   = global_mesh%get_void_cell()
 
     ! Extract the info that makes up a local mesh from the
     ! global mesh and partition.
@@ -327,16 +355,21 @@ contains
     do cell_lid = 1, self%last_ghost_cell
       cell_gid = self%get_gid_from_lid(cell_lid)
       call global_mesh%get_cell_next( cell_gid, self%cell_next(:,cell_lid) )
+
       ! Convert the cell_next GIDs into LIDs.
+!print*, '(local_mesh_gid)', self%cell_next(:,cell_lid)
       do edge = 1, self%nedges_per_cell
         if (self%get_lid_from_gid(self%cell_next(edge,cell_lid)) > 0) then
           self%cell_next(edge,cell_lid) = &
                  self%get_lid_from_gid(self%cell_next(edge,cell_lid))
         else
+!print*,'initialising cell oustide domain '
           ! If lid is zero (or -ve) cell next is outside domain - so set to zero.
-          self%cell_next(edge,cell_lid) = 0_i_def
+          self%cell_next(edge,cell_lid) = global_mesh%get_void_cell() !0__i_def
         end if
       end do
+
+!      print*, 'local lam cell_next ', self%cell_next(:,cell_lid)
     end do
 
     ! Vertices on a cell
@@ -578,14 +611,14 @@ contains
 
   integer(i_def) :: i, vert, edge, vert_count, edge_count
 
-  integer(i_def), parameter :: LAM_NO_CELL_NEXT = 0_i_def
+  integer(i_def) :: LAM_NO_CELL_NEXT ! = 0_i_def
 
   ! NO_CELL_NEXT parameter will indicate there is no
   ! cell at the given location. It also implies that
   ! the looping cell is on adjacent to the inner domain
   ! as a 0 (from the LAM cell next) will indicate the looping
   ! cell is on the outer edge of domain.
-  integer(i_def), parameter :: NO_CELL_NEXT = -10_i_def
+  integer(i_def) :: NO_CELL_NEXT     ! = -10_i_def
 
   !     0000000000000000000000
   !     0+------------------+0
@@ -593,6 +626,8 @@ contains
   !     0| +--------------+ |0
   !     0| | NO_CELL_NEXT | |0
 
+  LAM_NO_CELL_NEXT = global_lam_mesh%get_void_cell()
+  NO_CELL_NEXT     = global_lbc_mesh%get_void_cell()
 
   ! All local meshes to have a unique id, note:
   ! This id is only valid for the program duration.
@@ -648,9 +683,14 @@ contains
   self%rim_depth          = global_lbc_mesh%get_rim_depth()
   self%north_pole         = global_lbc_mesh%get_north_pole()
   self%null_island        = global_lbc_mesh%get_null_island()
+  self%void_cell          = global_lbc_mesh%get_void_cell()
+
   self%ntarget_meshes     = 1_i_def
   self%coord_units_xy     = global_lbc_mesh%get_coord_units()
   self%domain_size        = global_lam_mesh%get_domain_size()
+
+  allocate(self%target_mesh_names(1))
+  self%target_mesh_names(1) = global_lam_mesh%get_mesh_name()
 
   if (allocated(self%local_mesh_maps)) deallocate(self%local_mesh_maps)
   allocate(self%local_mesh_maps)
@@ -686,7 +726,7 @@ contains
   allocate(tmp_lam_lids(local_lam_last_edge_cell))
   allocate(cell_lam_lbc_map(n_layer_cells + n_ghost_cells))
 
-  cell_lam_lbc_map = NO_CELL_NEXT
+  cell_lam_lbc_map = self%void_cell
 
   local_lbc_id = 0_i_def
 
@@ -764,12 +804,15 @@ contains
   allocate( self%cell_next(self%nedges_per_cell, self%last_edge_cell) )
   self%num_edge = 0_i_def
 
+! self%tmp_cell_next(:,:) = 0_i_def
+
   do local_lbc_id=1, self%last_edge_cell
 
     local_lam_id = cell_lbc_lam_map(local_lbc_id)
     call local_lam_mesh%get_cell_next( local_lam_id, tmp_cell_next )
 
     do i=1, self%nedges_per_cell
+!print*, tmp_cell_next(i), LAM_NO_CELL_NEXT, NO_CELL_NEXT
       if (tmp_cell_next(i) == LAM_NO_CELL_NEXT) then
         tmp_cell_next(i) = NO_CELL_NEXT
       else
@@ -1038,6 +1081,8 @@ contains
     self%geometry  = planar_domain
     self%topology  = periodic_domain
     self%coord_sys = xyz_coords
+    self%void_cell = -9999_i_def
+
 
     local_mesh_id_counter = local_mesh_id_counter + 1
     call self%set_id( local_mesh_id_counter )
@@ -2143,6 +2188,113 @@ contains
 
   end function get_mesh_maps
 
+
+
+  !==============================================================================
+  !> @brief
+  !>
+  !==============================================================================
+  subroutine as_ugrid_2d( self, ugrid_2d )
+
+    use ugrid_2d_mod, only: ugrid_2d_type
+
+    implicit none
+
+    class (local_mesh_type), intent(in) :: self
+
+    type (ugrid_2d_type), intent(inout)  :: ugrid_2d
+
+    character(str_def) :: geometry
+    character(str_def) :: coord_sys
+    character(str_def) :: topology
+    character(str_def) :: units_xy(2)
+    real(r_def)        :: factor
+
+
+    if (self%is_geometry_spherical())    geometry  = 'spherical'
+    if (self%is_geometry_planar())       geometry  = 'planar'
+    if (self%is_coord_sys_ll())          coord_sys = 'll'
+    if (self%is_coord_sys_xyz())         coord_sys = 'xyz'
+    if (self%is_topology_periodic())     topology  = 'periodic'
+    if (self%is_topology_channel())      topology  = 'channel'
+    if (self%is_topology_non_periodic()) topology  = 'non_periodic'
+
+    call ugrid_2d%set_dimensions                             &
+            ( num_nodes          = self%n_unique_vertices,   &
+              num_edges          = self%n_unique_edges,      &
+              num_faces          = self%num_cells_in_layer + &
+                                   self%num_ghost,           &
+              num_nodes_per_face = self%nverts_per_cell,     &
+              num_edges_per_face = self%nedges_per_cell,     &
+              num_nodes_per_edge = self%nverts_per_edge )
+
+    if (trim(self%coord_units_xy(1)) == 'radians' .and. &
+        trim(self%coord_units_xy(2)) == 'radians') then
+      factor = radians_to_degrees
+      units_xy(1) = 'degrees_east'
+      units_xy(2) = 'degrees_north'
+    else
+      factor = 1.0_r_def
+      units_xy(:) = self%coord_units_xy(:)
+    end if
+
+    call ugrid_2d%set_coords( node_coords = factor * self%vert_coords, &
+                              north_pole  = factor * self%north_pole,  &
+                              null_island = factor * self%null_island, &
+                              coord_sys   = coord_sys,                 &
+                              units_xy    = units_xy )
+
+    call ugrid_2d%set_connectivity( nodes_on_faces=self%vert_on_cell, &
+                                    edges_on_faces=self%edge_on_cell, &
+                                    faces_on_faces=self%cell_next,    &
+                                    nodes_on_edges=self%vert_on_edge, &
+                                    void_cell=self%void_cell )
+
+    call ugrid_2d%set_partition_data( self%vert_cell_owner,  &
+                                      self%edge_cell_owner,  &
+                                      self%num_inner,        &
+                                      self%num_halo,         &
+                                      self%last_inner_cell,  &
+                                      self%last_halo_cell,   &
+                                      self%global_cell_id,   &
+                                      self%vert_on_cell_gid, &
+                                      self%edge_on_cell_gid )
+
+    call ugrid_2d%set_metadata(                             &
+              mesh_name          = self%mesh_name,          &
+              geometry           = geometry,                &
+              topology           = topology,                &
+              npanels            = self%npanels,            &
+              constructor_inputs = self%constructor_inputs, &
+              ncells_global_mesh = self%ncells_global_mesh, &
+              max_stencil_depth  = self%max_stencil_depth,  &
+              domain_size        = self%domain_size,        &
+              rim_depth          = self%rim_depth,          &
+              inner_depth        = self%inner_depth,        &
+              halo_depth         = self%halo_depth,         &
+              num_edge           = self%num_edge,           &
+              last_edge_cell     = self%last_edge_cell,     &
+              num_ghost          = self%num_ghost,          &
+              last_ghost_cell    = self%last_ghost_cell,    &
+              nmaps              = self%ntarget_meshes,     &
+              target_mesh_names  = self%target_mesh_names )
+
+    call ugrid_2d%set_mesh_maps( self%local_mesh_maps )
+
+    return
+  end subroutine as_ugrid_2d
+
+
+  function get_void_cell (self) result(void_cell)
+    implicit none
+
+    class (local_mesh_type), intent(in) :: self
+
+    integer(i_def) :: void_cell
+
+    void_cell = self%void_cell
+
+  end function get_void_cell
 
   !-------------------------------------------------------------------------------
   ! Performs a binary search through the given integer array. PRIVATE function.

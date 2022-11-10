@@ -12,10 +12,10 @@
 
 module ugrid_mesh_data_mod
 
-  use constants_mod,                  only: r_def, i_def, l_def, str_def, &
-                                            str_longlong, cmdi, imdi, rmdi
-  use log_mod,                        only: log_event, log_scratch_space, &
-                                            LOG_LEVEL_ERROR, LOG_LEVEL_TRACE
+  use constants_mod, only: r_def, i_def, l_def, str_def, &
+                           str_longlong, cmdi, imdi, rmdi
+  use log_mod,       only: log_event, log_scratch_space, &
+                           LOG_LEVEL_ERROR, LOG_LEVEL_TRACE
 
   implicit none
 
@@ -68,12 +68,12 @@ module ugrid_mesh_data_mod
     integer(i_def), allocatable :: node_on_edge_2d(:,:)
 
     !> Max. stencil depth (in cells) supported by local mesh.
-    integer(i_def) :: max_stencil_depth
+    integer(i_def) :: max_stencil_depth = imdi
     !> Constructor inputs of global parent meshes,
     !> i.e. global cubedsphere / planar meshes.
     character(str_longlong) :: constructor_inputs = cmdi
     !> Number of groups of cells with uniform orientation
-    !> (Global mesh).
+    !> (Global mesh)
     integer(i_def) :: npanels        = imdi
     !> Depth (in cells) of Global LBC mesh.
     integer(i_def) :: rim_depth      = imdi

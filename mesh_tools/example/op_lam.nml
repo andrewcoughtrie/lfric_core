@@ -24,6 +24,7 @@
 !     [longitude, latitude] in the units, degrees_east, degrees_north,
 !     respectively.
 !===================================================================
+
 &mesh
   mesh_filename  = 'LAM_locals.nc'
   n_meshes       = 2

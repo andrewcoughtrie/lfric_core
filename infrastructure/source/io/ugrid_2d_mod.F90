@@ -14,6 +14,8 @@ module ugrid_2d_mod
 use constants_mod,  only : i_def, r_def, str_def, str_longlong, l_def, &
                            imdi, rmdi, cmdi
 use ugrid_file_mod, only : ugrid_file_type
+
+use local_mesh_map_collection_mod,  only: local_mesh_map_collection_type
 use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
 
 implicit none
@@ -40,18 +42,16 @@ type, public :: ugrid_2d_type
 
   integer(i_def) :: npanels = imdi
 
-  logical(l_def) :: periodic_x = .false.   !< Periodic in E-W direction.
-  logical(l_def) :: periodic_y = .false.   !< Periodic in N-S direction.
+  logical(l_def) :: periodic_xy(2) = .false.    !< Periodic in x/y axes.
 
-  integer(i_def) :: max_stencil_depth = 0
-  integer(i_def) :: void_cell = 0
+  integer(i_def) :: max_stencil_depth = 0_i_def
+  integer(i_def) :: void_cell = 0_i_def
 
   character(str_longlong) :: constructor_inputs !< Inputs used to generate mesh.
 
   character(str_def) :: coord_units_xy(2) = cmdi
 
-  integer(i_def) :: edge_cells_x !< Number of cells on panel edge x-axis.
-  integer(i_def) :: edge_cells_y !< Number of cells on panel edge y-axis.
+  integer(i_def) :: edge_cells_xy(2) !< Number of cells on panel edge x/y-axes
 
   ! Numbers of different entities.
   integer(i_def) :: num_cells                !< Number of cells.
@@ -115,6 +115,9 @@ type, public :: ugrid_2d_type
   ! Global mesh maps
   type(global_mesh_map_collection_type), pointer :: target_global_mesh_maps => null()
 
+  ! Local mesh maps
+  type(local_mesh_map_collection_type),  pointer :: target_local_mesh_maps => null()
+
   ! Information about the domain orientation
   real(r_def)    :: north_pole(2)   !< [Longitude, Latitude] of northt pole used
                                     !< for the domain orientation (degrees)
@@ -144,11 +147,21 @@ contains
   procedure :: write_coordinates
 
   procedure :: set_global_mesh_maps
-  generic   :: set_mesh_maps => set_global_mesh_maps
-
+  procedure :: set_local_mesh_maps
+  generic   :: set_mesh_maps => set_global_mesh_maps, &
+                                set_local_mesh_maps
   procedure :: get_global_mesh_maps
   generic   :: get_mesh_maps => get_global_mesh_maps
 
+  !> @todo The following routines allow variables to bet set in
+  !> ugrid_2d objects. This is pragmatic in order to
+  !> avoid circular dependencies. Restructuring work should
+  !> remove these if possble.
+  procedure :: set_dimensions
+  procedure :: set_coords
+  procedure :: set_connectivity
+  procedure :: set_partition_data
+  procedure :: set_metadata
 
   !> Routine to destroy object
   procedure :: clear
@@ -380,10 +393,10 @@ subroutine set_by_generator(self, generator_strategy)
         geometry           = self%geometry,           &
         topology           = self%topology,           &
         coord_sys          = self%coord_sys,          &
-        periodic_x         = self%periodic_x,         &
-        periodic_y         = self%periodic_y,         &
-        edge_cells_x       = self%edge_cells_x,       &
-        edge_cells_y       = self%edge_cells_y,       &
+        periodic_x         = self%periodic_xy(1),     &
+        periodic_y         = self%periodic_xy(2),     &
+        edge_cells_x       = self%edge_cells_xy(1),   &
+        edge_cells_y       = self%edge_cells_xy(2),   &
         constructor_inputs = self%constructor_inputs, &
         north_pole         = self%north_pole,         &
         null_island        = self%null_island,        &
@@ -484,8 +497,8 @@ subroutine set_from_file_read(self, mesh_name, filename)
       geometry               = self%geometry,               &
       topology               = self%topology,               &
       coord_sys              = self%coord_sys,              &
-      periodic_x             = self%periodic_x,             &
-      periodic_y             = self%periodic_y,             &
+      periodic_x             = self%periodic_xy(1),         &
+      periodic_y             = self%periodic_xy(2),         &
       npanels                = self%npanels,                &
       max_stencil_depth      = self%max_stencil_depth,      &
       constructor_inputs     = self%constructor_inputs,     &
@@ -508,15 +521,15 @@ subroutine set_from_file_read(self, mesh_name, filename)
   return
 end subroutine set_from_file_read
 
+
 !-------------------------------------------------------------------------------
 !> @brief   Writes stored ugrid information to data file.
 !> @details Calls back to the file handler strategy (component) in order to
 !>          read the ugrid mesh data and populate internal arrays with data
 !>          from a file.
 !>
-!> @param[in] filename  Filenameto write contents to.
+!> @param[in] filename  Filename to write contents to.
 !-------------------------------------------------------------------------------
-
 subroutine write_to_file(self, filename)
 
   use ugrid_generator_mod, only: ugrid_generator_type
@@ -530,18 +543,13 @@ subroutine write_to_file(self, filename)
   call self%file_handler%file_new(trim(filename))
 
   call self%file_handler%write_mesh(                         &
+
+       ! Common mesh type variables.
        mesh_name              = self%mesh_name,              &
        geometry               = self%geometry,               &
-       topology               = self%topology,               &
        coord_sys              = self%coord_sys,              &
-       periodic_x             = self%periodic_x,             &
-       periodic_y             = self%periodic_y,             &
-       npanels                = self%npanels,                &
        north_pole             = self%north_pole,             &
        null_island            = self%null_island,            &
-       max_stencil_depth      = self%max_stencil_depth,      &
-       constructor_inputs     = self%constructor_inputs,     &
-
        num_nodes              = self%num_nodes,              &
        num_edges              = self%num_edges,              &
        num_faces              = self%num_faces,              &
@@ -551,22 +559,50 @@ subroutine write_to_file(self, filename)
        coord_units_y          = self%coord_units_xy(2),      &
        void_cell              = self%void_cell,              &
        face_node_connectivity = self%face_node_connectivity, &
-       edge_node_connectivity = self%edge_node_connectivity, &
        face_edge_connectivity = self%face_edge_connectivity, &
        face_face_connectivity = self%face_face_connectivity, &
+       edge_node_connectivity = self%edge_node_connectivity, &
 
-       ! Intergrid maps
-       num_targets             = self%nmaps,             &
-       target_mesh_names       = self%target_mesh_names, &
-       target_global_mesh_maps = self%target_global_mesh_maps )
+       ! Global mesh variables.
+       topology           = self%topology,           &
+       periodic_x         = self%periodic_xy(1),     &
+       periodic_y         = self%periodic_xy(2),     &
+       domain_size        = self%domain_size,        &
+       npanels            = self%npanels,            &
+       rim_depth          = self%rim_depth,          &
+       constructor_inputs = self%constructor_inputs, &
 
+       ! Partition variables.
+       partition_of       = self%partition_of,       &
+       num_faces_global   = self%num_faces_global,   &
+       max_stencil_depth  = self%max_stencil_depth,  &
+       inner_depth        = self%inner_depth,        &
+       num_inner          = self%num_inner,          &
+       last_inner_cell    = self%last_inner_cell,    &
+       halo_depth         = self%halo_depth,         &
+       num_halo           = self%num_halo,           &
+       last_halo_cell     = self%last_halo_cell,     &
+       num_edge           = self%num_edge,           &
+       last_edge_cell     = self%last_edge_cell,     &
+       num_ghost          = self%num_ghost,          &
+       last_ghost_cell    = self%last_ghost_cell,    &
+       node_cell_owner    = self%node_cell_owner,    &
+       edge_cell_owner    = self%edge_cell_owner,    &
+       cell_gid           = self%cell_gid,           &
+       node_on_cell_gid   = self%node_on_cell_gid,   &
+       edge_on_cell_gid   = self%edge_on_cell_gid,   &
 
+       ! Inter-grid maps.
+       num_targets             = self%nmaps,                   &
+       target_mesh_names       = self%target_mesh_names,       &
+       target_global_mesh_maps = self%target_global_mesh_maps, &
+       target_local_mesh_maps  = self%target_local_mesh_maps )
 
   call self%file_handler%file_close()
 
-
   return
 end subroutine write_to_file
+
 
 !-------------------------------------------------------------------------------
 !> @brief   Appends stored ugrid information to existing ugrid data file.
@@ -576,7 +612,6 @@ end subroutine write_to_file
 !>
 !> @param[in] filename  Output file to open to add data.
 !-------------------------------------------------------------------------------
-
 subroutine append_to_file(self, filename)
 
   use ugrid_generator_mod, only: ugrid_generator_type
@@ -585,22 +620,18 @@ subroutine append_to_file(self, filename)
 
   ! Arguments
   class(ugrid_2d_type), intent(inout) :: self
-  character(len=*),     intent(in) :: filename
+  character(len=*),     intent(in)    :: filename
 
   call self%file_handler%file_open(trim(filename))
 
   call self%file_handler%append_mesh(                        &
+
+       ! Common mesh type variables
        mesh_name              = self%mesh_name,              &
        geometry               = self%geometry,               &
-       topology               = self%topology,               &
        coord_sys              = self%coord_sys,              &
-       periodic_x             = self%periodic_x,             &
-       periodic_y             = self%periodic_y,             &
-       npanels                = self%npanels,                &
        north_pole             = self%north_pole,             &
        null_island            = self%null_island,            &
-       max_stencil_depth      = self%max_stencil_depth,      &
-       constructor_inputs     = self%constructor_inputs,     &
        num_nodes              = self%num_nodes,              &
        num_edges              = self%num_edges,              &
        num_faces              = self%num_faces,              &
@@ -610,14 +641,44 @@ subroutine append_to_file(self, filename)
        coord_units_y          = self%coord_units_xy(2),      &
        void_cell              = self%void_cell,              &
        face_node_connectivity = self%face_node_connectivity, &
-       edge_node_connectivity = self%edge_node_connectivity, &
        face_edge_connectivity = self%face_edge_connectivity, &
        face_face_connectivity = self%face_face_connectivity, &
+       edge_node_connectivity = self%edge_node_connectivity, &
 
-       ! InterGrid Maps
-       num_targets             = self%nmaps,             &
-       target_mesh_names       = self%target_mesh_names, &
-       target_global_mesh_maps = self%target_global_mesh_maps )
+       ! Global mesh variables.
+       topology           = self%topology,           &
+       periodic_x         = self%periodic_xy(1),     &
+       periodic_y         = self%periodic_xy(2),     &
+       domain_size        = self%domain_size,        &
+       npanels            = self%npanels,            &
+       rim_depth          = self%rim_depth,          &
+       constructor_inputs = self%constructor_inputs, &
+
+      ! Partition variables
+       partition_of       = self%partition_of,       &
+       num_faces_global   = self%num_faces_global,   &
+       max_stencil_depth  = self%max_stencil_depth,  &
+       inner_depth        = self%inner_depth,        &
+       num_inner          = self%num_inner,          &
+       last_inner_cell    = self%last_inner_cell,    &
+       halo_depth         = self%halo_depth,         &
+       num_halo           = self%num_halo,           &
+       last_halo_cell     = self%last_halo_cell,     &
+       num_edge           = self%num_edge,           &
+       last_edge_cell     = self%last_edge_cell,     &
+       num_ghost          = self%num_ghost,          &
+       last_ghost_cell    = self%last_ghost_cell,    &
+       node_cell_owner    = self%node_cell_owner,    &
+       edge_cell_owner    = self%edge_cell_owner,    &
+       cell_gid           = self%cell_gid,           &
+       node_on_cell_gid   = self%node_on_cell_gid,   &
+       edge_on_cell_gid   = self%edge_on_cell_gid,   &
+
+       ! Intergrid maps
+       num_targets             = self%nmaps,                   &
+       target_mesh_names       = self%target_mesh_names,       &
+       target_global_mesh_maps = self%target_global_mesh_maps, &
+       target_local_mesh_maps  = self%target_local_mesh_maps )
 
   call self%file_handler%file_close()
 
@@ -733,13 +794,13 @@ subroutine get_metadata( self, mesh_name,                 &
   if (present(topology))           topology           = self%topology
   if (present(coord_sys))          coord_sys          = self%coord_sys
   if (present(npanels ))           npanels            = self%npanels
-  if (present(periodic_x))         periodic_x         = self%periodic_x
-  if (present(periodic_y))         periodic_y         = self%periodic_y
+  if (present(periodic_x))         periodic_x         = self%periodic_xy(1)
+  if (present(periodic_y))         periodic_y         = self%periodic_xy(2)
   if (present(max_stencil_depth))  max_stencil_depth  = self%max_stencil_depth
   if (present(void_cell))          void_cell          = self%void_cell
   if (present(constructor_inputs)) constructor_inputs = self%constructor_inputs
-  if (present(edge_cells_x))       edge_cells_x       = self%edge_cells_x
-  if (present(edge_cells_y))       edge_cells_y       = self%edge_cells_y
+  if (present(edge_cells_x))       edge_cells_x       = self%edge_cells_xy(1)
+  if (present(edge_cells_y))       edge_cells_y       = self%edge_cells_xy(2)
   if (present(nmaps))              nmaps              = self%nmaps
   if (self%nmaps > 0 .and. present(target_mesh_names)) then
     target_mesh_names = self%target_mesh_names
@@ -925,6 +986,25 @@ subroutine set_global_mesh_maps( self, global_maps  )
 end subroutine set_global_mesh_maps
 
 !-------------------------------------------------------------------------------
+!> @brief     Assigns a local_mesh_map_collection to the ugrid_2d object
+!> @param[in] local_maps  Local mesh map collection
+!-------------------------------------------------------------------------------
+subroutine set_local_mesh_maps( self, local_maps )
+
+  implicit none
+
+  class (ugrid_2d_type), intent(inout) :: self
+
+  type(local_mesh_map_collection_type), &
+                         intent(in), target :: local_maps
+
+  nullify(self%target_local_mesh_maps)
+  self%target_local_mesh_maps => local_maps
+
+end subroutine set_local_mesh_maps
+
+
+!-------------------------------------------------------------------------------
 !> @brief     Retrieves pointer to current global_mesh_map_collection
 !>            assigned to the ugrid_2d object.
 !> @param[out] global_maps  Pointer to global mesh map collection in ugrid_2d
@@ -942,6 +1022,390 @@ subroutine get_global_mesh_maps( self, global_maps  )
   global_maps => self%target_global_mesh_maps
 
 end subroutine get_global_mesh_maps
+
+
+!-------------------------------------------------------------------------------
+!> @brief     Assign dimesnsion related variables in the ugrid_2d file.
+!>
+!> @param[in] num_nodes            Optional: Number of unique nodes on mesh.
+!> @param[in] num_edges            Optional: Number of unique edges on mesh.
+!> @param[in] num_faces            Optional: Number of unique faces on mesh.
+!> @param[in] num_nodes_per_face   Optional: Number of nodes to construct a face
+!> @param[in] num_edges_per_face   Optional: Number of edges to construct a face
+!> @param[in] num_nodes_per_edge   Optional: Number of nodes to construct an edge
+!> @param[in] max_num_of_faces_per_node
+!>                                 Optional: Maximum number of faces attached
+!>                                           to a given node.
+!-------------------------------------------------------------------------------
+subroutine set_dimensions( self,       &
+               num_nodes,              &
+               num_edges,              &
+               num_faces,              &
+               num_nodes_per_face,     &
+               num_edges_per_face,     &
+               num_nodes_per_edge,     &
+               max_num_faces_per_node )
+
+  implicit none
+
+  class (ugrid_2d_type), intent(inout) :: self
+
+  integer(i_def), optional :: num_nodes
+  integer(i_def), optional :: num_edges
+  integer(i_def), optional :: num_faces
+
+  integer(i_def), optional :: num_nodes_per_face
+  integer(i_def), optional :: num_nodes_per_edge
+  integer(i_def), optional :: num_edges_per_face
+  integer(i_def), optional :: max_num_faces_per_node
+
+  if (present(num_faces)) then
+    self%num_cells = num_faces
+    self%num_faces = num_faces
+  end if
+
+  if (present(num_nodes)) self%num_nodes = num_nodes
+  if (present(num_edges)) self%num_edges = num_edges
+
+  if (present(num_nodes_per_face)) then
+    self%num_nodes_per_face = num_nodes_per_face
+  end if
+
+  if (present(num_nodes_per_edge)) then
+    self%num_nodes_per_edge = num_nodes_per_edge
+  end if
+
+  if (present(num_edges_per_face)) then
+    self%num_edges_per_face = num_edges_per_face
+  end if
+
+  if (present(max_num_faces_per_node)) then
+    self%max_num_faces_per_node = max_num_faces_per_node
+  end if
+
+end subroutine set_dimensions
+
+
+!-------------------------------------------------------------------------------
+!> @brief     Assign coordinate related variables in the ugrid_2d file.
+!>
+!> @param[in] node_coords  Optional: Mesh node coords.
+!> @param[in] face_coords  Optional: Face centre coords.
+!> @param[in] north_pole   Optional: Real world North pole  [lon,lat] coords
+!> @param[in] null_island  Optional: Real world Null island [lon,lat] coords
+!> @param[in] coord_sys    Optional: Coordinate system used by mesh
+!> @param[in] units_xy      Optional: Units in x/y-axes
+!-------------------------------------------------------------------------------
+subroutine set_coords( self,                     &
+                       node_coords, face_coords, &
+                       north_pole, null_island,  &
+                       coord_sys, units_xy )
+
+  implicit none
+
+  class (ugrid_2d_type), intent(inout) :: self
+
+  real(r_def), optional, intent(in) :: node_coords(:,:)
+  real(r_def), optional, intent(in) :: face_coords(:,:)
+  real(r_def), optional, intent(in) :: north_pole(:)
+  real(r_def), optional, intent(in) :: null_island(:)
+
+  character(str_def), optional, intent(in) :: coord_sys
+  character(str_def), optional, intent(in) :: units_xy(2)
+
+  if (present(node_coords)) then
+    if (allocated( self%node_coordinates )) then
+      deallocate( self%node_coordinates )
+    end if
+    allocate( self%node_coordinates, source=node_coords )
+  end if
+
+  if (present(face_coords)) then
+    if (allocated( self%face_coordinates )) then
+      deallocate( self%face_coordinates )
+    end if
+    allocate( self%face_coordinates, source=face_coords )
+  end if
+
+  if (present(north_pole))  self%north_pole    = north_pole
+  if (present(null_island)) self%null_island   = null_island
+  if (present(coord_sys))   self%coord_sys     = coord_sys
+  if (present(units_xy))    self%coord_units_xy(:) = units_xy(:)
+
+end subroutine set_coords
+
+
+!-------------------------------------------------------------------------------
+!> @brief  Assign connectivity related variables in the ugrid_2d file.
+!>
+!> @param[in] nodes_on_faces  Optional: Node ids connected to a given face
+!> @param[in] edges_on_faces  Optional: Edge ids connected to a given face
+!> @param[in] faces_on_faces  Optional: Face ids adjacent to a given face
+!> @param[in] nodes_on_edges  Optional: Node ids connected to a given edge
+!> @param[in] void_cell       Optional: The integer used to mark null connectivity.
+!-------------------------------------------------------------------------------
+subroutine set_connectivity( self,           &
+                             nodes_on_faces, &
+                             edges_on_faces, &
+                             faces_on_faces, &
+                             nodes_on_edges, &
+                             void_cell )
+
+  implicit none
+
+  class (ugrid_2d_type), intent(inout) :: self
+
+  integer(i_def), optional, intent(in) :: nodes_on_faces(:,:)
+  integer(i_def), optional, intent(in) :: edges_on_faces(:,:)
+  integer(i_def), optional, intent(in) :: faces_on_faces(:,:)
+  integer(i_def), optional, intent(in) :: nodes_on_edges(:,:)
+  integer(i_def), optional, intent(in) :: void_cell
+
+  if ( present(nodes_on_faces) ) then
+    if ( allocated( self%face_node_connectivity ) ) then
+      deallocate( self%face_node_connectivity )
+    end if
+    allocate( self%face_node_connectivity, source=nodes_on_faces )
+  end if
+
+  if ( present(edges_on_faces) ) then
+    if ( allocated( self%face_edge_connectivity ) ) then
+      deallocate( self%face_edge_connectivity )
+    end if
+    allocate( self%face_edge_connectivity, source=edges_on_faces )
+  end if
+
+  if ( present(faces_on_faces) ) then
+    if ( allocated( self%face_face_connectivity ) ) then
+      deallocate( self%face_face_connectivity )
+    end if
+    allocate( self%face_face_connectivity, source=faces_on_faces )
+  end if
+
+  if ( present(nodes_on_edges) ) then
+    if ( allocated( self%edge_node_connectivity ) ) then
+      deallocate( self%edge_node_connectivity )
+    end if
+    allocate( self%edge_node_connectivity, source=nodes_on_edges )
+  end if
+
+  if ( present(void_cell) ) self%void_cell = void_cell
+
+end subroutine set_connectivity
+
+
+!-------------------------------------------------------------------------------
+!> @brief       Assign data related to the local mesh partition in the
+!>              ugrid_2d file.
+!> @description Local mesh objects required additional data to describe the
+!>              mesh partition they realte to. Partition data is not required
+!>              for UGRID mesh topology.
+!>
+!> @param[in] node_cell_owner   Cell ID that owns a given node.
+!> @param[in] edge_cell_owner   Cell ID that owns a given edge.
+!> @param[in] num_inner         Number cells in each inner layer.
+!> @param[in] num_halo          Number cells in each halo layer.
+!> @param[in] last_inner_cell   Local index of last cell in each inner layer.
+!> @param[in] last_halo_cell    Local index of last cell in each halo layer.
+!> @param[in] cell_gid          Global index of cells in this local mesh object.
+!> @param[in] node_on_cell_gid  Node on cell connectivity in Global IDs.
+!> @param[in] edge_on_cell_gid  Edge on cell connectivity in Global IDs.
+!-------------------------------------------------------------------------------
+subroutine set_partition_data( self,               &
+                               node_cell_owner,    &
+                               edge_cell_owner,    &
+                               num_inner,          &
+                               num_halo,           &
+                               last_inner_cell,    &
+                               last_halo_cell,     &
+                               cell_gid,           &
+                               node_on_cell_gid,   &
+                               edge_on_cell_gid  )
+
+  implicit none
+
+  class (ugrid_2d_type), intent(inout) :: self
+
+  integer(i_def), intent(in) :: node_cell_owner(:)
+  integer(i_def), intent(in) :: edge_cell_owner(:)
+
+  integer(i_def), intent(in), allocatable :: num_inner(:)
+  integer(i_def), intent(in), allocatable :: num_halo(:)
+  integer(i_def), intent(in), allocatable :: last_inner_cell(:)
+  integer(i_def), intent(in), allocatable :: last_halo_cell(:)
+
+  integer(i_def), intent(in), allocatable :: cell_gid(:)
+  integer(i_def), intent(in), allocatable :: node_on_cell_gid(:,:)
+  integer(i_def), intent(in), allocatable :: edge_on_cell_gid(:,:)
+
+  if (allocated( self%node_cell_owner ))  deallocate( self%node_cell_owner )
+  if (allocated( self%edge_cell_owner ))  deallocate( self%edge_cell_owner )
+
+  if (allocated( self%num_inner ))        deallocate( self%num_inner )
+  if (allocated( self%num_halo ))         deallocate( self%num_halo )
+  if (allocated( self%last_inner_cell ))  deallocate( self%last_inner_cell )
+  if (allocated( self%last_halo_cell ))   deallocate( self%last_halo_cell )
+
+  if (allocated( self%cell_gid ))         deallocate( self%cell_gid )
+  if (allocated( self%node_on_cell_gid )) deallocate( self%node_on_cell_gid )
+  if (allocated( self%edge_on_cell_gid )) deallocate( self%edge_on_cell_gid )
+
+
+  allocate(self%node_cell_owner, source=node_cell_owner )
+  allocate(self%edge_cell_owner, source=edge_cell_owner )
+
+  if (allocated(cell_gid)) then
+    allocate( self%cell_gid, source=cell_gid )
+  end if
+
+  if (allocated(node_on_cell_gid)) then
+    allocate( self%node_on_cell_gid, source=node_on_cell_gid )
+  end if
+
+  if (allocated(edge_on_cell_gid)) then
+    allocate( self%edge_on_cell_gid, source=edge_on_cell_gid )
+  end if
+
+  if (allocated(num_inner)) then
+    allocate( self%num_inner, source=num_inner )
+  end if
+
+  if (allocated(num_halo)) then
+    allocate( self%num_halo, source=num_halo )
+  end if
+
+  if (allocated(last_inner_cell)) then
+    allocate( self%last_inner_cell, source=last_inner_cell )
+  end if
+
+  if (allocated(last_halo_cell)) then
+    allocate( self%last_halo_cell, source=last_halo_cell )
+  end if
+
+end subroutine set_partition_data
+
+
+
+!-------------------------------------------------------------------------------
+!> @brief  Assign metadata variables in the ugrid_2d file.
+!>
+!> @param[in]   mesh_name          Optional: Name of the current mesh topology.
+!> @param[in]   geometry           Optional: Domain geometry enumeration key.
+!> @param[in]   topology           Optional: Domain topology enumeration key.
+!> @param[in]   npanels            Optional: Number of panels used in mesh topology.
+!> @param[in]   partition_of       Optional: Mesh name of partitioned global mesh.
+!> @param[in]   ncells_global_mesh Optional: Number of cells in global mesh.
+!> @param[in]   inner_depth        Optional: Number of inner halo layers.
+!> @param[in]   halo_depth         Optional: Number of outer halo layers.
+!> @param[in]   num_edge           Optional: Number of cells in the partition edge layer.
+!> @param[in]   last_edge_cell     Optional: Local ID of last cell in partition edge layer.
+!> @param[in]   num_ghost          Optional: Number of cells in the partition ghost layer.
+!> @param[in]   last_ghost_cell    Optional: Local ID of last cell in partition ghost layer.
+!> @param[in]   max_stencil_depth  Optional: Maximum stencil depth supported (Local meshes).
+!> @param[in]   domain_size        Optional: Domain size ix x/y-axes.
+!> @param[in]   rim_depth          Optional: Rim depth (in cells) for LBC meshes.
+!> @param[in]   periodic_x         Optional: Model domain periodicity (x-axes).
+!> @param[in]   periodic_y         Optional: Model domain periodicity (y-axes).
+!> @param[in]   edge_cells_x       Optional: Number of cells on panel edge (x-axis).
+!> @param[in]   edge_cells_y       Optional: Number of cells on panel edge (y-axis).
+!> @param[in]   constructor_inputs Optional: Input arguments use to create this mesh.
+!> @param[in]   nmaps              Optional: The number of intergrid maps from this mesh.
+!> @param[in]   target_mesh_names  Optional: Names of target mesh topologies in this file
+!>                                           which this mesh possesses cell-cell maps for.
+!-------------------------------------------------------------------------------
+subroutine set_metadata ( self,                &
+                          mesh_name,           &
+                          geometry,            &
+                          topology,            &
+                          npanels,             &
+                          partition_of,        &
+                          ncells_global_mesh,  &
+                          inner_depth,         &
+                          halo_depth,          &
+                          num_edge,            &
+                          last_edge_cell,      &
+                          num_ghost,           &
+                          last_ghost_cell,     &
+                          max_stencil_depth,   &
+                          domain_size,         &
+                          rim_depth,           &
+                          periodic_x,          &
+                          periodic_y,          &
+                          edge_cells_x,        &
+                          edge_cells_y,        &
+                          constructor_inputs,  &
+                          nmaps,               &
+                          target_mesh_names )
+  implicit none
+
+  class(ugrid_2d_type), intent(inout) :: self
+
+  character(str_def), optional, intent(in) :: mesh_name
+  character(str_def), optional, intent(in) :: geometry
+  character(str_def), optional, intent(in) :: topology
+  character(str_def), optional, intent(in) :: partition_of
+
+  character(str_longlong), optional, intent(in) :: constructor_inputs
+
+  integer(i_def), optional, intent(in) :: npanels
+  integer(i_def), optional, intent(in) :: ncells_global_mesh
+  integer(i_def), optional, intent(in) :: inner_depth
+  integer(i_def), optional, intent(in) :: halo_depth
+  integer(i_def), optional, intent(in) :: num_edge
+  integer(i_def), optional, intent(in) :: last_edge_cell
+  integer(i_def), optional, intent(in) :: num_ghost
+  integer(i_def), optional, intent(in) :: last_ghost_cell
+  integer(i_def), optional, intent(in) :: max_stencil_depth
+  integer(i_def), optional, intent(in) :: rim_depth
+  integer(i_def), optional, intent(in) :: edge_cells_x
+  integer(i_def), optional, intent(in) :: edge_cells_y
+
+  real(r_def),    optional, intent(in) :: domain_size(2)
+
+  logical(l_def), optional, intent(in) :: periodic_x
+  logical(l_def), optional, intent(in) :: periodic_y
+
+  integer(i_def),     optional, intent(in) :: nmaps
+  character(str_def), optional, intent(in) :: target_mesh_names(:)
+
+  if (present(constructor_inputs)) self%constructor_inputs = constructor_inputs
+
+  if (present(mesh_name))       self%mesh_name       = mesh_name
+  if (present(geometry))        self%geometry        = geometry
+  if (present(topology))        self%topology        = topology
+  if (present(npanels))         self%npanels         = npanels
+  if (present(partition_of))    self%partition_of    = partition_of
+  if (present(inner_depth) )    self%inner_depth     = inner_depth
+  if (present(halo_depth) )     self%halo_depth      = halo_depth
+  if (present(num_edge))        self%num_edge        = num_edge
+  if (present(last_edge_cell))  self%last_edge_cell  = last_edge_cell
+  if (present(num_ghost))       self%num_ghost       = num_ghost
+  if (present(last_ghost_cell)) self%last_ghost_cell = last_ghost_cell
+  if (present(nmaps))           self%nmaps           = nmaps
+
+  if (present(periodic_x))   self%periodic_xy(1)   = periodic_x
+  if (present(periodic_y))   self%periodic_xy(2)   = periodic_y
+  if (present(edge_cells_x)) self%edge_cells_xy(1) = edge_cells_x
+  if (present(edge_cells_y)) self%edge_cells_xy(2) = edge_cells_y
+
+  if (present(domain_size)) then
+    self%domain_size = domain_size
+  end if
+  if (present(rim_depth)) self%rim_depth = rim_depth
+
+  if (present(max_stencil_depth))  self%max_stencil_depth = max_stencil_depth
+  if (present(ncells_global_mesh)) self%num_faces_global  = ncells_global_mesh
+
+  if (self%nmaps > 0 .and. present(target_mesh_names)) then
+    if (allocated(self%target_mesh_names)) then
+      deallocate(self%target_mesh_names)
+    end if
+    allocate(self%target_mesh_names, source=target_mesh_names)
+  end if
+
+  return
+end subroutine set_metadata
+
 
 !-------------------------------------------------------------------------------
 !> @brief   Writes coordinates to a .dat file in the units they are held in
@@ -996,16 +1460,14 @@ subroutine clear(self)
   self%geometry   = cmdi
   self%topology   = cmdi
   self%coord_sys  = cmdi
-  self%periodic_x = .false.
-  self%periodic_y = .false.
+  self%periodic_xy(:) = .false.
 
   self%max_stencil_depth  = imdi
   self%npanels            = imdi
   self%constructor_inputs = cmdi
 
   self%coord_units_xy = cmdi
-  self%edge_cells_x   = imdi
-  self%edge_cells_y   = imdi
+  self%edge_cells_xy  = imdi
 
   self%num_cells = imdi
   self%num_nodes = imdi

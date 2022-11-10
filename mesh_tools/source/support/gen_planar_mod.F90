@@ -1886,9 +1886,9 @@ subroutine get_metadata( self,               &
     if (present(maps_edge_cells_y)) maps_edge_cells_y = self%target_edge_cells_y
   end if
 
+  ! Convert to degrees for cf-compliance if required
   if ( self%coord_sys == coord_sys_ll .and. &
        self%geometry  == geometry_spherical ) then
-    ! Convert to degrees for cf-compliance if required.
     factor = radians_to_degrees
   else
     factor = 1.0_r_def

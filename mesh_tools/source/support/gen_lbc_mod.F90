@@ -836,8 +836,6 @@ subroutine get_metadata( self,               &
   if (present(edge_cells_y))    edge_cells_y = self%outer_cells_y
   if (present(nmaps))           nmaps        = self%nmaps
 
-  if (present(void_cell)) void_cell = VOID_ID
-
   if (self%nmaps > 0) then
     if (present(target_mesh_names)) then
       allocate(target_mesh_names(1), source=self%target_mesh_names)

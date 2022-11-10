@@ -49,6 +49,10 @@ module global_mesh_mod
   ! Tag name of mesh.
     character(str_def) :: mesh_name
 
+  ! Flag to indicate if this a mesh represents coverage
+  ! of a global model.
+    logical(l_def) :: global_model = .false.
+
   ! Domain surface geometry.
     integer(i_native) :: geometry = emdi
 
@@ -187,7 +191,10 @@ module global_mesh_mod
     procedure, public :: get_nedges_per_cell
     procedure, public :: get_cell_next
     procedure, public :: get_all_cells_next
-    procedure, public :: get_vert_coords
+    procedure, public :: get_a_vert_coords
+    procedure, public :: get_all_vert_coords
+    generic,   public :: get_vert_coords => get_a_vert_coords, &
+                                            get_all_vert_coords
     procedure, public :: get_vert_cell_owner
     procedure, public :: get_edge_cell_owner
     procedure, public :: add_global_mesh_map
@@ -196,6 +203,7 @@ module global_mesh_mod
     procedure, public :: get_nmaps
     procedure, public :: get_mesh_maps
 
+    procedure, public :: is_model_global
     procedure, public :: is_geometry_spherical
     procedure, public :: is_geometry_planar
     procedure, public :: is_topology_non_periodic
@@ -302,6 +310,7 @@ contains
 
     call self%set_id(global_mesh_id_counter)
 
+!print*, 'global_mesh_mod, void_cell = ', self%void_cell
 
     select case (trim(geometry))
 
@@ -338,6 +347,18 @@ contains
 
     end select
 
+    ! Is the domain for a global or regional "model".
+    ! Periodic spherical regional models are not
+    ! supported, so by elimination it would
+    ! be a global model, not ideal.
+    self%global_model = .false.
+    if ( self%topology  == periodic_domain .and. &
+         self%coord_sys == lon_lat_coords  .and. &
+         self%geometry  == spherical_domain ) then
+
+      self%global_model = .true.
+
+    end if
 
     ! CF Standard for longitude/latitude is in degrees
     ! though many functions assume radians. Convert
@@ -448,6 +469,7 @@ contains
     allocate( self%vert_cell_owner (self%nverts) )
     allocate( self%edge_cell_owner (self%nedges) )
 
+    self%void_cell = void
     self%ntarget_meshes = 0
 
     ! Note: These test coordinates are in [Long, Lat] in units of radians.
@@ -1159,7 +1181,7 @@ contains
   !---------------------------------------------------------------------------
   !> @brief Gets the total number of edges in the global domain.
   !>
-  !> @return Total number of edges in the global domain.
+  !> @return nedges  The total number of edges in the global domain.
   !>
   function get_nedges( self ) result (nedges)
 
@@ -1176,7 +1198,7 @@ contains
   !---------------------------------------------------------------------------
   !> @brief Gets the total number of cells in the global domain.
   !>
-  !> @return Total number of cells in the global domain.
+  !> @return ncells  The total number of cells in the global domain.
   !>
   function get_ncells( self ) result (ncells)
 
@@ -1191,16 +1213,15 @@ contains
   end function get_ncells
 
   !---------------------------------------------------------------------------
-  !> @brief Gets the maximum number of cells around a vertex.
+  !> @brief   Gets the maximum number of cells around a vertex.
+  !> @details The actual number of cells at a particular vertex could be
+  !>          fewer than the value returned by this method.
   !>
-  !> The actual number of cells at a particular vertex could be fewer than
-  !> the value returned by this method.
+  !>          For example, in a cubed sphere mesh, there are generally
+  !>          four cells incident with a vertex except for the "corner"
+  !>          vertices where there are three.
   !>
-  !> For example, in a cubed sphere mesh, there are generally four cells
-  !> incident with a vertex except for the "corner" vertices where there are
-  !> three.
-  !>
-  !> @return Maximum number of cells that can be incident with a vertex.
+  !> @return  Maximum number of cells that can be incident with a vertex.
   !>
   function get_max_cells_per_vertex( self ) result (max_cells_per_vertex)
 
@@ -1256,6 +1277,7 @@ contains
   subroutine get_vert_on_cell(self, cell_gid, verts)
 
     implicit none
+
     class (global_mesh_type), intent(in)  :: self
     integer (i_def),          intent(in)  :: cell_gid
     integer (i_def),          intent(out) :: verts(:)
@@ -1347,8 +1369,8 @@ contains
   !---------------------------------------------------------------------------
   !> @brief Gets cell IDs adjacent to a cell.
   !>
-  !> @param[in] cell_gid Global ID of a cell.
-  !> @param[out] Global IDs of cells adjacent to cell cell_gid.
+  !> @param[in]  cell_gid   Global ID of single cell.
+  !> @param[out] cell_next  Global IDs of cells adjacent to cell cell_gid.
   !>
   subroutine get_cell_next (self, cell_gid, cell_next)
 
@@ -1383,7 +1405,7 @@ contains
   !> @param[in] vert_gid Global ID of a vertex.
   !> @param[out] vert_coords Latitude and longitude of the specified vertex.
   !>
-  subroutine get_vert_coords (self, vert_gid, vert_coords)
+  subroutine get_a_vert_coords (self, vert_gid, vert_coords)
 
     implicit none
     class (global_mesh_type), intent(in)  :: self
@@ -1392,7 +1414,24 @@ contains
 
     vert_coords(1:2) = self%vert_coords(1:2,vert_gid)
 
-  end subroutine get_vert_coords
+  end subroutine get_a_vert_coords
+
+  !---------------------------------------------------------------------------
+  !> @brief Gets coordinates for all unique nodes on mesh.
+  !>
+  !> @param[out] vert_coords X/Y axes coordinates of all unique vertices.
+  !>
+  subroutine get_all_vert_coords (self, vert_coords)
+
+    implicit none
+    class (global_mesh_type), intent(in)  :: self
+    real(r_def), allocatable :: vert_coords(:,:)
+
+    if ( allocated(vert_coords) ) deallocate (vert_coords)
+    allocate( vert_coords, source=self%vert_coords )
+
+  end subroutine get_all_vert_coords
+
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Gets the cell that a vertex has been allocated to.
@@ -1569,6 +1608,33 @@ contains
     coord_units_xy(:) = self%coord_units_xy(:)
 
   end function get_coord_units
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief   Function to query if the global mesh coverage is
+  !>          over a global model.
+  !> @details A mesh over a global model is determined if the following
+  !>          conditions are met:
+  !>
+  !>            * Domain boundaries are periodic.
+  !>            * Co-ordinate system is spherical (i.e. [lon,lat])
+  !>
+  !>          This premise is only valid as the above configurations are
+  !>          not supported for regional models.
+  !>
+  !> @return answer .true. for a global model
+  !>
+  function is_model_global( self ) result ( answer )
+
+    implicit none
+
+    class(global_mesh_type), intent(in) :: self
+
+    logical (l_def) :: answer
+
+    answer = self%global_model
+
+  end function is_model_global
 
 
   !---------------------------------------------------------------------------

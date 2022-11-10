@@ -12,10 +12,10 @@
 ! mesh names separated by a ":". Each item will cause a
 ! map to be added to the maps source mesh, i.e.
 !
-! 'dynamics:physics' will result in a map added to the
+! 'C6:C3' will result in a map added to the
 !
-!  *  "dynamics" mesh (source) object mapping to "physics"  (target)
-!  *  "physics"  mesh (source) object mapping to "dynamics" (target)
+!  *  "C6" mesh (source) object mapping to "C6"  (target)
+!  *  "C3" mesh (source) object mapping to "C3" (target)
 !
 ! Notes:
 !  *  Only the first "n_meshes" listed in <mesh_names> will be
@@ -24,6 +24,7 @@
 !     [longitude, latitude] in the units, degrees_east, degrees_north,
 !     respectively.
 !===================================================================
+
 &mesh
   mesh_filename     = 'C6_locals.nc'
   n_meshes          = 2

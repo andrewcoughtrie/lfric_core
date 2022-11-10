@@ -45,7 +45,6 @@ program summarise_ugrid
   logical(l_def)     :: periodic_x
   logical(l_def)     :: periodic_y
 
-  integer(i_def)     :: max_stencil_depth
   character(str_longlong) :: constructor_inputs
   character(str_long)     :: target_mesh_names_str
   character(str_def), allocatable :: target_mesh_names(:)
@@ -106,7 +105,6 @@ program summarise_ugrid
                       geometry           = geometry,           &
                       topology           = topology,           &
                       coord_sys          = coord_sys,          &
-                      max_stencil_depth  = max_stencil_depth,  &
                       constructor_inputs = constructor_inputs, &
                       nmaps              = nmaps,              &
                       target_mesh_names  = target_mesh_names,  &
@@ -120,7 +118,6 @@ program summarise_ugrid
                       geometry           = geometry,           &
                       topology           = topology,           &
                       coord_sys          = coord_sys,          &
-                      max_stencil_depth  = max_stencil_depth,  &
                       constructor_inputs = constructor_inputs, &
                       periodic_x         = periodic_x,         &
                       periodic_y         = periodic_y,         &

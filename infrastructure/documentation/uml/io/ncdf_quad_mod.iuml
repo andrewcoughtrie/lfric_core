@@ -6,44 +6,94 @@ class ncdf_quad_mod::ncdf_quad_type {
 
   -ncid: integer
   -file_name: string
-  -mesh_name: string
-  -geometry: string
-  -topology: string
-  -coord_sys: string
-  -max_stencil_depth: integer
-  -periodic_x: logical
-  -periodic_y: logical
-  -npanels: integer
-  -constructor_inputs: string
+  -model_extents: integer
+  -mesh_extents:  integer
+
+  -mesh_name:     string
+  -geometry:      string
+  -coord_sys:     string
   -coord_units_x: string
   -coord_units_y: string
+  -npanels:       integer
 
-  -nmesh_nodes: integer
-  -nmesh_edges: integer
-  -nmesh_faces: integer
+  -constructor_inputs: string
+
+  -north_pole:  real[2]
+  -null_island: real[2]
+
+  -nmesh_nodes:   integer
+  -nmesh_edges:   integer
+  -nmesh_faces:   integer
   -nmesh_targets: integer
 
-  -nmesh_nodes_dim_id: integer
-  -nmesh_edges_dim_id: integer
-  -nmesh_faces_dim_id: integer
-  -ntargets_per_source_dim_id: integer[:] <<allocatable>>
+  -partition_of:       string
+  -inner_depth:        integer
+  -halo_depth:         integer
+  -num_edge:           integer
+  -num_ghost:          integer
+  -max_stencil_depth:  integer
+  -last_edge_cell:     integer
+  -last_ghost_cell:    integer
+  -nmesh_faces_global: integer
+
+  -num_inner:       integer[:] <<allocatable>>
+  -last_inner_cell: integer[:] <<allocatable>>
+  -num_halo:        integer[:] <<allocatable>>
+  -last_halo_cell:  integer[:] <<allocatable>>
+  -node_cell_owner: integer[:] <<allocatable>>
+  -edge_cell_owner: integer[:] <<allocatable>>
+
+  -global_var:  string
+  -rim_depth:   integer
+  -domain_size: real[2]
+  -periodic_x:  logical
+  -periodic_y:  logical
+  -topology:    string
+
+  -cell_gid:         integer[:]  <<allocatable>>
+  -node_on_cell_gid: integer[::] <<allocatable>>
+  -edge_on_cell_gid: integer[::] <<allocatable>>
+
+  -target_mesh_names:       string[:] <<allocatable>>
+  -target_global_mesh_maps: global_mesh_map_collection_type <<pointer>>
+  -target_local_mesh_maps:  local_mesh_map_collection_type  <<pointer>>
+
+  -one_dim_id:             integer
+  -two_dim_id:             integer
+  -four_dim_id:            integer
+  -nmesh_nodes_dim_id:     integer
+  -nmesh_edges_dim_id:     integer
+  -nmesh_faces_dim_id:     integer
+  -nmesh_map_faces_dim_id: integer
+
+  -ntargets_per_source_dim_id:   integer[:] <<allocatable>>
   -ntargets_per_source_x_dim_id: integer[:] <<allocatable>>
   -ntargets_per_source_y_dim_id: integer[:] <<allocatable>>
-  -two_dim_id: integer
-  -four_dim_id: integer
 
-  -mesh_id: integer
-  -mesh_edge_nodes_id: integer
-  -mesh_face_nodes_id: integer
-  -mesh_face_edges_id: integer
-  -mesh_mesh_links_id: integer[:] <<allocatable>>
+  -mesh_id:             integer
+  -mesh_edge_nodes_id:  integer
+  -mesh_face_nodes_id:  integer
+  -mesh_face_edges_id:  integer
+  -mesh_node_x_id:      integer
+  -mesh_node_y_id:      integer
+  -mesh_face_x_id:      integer
+  -mesh_face_y_id:      integer
+  -mesh_mesh_links_id:  integer[:] <<allocatable>>
 
-  -mesh_node_x_id: integer
-  -mesh_node_y_id: integer
-  -mesh_face_x_id: integer
-  -mesh_face_y_id: integer
-
-  -target_mesh_maps: global_mesh_map_collection_type
+  -partition_id:        integer
+  -node_cell_owner_id:  integer
+  -edge_cell_owner_id:  integer
+  -num_inner_id:        integer
+  -num_halo_id:         integer
+  -last_inner_cell_id:  integer
+  -last_halo_cell_id:   integer
+  -n_inner_dim_id:      integer
+  -n_halos_dim_id:      integer
+  -global_mesh_id:      integer
+  -global_cells_id:     integer
+  -global_face_node_id: integer
+  -global_face_edge_id: integer
+  -domain_size_id:      integer
 
   -void_cell: integer
 

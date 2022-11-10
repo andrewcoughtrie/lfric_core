@@ -4,6 +4,7 @@
 
 class global_mesh_mod::global_mesh_type {
   -mesh_name: string
+  -global_model: logical
   -geometry: integer
   -topology: integer
   -coord_sys: integer

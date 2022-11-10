@@ -28,32 +28,30 @@ program planar_mesh_generator
   use generate_op_local_objects_mod,  only: generate_op_local_objects
   use global_mesh_collection_mod,     only: global_mesh_collection, &
                                             global_mesh_collection_type
-  use global_mesh_mod,                only: global_mesh_type
   use halo_comms_mod,                 only: initialise_halo_comms, &
                                             finalise_halo_comms
   use io_utility_mod,                 only: open_file, close_file
   use local_mesh_collection_mod,      only: local_mesh_collection, &
                                             local_mesh_collection_type
 
-  use local_mesh_mod, only: local_mesh_type
-  use log_mod,        only: initialise_logging, finalise_logging, &
-                            log_event, log_set_level,             &
-                            log_scratch_space, LOG_LEVEL_INFO,    &
-                            LOG_LEVEL_ERROR
-  use mpi_mod,        only: initialise_comm, store_comm,  &
-                            finalise_comm, get_comm_size, &
-                            get_comm_rank
-  use ncdf_quad_mod,  only: ncdf_quad_type
-  use partition_mod,  only: partition_type, partitioner_interface
+  use log_mod,       only: initialise_logging, finalise_logging, &
+                           log_event, log_set_level,             &
+                           log_scratch_space, LOG_LEVEL_INFO,    &
+                           LOG_LEVEL_ERROR
+  use mpi_mod,       only: initialise_comm, store_comm,  &
+                           finalise_comm, get_comm_size, &
+                           get_comm_rank
+  use ncdf_quad_mod, only: ncdf_quad_type
+  use partition_mod, only: partition_type, partitioner_interface
 
-  use reference_element_mod, only: reference_element_type, &
-                                   reference_cube_type
-  use remove_duplicates_mod, only: any_duplicates
-  use rotation_mod,          only: get_target_north_pole,  &
-                                   get_target_null_island
-  use ugrid_2d_mod,          only: ugrid_2d_type
-  use ugrid_file_mod,        only: ugrid_file_type
-  use ugrid_mesh_data_mod,   only: ugrid_mesh_data_type
+  use reference_element_mod,  only: reference_element_type, &
+                                    reference_cube_type
+  use remove_duplicates_mod,  only: any_duplicates
+  use rotation_mod,           only: get_target_north_pole,  &
+                                    get_target_null_island
+  use ugrid_2d_mod,           only: ugrid_2d_type
+  use ugrid_file_mod,         only: ugrid_file_type
+  use write_local_meshes_mod, only: write_local_meshes
 
   ! Configuration modules.
   use mesh_config_mod,         only: mesh_filename, rotate_mesh, &
@@ -121,8 +119,8 @@ program planar_mesh_generator
 
   ! Switches.
   logical(l_def) :: l_found = .false.
-  logical(l_def) :: any_duplicate_names = .false.
   logical(l_def) :: lbc_generated = .false.
+  logical(l_def) :: any_duplicate_names = .false.
 
   ! Temporary variables.
   character(str_def), allocatable :: requested_mesh_maps(:)
@@ -728,15 +726,16 @@ program planar_mesh_generator
     end if
 
     !---------------------------------------------------------------
-    ! 8.0 Write local meshes to file.
+    ! 7.4 Output local meshes to UGRID file
     !---------------------------------------------------------------
-    ! @todo Output to file of partitioned local meshes is to be done by
-    !       ticket #3132.
+    call write_local_meshes( global_mesh_collection, &
+                             local_mesh_collection,  &
+                             output_basename )
 
   else
 
     !=================================================================
-    ! 9.0 Write out global meshes to UGRID file.
+    ! 8.0 Write out global meshes to UGRID file.
     !=================================================================
     write(output_file,'(2(A,I0),A)') trim(output_basename)//'.nc'
 
@@ -764,7 +763,7 @@ program planar_mesh_generator
     end do ! n_meshes
 
     !===================================================================
-    ! 9.1 Now create/output LBC mesh
+    ! 8.1 Now create/output LBC mesh
     !===================================================================
     ! A LBC mesh is created from a parent planar mesh strategy that has
     ! been generated. The name of the resulting LBC mesh will be:

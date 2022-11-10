@@ -26,13 +26,11 @@ program cubedsphere_mesh_generator
   use generate_op_local_objects_mod,  only: generate_op_local_objects
   use global_mesh_collection_mod,     only: global_mesh_collection, &
                                             global_mesh_collection_type
-  use global_mesh_mod,                only: global_mesh_type
   use halo_comms_mod,                 only: initialise_halo_comms, &
                                             finalise_halo_comms
   use io_utility_mod,                 only: open_file, close_file
   use local_mesh_collection_mod,      only: local_mesh_collection, &
                                             local_mesh_collection_type
-  use local_mesh_mod,                 only: local_mesh_type
 
   use log_mod,       only: initialise_logging, finalise_logging, &
                            log_event, log_set_level,             &
@@ -44,11 +42,12 @@ program cubedsphere_mesh_generator
   use ncdf_quad_mod, only: ncdf_quad_type
   use partition_mod, only: partition_type, partitioner_interface
 
-  use remove_duplicates_mod, only: any_duplicates
-  use rotation_mod,          only: get_target_north_pole, &
-                                   get_target_null_island
-  use ugrid_2d_mod,          only: ugrid_2d_type
-  use ugrid_file_mod,        only: ugrid_file_type
+  use remove_duplicates_mod,  only: any_duplicates
+  use rotation_mod,           only: get_target_north_pole, &
+                                    get_target_null_island
+  use ugrid_2d_mod,           only: ugrid_2d_type
+  use ugrid_file_mod,         only: ugrid_file_type
+  use write_local_meshes_mod, only: write_local_meshes
 
   ! Configuration modules.
   use cubedsphere_mesh_config_mod, only: edge_cells, smooth_passes,  &
@@ -682,16 +681,18 @@ program cubedsphere_mesh_generator
                                     n_partitions, partition_range,      &
                                     max_stencil_depth,                  &
                                     xproc, yproc, partitioner_ptr )
+
     !---------------------------------------------------------------
-    ! 8.0 Write local meshes to file.
+    ! 7.4 Output local meshes to UGRID file.
     !---------------------------------------------------------------
-    ! @todo Output to file of partitioned local meshes is to be done by
-    !       ticket #3132.
+    call write_local_meshes( global_mesh_collection, &
+                             local_mesh_collection,  &
+                             output_basename )
 
   else
 
     !=================================================================
-    ! 9.0 Write out global meshes to UGRID file.
+    ! 8.0 Write out global meshes to UGRID file.
     !=================================================================
     write( output_file,'(2(A,I0),A)' ) trim(output_basename)//'.nc'
 
@@ -722,7 +723,7 @@ program cubedsphere_mesh_generator
   end if ! partition_mesh
 
   !===================================================================
-  ! 10.0 Clean up and Finalise.
+  ! 9.0 Clean up and Finalise.
   !===================================================================
   if ( allocated( ncells   ) ) deallocate (ncells)
   if ( allocated( cpp      ) ) deallocate (cpp)
