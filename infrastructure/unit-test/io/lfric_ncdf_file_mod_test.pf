@@ -9,11 +9,9 @@
 module lfric_ncdf_file_mod_test
 
   use constants_mod,       only: i_def
-  use lfric_ncdf_file_mod, only: lfric_ncdf_file_type, &
-                                 LFRIC_NCDF_READ,      &
-                                 LFRIC_NCDF_WRITE,     &
-                                 LFRIC_NCDF_OPEN,      &
-                                 LFRIC_NCDF_CREATE
+  use file_mod,            only: FILE_MODE_READ, FILE_MODE_WRITE, &
+                                 FILE_OP_OPEN, FILE_OP_CREATE
+  use lfric_ncdf_file_mod, only: lfric_ncdf_file_type
   use pfunit_mod
 
   implicit none
@@ -33,23 +31,23 @@ contains
     integer(kind=i_def), parameter :: canwrite = 1
     integer(kind=i_def), parameter :: nowrite = 0
 
-    file1 = lfric_ncdf_file_type("test_file.nc", open_mode=LFRIC_NCDF_CREATE, &
-                                  io_mode=LFRIC_NCDF_WRITE)
+    file1 = lfric_ncdf_file_type("test_file.nc", open_mode=FILE_OP_CREATE, &
+                                  io_mode=FILE_MODE_WRITE)
     file1id = file1%get_id()
     @assertEqual(file1%get_io_mode(), canwrite)
 
     call file1%close_definition()
     call file1%close_file()
 
-    file2 = lfric_ncdf_file_type("test_file.nc", open_mode=LFRIC_NCDF_OPEN, &
-                                  io_mode=LFRIC_NCDF_READ)
+    file2 = lfric_ncdf_file_type("test_file.nc", open_mode=FILE_OP_OPEN, &
+                                  io_mode=FILE_MODE_READ)
     file2id = file2%get_id()
     @assertEqual(file2%get_io_mode(), nowrite)
 
     call file2%close_file()
 
-    file3 = lfric_ncdf_file_type("test_file.nc", open_mode=LFRIC_NCDF_OPEN, &
-                                  io_mode=LFRIC_NCDF_WRITE)
+    file3 = lfric_ncdf_file_type("test_file.nc", open_mode=FILE_OP_OPEN, &
+                                  io_mode=FILE_MODE_WRITE)
     file3id = file3%get_id()
     @assertEqual(file3%get_io_mode(), canwrite)
 

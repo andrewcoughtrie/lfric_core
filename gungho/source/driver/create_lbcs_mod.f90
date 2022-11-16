@@ -22,7 +22,6 @@ module create_lbcs_mod
   use linked_list_mod,            only : linked_list_type
   use lfric_xios_time_axis_mod,   only : time_axis_type,        &
                                          update_interface
-  use lfric_xios_read_mod,        only : read_field_time_var
   use init_time_axis_mod,         only : setup_field
   use initialization_config_mod,  only : lbc_option,             &
                                          lbc_option_analytic,    &
@@ -61,7 +60,6 @@ module create_lbcs_mod
     type(time_axis_type), save                 :: lbc_time_axis
     logical(l_def),   parameter                :: cyclic=.false.
     logical(l_def),   parameter                :: interp_flag=.true.
-    character(len=*), parameter                :: axis_id="lbc_axis"
     character(str_def)                         :: name
     integer(i_def)                             :: imr
 
@@ -102,9 +100,6 @@ module create_lbcs_mod
       case ( lbc_option_gungho_file )
 
         checkpoint_restart_flag = .false.
-        ! Set pointer to time axis read behaviour
-        tmp_update_ptr => read_field_time_var
-
         call lbc_time_axis%initialise( "lbc_time", file_id="lbc", yearly=cyclic, &
                                        interp_flag = interp_flag )
 
@@ -130,7 +125,6 @@ module create_lbcs_mod
            "lbc_v_u", Wtheta, mesh, checkpoint_restart_flag,      &
             time_axis=lbc_time_axis )
 
-        call lbc_time_axis%set_update_behaviour(tmp_update_ptr)
         call lbc_times_list%insert_item(lbc_time_axis)
 
         !----- Fields derived from the fields in the LBC file---------
@@ -147,9 +141,6 @@ module create_lbcs_mod
       case ( lbc_option_um2lfric_file )
 
         checkpoint_restart_flag = .false.
-
-        ! Set pointer to time axis read behaviour
-        tmp_update_ptr => read_field_time_var
 
         call lbc_time_axis%initialise( "lbc_time", file_id="lbc", yearly=cyclic, &
                                        interp_flag = interp_flag )
@@ -188,7 +179,6 @@ module create_lbcs_mod
            'lbc_qrain', wtheta, mesh, checkpoint_restart_flag,    &
            time_axis=lbc_time_axis )
 
-        call lbc_time_axis%set_update_behaviour(tmp_update_ptr)
         call lbc_times_list%insert_item(lbc_time_axis)
 
         !----- Fields derived from the fields in the LBC file---------

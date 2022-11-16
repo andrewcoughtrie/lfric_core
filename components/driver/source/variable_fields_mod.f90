@@ -45,6 +45,7 @@ contains
       select type( list_item => loop%payload )
         type is (time_axis_type)
           time_axis => list_item
+          call time_axis%setup()
 
           ! Align time window and populate model data
           call time_axis%align()

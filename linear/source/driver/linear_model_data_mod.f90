@@ -20,8 +20,7 @@ module linear_model_data_mod
   use initialization_config_mod,      only : ls_option,           &
                                              ls_option_analytic,  &
                                              ls_option_file
-  use lfric_xios_time_axis_mod,       only : time_axis_type, &
-                                             update_interface
+  use lfric_xios_time_axis_mod,       only : time_axis_type
   use lfric_xios_read_mod,            only : read_field_time_var
   use linear_data_algorithm_mod,      only : linear_copy_model_to_ls, &
                                              linear_init_pert_random, &
@@ -77,7 +76,6 @@ contains
     type( field_type ),            pointer :: ls_mr(:) => null()
     type( field_type ),            pointer :: ls_moist_dyn(:) => null()
     type( linked_list_type ),      pointer :: ls_times_list => null()
-    procedure(update_interface),   pointer :: tmp_update_ptr => null()
 
     integer(i_def)     :: imr
     character(str_def) :: name
@@ -139,7 +137,6 @@ contains
       case( ls_option_file )
 
         checkpoint_restart_flag = .false.
-        tmp_update_ptr => read_field_time_var
 
         call ls_time_axis%initialise( "ls_time", file_id="ls",       &
                                        yearly=cyclic,                &
@@ -186,7 +183,6 @@ contains
              mr=ls_moist_dyn, imr=imr )
         end do
 
-        call ls_time_axis%set_update_behaviour(tmp_update_ptr)
         call ls_times_list%insert_item(ls_time_axis)
 
       case default

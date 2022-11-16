@@ -9,12 +9,10 @@
 module lfric_ncdf_field_mod_test
 
   use constants_mod,        only: r_def, str_def
+  use file_mod,             only: FILE_MODE_READ, FILE_MODE_WRITE, &
+                                  FILE_OP_OPEN, FILE_OP_CREATE
   use lfric_ncdf_dims_mod,  only: lfric_ncdf_dims_type
-  use lfric_ncdf_file_mod,  only: lfric_ncdf_file_type, &
-                                  LFRIC_NCDF_READ,      &
-                                  LFRIC_NCDF_WRITE,     &
-                                  LFRIC_NCDF_OPEN,      &
-                                  LFRIC_NCDF_CREATE
+  use lfric_ncdf_file_mod,  only: lfric_ncdf_file_type
   use lfric_ncdf_field_mod, only: lfric_ncdf_field_type
   use pfunit_mod
 
@@ -45,8 +43,8 @@ contains
     test_attr = "test_attr_value"
     test_attr_real = 123.4
 
-    file1 = lfric_ncdf_file_type("test_field.nc", open_mode=LFRIC_NCDF_CREATE, &
-                                  io_mode=LFRIC_NCDF_WRITE)
+    file1 = lfric_ncdf_file_type("test_field.nc", open_mode=FILE_OP_CREATE, &
+                                  io_mode=FILE_MODE_WRITE)
     dims1 = lfric_ncdf_dims_type("dims1", file1, 10)
     field1 = lfric_ncdf_field_type("test_field", file1, dims1)
     call field1%set_char_attribute("test_attr", test_attr)
@@ -57,8 +55,8 @@ contains
     call field1%write_data(data_array1)
     call file1%close_file()
 
-    file2 = lfric_ncdf_file_type("test_field.nc", open_mode=LFRIC_NCDF_OPEN, &
-                                  io_mode=LFRIC_NCDF_WRITE)
+    file2 = lfric_ncdf_file_type("test_field.nc", open_mode=FILE_OP_OPEN, &
+                                  io_mode=FILE_MODE_WRITE)
     dims2 = lfric_ncdf_dims_type("dims1", file2)
     field2 = lfric_ncdf_field_type("test_field", file2, dims2)
 
@@ -70,8 +68,8 @@ contains
     call field2%write_data(data_array2)
     call file2%close_file()
 
-    file3 = lfric_ncdf_file_type("test_field.nc", open_mode=LFRIC_NCDF_OPEN, &
-                                  io_mode=LFRIC_NCDF_READ)
+    file3 = lfric_ncdf_file_type("test_field.nc", open_mode=FILE_OP_OPEN, &
+                                  io_mode=FILE_MODE_READ)
     dims3 = lfric_ncdf_dims_type("dims1", file3)
     field3 = lfric_ncdf_field_type("test_field", file3, dims3)
 

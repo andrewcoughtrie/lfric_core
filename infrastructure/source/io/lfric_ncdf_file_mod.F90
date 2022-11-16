@@ -8,11 +8,14 @@
 module lfric_ncdf_file_mod
 
   use constants_mod, only: i_def, str_max_filename
+  use file_mod,      only: FILE_MODE_READ, FILE_MODE_WRITE, &
+                           FILE_OP_CREATE, FILE_OP_OPEN
   use log_mod,       only: log_event, log_scratch_space, LOG_LEVEL_ERROR
   use netcdf,        only: nf90_open, nf90_create, nf90_close,           &
                            nf90_write, nf90_nowrite, nf90_clobber,       &
                            nf90_strerror, nf90_noerr, nf90_64bit_offset, &
-                           nf90_put_att, nf90_global, nf90_enddef
+                           nf90_put_att, nf90_inq_varid, nf90_global,    &
+                           nf90_enddef
 
   implicit none
 
@@ -35,6 +38,7 @@ module lfric_ncdf_file_mod
     procedure, public  :: get_id
     procedure, public  :: get_io_mode
     procedure, public  :: set_attribute
+    procedure, public  :: contains_var
     procedure, public  :: close_definition
 
   end type
@@ -42,12 +46,6 @@ module lfric_ncdf_file_mod
   interface lfric_ncdf_file_type
     module procedure lfric_ncdf_file_constructor
   end interface
-
-  ! IO Mode enumerations
-  integer(kind=i_def), public, parameter :: LFRIC_NCDF_OPEN   = 485
-  integer(kind=i_def), public, parameter :: LFRIC_NCDF_CREATE = 653
-  integer(kind=i_def), public, parameter :: LFRIC_NCDF_READ   = 971
-  integer(kind=i_def), public, parameter :: LFRIC_NCDF_WRITE  = 248
 
 contains
 
@@ -68,10 +66,10 @@ contains
     self%name = trim(name)
 
     select case (io_mode)
-      case (LFRIC_NCDF_READ)
+      case (FILE_MODE_READ)
         self%mode = nf90_nowrite
 
-      case (LFRIC_NCDF_WRITE)
+      case (FILE_MODE_WRITE)
         self%mode = nf90_write
 
       case default
@@ -81,10 +79,10 @@ contains
     end select
 
     select case (open_mode)
-    case (LFRIC_NCDF_OPEN)
+    case (FILE_OP_OPEN)
       call self%open_file()
 
-    case (LFRIC_NCDF_CREATE)
+    case (FILE_OP_CREATE)
       call self%create_file()
 
     case default
@@ -212,6 +210,32 @@ contains
     return
 
   end subroutine set_attribute
+
+  !> @brief  Returns true if the file contains a var with the queried name.
+  !>
+  !> @return  Logical determining variable existence
+  function contains_var(self, inq_var) result(var_exists)
+
+    implicit none
+
+    class(lfric_ncdf_file_type), intent(in) :: self
+    character(len=*),            intent(in) :: inq_var
+
+    logical                     :: var_exists
+    integer(kind=i_def)         :: ierr, varid
+    character(len=*), parameter :: routine = 'set_attribute'
+
+    ierr = nf90_inq_varid(self%ncid, trim(inq_var), varid)
+
+    if ( ierr == nf90_noerr ) then
+      var_exists = .true.
+    else
+      var_exists = .false.
+    end if
+
+    return
+
+  end function contains_var
 
   !> @brief  Closes the NetCDF file definition.
   subroutine close_definition(self)

@@ -10,6 +10,9 @@
 !-------------------------------------------------------------------------------
 module file_mod
 
+  use constants_mod,        only: i_native
+  use linked_list_data_mod, only: linked_list_data_type
+
 implicit none
 
 private
@@ -22,7 +25,7 @@ private
 !-------------------------------------------------------------------------------
 
 !--------- File type ---------
-type, abstract, public :: file_type
+type, public, abstract, extends(linked_list_data_type) :: file_type
   private
 
 contains
@@ -68,6 +71,12 @@ abstract interface
   end subroutine close_interface
 
 end interface
+
+! IO Mode enumerations
+integer(kind=i_native), public, parameter :: FILE_OP_OPEN    = 485
+integer(kind=i_native), public, parameter :: FILE_OP_CREATE  = 653
+integer(kind=i_native), public, parameter :: FILE_MODE_READ  = 971
+integer(kind=i_native), public, parameter :: FILE_MODE_WRITE = 248
 
 contains
 

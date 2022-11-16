@@ -10,7 +10,6 @@ module simple_io_context_mod_test
   use clock_mod,             only : clock_type
   use constants_mod,         only : r_second, i_native
   use field_mod,             only : field_type
-  use file_mod,              only : file_type
   use io_context_mod,        only : io_context_type
   use model_clock_mod,       only : model_clock_type
   use simple_io_context_mod, only : simple_io_context_type
@@ -20,16 +19,7 @@ module simple_io_context_mod_test
   implicit none
 
   private
-  public :: test_basic_initialisation, test_filelist_initialisation
-
-  type, extends(file_type) :: dummy_file_type
-    private
-  contains
-    private
-    procedure, public :: file_open  => open_dummy_file
-    procedure, public :: file_new   => new_dummy_file
-    procedure, public :: file_close => close_dummy_file
-  end type dummy_file_type
+  public :: test_basic_initialisation
 
 contains
 
@@ -50,54 +40,6 @@ contains
     call test_unit%initialise( 'test_context', 1_i_native, &
                                chi, panel_id )
 
-    @assertFalse( associated( test_unit%get_filelist() ) )
-
   end subroutine test_basic_initialisation
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @test
-  subroutine test_filelist_initialisation()
-
-    implicit none
-
-    type(simple_io_context_type) :: test_unit
-    class(clock_type), pointer   :: clock
-
-    type(dummy_file_type) :: filelist(1)
-
-    ! These arguments are, as yet, unused by the context so can be passed
-    ! through un-initialised
-    type(field_type) :: chi(3)
-    type(field_type) :: panel_id
-
-    filelist(1) = dummy_file_type()
-
-    call test_unit%initialise( 'test_context', 1_i_native, &
-                               chi, panel_id, filelist )
-
-    @assertTrue( associated( test_unit%get_filelist() ) )
-
-  end subroutine test_filelist_initialisation
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine open_dummy_file( self, file_name )
-    implicit none
-    class(dummy_file_type), intent(inout) :: self
-    character(*),           intent(in)    :: file_name
-  end subroutine open_dummy_file
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine new_dummy_file( self, file_name )
-    implicit none
-    class(dummy_file_type), intent(inout) :: self
-    character(*),           intent(in)    :: file_name
-  end subroutine new_dummy_file
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine close_dummy_file( self )
-    implicit none
-    class(dummy_file_type), intent(inout) :: self
-  end subroutine close_dummy_file
-
 
 end module simple_io_context_mod_test

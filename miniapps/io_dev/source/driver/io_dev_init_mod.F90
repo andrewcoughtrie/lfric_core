@@ -40,7 +40,6 @@ module io_dev_init_mod
                                              read_field_edge,                 &
                                              read_field_face,                 &
                                              read_field_single_face,          &
-                                             read_field_time_var,             &
                                              read_state
   use lfric_xios_write_mod,           only : write_field_node,                &
                                              write_field_edge,                &
@@ -84,7 +83,7 @@ module io_dev_init_mod
     type(mesh_type), pointer, optional, intent(in) :: alt_mesh
 
     ! Local variables
-    type(time_axis_type), save  :: seconds_axis, days_axis, months_axis
+    type(time_axis_type), save  :: seconds_axis
     logical(l_def)              :: interp_flag = .true.
     integer(i_def), parameter   :: n_multi_data = 5
 
@@ -92,7 +91,6 @@ module io_dev_init_mod
     type(field_type), pointer                :: tmp_field_ptr => null()
     type(integer_field_type), pointer        :: tmp_integer_field_ptr => null()
     class(pure_abstract_field_type), pointer :: tmp_ptr => null()
-    procedure(update_interface),     pointer :: tmp_update_ptr => null()
 
     call log_event( 'IO_Dev: creating model data', LOG_LEVEL_INFO )
 
@@ -129,14 +127,10 @@ module io_dev_init_mod
       !----------------------------------------------------------------------------
       if ( time_variation == time_variation_ancil ) then
 
-        ! Set pointer to time axis read behaviour
-        tmp_update_ptr => read_field_time_var
-
         ! Initialise time axis objects for time comparison
         ! Time unit in seconds
         call seconds_axis%initialise( "seconds_axis",                      &
                                       file_id="io_dev_time_varying_input", &
-                                      xios_id="time_seconds",              &
                                       interp_flag = interp_flag,           &
                                       pop_freq = ancil_update_freq )
 
@@ -155,30 +149,7 @@ module io_dev_init_mod
         call create_real_field( core_fields, "seconds_field", mesh, twod_mesh, W3, &
                                 time_axis=seconds_axis, twod=.true. )
 
-        call seconds_axis%set_update_behaviour( tmp_update_ptr )
         call variable_times_list%insert_item(seconds_axis)
-
-        ! Time unit in days
-        call days_axis%initialise( "days_axis",                         &
-                                   file_id="io_dev_time_varying_input", &
-                                   xios_id="time_days",                 &
-                                   interp_flag = interp_flag,           &
-                                   pop_freq = ancil_update_freq )
-        call create_real_field( core_fields, "days_field", mesh, twod_mesh, W3, &
-                                time_axis=days_axis, twod=.true. )
-        call days_axis%set_update_behaviour( tmp_update_ptr )
-        call variable_times_list%insert_item(days_axis)
-
-        ! Time unit in months
-        call months_axis%initialise(  "months_axis",                        &
-                                      file_id="io_dev_time_varying_input",  &
-                                      xios_id="time_months",                 &
-                                      interp_flag = interp_flag,            &
-                                      pop_freq = ancil_update_freq )
-        call create_real_field( core_fields, "months_field", mesh, twod_mesh, W3, &
-                                time_axis=months_axis, twod=.true. )
-        call months_axis%set_update_behaviour( tmp_update_ptr )
-        call variable_times_list%insert_item(months_axis)
 
       end if ! Time axis intialisation
 

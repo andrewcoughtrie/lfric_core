@@ -16,12 +16,13 @@ module lfric_xios_setup_mod
   use coord_transform_mod,           only: xyz2llr
   use extrusion_mod,                 only: TWOD
   use field_mod,                     only: field_type, field_proxy_type
+  use field_parent_mod,              only: field_parent_type
   use finite_element_config_mod,     only: element_order, &
                                            coord_system,  &
                                            coord_system_xyz
   use function_space_mod,            only: function_space_type, BASIS
   use function_space_collection_mod, only: function_space_collection
-  use fs_continuity_mod,             only: W0, W1, W2, W3, Wtheta, W2H, &
+  use fs_continuity_mod,             only: W0, W1, W2, W3, Wtheta, W2H, W2V, &
                                            name_from_functionspace
   use io_config_mod,                 only: file_convention,       &
                                            file_convention_ugrid, &
@@ -31,6 +32,7 @@ module lfric_xios_setup_mod
   use lfric_xios_process_output_mod, only: set_xios_geometry_planar, &
                                            xyz_scaling_factor
   use lfric_xios_utils_mod,          only: set_prime_io_mesh
+  use linked_list_mod,               only: linked_list_type, linked_list_item_type
   use log_mod,                       only: log_event, log_level_error
   use mesh_mod,                      only: mesh_type
   use mesh_collection_mod,           only: mesh_collection
@@ -44,17 +46,26 @@ module lfric_xios_setup_mod
   use nodal_coordinates_kernel_mod,  only: nodal_coordinates_kernel_type
   use psykal_builtin_light_mod,      only: invoke_pointwise_convert_xyz2llr
   use xios,                          only: xios_duration,        &
-                                           xios_fieldgroup,      &
-                                           xios_file,            &
                                            xios_get_attr,        &
                                            xios_get_handle,      &
                                            xios_set_attr,        &
                                            xios_set_axis_attr,   &
                                            xios_set_domain_attr, &
+                                           xios_get_domain_attr, &
                                            xios_add_child,       &
                                            xios_domain,          &
                                            xios_domaingroup,     &
-                                           xios_is_valid_domain
+                                           xios_is_valid_domain, &
+                                           xios_axis,            &
+                                           xios_axisgroup,       &
+                                           xios_grid,            &
+                                           xios_gridgroup,       &
+                                           xios_is_valid_grid,   &
+                                           xios_file,            &
+                                           xios_filegroup,       &
+                                           xios_is_valid_file,   &
+                                           xios_field,           &
+                                           xios_fieldgroup
 
   implicit none
 
@@ -347,70 +358,56 @@ contains
   !> @brief  Sets up XIOS context file information from list of file objects
   !>
   !> @param[in]  files_list  List of file objects
-  !> @param[in]  clock       Clock object
-  !>
-  subroutine setup_xios_files(files_list, clock)
+  subroutine setup_xios_files(files_list)
 
     implicit none
 
-    type(lfric_xios_file_type), allocatable, intent(in) :: files_list(:)
-    class(lfric_xios_clock_type),            intent(in) :: clock
+    type(linked_list_type),       intent(inout) :: files_list
 
-    type(xios_file)        :: file_hdl
-    type(xios_duration)    :: file_freq
-    type(xios_fieldgroup)  :: field_group_hdl
-    character(len=str_def) :: field_group_id, file_mode
-    integer(kind=i_def)    :: i
+    type(xios_filegroup) :: file_definition
 
-    type(lfric_xios_file_type) :: file
+    ! Pointer to linked list - used for looping through the list
+    type(linked_list_item_type), pointer :: loop => null()
+    type(lfric_xios_file_type),  pointer :: file => null()
 
-    if (size(files_list) == 0) then
+    if (files_list%get_length() == 0) then
       return
     end if
 
-    do i = 1, size(files_list)
+    ! Configure global file definition
+    call xios_get_handle("file_definition", file_definition)
 
-      file = files_list(i)
+    select case(file_convention)
+    case (file_convention_ugrid)
+      call xios_set_attr( file_definition, convention="UGRID" )
 
-      ! Get file handle from XIOS and set attributes
-      call xios_get_handle( trim(file%get_xios_id()), file_hdl )
-      call xios_set_attr( file_hdl, name=trim(file%get_path()) )
+    case (file_convention_cf)
+      call xios_set_attr( file_definition, convention="CF" )
 
-      ! Set XIOS duration object second value equal to file output frequency
-      if ( .not. file%get_output_freq() == -999 ) then
-        file_freq%second = file%get_output_freq() * clock%get_seconds_per_step()
-        call xios_set_attr( file_hdl, output_freq=file_freq )
-      end if
+    case default
+      call log_event("Invalid choice for file convention", log_level_error)
 
-      call xios_set_attr( file_hdl, enabled=.true. )
+    end select
 
-      ! If there is an associated field group, enable it
-      field_group_id = trim(file%get_field_group())
-      if ( .not. trim(field_group_id) == "unset" ) then
-        call xios_get_handle( field_group_id, field_group_hdl )
-        call xios_set_attr( field_group_hdl, enabled=.true. )
-      end if
+    ! Start at the head of the file linked list
+    loop => files_list%get_head()
+    do while(associated(loop))
 
-      ! If file is not in "read" mode switch time-counter to exclusive
-      call xios_get_attr( file_hdl, mode=file_mode )
-      if ( .not. trim(file_mode) == "read" ) then
-        call xios_set_attr( file_hdl, time_counter="exclusive", &
-                                      time_counter_name="time" )
-      end if
-
-      select case(file_convention)
-      case (file_convention_ugrid)
-        call xios_set_attr( file_hdl, convention="UGRID" )
-
-      case (file_convention_cf)
-        call xios_set_attr( file_hdl, convention="CF" )
-
-      case default
-        call log_event("Invalid choice for file convention", log_level_error)
-
+      ! Select the time_axis_type to get at the information in the list payload
+      select type( list_item => loop%payload )
+        type is (lfric_xios_file_type)
+          file => list_item
+          ! Register individual file information with context
+          call file%register_with_context()
+        class default
       end select
 
+      loop => loop%next
+
     end do
+
+    nullify(loop)
+    nullify(file)
 
   end subroutine setup_xios_files
 
@@ -626,7 +623,7 @@ contains
     ! Variables needed to compute output domain coordinates in lat-long
     type( field_type ) :: coord_output(3)
     type(field_proxy_type), target  :: proxy_coord_output(3)
-    type(function_space_type), pointer :: output_field_fs   => null()
+    type(function_space_type), pointer :: output_field_fs => null()
 
     type(xios_domaingroup) :: domain_definition
     type(xios_domain)      :: new_domain

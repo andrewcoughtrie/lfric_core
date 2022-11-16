@@ -10,15 +10,22 @@
 !>          of how the field should be updated with time.
 module lfric_xios_time_axis_mod
 
-  use constants_mod,        only: i_def, str_def, r_def, l_def
+  use constants_mod,        only: i_def, i_native, str_def, str_long, &
+                                  str_max_filename, r_def, l_def
   use field_mod,            only: field_type, field_proxy_type
   use field_parent_mod,     only: field_parent_type
   use field_collection_iterator_mod, &
                             only: field_collection_iterator_type
   use field_collection_mod, only: field_collection_type
-  use log_mod,              only: log_event, log_scratch_space, &
-                                  LOG_LEVEL_ERROR, LOG_LEVEL_INFO
+  use file_mod,             only: FILE_OP_OPEN, FILE_MODE_READ
+  use lfric_ncdf_dims_mod,  only: lfric_ncdf_dims_type
+  use lfric_ncdf_field_mod, only: lfric_ncdf_field_type
+  use lfric_ncdf_file_mod,  only: lfric_ncdf_file_type
+  use lfric_xios_read_mod,  only: read_field_time_var
+  use lfric_xios_utils_mod, only: parse_date_as_xios
   use linked_list_data_mod, only: linked_list_data_type
+  use log_mod,              only: log_event, log_scratch_space, &
+                                  LOG_LEVEL_ERROR, LOG_LEVEL_INFO, LOG_LEVEL_TRACE
   use xios,                 only: xios_get_field_attr, xios_get_axis_attr,     &
                                   xios_get_file_attr,                          &
                                   xios_recv_field, xios_date, xios_duration,   &
@@ -46,8 +53,8 @@ module lfric_xios_time_axis_mod
     integer(kind=i_def) :: window_size = 3
     !> The current placement in the time window
     integer(kind=i_def) :: current_window = 1
-    !> The XIOS ID of the time axis
-    character(str_def) :: xios_id
+    !> The XIOS ID of the file containing the time varying data
+    character(str_def) :: file_id
     !> The collection of fields associated with the time axis
     type(field_collection_type) :: fields
     !> Flag determining if the time axis cycles over a year
@@ -63,13 +70,11 @@ module lfric_xios_time_axis_mod
     !> XIOS date for next update
     type(xios_date) :: next_update
 
-    procedure(update_interface), nopass, pointer :: update_behaviour => null()
-
   contains
     !> Initialiser for the time axis object
     procedure, public :: initialise
-    !> Set the routine that updates the time axis field data
-    procedure, public :: set_update_behaviour
+    !> Sets up aspects of time_axis after XIOS is initialised
+    procedure, public :: setup
     !> Reads time data with XIOS
     procedure, private :: read_time_data
     !> Getter for time axis name
@@ -118,36 +123,25 @@ contains
   !> @param[in] input_data   The input time data array
   !> @param[in] name         The time axis name
   !> @param[in] file_id      The XIOS ID of the file the time axis controls
-  !> @param[in] xios_id      The XIOS ID of the time field represented by the time axis
   !> @param[in] yearly       Flag determining if axis is yearly
   !> @param[in] interp_flag  Flag determining if time_axis fields are linearly
   !>                         interpolated before being passed to the model data
   !> @param[in] pop_freq     The data population frequency of the time axis
-  subroutine initialise( self, name, file_id, xios_id, yearly, interp_flag, pop_freq )
+  subroutine initialise( self, name, file_id, yearly, interp_flag, pop_freq )
 
     implicit none
 
     class(time_axis_type),        intent(inout) :: self
     character(*),                 intent(in)    :: name
     character(*),                 intent(in)    :: file_id
-    character(*),   optional,     intent(in)    :: xios_id
     logical(l_def), optional,     intent(in)    :: yearly
     logical(l_def), optional,     intent(in)    :: interp_flag
     character(*),   optional,     intent(in)    :: pop_freq
 
-    type(xios_date)             :: start_date, time_origin
-
     ! Name the object
     self%name = name
-    if ( present(xios_id) ) then
-      self%xios_id = xios_id
-    else
-      self%xios_id = name
-    end if
 
-    call xios_get_file_attr(trim(file_id), output_freq=self%update_frequency)
-    call xios_get_current_date(start_date)
-    self%next_update = start_date + self%update_frequency
+    self%file_id = file_id
 
     ! Create object field collection
     call self%fields%initialise(name=trim(name)//'_fields', table_len=1)
@@ -175,6 +169,27 @@ contains
       self%population_frequency = xios_duration(0,0,0,0,0,1)
     end if
 
+  end subroutine initialise
+
+  !> @brief Perform setup routines that need to be done after XIOS context initialisation
+  !>
+  subroutine setup(self)
+
+    implicit none
+
+    class(time_axis_type),        intent(inout) :: self
+
+    type(xios_date)             :: start_date, time_origin
+    character(str_max_filename) :: file_name
+
+    call log_event( "Performing post-XIOS context set-up for time_axis_type ["// &
+                    trim(self%name)//"]", LOG_LEVEL_TRACE )
+
+    call xios_get_file_attr( trim(adjustl(self%file_id)), output_freq=self%update_frequency, &
+                                                          name=file_name )
+    call xios_get_current_date(start_date)
+    self%next_update = start_date + self%update_frequency
+
     ! Find the next population date after the start of this (c)run
     call xios_get_time_origin(time_origin)
     self%next_population = time_origin + self%population_frequency
@@ -187,67 +202,94 @@ contains
     end do
 
     ! Read time data
-    call self%read_time_data()
+    call self%read_time_data(trim(file_name))
 
-  end subroutine initialise
+  end subroutine setup
 
-  !> @brief Sets routine that updates field data for time axis.
-  !> @param[in] update_behaviour Pointer to update routine
-  subroutine set_update_behaviour(self, update_behaviour)
-
-    implicit none
-
-    class(time_axis_type), intent(inout) :: self
-    procedure(update_interface), pointer, intent(in) :: update_behaviour
-
-    self%update_behaviour => update_behaviour
-
-  end subroutine set_update_behaviour
-
-  !>  @brief  Read time data into time axis using XIOS
-  subroutine read_time_data(self)
+  !>  @brief  Read time data into time axis using NetCDF tools
+  subroutine read_time_data(self, file_path)
 
     implicit none
 
     class(time_axis_type), intent(inout) :: self
+    character(len=*),      intent(in)    :: file_path
 
     ! Local variables for XIOS interface
     integer(i_def)                :: time_axis_size, i, t
     real(r_def), allocatable      :: input_data(:)
-    character(str_def)            :: axis_id, time_units
+    character(str_def)            :: time_units, ref_date_str, var_id, dim_id
+    character(str_long)           :: unit_attr
     character(str_def), parameter :: valid_units(4) = &
                                   (/'seconds', 'days   ', 'hours  ', 'months '/)
     type(xios_duration)           :: ref_time, mean_time, month_duration
     type(xios_date)               :: ref_date
+    integer(i_native),  parameter :: len_date = 18 ! Length of CF date is 18 characters
+    integer(i_native),  parameter :: len_delim = 7 ! Delimiter between unit and
+                                                   ! date is 7 characters
 
-    ! Set up axis size and units from XIOS configuration
-    call xios_get_field_attr( self%xios_id, unit=time_units, axis_ref=axis_id )
-    call xios_get_axis_attr( axis_id, n_glo=time_axis_size )
+    ! NetCDF reading variables
+    type(lfric_ncdf_file_type)  :: file_ncdf
+    type(lfric_ncdf_dims_type)  :: time_dim
+    type(lfric_ncdf_field_type) :: time_var
+
+    file_ncdf = lfric_ncdf_file_type( trim(file_path)//".nc", &
+                                      open_mode=FILE_OP_OPEN, &
+                                      io_mode=FILE_MODE_READ )
+
+    ! Plant func ancils have non-CF-compliant time representation so we need to
+    ! account for that for the time being
+    if (file_ncdf%contains_var("time")) then
+      var_id = "time"
+      dim_id = "time"
+    else if (file_ncdf%contains_var("month_number")) then
+      var_id = "month_number"
+      dim_id = "month_number"
+    else
+      call log_event( "Invalid representation of time in file ["// &
+                      trim(file_path)//"]", log_level_error)
+    end if
+
+    ! Get size of time axis from file
+    time_dim = lfric_ncdf_dims_type(trim(dim_id), file_ncdf)
+    time_axis_size = time_dim%get_size()
     allocate( input_data( time_axis_size ) )
     allocate( self%time_data( time_axis_size ) )
+    allocate( self%index_data( time_axis_size ) )
+    self%index_data = (/ (i, i=1, size(input_data)) /)
 
     ! Read the time data from the ancil file
-    call xios_recv_field( self%xios_id, input_data )
+    time_var = lfric_ncdf_field_type(trim(var_id), file_ncdf)
+    call time_var%read_data(input_data)
 
-    ! Set up time date and index array
-    ! Set reference date to match ancils for yearly time axis - this will
-    ! eventually be read in from the ancil files directly
-    if ( self%yearly ) then
+    ! Read time units and reference date from file
+    if (file_ncdf%contains_var("time")) then
+      unit_attr = time_var%get_char_attribute("units")
+      time_units = unit_attr( 1 : len(trim(unit_attr))-len_date-len_delim )
+      if ( .not. any( valid_units == trim(adjustl(time_units)) ) ) then
+        write( log_scratch_space,'(A,A)' ) "Invalid units for "//trim(self%name)// &
+                                           " time axis: "// trim(time_units)
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end if
+      ref_date_str = unit_attr( len(trim(unit_attr))-len_date : len(trim(unit_attr)) )
+      ref_date = parse_date_as_xios(trim(adjustl(ref_date_str)))
+    else if (file_ncdf%contains_var("month_number")) then
+      ! Non CF files are given the bare minimum treatment
+      time_units = "months"
       ref_date = xios_date(1970, 01, 01, 00, 00, 00)
-    else
-      call xios_get_time_origin(ref_date)
     end if
+
+    call file_ncdf%close_file()
 
     ! Convert input time data to xios_date type
     do t = 1, time_axis_size
       ref_time = xios_duration(0, 0, 0, 0, 0, 0)
-      if ( time_units == "seconds" ) then
+      if ( trim(adjustl(time_units)) == "seconds" ) then
         ref_time%second = input_data(t)
-      else if ( time_units == "hours" ) then
+      else if ( trim(adjustl(time_units)) == "hours" ) then
         ref_time%hour = input_data(t)
-      else if ( time_units == "days" ) then
+      else if ( trim(adjustl(time_units)) == "days" ) then
         ref_time%day = input_data(t)
-      else if ( time_units == "months" ) then
+      else if ( trim(adjustl(time_units)) == "months" ) then
         ! Offset months backwards to account for monthly mean
         ref_time%month = input_data(t) - 1
       end if
@@ -266,18 +308,6 @@ contains
           seconds_from_date(self%time_data(t)) ) / 2
         self%time_data(t) = self%time_data(t) + mean_time
       end do
-    end if
-
-    ! Create data indices
-    self%index_data = (/ (i, i=1, size(input_data)) /)
-
-    ! Set time units to seconds across a single year - the calendar type needs to
-    ! be integrated into this eventually
-    if ( .not. any( valid_units == trim(adjustl(time_units)) ) ) then
-      write( log_scratch_space,&
-             '(A,A,A,A)' ) "Invalid units for ", trim(self%name), &
-                           " time axis: ", trim(time_units)
-      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end if
 
   end subroutine read_time_data
@@ -514,8 +544,8 @@ contains
           call log_event( &
             'Reading '//trim(adjustl(updated_field%get_name())), &
             LOG_LEVEL_INFO)
-          call self%update_behaviour(updated_field%get_name(), tmp_proxy, &
-                                      self%index_data(1:self%window_size), self%xios_id)
+          call read_field_time_var(updated_field%get_name(), tmp_proxy, &
+                                      self%index_data(1:self%window_size), size(self%time_data))
       end select
     end do
 

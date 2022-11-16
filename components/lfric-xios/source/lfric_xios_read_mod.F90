@@ -426,24 +426,23 @@ end subroutine read_field_single_face
 !>  @param[inout]  field_proxy      A field proxy to be read into
 !>  @param[in]     time_index       The indices of the time 'columns' to be
 !>                                  read in
-!>  @param[in]     time_id          The XIOS id of the time axis
+!>  @param[in]     time_axis_size   Placeholder time axis size needed before #3265
 !>
-subroutine read_field_time_var(xios_field_name, field_proxy, time_indices, time_id)
+subroutine read_field_time_var(xios_field_name, field_proxy, time_indices, time_axis_size)
 
   implicit none
 
   character(len=*),       intent(in)    :: xios_field_name
   type(field_proxy_type), intent(inout) :: field_proxy
   integer(i_def),         intent(in)    :: time_indices(:)
-  character(len=*),       intent(in)    :: time_id
+  integer(i_def),         intent(in)    :: time_axis_size
 
   integer(i_def) :: undf, fs_id, i, j, k, nlayers, ndata, time_index, vert_levels
-  integer(i_def) :: domain_size, vert_axis_size, time_axis_size, start_index
+  integer(i_def) :: domain_size, vert_axis_size, start_index
   real(dp_xios), allocatable :: recv_field(:)
   real(r_def),   allocatable :: ndata_slice(:)
   real(r_def),   allocatable :: time_slice(:)
   real(r_def),   allocatable :: field_data(:)
-  character(str_def)         :: axis_id
 
   type(mesh_type), pointer   :: mesh => null()
 
@@ -455,11 +454,7 @@ subroutine read_field_time_var(xios_field_name, field_proxy, time_indices, time_
   end if
 
   fs_id = field_proxy%vspace%which()
-  ! get the horizontal / vertical / time domain sizes
-  if ( fs_id == W3 .or. fs_id==WTheta .or. fs_id==W2H ) then
-    call xios_get_field_attr( time_id, axis_ref=axis_id )
-    call xios_get_axis_attr( axis_id, n_glo=time_axis_size )
-  else
+  if ( fs_id /= W3 .and. fs_id /= WTheta .and. fs_id /= W2H ) then
     call log_event( 'Time varying fields only readable for W3, WTheta or W2H function spaces', &
                      LOG_LEVEL_ERROR )
   end if

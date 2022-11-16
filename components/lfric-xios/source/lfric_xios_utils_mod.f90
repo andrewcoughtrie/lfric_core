@@ -80,7 +80,11 @@ module lfric_xios_utils_mod
 
       logical :: mesh_is_prime_io
 
-      mesh_is_prime_io = (any(prime_io_mesh_ids == mesh%get_id()))
+      if (.not. allocated(prime_io_mesh_ids) ) then
+        mesh_is_prime_io = .false.
+      else
+        mesh_is_prime_io = (any(prime_io_mesh_ids == mesh%get_id()))
+      end if
 
     end function prime_io_mesh_is
 

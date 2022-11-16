@@ -19,8 +19,7 @@ module init_ancils_mod
   use io_config_mod,                  only : use_xios_io
   use linked_list_mod,                only : linked_list_type
   use lfric_xios_read_mod,            only : read_field_face, &
-                                             read_field_single_face, &
-                                             read_field_time_var
+                                             read_field_single_face
   use lfric_xios_write_mod,           only : write_field_face, &
                                              write_field_single_face
   use field_collection_mod,           only : field_collection_type
@@ -101,9 +100,6 @@ contains
     ! Time axis options
     logical(l_def),   parameter :: interp_flag=.true.
 
-    ! Set pointer to time axis read behaviour
-    tmp_update_ptr => read_field_time_var
-
     ! Set up ancil_fields collection
     write(log_scratch_space,'(A,A)') "Create ancil fields: "// &
           "Setting up ancil field collection"
@@ -129,7 +125,6 @@ contains
     call setup_ancil_field("leaf_area_index", depository, ancil_fields,       &
                               mesh, twod_mesh, twod=.true., ndata=npft, &
                               time_axis=pft_time_axis)
-    call pft_time_axis%set_update_behaviour(tmp_update_ptr)
     call ancil_times_list%insert_item(pft_time_axis)
 
     if ( l_urban2t ) then
@@ -156,7 +151,6 @@ contains
       call setup_ancil_field("chloro_sea", depository, ancil_fields, mesh, &
                               twod_mesh, twod=.true.,                      &
                               time_axis=sea_time_axis)
-      call sea_time_axis%set_update_behaviour(tmp_update_ptr)
       call ancil_times_list%insert_item(sea_time_axis)
     end if
 
@@ -165,7 +159,6 @@ contains
     call setup_ancil_field("tstar_sea", depository, ancil_fields, mesh, &
                               twod_mesh, twod=.true.,                   &
                               time_axis=sst_time_axis)
-    call sst_time_axis%set_update_behaviour(tmp_update_ptr)
     call ancil_times_list%insert_item(sst_time_axis)
 
     !=====  SEA ICE ANCILS  =====
@@ -176,7 +169,6 @@ contains
                 mesh, twod_mesh, twod=.true., time_axis=sea_ice_time_axis)
       call setup_ancil_field("sea_ice_fraction", depository, ancil_fields, &
                 mesh, twod_mesh, twod=.true., time_axis=sea_ice_time_axis)
-      call sea_ice_time_axis%set_update_behaviour(tmp_update_ptr)
       call ancil_times_list%insert_item(sea_ice_time_axis)
     endif
 
@@ -189,7 +181,6 @@ contains
       call setup_ancil_field("albedo_obs_vis", depository, ancil_fields, &
                              mesh, twod_mesh, twod=.true.,         &
                              time_axis=albedo_vis_time_axis)
-      call albedo_vis_time_axis%set_update_behaviour(tmp_update_ptr)
       call ancil_times_list%insert_item(albedo_vis_time_axis)
 
       call albedo_nir_time_axis%initialise("albedo_nir_time",          &
@@ -199,7 +190,6 @@ contains
       call setup_ancil_field("albedo_obs_nir", depository, ancil_fields, &
                               mesh, twod_mesh, twod=.true.,        &
                               time_axis=albedo_nir_time_axis)
-      call albedo_nir_time_axis%set_update_behaviour(tmp_update_ptr)
       call ancil_times_list%insert_item(albedo_nir_time_axis)
     end if
 
@@ -265,7 +255,6 @@ contains
                                     interp_flag=interp_flag, pop_freq="monthly")
     call setup_ancil_field("ozone", depository, ancil_fields, mesh, &
                              twod_mesh, time_axis=ozone_time_axis)
-    call ozone_time_axis%set_update_behaviour(tmp_update_ptr)
     call ancil_times_list%insert_item(ozone_time_axis)
 
     !=====  AEROSOL ANCILS  =====
@@ -311,7 +300,6 @@ contains
       ! The following fields will need adding when dust is available in the
       ! ancillary file:
       !   acc_sol_du, cor_sol_du, n_acc_ins, acc_ins_du, n_cor_ins, cor_ins_du
-      call aerosol_time_axis%set_update_behaviour(tmp_update_ptr)
       call ancil_times_list%insert_item(aerosol_time_axis)
     end if
 
@@ -326,7 +314,6 @@ contains
       call setup_ancil_field("emiss_bc_biofuel", depository, ancil_fields,   &
                            mesh, twod_mesh, twod=.true.,               &
                            time_axis=em_bc_bf_time_axis)
-      call em_bc_bf_time_axis%set_update_behaviour(tmp_update_ptr)
       call ancil_times_list%insert_item(em_bc_bf_time_axis)
 
       call em_bc_ff_time_axis%initialise("em_bc_ff_time",                &
@@ -336,7 +323,6 @@ contains
       call setup_ancil_field("emiss_bc_fossil", depository, ancil_fields,    &
                            mesh, twod_mesh, twod=.true.,               &
                            time_axis=em_bc_ff_time_axis)
-      call em_bc_ff_time_axis%set_update_behaviour(tmp_update_ptr)
       call ancil_times_list%insert_item(em_bc_ff_time_axis)
 
       call em_dms_lnd_time_axis%initialise("em_dms_lnd_time",              &
@@ -346,7 +332,6 @@ contains
       call setup_ancil_field("emiss_dms_land", depository, ancil_fields,     &
                            mesh, twod_mesh, twod=.true.,               &
                            time_axis=em_dms_lnd_time_axis)
-      call em_dms_lnd_time_axis%set_update_behaviour(tmp_update_ptr)
       call ancil_times_list%insert_item(em_dms_lnd_time_axis)
 
       call dms_ocn_time_axis%initialise("dms_ocn_time",                 &
@@ -356,7 +341,6 @@ contains
       call setup_ancil_field("dms_conc_ocean", depository, ancil_fields,     &
                            mesh, twod_mesh, twod=.true.,               &
                            time_axis=dms_ocn_time_axis)
-      call dms_ocn_time_axis%set_update_behaviour(tmp_update_ptr)
       call ancil_times_list%insert_item(dms_ocn_time_axis)
 
       call em_mterp_time_axis%initialise("em_mterp_time",               &
@@ -366,7 +350,6 @@ contains
       call setup_ancil_field("emiss_monoterp", depository, ancil_fields,     &
                            mesh, twod_mesh, twod=.true.,               &
                            time_axis=em_mterp_time_axis)
-      call em_mterp_time_axis%set_update_behaviour(tmp_update_ptr)
       call ancil_times_list%insert_item(em_mterp_time_axis)
 
       call em_om_bf_time_axis%initialise("em_om_bf_time",                &
@@ -376,7 +359,6 @@ contains
       call setup_ancil_field("emiss_om_biofuel", depository, ancil_fields,   &
                            mesh, twod_mesh, twod=.true.,               &
                            time_axis=em_om_bf_time_axis)
-      call em_om_bf_time_axis%set_update_behaviour(tmp_update_ptr)
       call ancil_times_list%insert_item(em_om_bf_time_axis)
 
       call em_om_ff_time_axis%initialise("em_om_ff_time",                &
@@ -386,7 +368,6 @@ contains
       call setup_ancil_field("emiss_om_fossil", depository, ancil_fields,   &
                            mesh, twod_mesh, twod=.true.,              &
                            time_axis=em_om_ff_time_axis)
-      call em_om_ff_time_axis%set_update_behaviour(tmp_update_ptr)
       call ancil_times_list%insert_item(em_om_ff_time_axis)
 
       call em_so2_lo_time_axis%initialise("em_so2_lo_time",              &
@@ -396,7 +377,6 @@ contains
       call setup_ancil_field("emiss_so2_low", depository, ancil_fields,     &
                            mesh, twod_mesh, twod=.true.,              &
                            time_axis=em_so2_lo_time_axis)
-      call em_so2_lo_time_axis%set_update_behaviour(tmp_update_ptr)
       call ancil_times_list%insert_item(em_so2_lo_time_axis)
 
       call em_so2_hi_time_axis%initialise("em_so2_hi_time",              &
@@ -406,7 +386,6 @@ contains
       call setup_ancil_field("emiss_so2_high", depository, ancil_fields,    &
                            mesh, twod_mesh, twod=.true.,              &
                            time_axis=em_so2_hi_time_axis)
-      call em_so2_hi_time_axis%set_update_behaviour(tmp_update_ptr)
       call ancil_times_list%insert_item(em_so2_hi_time_axis)
 
       call setup_ancil_field("soil_clay", depository, ancil_fields,         &
@@ -428,7 +407,6 @@ contains
       call setup_ancil_field("emiss_bc_biomass", depository, ancil_fields,  &
                            mesh, twod_mesh,                           &
                            time_axis=em_bc_bb_time_axis)   ! 3-D
-      call em_bc_bb_time_axis%set_update_behaviour(tmp_update_ptr)
       call ancil_times_list%insert_item(em_bc_bb_time_axis)
 
       call em_om_bb_time_axis%initialise("em_om_bb_time",                &
@@ -438,7 +416,6 @@ contains
       call setup_ancil_field("emiss_om_biomass", depository, ancil_fields,  &
                            mesh, twod_mesh,                           &
                            time_axis=em_om_bb_time_axis)
-      call em_om_bb_time_axis%set_update_behaviour(tmp_update_ptr)
       call ancil_times_list%insert_item(em_om_bb_time_axis)
 
       !=====  OFFLINE OXIDANT ANCILS  =====
@@ -449,7 +426,6 @@ contains
       call setup_ancil_field("h2o2_limit", depository, ancil_fields,        &
                            mesh, twod_mesh,                           &
                            time_axis=h2o2_limit_time_axis)
-      call h2o2_limit_time_axis%set_update_behaviour(tmp_update_ptr)
       call ancil_times_list%insert_item(h2o2_limit_time_axis)
 
       call ho2_time_axis%initialise("ho2_time", file_id="ho2_ancil", &
@@ -457,7 +433,6 @@ contains
                                     pop_freq="five_days")
       call setup_ancil_field("ho2", depository, ancil_fields,               &
                            mesh, twod_mesh, time_axis=ho2_time_axis)
-      call ho2_time_axis%set_update_behaviour(tmp_update_ptr)
       call ancil_times_list%insert_item(ho2_time_axis)
 
       call no3_time_axis%initialise("no3_time", file_id="no3_ancil", &
@@ -465,7 +440,6 @@ contains
                                     pop_freq="five_days")
       call setup_ancil_field("no3", depository, ancil_fields,               &
                            mesh, twod_mesh, time_axis=no3_time_axis)
-      call no3_time_axis%set_update_behaviour(tmp_update_ptr)
       call ancil_times_list%insert_item(no3_time_axis)
 
       call o3_time_axis%initialise("o3_time", file_id="o3_ancil",    &
@@ -473,7 +447,6 @@ contains
                                    pop_freq="five_days")
       call setup_ancil_field("o3", depository, ancil_fields,                &
                            mesh, twod_mesh, time_axis=o3_time_axis)
-      call o3_time_axis%set_update_behaviour(tmp_update_ptr)
       call ancil_times_list%insert_item(o3_time_axis)
 
       call oh_time_axis%initialise("oh_time", file_id="oh_ancil",    &
@@ -481,7 +454,6 @@ contains
                                    pop_freq="five_days")
       call setup_ancil_field("oh", depository, ancil_fields,                &
                            mesh, twod_mesh, time_axis=oh_time_axis)
-      call oh_time_axis%set_update_behaviour(tmp_update_ptr)
       call ancil_times_list%insert_item(oh_time_axis)
 
     endif  ! ancil_updating, glomap_ukca

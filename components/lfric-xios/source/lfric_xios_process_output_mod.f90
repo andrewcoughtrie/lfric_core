@@ -10,14 +10,15 @@
 module lfric_xios_process_output_mod
 
   use constants_mod,            only: i_native
+  use file_mod,                 only: FILE_MODE_WRITE,     &
+                                      FILE_OP_OPEN
   use io_config_mod,            only: file_convention,       &
                                       file_convention_ugrid, &
                                       file_convention_cf
   use lfric_ncdf_field_mod,     only: lfric_ncdf_field_type
-  use lfric_ncdf_file_mod,      only: lfric_ncdf_file_type, &
-                                      LFRIC_NCDF_WRITE,     &
-                                      LFRIC_NCDF_OPEN
+  use lfric_ncdf_file_mod,      only: lfric_ncdf_file_type
   use lfric_xios_constants_mod, only: dp_xios
+  use log_mod,                  only: log_event, log_level_trace
   use mpi_mod,                  only: get_comm_rank
 
   implicit none
@@ -48,14 +49,16 @@ subroutine process_output_file(file_path)
   ! Output processing must be done in serial
   if (get_comm_rank() /= 0) return
 
+  call log_event("Processing output file: "//trim(file_path), log_level_trace)
+
   ! If file has not been written out, then don't attempt to process it
   inquire(file=trim(file_path), exist=file_exists)
   if (.not. file_exists) return
 
   ! Open output file
   file_ncdf = lfric_ncdf_file_type( trim(file_path),           &
-                                    open_mode=LFRIC_NCDF_OPEN, &
-                                    io_mode=LFRIC_NCDF_WRITE )
+                                    open_mode=FILE_OP_OPEN, &
+                                    io_mode=FILE_MODE_WRITE )
 
   call format_version(file_ncdf)
 
@@ -100,6 +103,8 @@ subroutine format_mesh(file_ncdf)
   type(lfric_ncdf_file_type), intent(inout) :: file_ncdf
 
   type(lfric_ncdf_field_type) :: mesh_var
+
+  if (.not. file_ncdf%contains_var("Mesh2d")) return
 
   mesh_var = lfric_ncdf_field_type("Mesh2d", file_ncdf)
 

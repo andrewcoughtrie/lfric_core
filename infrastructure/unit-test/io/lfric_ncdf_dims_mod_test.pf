@@ -9,12 +9,10 @@
 module lfric_ncdf_dims_mod_test
 
   use constants_mod,       only: i_def
+  use file_mod,            only: FILE_MODE_READ, FILE_MODE_WRITE, &
+                                 FILE_OP_OPEN, FILE_OP_CREATE
   use lfric_ncdf_dims_mod, only: lfric_ncdf_dims_type
-  use lfric_ncdf_file_mod, only: lfric_ncdf_file_type, &
-                                 LFRIC_NCDF_WRITE,     &
-                                 LFRIC_NCDF_READ,      &
-                                 LFRIC_NCDF_CREATE,    &
-                                 LFRIC_NCDF_OPEN
+  use lfric_ncdf_file_mod, only: lfric_ncdf_file_type
   use pfunit_mod
 
   implicit none
@@ -34,14 +32,14 @@ contains
     integer(kind=i_def), parameter :: dim_size = 10
     integer(kind=i_def)            :: return_size
 
-    file1 = lfric_ncdf_file_type("test_dims.nc", open_mode=LFRIC_NCDF_CREATE, io_mode=LFRIC_NCDF_WRITE)
+    file1 = lfric_ncdf_file_type("test_dims.nc", open_mode=FILE_OP_CREATE, io_mode=FILE_MODE_WRITE)
 
     dims1 = lfric_ncdf_dims_type("dims1", file1, size=dim_size)
 
     call file1%close_definition()
     call file1%close_file()
 
-    file2 = lfric_ncdf_file_type("test_dims.nc", open_mode=LFRIC_NCDF_OPEN, io_mode=LFRIC_NCDF_READ)
+    file2 = lfric_ncdf_file_type("test_dims.nc", open_mode=FILE_OP_OPEN, io_mode=FILE_MODE_READ)
 
     dims2 = lfric_ncdf_dims_type("dims1", file2)
     return_size = dims2%get_size()

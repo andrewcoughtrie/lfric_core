@@ -12,9 +12,11 @@ module gungho_setup_io_mod
 
   use constants_mod,             only: i_def, i_native, str_def, &
                                        str_max_filename
-  use driver_io_mod,             only: append_file_to_list
-  use file_mod,                  only: file_type
+  use driver_model_data_mod,     only: model_data_type
+  use file_mod,                  only: FILE_MODE_READ, &
+                                       FILE_MODE_WRITE
   use lfric_xios_file_mod,       only: lfric_xios_file_type
+  use linked_list_mod,           only: linked_list_type
   ! Configuration modules
   use files_config_mod,          only: ancil_directory,           &
                                        checkpoint_stem_name,      &
@@ -92,15 +94,15 @@ module gungho_setup_io_mod
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Adds details of all files-of-interest to a list.
   !>
-  !> @param[in,out] files_list  Array of lfric_xios_file_type objects.
+  !> @param[out] files_list  Array of lfric_xios_file_type objects.
   !>
-  subroutine init_gungho_files( files_list )
+  subroutine init_gungho_files( files_list, model_data )
 
     implicit none
 
-    class(file_type), allocatable, intent(out) :: files_list(:)
+    type(linked_list_type),                   intent(out) :: files_list
+    class(model_data_type), optional, target, intent(in)  :: model_data
 
-    type(lfric_xios_file_type)      :: tmp_file
     character(len=str_max_filename) :: checkpoint_write_fname, &
                                        checkpoint_read_fname,  &
                                        dump_fname,             &
@@ -119,20 +121,24 @@ module gungho_setup_io_mod
 
     ! Setup initial output file - no initial output for continuation runs
     if ( .not. checkpoint_read ) then
-      call tmp_file%file_new("lfric_initial")
-      call tmp_file%configure(xios_id="lfric_initial")
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( "lfric_initial",         &
+                                                         xios_id="lfric_initial", &
+                                                         io_mode=FILE_MODE_WRITE ) )
     end if
 
     ! Setup diagnostic output file
     if ( write_diag ) then
-      call tmp_file%file_new("lfric_diag")
-      call tmp_file%configure(xios_id="lfric_diag", freq=diagnostic_frequency)
-      call append_file_to_list(tmp_file, files_list)
-
-      call tmp_file%file_new("lfric_averages")
-      call tmp_file%configure(xios_id="lfric_averages", freq=ts_end)
-      call append_file_to_list(tmp_file, files_list)
+      ! These file types are a placeholder before the LFRic diagnostics system
+      ! is deployed. Once that system is in place diagnostic files will be
+      ! handled via an XML configuration, not this module.
+      call files_list%insert_item( lfric_xios_file_type( "lfric_diag",             &
+                                                         xios_id="lfric_diag",     &
+                                                         io_mode=FILE_MODE_WRITE,  &
+                                                         freq=diagnostic_frequency ) )
+      call files_list%insert_item( lfric_xios_file_type( "lfric_averages",         &
+                                                         xios_id="lfric_averages", &
+                                                         io_mode=FILE_MODE_WRITE,  &
+                                                         freq=ts_end ) )
     end if
 
     ! Setup dump-writing context information
@@ -141,12 +147,12 @@ module gungho_setup_io_mod
       write(dump_fname,'(A)') &
          trim(start_dump_directory)//'/'//trim(start_dump_filename),"_", &
          timestep_end
-
-      ! Setup dump file for end timestep
-      call tmp_file%file_new(dump_fname)
-      call tmp_file%configure(xios_id="lfric_fd_dump", &
-                              freq=ts_end)
-      call append_file_to_list(tmp_file, files_list)
+      ! In the future, Gungho/lfric_atm should define the fields that are present
+      ! in the dump file here.
+      call files_list%insert_item( lfric_xios_file_type( dump_fname,              &
+                                                         xios_id="lfric_fd_dump", &
+                                                         io_mode=FILE_MODE_WRITE, &
+                                                         freq=ts_end ) )
     end if
 
     ! Setup dump-reading context information
@@ -156,99 +162,100 @@ module gungho_setup_io_mod
       write(dump_fname,'(A)') trim(start_dump_directory)//'/'// &
                               trim(start_dump_filename)
 
-      ! Setup dump file
-      call tmp_file%file_new(dump_fname)
-      call tmp_file%configure(xios_id="read_lfric_fd_dump", &
-                              io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      ! In the future, Gungho/lfric_atm should define the fields that are present
+      ! in the dump file here.
+      call files_list%insert_item( lfric_xios_file_type( dump_fname,                   &
+                                                         xios_id="read_lfric_fd_dump", &
+                                                         io_mode=FILE_MODE_READ ) )
     end if
 
 #ifdef UM_PHYSICS
     ! Setup ancillary files
     if( ancil_option == ancil_option_fixed .or. &
         ancil_option == ancil_option_updating ) then
+
       ! Set land area ancil filename from namelist
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(land_area_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="land_area_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,               &
+                                                         xios_id="land_area_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
 
       ! Set soil ancil filename from namelist
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(soil_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="soil_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,          &
+                                                         xios_id="soil_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
 
       ! Set plant functional type ancil filename from namelist
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(plant_func_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="plant_func_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,                &
+                                                         xios_id="plant_func_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
 
       ! Set sea chlorophyll ancil filename from namelist
       if ( sea_alb_var_chl ) then
         write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                  trim(sea_ancil_path)
-        call tmp_file%file_new(ancil_fname)
-        call tmp_file%configure(xios_id="sea_ancil", io_mode_read=.true.)
-        call append_file_to_list(tmp_file, files_list)
+        call files_list%insert_item( lfric_xios_file_type( ancil_fname,         &
+                                                           xios_id="sea_ancil", &
+                                                           io_mode=FILE_MODE_READ ) )
       end if
 
       ! Set sea surface temperature ancil filename from namelist
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(sst_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="sst_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,         &
+                                                         xios_id="sst_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
 
       ! Set sea ice ancil filename from namelist
       if (.not. l_esm_couple) then
         write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                  trim(sea_ice_ancil_path)
-        call tmp_file%file_new(ancil_fname)
-        call tmp_file%configure(xios_id="sea_ice_ancil", io_mode_read=.true.)
-        call append_file_to_list(tmp_file, files_list)
+        call files_list%insert_item( lfric_xios_file_type( ancil_fname,           &
+                                                         xios_id="sea_ice_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
       end if
 
       if ( albedo_obs ) then
         ! Set albedo_vis ancil filename from namelist
         write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                  trim(albedo_vis_ancil_path)
-        call tmp_file%file_new(ancil_fname)
-        call tmp_file%configure(xios_id="albedo_vis_ancil", io_mode_read=.true.)
-        call append_file_to_list(tmp_file, files_list)
+        call files_list%insert_item( lfric_xios_file_type( ancil_fname,              &
+                                                         xios_id="alvedo_vis_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
 
         ! Set albedo_nir ancil filename from namelist
         write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                  trim(albedo_nir_ancil_path)
-        call tmp_file%file_new(ancil_fname)
-        call tmp_file%configure(xios_id="albedo_nir_ancil", io_mode_read=.true.)
-        call append_file_to_list(tmp_file, files_list)
+        call files_list%insert_item( lfric_xios_file_type( ancil_fname,              &
+                                                         xios_id="albedo_nir_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
       end if
 
       ! Set topmodel hydrology filename from namelist
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(hydtop_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="hydtop_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,            &
+                                                         xios_id="hydtop_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
 
       ! Set ozone filename from namelist
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(ozone_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="ozone_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,           &
+                                                         xios_id="ozone_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
 
       ! Set surface fraction ancil filename from namelist
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(surface_frac_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="surface_frac_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,                  &
+                                                         xios_id="surface_frac_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
 
     end if
 
@@ -257,9 +264,9 @@ module gungho_setup_io_mod
       ! Set aerosol ancil filename from namelist
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(aerosols_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="aerosols_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,              &
+                                                         xios_id="aerosols_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
     end if
 
     if ( glomap_mode == glomap_mode_ukca   .and.            &
@@ -268,112 +275,112 @@ module gungho_setup_io_mod
       ! Set aerosol emission ancil filenames from namelist
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(emiss_bc_biofuel_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="emiss_bc_biofuel_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,                      &
+                                                         xios_id="emiss_bc_biofuel_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
 
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(emiss_bc_fossil_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="emiss_bc_fossil_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,                     &
+                                                         xios_id="emiss_bc_fossil_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
 
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(emiss_bc_biomass_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="emiss_bc_biomass_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,                      &
+                                                         xios_id="emiss_bc_biomass_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
 
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(emiss_dms_land_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="emiss_dms_land_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,                    &
+                                                         xios_id="emiss_dms_land_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
 
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(dms_conc_ocean_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="dms_conc_ocean_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,                    &
+                                                         xios_id="dms_conc_ocean_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
 
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(emiss_monoterp_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="emiss_monoterp_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,                    &
+                                                         xios_id="emiss_monoterp_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
 
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(emiss_om_biofuel_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="emiss_om_biofuel_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,                      &
+                                                         xios_id="emiss_om_biofuel_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
 
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(emiss_om_fossil_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="emiss_om_fossil_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,                     &
+                                                         xios_id="emiss_om_fossil_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
 
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(emiss_om_biomass_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="emiss_om_biomass_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,                      &
+                                                         xios_id="emiss_om_biomass_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
 
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(emiss_so2_low_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="emiss_so2_low_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,                   &
+                                                         xios_id="emiss_so2_low_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
 
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(emiss_so2_high_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="emiss_so2_high_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,                    &
+                                                         xios_id="emiss_so2_high_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
 
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(emiss_so2_nat_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="emiss_so2_nat_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,                   &
+                                                         xios_id="emiss_so2_nat_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
 
       ! Setup Offline oxidants ancillary files
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(h2o2_limit_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="h2o2_limit_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,                &
+                                                         xios_id="h2o2_limit_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
 
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(ho2_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="ho2_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,         &
+                                                         xios_id="ho2_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
 
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(no3_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="no3_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,         &
+                                                         xios_id="no3_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
 
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(o3_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="o3_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,        &
+                                                         xios_id="o3_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
 
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(oh_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="oh_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,        &
+                                                         xios_id="oh_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
 
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(soil_dust_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="soil_dust_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,               &
+                                                         xios_id="soil_dust_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
 
     end if
 #endif
@@ -386,9 +393,9 @@ module gungho_setup_io_mod
       ! Set orography ancil filename from namelist
       write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                trim(orography_ancil_path)
-      call tmp_file%file_new(ancil_fname)
-      call tmp_file%configure(xios_id="orography_ancil", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,               &
+                                                         xios_id="orography_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
     end if
 
     ! Setup the lbc file
@@ -396,18 +403,18 @@ module gungho_setup_io_mod
          lbc_option == lbc_option_um2lfric_file ) then
       write(lbc_fname,'(A)') trim(lbc_directory)//'/'// &
                              trim(lbc_filename)
-      call tmp_file%file_new(lbc_fname)
-      call tmp_file%configure(xios_id="lbc", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( lbc_fname,     &
+                                                         xios_id="lbc", &
+                                                         io_mode=FILE_MODE_READ ) )
     endif
 
     ! Setup the ls file
     if ( ls_option == ls_option_file ) then
       write(ls_fname,'(A)') trim(ls_directory)//'/'// &
                             trim(ls_filename)
-      call tmp_file%file_new(ls_fname)
-      call tmp_file%configure(xios_id="ls", io_mode_read=.true.)
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( ls_fname,     &
+                                                         xios_id="ls", &
+                                                         io_mode=FILE_MODE_READ ) )
     endif
 
     ! Setup checkpoint writing context information
@@ -415,12 +422,11 @@ module gungho_setup_io_mod
       ! Create checkpoint filename from stem and end timestep
       write(checkpoint_write_fname,'(A,A,I6.6)') &
                            trim(checkpoint_stem_name),"_", ts_end
-      call tmp_file%file_new(checkpoint_write_fname)
-      call tmp_file%configure(xios_id="lfric_checkpoint_write", &
-                              io_mode_read=.true.,              &
-                              freq=ts_end,                      &
-                              field_group_id="checkpoint_fields")
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( checkpoint_write_fname,           &
+                                                         xios_id="lfric_checkpoint_write", &
+                                                         io_mode=FILE_MODE_WRITE,          &
+                                                         freq=ts_end,                      &
+                                                         field_group_id="checkpoint_fields" ) )
     end if
 
     ! Setup checkpoint reading context information
@@ -428,12 +434,11 @@ module gungho_setup_io_mod
       ! Create checkpoint filename from stem and (start - 1) timestep
       write(checkpoint_read_fname,'(A,A,I6.6)') &
                    trim(checkpoint_stem_name),"_", (ts_start - 1)
-      call tmp_file%file_new(checkpoint_read_fname)
-      call tmp_file%configure(xios_id="lfric_checkpoint_read", &
-                              io_mode_read=.true.,             &
-                              freq=ts_start - 1,               &
-                              field_group_id="checkpoint_fields")
-      call append_file_to_list(tmp_file, files_list)
+      call files_list%insert_item( lfric_xios_file_type( checkpoint_read_fname,           &
+                                                         xios_id="lfric_checkpoint_read", &
+                                                         io_mode=FILE_MODE_READ,          &
+                                                         freq=ts_start - 1,               &
+                                                         field_group_id="checkpoint_fields" ) )
     end if
 
   end subroutine init_gungho_files

@@ -7,10 +7,10 @@
 !>
 module io_context_mod
 
-  use clock_mod,     only : clock_type
-  use constants_mod, only : i_native, r_second
-  use field_mod,     only : field_type
-  use file_mod,      only : file_type
+  use clock_mod,       only : clock_type
+  use constants_mod,   only : i_native, r_second
+  use field_mod,       only : field_type
+  use linked_list_mod, only : linked_list_type
 
   implicit none
 
@@ -22,19 +22,19 @@ module io_context_mod
     private
   contains
     private
-    procedure(get_filelist_if), public, deferred :: get_filelist
+    procedure(get_filelist_if),    public, deferred :: get_filelist
   end type io_context_type
 
   abstract interface
-    !> Gets the context's file list
+    !> Gets the list of files associated with this context.
     !>
-    !> @return The list of file objects used by the model
+    !> @return Linked list of file objects.
     !>
     function get_filelist_if( this ) result(filelist)
-      import file_type, io_context_type
+      import linked_list_type, io_context_type
       implicit none
       class(io_context_type), intent(in), target :: this
-      class(file_type), pointer :: filelist(:)
+      type(linked_list_type), pointer :: filelist
     end function get_filelist_if
   end interface
 

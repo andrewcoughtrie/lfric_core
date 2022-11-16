@@ -15,6 +15,7 @@ module io_dev_data_mod
 
   ! Infrastructure
   use constants_mod,                    only : i_def
+  use driver_model_data_mod,            only : model_data_type
   use field_mod,                        only : field_type
   use field_collection_mod,             only : field_collection_type
   use io_context_mod,                   only : io_context_type
@@ -54,7 +55,7 @@ module io_dev_data_mod
 
   !> @brief Holds the working data set for an IO_Dev model run.
   !>
-  type :: io_dev_data_type
+  type, extends(model_data_type) :: io_dev_data_type
 
     private
 
@@ -125,35 +126,14 @@ contains
     ! Initialise all the model fields here analytically
     call io_dev_init_fields_alg( model_data%core_fields, chi, panel_id )
 
-
-    !---------------------------------------------------------------
-    ! Now we make separate init calls based on model configuration
-    !---------------------------------------------------------------
-    if ( checkpoint_read ) then
-      if ( subroutine_timers ) call timer('read_checkpoint')
-      call read_checkpoint( model_data%core_fields,           &
-                            model_clock%get_first_step() - 1, &
-                            checkpoint_stem_name )
-      if ( subroutine_timers ) call timer('read_checkpoint')
-
-    else
-      ! If fields need to be read from dump file, read them
-      if ( field_initialisation == field_initialisation_start_dump ) then
-          if ( subroutine_timers ) call timer('read_state: dump')
-          call read_state( model_data%dump_fields, prefix='input_' )
-          if ( subroutine_timers ) call timer('read_state: dump')
-      end if
-
-      ! If testing initialisation of time-varying I/O
-      if ( time_variation == time_variation_ancil ) then
-        if ( subroutine_timers ) call timer('init_variable_fields')
-        call init_variable_fields( model_data%variable_field_times, &
+    ! Time varying init
+    if (time_variation == time_variation_ancil) then
+      call log_event( "IO_Dev: Initialising fields from time_varying ancillary", LOG_LEVEL_INFO )
+      if ( subroutine_timers ) call timer('init_variable_fields')
+      call init_variable_fields( model_data%variable_field_times, &
                                    model_clock, model_data%core_fields )
-        if ( subroutine_timers ) call timer('init_variable_fields')
-      end if
-
+      if ( subroutine_timers ) call timer('init_variable_fields')
     end if
-
 
   end subroutine initialise_model_data
 
@@ -212,12 +192,6 @@ contains
         end if
       if ( subroutine_timers ) call timer('write_state: initial')
     else
-      !===================== Write fields to dump ======================!
-      if ( write_dump ) then
-        if ( subroutine_timers ) call timer('write_state: dump')
-        call write_state( model_data%dump_fields, prefix='output_' )
-        if ( subroutine_timers ) call timer('write_state: dump')
-      end if
 
       !=================== Write fields to diagnostic files ====================!
       if ( write_diag ) then
@@ -231,20 +205,11 @@ contains
 
   !> @brief Routine to destroy all the field collections in the working data set
   !> @param[in,out] model_data The working data set for a model run
-  subroutine finalise_model_data( model_data, model_clock )
+  subroutine finalise_model_data( model_data )
 
     implicit none
 
       type(io_dev_data_type),  intent(inout) :: model_data
-      class(model_clock_type), intent(in)    :: model_clock
-
-      !=================== Write fields to checkpoint files ====================
-      if ( checkpoint_write ) then
-        if ( subroutine_timers ) call timer('write_checkpoint')
-        call write_checkpoint( model_data%core_fields, model_clock, &
-                               checkpoint_stem_name )
-        if ( subroutine_timers ) call timer('write_checkpoint')
-      end if
 
       !======================== Write checksum output ==========================
       if (model_data%alg_fields%get_length() /= 0) then
