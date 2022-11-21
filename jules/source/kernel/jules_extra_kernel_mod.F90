@@ -318,9 +318,6 @@ contains
                                         soil_ecosse_vars_assoc, &
                                         soil_ecosse_vars_dealloc, &
                                         soil_ecosse_vars_nullify
-    use aero,                     only: aero_type, aero_data_type,             &
-                                        aero_alloc, aero_assoc, &
-                                        aero_dealloc, aero_nullify
     use urban_param_mod,          only: urban_param_data_type,                 &
                                         urban_param_type, &
                                         urban_param_alloc, urban_param_assoc,  &
@@ -520,8 +517,6 @@ contains
     type(trif_vars_data_type) :: trif_vars_data
     type(soil_ecosse_vars_type) :: soilecosse
     type(soil_ecosse_vars_data_type) :: soil_ecosse_vars_data
-    type(aero_type) :: aerotype
-    type(aero_data_type) :: aero_data
     type(urban_param_type) :: urban_param
     type(urban_param_data_type) :: urban_param_data
     type(trifctl_type) :: trifctltype
@@ -618,10 +613,6 @@ contains
                             soil_bgc_model,soil_model_ecosse,                 &
                             soil_ecosse_vars_data)
     call soil_ecosse_vars_assoc(soilecosse, soil_ecosse_vars_data)
-
-    call aero_alloc(land_pts,t_i_length,t_j_length,                           &
-                nsurft,ndiv, aero_data)
-    call aero_assoc(aerotype, aero_data)
 
     call urban_param_alloc(land_pts, l_urban2t, l_moruses, urban_param_data)
     call urban_param_assoc(urban_param, urban_param_data)
@@ -1106,9 +1097,6 @@ contains
     call urban_param_nullify(urban_param)
     call urban_param_dealloc(urban_param_data)
 
-    call aero_nullify(aerotype)
-    call aero_dealloc(aero_data)
-
     call trif_vars_nullify(trif_vars)
     call trif_vars_dealloc(trif_vars_data)
 
@@ -1123,6 +1111,12 @@ contains
 
     call fluxes_nullify(fluxes)
     call fluxes_dealloc(fluxes_data)
+
+    call rivers_nullify(rivers)
+    call rivers_dealloc(rivers_data)
+
+    call chemvars_nullify(chemvars)
+    call chemvars_dealloc(chemvars_data)
 
   end subroutine jules_extra_code
 
