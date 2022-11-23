@@ -56,7 +56,6 @@ module bl_imp_diags_mod
   logical( l_def ) :: soil_evap_flag
   logical( l_def ) :: grid_canopy_evap_flag
   logical( l_def ) :: grid_sublimation_flag
-  logical( l_def ) :: surf_ht_flux_flag
   logical( l_def ) :: soil_surf_ht_flux_flag
   logical( l_def ) :: surf_sw_net_flag
   logical( l_def ) :: surf_radnet_flag
@@ -189,15 +188,15 @@ contains
 
     ! 3D fields in wtheta space
     dmv_bl_flag = .true.
-    call mv%copy_field_properties(dmv_bl)
+    call cf_bulk%copy_field_properties(dmv_bl)
     call invoke(a_times_X(dmv_bl, -1.0_r_def, mv))
 
     dmcl_bl_flag = .true.
-    call mcl%copy_field_properties(dmcl_bl)
+    call cf_bulk%copy_field_properties(dmcl_bl)
     call invoke(a_times_X(dmcl_bl, -1.0_r_def, mcl))
 
     dmci_bl_flag = .true.
-    call mci%copy_field_properties(dmci_bl)
+    call cf_bulk%copy_field_properties(dmci_bl)
     call invoke(a_times_X(dmci_bl, -1.0_r_def, mci))
 
     dbcf_bl_flag = .true.
@@ -307,24 +306,31 @@ contains
     ! surface tiled fields
     t1p5m_surft_flag = .true.
     call tile_fraction%copy_field_properties(t1p5m_surft)
+    call invoke(setval_c(t1p5m_surft,0.0_r_def))
 
     q1p5m_surft_flag = .true.
     call tile_fraction%copy_field_properties(q1p5m_surft)
+    call invoke(setval_c(q1p5m_surft,0.0_r_def))
 
     latent_heat_flag = .true.
     call tile_fraction%copy_field_properties(latent_heat)
+    call invoke(setval_c(latent_heat,0.0_r_def))
 
     surf_sw_net_flag = .true.
     call tile_fraction%copy_field_properties(surf_sw_net)
+    call invoke(setval_c(surf_sw_net,0.0_r_def))
 
     surf_radnet_flag = .true.
     call tile_fraction%copy_field_properties(surf_radnet)
+    call invoke(setval_c(surf_radnet,0.0_r_def))
 
     surf_lw_up_flag = .true.
     call tile_fraction%copy_field_properties(surf_lw_up)
+    call invoke(setval_c(surf_lw_up,0.0_r_def))
 
     surf_lw_down_flag = .true.
     call tile_fraction%copy_field_properties(surf_lw_down)
+    call invoke(setval_c(surf_lw_down,0.0_r_def))
 
     if ( subroutine_timers ) call timer("bl_imp_diags")
 
@@ -614,7 +620,7 @@ contains
     if (latent_heat_flag) call latent_heat%write_field('surface__latent_heat')
     if (snomlt_surf_htf_flag) call snomlt_surf_htf%write_field('surface__snomlt_surf_htf')
     if (soil_evap_flag) call soil_evap%write_field('surface__soil_evap')
-    if (surf_ht_flux_flag) call surf_ht_flux%write_field('surface__surf_ht_flux')
+    call surf_ht_flux%write_field('surface__surf_ht_flux')
     if (soil_surf_ht_flux_flag) call soil_surf_ht_flux%write_field('surface__soil_surf_ht_flux')
     if (surf_sw_net_flag) call surf_sw_net%write_field('surface__surf_sw_net')
     if (surf_radnet_flag) call surf_radnet%write_field('surface__surf_radnet')

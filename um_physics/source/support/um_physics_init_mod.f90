@@ -665,6 +665,8 @@ contains
     ! ----------------------------------------------------------------
     ! needed for visibility diags even without cloud scheme
     rhcrit(1) = 0.96_r_um
+    ice_fraction_method = min_liq_overlap
+    i_eacf = not_mixph
     if ( cloud == cloud_um ) then
 
       if ( moisture_formulation == moisture_formulation_dry ) then
@@ -687,7 +689,6 @@ contains
         case(rh_crit_opt_tke)
           i_rhcpt = rhcpt_tke_based
       end select
-      ice_fraction_method = min_liq_overlap
       ice_width           = real(ice_width_in, r_um)
       l_bm_ez_subcrit_only= ez_subcrit
       ez_max_bm           = ez_max
@@ -703,7 +704,6 @@ contains
         i_cld_vn   = i_cld_smith
         forced_cu  = off
         i_cld_area = acf_cusack
-        i_eacf     = not_mixph
 
       case(scheme_pc2)
         i_cld_vn                     = i_cld_pc2
@@ -727,7 +727,6 @@ contains
         i_cld_vn   = i_cld_bimodal
         forced_cu  = off
         i_cld_area = acf_off
-        i_eacf     = not_mixph
 
       case default
         write( log_scratch_space, '(A,I3)' )  &

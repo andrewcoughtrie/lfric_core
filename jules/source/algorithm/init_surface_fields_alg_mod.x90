@@ -75,6 +75,7 @@ contains
     type( field_type ), pointer :: sea_ice_conductivity => null()
     type( field_type ), pointer :: melt_pond_fraction  => null()
     type( field_type ), pointer :: melt_pond_depth     => null()
+    type( field_type ), pointer :: surf_ht_flux        => null()
 
     ! Local variables
     real(kind=r_def)            :: default_conductivity
@@ -113,6 +114,7 @@ contains
     call surface_fields%get_field('sea_ice_conductivity', sea_ice_conductivity)
     call surface_fields%get_field('melt_pond_fraction', melt_pond_fraction)
     call surface_fields%get_field('melt_pond_depth', melt_pond_depth)
+    call surface_fields%get_field('surf_ht_flux', surf_ht_flux)
 
     call invoke(                                                              &
                  ! Set sea/land surface prognostics for use in SCM testing
@@ -158,7 +160,8 @@ contains
                  setval_c(sea_ice_conductivity, default_conductivity ),       &
                  ! Initialise melt ponds to zero
                  setval_c(melt_pond_fraction, 0.0_r_def ),                    &
-                 setval_c(melt_pond_depth, 0.0_r_def ))
+                 setval_c(melt_pond_depth, 0.0_r_def ),                       &
+                 setval_c(surf_ht_flux, 0.0_r_def) )
 
   end subroutine init_surface_fields_alg
 

@@ -11,7 +11,7 @@ module um_sizes_init_mod
   ! LFRic namelists which have bee read
   use extrusion_config_mod,        only : number_of_layers
   use cloud_config_mod,            only : cld_fsd_hill
-  use mixing_config_mod,           only : smagorinsky, leonard_term
+  use mixing_config_mod,           only : smagorinsky
   use radiation_config_mod,        only : topography, topography_horizon
 
   ! Other modules used
@@ -24,7 +24,7 @@ module um_sizes_init_mod
 
 contains
 
-  !>@brief Initialise UM high levels variables with are either fixed in LFRic
+  !>@brief Initialise UM high levels variables which are either fixed in LFRic
   !>        or derived from LFRic inputs.
   !>@details Nothing in this file is ever likely to be promoted to the LFRic
   !>          namelist. Everything is either set from an LFRic variable
@@ -54,8 +54,6 @@ contains
     use fsd_parameters_mod, only: f_arr
     use turb_diff_ctl_mod, only: visc_m, visc_h, max_diff, delta_smag,   &
          rneutml_sq
-    use leonard_incs_mod, only: thetal_inc_leonard, qw_inc_leonard
-    use dyn_coriolis_mod, only: f3_at_u
     use solinc_data, only: sky
 
     implicit none
@@ -65,7 +63,7 @@ contains
     ! ----------------------------------------------------------------
     ! Model dimensions - contained in UM module nlsizes_namelist_mod
     ! ----------------------------------------------------------------
-     ! Horizontal dimensions set to the value passed into this routine.
+    ! Horizontal dimensions set to the value passed into this routine.
     ! This needs to match the number of cells passed to physics kernels.
     row_length = int( ncells, i_um )
     rows       = 1
@@ -111,7 +109,7 @@ contains
     ! throughout the UM code.
     ! We must initialise them here so that they are always available.
     ! But they must be set to appropriate values for the current column
-    ! in any kernel whos external code uses the variables.
+    ! in any kernel whose external code uses the variables.
     ! Ideally the UM code will be changed so that they are passed in
     ! through the argument list.
     if(allocated(r_theta_levels))deallocate(r_theta_levels)
@@ -143,7 +141,7 @@ contains
       ! in the UM code.
       ! We must initialise them here so that they are available.
       ! But they must be set to appropriate values for the current column
-      ! in any kernel whos external code uses the variables.
+      ! in any kernel whose external code uses the variables.
       ! Ideally the UM code will be changed so that they are passed in
       ! through the argument list.
       if(allocated(visc_h))deallocate(visc_h)
@@ -172,32 +170,6 @@ contains
       allocate ( delta_smag(1,1), source=rmdi  )
 
     end if
-
-    if ( leonard_term ) then
-
-      if(allocated(thetal_inc_leonard))deallocate(thetal_inc_leonard)
-      allocate ( thetal_inc_leonard(row_length, rows, number_of_layers), source=rmdi )
-      if(allocated(qw_inc_leonard))deallocate(qw_inc_leonard)
-      allocate ( qw_inc_leonard(row_length, rows, number_of_layers), source=rmdi )
-
-    else ! not Leonard_term
-
-      if(allocated(thetal_inc_leonard))deallocate(thetal_inc_leonard)
-      allocate ( thetal_inc_leonard(1,1,1), source=rmdi )
-      if(allocated(qw_inc_leonard))deallocate(qw_inc_leonard)
-      allocate ( qw_inc_leonard(1,1,1), source=rmdi )
-
-    end if
-
-    ! The following 2D array is used direct from modules throughout the
-    ! UM/Jules code
-    ! We must initialise it here so that it is always available
-    ! But it must be set to appropriate values for the current column
-    ! in any kernel whos external code uses it.
-    ! Ideally the UM/Jules code will be changed so that it is passed in
-    ! through the argument list
-    if(allocated(f3_at_u))deallocate(f3_at_u)
-    allocate(f3_at_u(row_length,rows), source=1.0_r_um)
 
   end subroutine um_sizes_init
 

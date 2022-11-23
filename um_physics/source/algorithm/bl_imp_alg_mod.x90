@@ -19,6 +19,7 @@ module bl_imp_alg_mod
                                            get_rdz_w3
   use mr_indices_mod,                only: nummr, imr_v, imr_cl, imr_ci, imr_r
   use timestepping_config_mod,       only: outer_iterations
+  use um_sizes_init_mod,             only: um_sizes_init
 
   use io_config_mod, only: subroutine_timers
   use timer_mod,     only: timer
@@ -79,6 +80,8 @@ contains
                         outer, clock)
 
     use bl_imp_kernel_mod, only: bl_imp_kernel_type
+    use bl_imp2_kernel_mod, only: bl_imp2_kernel_type
+    use jules_imp_kernel_mod, only: jules_imp_kernel_type
     use bl_imp_du_kernel_mod, only: bl_imp_du_kernel_type
 
     implicit none
@@ -166,7 +169,6 @@ contains
     type( field_type ), pointer :: canopy_height       => null()
     type( field_type ), pointer :: sea_ice_thickness   => null()
     type( field_type ), pointer :: sea_ice_temperature => null()
-    type( field_type ), pointer :: sea_ice_conductivity => null()
     type( field_type ), pointer :: tile_temperature    => null()
     type( field_type ), pointer :: tile_lw_grey_albedo => null()
     type( field_type ), pointer :: screen_temperature  => null()
@@ -239,8 +241,12 @@ contains
     type( field_type ) :: surf_sw_net, surf_radnet
     type( field_type ) :: surf_lw_up, surf_lw_down
     type( field_type ) :: grid_surface_temperature
+    type( field_type ) :: dqw, dtl, dqw_nt, dtl_nt, qw, tl, ct_ctq,     &
+                          dqw1, dtl1, ct_ctq1, ftl_star, fqw_star, ftl, fqw, &
+                          rhokh
 
     type( mesh_type ), pointer :: mesh => null()
+    integer(i_def) :: loop, ncells
 
     if ( subroutine_timers ) call timer("bl_imp_alg")
 
@@ -322,7 +328,6 @@ contains
     call surface_fields%get_field('canopy_height', canopy_height)
     call surface_fields%get_field('sea_ice_thickness', sea_ice_thickness)
     call surface_fields%get_field('sea_ice_temperature', sea_ice_temperature)
-    call surface_fields%get_field('sea_ice_conductivity', sea_ice_conductivity)
     call surface_fields%get_field('tile_temperature', tile_temperature)
     call surface_fields%get_field('tile_lw_grey_albedo', tile_lw_grey_albedo)
     call surface_fields%get_field('screen_temperature', screen_temperature)
@@ -455,45 +460,86 @@ contains
       call map_physics_winds(diss_u, diss_v, diss_w, dissip)
     end if
 
+    call theta%copy_field_properties(dqw)
+    call theta%copy_field_properties(dtl)
+    call theta%copy_field_properties(dqw_nt)
+    call theta%copy_field_properties(dtl_nt)
+    call theta%copy_field_properties(qw)
+    call theta%copy_field_properties(tl)
+    call theta%copy_field_properties(ct_ctq)
+    call zh%copy_field_properties(dqw1)
+    call zh%copy_field_properties(dtl1)
+    call zh%copy_field_properties(ct_ctq1)
+    call heat_flux_bl%copy_field_properties(ftl_star)
+    call moist_flux_bl%copy_field_properties(fqw_star)
+    call heat_flux_bl%copy_field(ftl)
+    call moist_flux_bl%copy_field(fqw)
+    call rhokh_bl%copy_field(rhokh)
+
+    ncells = mesh%get_last_edge_cell()
+    call um_sizes_init(ncells)
+
+    do loop = 1,2
                 ! Call the implicit scheme for scalars
-    call invoke(bl_imp_kernel_type( outer, theta, wetrho_in_w3,                &
-                           wetrho_in_wth, exner, exner_in_wth,                 &
-                           mr_n(imr_v), mr_n(imr_cl), mr_n(imr_ci), theta_star,&
-                           height_w3, height_wth, ntml, cumulus,               &
-                           tile_fraction, leaf_area_index, canopy_height,      &
-                           peak_to_trough_orog, silhouette_area_orog,          &
-                           sea_ice_thickness, sea_ice_temperature,             &
-                           sea_ice_conductivity,                               &
-                           tile_temperature, tile_lw_grey_albedo,              &
-                           screen_temperature,                                 &
-                           time_since_transition, latitude,                    &
-                           tile_snow_mass, n_snow_layers,                      &
-                           snow_depth, canopy_water, soil_temperature,         &
-                           tile_heat_flux, tile_moisture_flux,                 &
-                           sw_up_tile, sw_down_surf, lw_down_surf, skyview,    &
-                           snowice_sublimation, surf_heat_flux, canopy_evap,   &
-                           water_extraction, snowice_melt,                     &
-                           dtheta_bl, diss_u, diss_v, dt_conv,                 &
-                           mr(imr_v), mr(imr_cl), mr(imr_ci),                  &
-                           cf_area, cf_fro, cf_liq, cf_bulk, rh_crit,          &
-                           dsldzm, wvar, gradrinr, tau_dec_bm, tau_hom_bm,     &
-                           tau_mph_bm,                                         &
-                           rhokh_bl, bq_bl, bt_bl, moist_flux_bl, heat_flux_bl,&
-                           dtrdz_tq_bl, rdz_w3,                                &
-                           thetal_inc_leonard, mt_inc_leonard,                 &
-                           alpha1_tile, ashtf_prime_tile, dtstar_tile,         &
-                           fraca_tile, z0h_tile, z0m_tile, rhokh_tile,         &
-                           chr1p5m_tile, resfs_tile, canhc_tile,               &
-                           tile_water_extract, z_lcl, inv_depth,               &
-                           qcl_at_inv_top, blend_height_tq, ustar,             &
-                           soil_moist_avail, zh_nonloc, zh, zhsc, bl_type_ind, &
-                           t1p5m_surft, q1p5m_surft,                           &
-                           t1p5m, q1p5m, qcl1p5m, rh1p5m,                      &
-                           latent_heat,                                        &
-                           snomlt_surf_htf, soil_evap,                         &
-                           surf_ht_flux, soil_surf_ht_flux,                    &
-                           surf_sw_net, surf_radnet,                           &
-                           surf_lw_up, surf_lw_down) )
+      call invoke(bl_imp_kernel_type( loop, theta, exner_in_wth, mr_n(imr_v),  &
+                                      mr_n(imr_cl), mr_n(imr_ci), theta_star,  &
+                                      height_w3, height_wth, dt_conv,          &
+                                      mr(imr_v), mr(imr_cl), mr(imr_ci),       &
+                                      dtrdz_tq_bl, rdz_w3, blend_height_tq,    &
+                                      bl_type_ind, rhokh, fqw, ftl, dqw, dtl,  &
+                                      dqw_nt, dtl_nt, qw, tl, ct_ctq,          &
+                                      dqw1, dtl1, ct_ctq1),                    &
+                  jules_imp_kernel_type( outer, loop, wetrho_in_w3,            &
+                                         exner_in_wth, height_wth,             &
+                                         tile_fraction, sea_ice_thickness,     &
+                                         sea_ice_temperature,                  &
+                                         tile_temperature,                     &
+                                         screen_temperature,                   &
+                                         time_since_transition, latitude,      &
+                                         tile_snow_mass, n_snow_layers,        &
+                                         snow_depth, canopy_water,             &
+                                         soil_temperature, tile_heat_flux,     &
+                                         tile_moisture_flux, sw_up_tile,       &
+                                         sw_down_surf, lw_down_surf, skyview,  &
+                                         tile_lw_grey_albedo,                  &
+                                         snowice_sublimation, surf_heat_flux,  &
+                                         canopy_evap, water_extraction,        &
+                                         snowice_melt, mr(imr_ci), rh_crit,    &
+                                         rhokh, fqw, ftl, dtrdz_tq_bl,         &
+                                         alpha1_tile, ashtf_prime_tile,        &
+                                         dtstar_tile, fraca_tile, z0h_tile,    &
+                                         z0m_tile, rhokh_tile, chr1p5m_tile,   &
+                                         resfs_tile, canhc_tile,               &
+                                         tile_water_extract,  ustar,           &
+                                         soil_moist_avail, bl_type_ind, qw, tl,&
+                                         dqw1, dtl1, ct_ctq1, surf_ht_flux,    &
+                                         t1p5m_surft, q1p5m_surft, t1p5m,      &
+                                         q1p5m, qcl1p5m, rh1p5m, latent_heat,  &
+                                         snomlt_surf_htf, soil_evap,           &
+                                         soil_surf_ht_flux, surf_sw_net,       &
+                                        surf_radnet, surf_lw_up, surf_lw_down),&
+                  bl_imp2_kernel_type( outer, loop, wetrho_in_wth, exner,      &
+                                       exner_in_wth, theta_star, height_w3,    &
+                                       height_wth, ntml, cumulus, dtheta_bl,   &
+                                       diss_u, diss_v, dt_conv, mr(imr_v),     &
+                                       mr(imr_cl), mr(imr_ci), cf_area, cf_fro,&
+                                       cf_liq, cf_bulk, rh_crit, dsldzm, wvar, &
+                                       gradrinr, tau_dec_bm, tau_hom_bm,       &
+                                       tau_mph_bm, rhokh, bq_bl, bt_bl, fqw,   &
+                                       ftl, dtrdz_tq_bl, rdz_w3,               &
+                                       thetal_inc_leonard, mt_inc_leonard,     &
+                                       z_lcl, inv_depth, qcl_at_inv_top,       &
+                                       zh_nonloc, zh, zhsc, bl_type_ind, dqw,  &
+                                       dtl, dqw_nt, dtl_nt, qw, tl, ct_ctq,    &
+                                       fqw_star, ftl_star) )
+    end do !loop
+
+    call um_sizes_init(1_i_def)
+
+    if (outer == outer_iterations) then
+      call invoke(setval_X(heat_flux_bl,ftl), &
+                  setval_X(moist_flux_bl,fqw) )
+    end if
 
     if ( subroutine_timers ) call timer("bl_imp_alg")
 

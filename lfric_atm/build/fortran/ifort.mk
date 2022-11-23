@@ -30,6 +30,12 @@ FFLAGS_FASTD_INIT         = $(FFLAGS_INIT)
 FFLAGS_FASTD_RUNTIME      = $(FFLAGS_RUNTIME)
 endif
 
+# NOTE: The -qoverride-limits option contained in $(FFLAGS_INTEL_FIX_ARG) is
+# not currently applied here. This is a temporary workaround for #3465
+# which it was found to be inadvertently preventing compilation
+# openMP has also been removed from this routine via the optimisation script
+%bl_imp_alg_mod_psy.o %bl_imp_alg_mod_psy.mod:   private FFLAGS_EXTRA =
+
 $(info LFRic compile options required for files with OpenMP - see Ticket 1490)
 %psy.o %psy.mod:   private FFLAGS_EXTRA = $(FFLAGS_INTEL_FIX_ARG)
 # NOTE: The -qoverride-limits option contained in $(FFLAGS_INTEL_FIX_ARG) is
