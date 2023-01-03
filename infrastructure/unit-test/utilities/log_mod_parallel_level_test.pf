@@ -15,7 +15,8 @@ module log_mod_parallel_level_test
                            log_level_debug, log_level_error,                &
                            log_level_info, log_level_trace,                 &
                            log_level_warning, log_set_alert_stream,         &
-                           log_set_level, log_set_info_stream
+                           log_set_level, log_set_info_stream,              &
+                           log_forget_timestep
   use pFUnit_Mod
 
   implicit none
@@ -111,6 +112,7 @@ contains
     class(log_test_type), intent(inout) :: this
 
     call initialise_logging( this%getMpiCommunicator(), name )
+    call log_forget_timestep()
     call log_output_test_serial( log_level_trace, ':TRACE:' )
     call finalise_logging()
 
@@ -127,6 +129,7 @@ contains
     class(log_test_type), intent(inout) :: this
 
     call initialise_logging( this%getMpiCommunicator(), name )
+    call log_forget_timestep()
     call log_output_test_serial( log_level_debug, ':DEBUG:' )
     call finalise_logging()
 
@@ -143,6 +146,7 @@ contains
     class(log_test_type), intent(inout) :: this
 
     call initialise_logging( this%getMpiCommunicator(), name )
+    call log_forget_timestep()
     call log_output_test_serial( log_level_info, ':INFO :' )
     call finalise_logging()
 
@@ -159,6 +163,7 @@ contains
     class(log_test_type), intent(inout) :: this
 
     call initialise_logging( this%getMpiCommunicator(), name )
+    call log_forget_timestep()
     call log_output_test_serial( log_level_warning, ':WARN :' )
     call finalise_logging()
 
@@ -173,6 +178,7 @@ contains
     class(log_test_type), intent(inout) :: this
 
     call initialise_logging( this%getMpiCommunicator(), name )
+    call log_forget_timestep()
     call log_output_test( this%getProcessRank(), log_level_trace, ':TRACE:' )
 
   end subroutine log_output_test_trace
@@ -186,6 +192,7 @@ contains
     class(log_test_type), intent(inout) :: this
 
     call initialise_logging( this%getMpiCommunicator(), name )
+    call log_forget_timestep()
     call log_output_test( this%getProcessRank(), log_level_debug, ':DEBUG:' )
 
   end subroutine log_output_test_debug
@@ -199,6 +206,7 @@ contains
     class(log_test_type), intent(inout) :: this
 
     call initialise_logging( this%getMpiCommunicator(), name )
+    call log_forget_timestep()
     call log_output_test( this%getProcessRank(), log_level_info, ':INFO :' )
 
   end subroutine log_output_test_info
@@ -212,6 +220,7 @@ contains
     class(log_test_type), intent(inout) :: this
 
     call initialise_logging( this%getMpiCommunicator(), name )
+    call log_forget_timestep()
     call log_output_test( this%getProcessRank(), log_level_warning, ':WARN :' )
 
   end subroutine log_output_test_warning
@@ -300,6 +309,7 @@ contains
     class(log_test_type), intent(inout) :: this
 
     call initialise_logging( this%getMpiCommunicator(), name )
+    call log_forget_timestep()
     call log_level_test_serial( log_level_trace )
     call finalise_logging()
 
@@ -316,6 +326,7 @@ contains
     class(log_test_type), intent(inout) :: this
 
     call initialise_logging( this%getMpiCommunicator(), name )
+    call log_forget_timestep()
     call log_level_test_serial( log_level_debug )
     call finalise_logging()
 
@@ -332,6 +343,7 @@ contains
     class(log_test_type), intent(inout) :: this
 
     call initialise_logging( this%getMpiCommunicator(), name )
+    call log_forget_timestep()
     call log_level_test_serial( log_level_info )
     call finalise_logging()
 
@@ -348,6 +360,7 @@ contains
     class(log_test_type), intent(inout) :: this
 
     call initialise_logging( this%getMpiCommunicator(), name )
+    call log_forget_timestep()
     call log_level_test_serial( log_level_warning )
     call finalise_logging()
 
@@ -362,6 +375,7 @@ contains
     class(log_test_type), intent(inout) :: this
 
     call initialise_logging( this%getMpiCommunicator(), name )
+    call log_forget_timestep()
     call log_level_test( this%getProcessRank(), log_level_trace )
 
   end subroutine log_level_test_trace
@@ -375,6 +389,7 @@ contains
     class(log_test_type), intent(inout) :: this
 
     call initialise_logging( this%getMpiCommunicator(), name )
+    call log_forget_timestep()
     call log_level_test( this%getProcessRank(), log_level_debug )
 
   end subroutine log_level_test_debug
@@ -388,6 +403,7 @@ contains
     class(log_test_type), intent(inout) :: this
 
     call initialise_logging( this%getMpiCommunicator(), name )
+    call log_forget_timestep()
     call log_level_test( this%getProcessRank(), log_level_info )
 
   end subroutine log_level_test_info
@@ -401,6 +417,7 @@ contains
     class(log_test_type), intent(inout) :: this
 
     call initialise_logging( this%getMpiCommunicator(), name )
+    call log_forget_timestep()
     call log_level_test( this%getProcessRank(), log_level_warning )
 
   end subroutine log_level_test_warning

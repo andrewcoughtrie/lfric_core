@@ -51,6 +51,7 @@ contains
     class(log_test_clock_serial_type), intent(inout) :: this
 
     call initialise_logging()
+    call log_forget_timestep()
     call log_clock_serial_test()
     call finalise_logging()
 

@@ -12,7 +12,8 @@ module log_mod_serial_level_test
                            log_level_debug, log_level_error,                &
                            log_level_info, log_level_trace,                 &
                            log_level_warning, log_set_alert_stream,         &
-                           log_set_level, log_set_info_stream
+                           log_set_level, log_set_info_stream,              &
+                           log_forget_timestep
   use pFUnit_Mod
 
   implicit none
@@ -123,6 +124,7 @@ contains
     class(log_test_type), intent(inout) :: this
 
     call initialise_logging()
+    call log_forget_timestep()
     call log_output_test_serial( this%level, this%expected_tag )
     call finalise_logging()
 
@@ -224,6 +226,7 @@ contains
     class ( log_test_type ), intent( inout ) :: this
 
     call initialise_logging()
+    call log_forget_timestep()
     call log_level_test_serial( this%level )
     call finalise_logging()
 

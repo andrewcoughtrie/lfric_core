@@ -44,6 +44,7 @@ contains
     class(log_test_clock_parallel_type), intent(inout) :: this
 
     call initialise_logging( this%getMpiCommunicator(), 'cheese_wiggles' )
+    call log_forget_timestep()
     call log_clock_serial_test()
     call finalise_logging()
 
@@ -72,6 +73,7 @@ contains
     character(*), parameter :: name = 'log_mod_parallel_clock_test'
 
     call initialise_logging( this%getMpiCommunicator(),  name )
+    call log_forget_timestep()
     call log_set_level( log_level_info )
     call log_forget_timestep()
 
