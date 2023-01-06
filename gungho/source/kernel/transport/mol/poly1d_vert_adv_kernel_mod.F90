@@ -25,7 +25,7 @@ use argument_mod,         only : arg_type, func_type,   &
                                  GH_BASIS, CELL_COLUMN, &
                                  GH_EVALUATOR,          &
                                  ANY_DISCONTINUOUS_SPACE_1
-use constants_mod,        only : r_def, i_def, l_def, EPS
+use constants_mod,        only : r_tran, i_def, l_def, EPS_R_TRAN
 use fs_continuity_mod,    only : W2v, Wtheta
 use kernel_mod,           only : kernel_type
 
@@ -113,10 +113,10 @@ subroutine poly1d_vert_adv_code( nlayers,              &
   integer(kind=i_def), intent(in)                     :: ndata
   integer(kind=i_def), intent(in)                     :: global_order
 
-  real(kind=r_def), dimension(undf_wt),  intent(inout) :: advective
-  real(kind=r_def), dimension(undf_w2v), intent(in)    :: wind
-  real(kind=r_def), dimension(undf_wt),  intent(in)    :: tracer
-  real(kind=r_def), dimension(undf_c),   intent(in)    :: coeff
+  real(kind=r_tran), dimension(undf_wt),  intent(inout) :: advective
+  real(kind=r_tran), dimension(undf_w2v), intent(in)    :: wind
+  real(kind=r_tran), dimension(undf_wt),  intent(in)    :: tracer
+  real(kind=r_tran), dimension(undf_c),   intent(in)    :: coeff
 
   logical(kind=l_def), intent(in) :: logspace
 
@@ -126,8 +126,8 @@ subroutine poly1d_vert_adv_code( nlayers,              &
 
   integer(kind=i_def), dimension(global_order+1) :: stencil
 
-  real(kind=r_def) :: dpdz
-  real(kind=r_def), dimension(0:nlayers) :: log_tracer
+  real(kind=r_tran) :: dpdz
+  real(kind=r_tran), dimension(0:nlayers) :: log_tracer
 
   ij = map_wt(1)
 
@@ -138,7 +138,7 @@ subroutine poly1d_vert_adv_code( nlayers,              &
   ! TODO #3290: if tracer is zero this could cause problems
   if ( logspace ) then
     do k = 0, nlayers
-      log_tracer(k) = log(max(EPS,abs(tracer(ij+k))))
+      log_tracer(k) = log(max(EPS_R_TRAN,abs(tracer(ij+k))))
     end do
   end if
 
@@ -154,14 +154,14 @@ subroutine poly1d_vert_adv_code( nlayers,              &
 
     ! Compute the stencil of points required
     do p = 0, vertical_order
-      stencil(p+1) = k - floor(real(vertical_order,r_def)/2.0_r_def) + p
+      stencil(p+1) = k - floor(real(vertical_order,r_tran)/2.0_r_tran) + p
     end do
 
     ! Adjust the stencil based upon the wind sign for upwind (odd order)
     ! reconstructions only.
     ! if wind > 0 -> upwind_offset = 1
     ! if wind < 0 -> upwind_offset = 0
-    upwind = int(0.5_r_def*(1.0_r_def + sign(1.0_r_def,wind(map_w2v(1)+k))),i_def)
+    upwind = int(0.5_r_tran*(1.0_r_tran + sign(1.0_r_tran,wind(map_w2v(1)+k))),i_def)
     upwind_offset = use_upwind*upwind
     stencil = stencil - upwind_offset
 
@@ -172,7 +172,7 @@ subroutine poly1d_vert_adv_code( nlayers,              &
     if ( kmax > 0 ) stencil = stencil - kmax
 
     ! Compute the derivative and the advective update
-    dpdz = 0.0_r_def
+    dpdz = 0.0_r_tran
     if ( logspace ) then
       ! dp/dz = p * d(log(p))/dz
       do p = 1, vertical_order + 1

@@ -7,7 +7,7 @@
 !> Test the computation of consistent winds
 module consistent_wind_kernel_mod_test
 
-  use constants_mod, only : i_def, r_def
+  use constants_mod, only : i_def, r_def, r_tran
   use pFUnit_Mod
 
   implicit none
@@ -33,7 +33,7 @@ contains
 
     class(consistent_wind_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: tol = 1.0e-12_r_def
+    real(r_tran), parameter :: tol = 1.0e-12_r_tran
 
     integer(i_def), parameter :: nlayers = 2
     integer(i_def), parameter :: ndf_w2 = 6
@@ -46,16 +46,16 @@ contains
     integer(i_def), dimension(ndf_wt) :: map_wt
     integer(i_def), dimension(ndf_wx) :: map_wx
 
-    real(r_def), dimension(undf_w2) :: consistent_wind, wind
-    real(r_def), dimension(undf_wt) :: metrics
+    real(r_tran), dimension(undf_w2) :: consistent_wind, wind
+    real(r_tran), dimension(undf_wt) :: metrics
     real(r_def), dimension(undf_wx) :: z
     real(r_def), dimension(3,ndf_w2,ndf_wt) :: basis
     real(r_def), dimension(3,ndf_wx,ndf_wt) :: diff_basis
 
-    real(r_def), parameter :: dx = 2.0_r_def
-    real(r_def), parameter :: dy = 3.0_r_def
-    real(r_def), parameter :: dz = 4.0_r_def
-    real(r_def)            :: dzdx, dzdy, u0, answer
+    real(r_tran), parameter :: dx = 2.0_r_tran
+    real(r_tran), parameter :: dy = 3.0_r_tran
+    real(r_tran), parameter :: dz = 4.0_r_tran
+    real(r_tran)            :: dzdx, dzdy, u0, answer
 
     integer(i_def) :: i, k
 
@@ -114,10 +114,10 @@ contains
       end do
     end do
 
-    u0 = 2.0_r_def
+    u0 = 2.0_r_tran
     wind(:) = u0
     consistent_wind = wind
-    metrics(:) = u0*(dzdx + dzdy)*0.5_r_def
+    metrics(:) = u0*(dzdx + dzdy)*0.5_r_tran
 
     call consistent_wind_code(nlayers,                   &
                               consistent_wind,           &

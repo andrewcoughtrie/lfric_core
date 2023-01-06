@@ -7,7 +7,7 @@
 !> Test the horizontal edge_values computed for a wtheta-field using the Koren scheme
 module polyh_wtheta_koren_kernel_mod_test
 
-  use constants_mod, only : i_def, r_def, l_def
+  use constants_mod, only : i_def, l_def, r_tran
   use pFUnit_Mod
 
   implicit none
@@ -34,8 +34,8 @@ contains
 
     class(polyh_wtheta_koren_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: tol = 1.0e-12_r_def
-    real(r_def)            :: answer, use_tol
+    real(r_tran), parameter :: tol = 1.0e-12_r_tran
+    real(r_tran)            :: answer, use_tol
 
     integer(i_def), parameter                      :: nlayers = 3
     integer(i_def), parameter                      :: ndf_md = 1
@@ -51,8 +51,8 @@ contains
     integer(i_def), parameter                      :: ndata = (order+1)*nfaces_h
     integer(i_def), parameter                      :: undf_c = ndata*(nlayers+1)
 
-    real(r_def), dimension(undf_md)  :: reconstruction
-    real(r_def), dimension(undf_wt)  :: tracer
+    real(r_tran), dimension(undf_md)  :: reconstruction
+    real(r_tran), dimension(undf_wt)  :: tracer
 
     integer(i_def) :: i
 
@@ -63,13 +63,15 @@ contains
     end do
 
     ! Set up tracer field so that d(tracer)/dx = 10
-    tracer(:) = 300.0_r_def
+    tracer(:) = 300.0_r_tran
     do i = 0,nlayers
-      tracer(stencil_map(1,1)+i) = 300.0_r_def
-      tracer(stencil_map(1,2)+i) = 290.0_r_def
-      tracer(stencil_map(1,4)+i) = 310.0_r_def
+      tracer(stencil_map(1,1)+i) = 300.0_r_tran
+      tracer(stencil_map(1,2)+i) = 290.0_r_tran
+      tracer(stencil_map(1,4)+i) = 310.0_r_tran
     end do
-   reconstruction = 0.0_r_def
+   reconstruction = 0.0_r_tran
+
+    reconstruction = 0.0_r_tran
 
     call polyh_wtheta_koren_code( nlayers,        &
                                   reconstruction, &
@@ -84,16 +86,16 @@ contains
                                   undf_wt,        &
                                   stencil_map(:,1) )
 
-   if ( r_def == real64 ) then
+   if ( r_tran == real64 ) then
       use_tol = tol
     else
-      use_tol = 10.0_r_def*spacing(maxval(reconstruction))
+      use_tol = 10.0_r_tran*spacing(maxval(reconstruction))
     end if
-    answer = 295.0_r_def
+    answer = 295.0_r_tran
     do i = 1,nlayers
       @assertEqual(answer, reconstruction(map_md(1)+i), use_tol)
     end do
-    answer = 305.0_r_def
+    answer = 305.0_r_tran
     do i = 1,nlayers
       @assertEqual(answer, reconstruction(map_md(1)+i+2*(nlayers+1)), use_tol)
     end do

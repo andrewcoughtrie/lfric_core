@@ -8,7 +8,7 @@
 !>
 module transport_metadata_collection_test
 
-  use constants_mod,                  only : r_def, l_def, str_def
+  use constants_mod,                  only : r_def, l_def, str_def, r_tran
   use transport_enumerated_types_mod, only : equation_form_advective,    &
                                              equation_form_conservative, &
                                              splitting_none,             &
@@ -139,11 +139,11 @@ contains
 
     class(transport_metadata_collection_test_type), intent(inout) :: this
 
-    real(kind=r_def),              parameter :: tol = 1.0e-12_r_def
-    real(kind=r_def),              parameter :: zero_min_value = 0.0_r_def
+    real(kind=r_tran),             parameter :: tol = 1.0e-12_r_tran
+    real(kind=r_tran),             parameter :: zero_min_value = 0.0_r_tran
     logical(kind=l_def),           parameter :: no_enforce_min_value = .false.
     logical(kind=l_def),           parameter :: no_logspace = .false.
-    real(kind=r_def),              parameter :: one_min_value = 1.0_r_def
+    real(kind=r_tran),             parameter :: one_min_value = 1.0_r_tran
     logical(kind=l_def),           parameter :: enforce_min_value = .true.
     logical(kind=l_def),           parameter :: logspace = .true.
     logical(kind=l_def),           parameter :: reversible = .true.

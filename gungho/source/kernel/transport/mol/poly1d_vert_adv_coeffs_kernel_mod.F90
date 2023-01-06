@@ -25,7 +25,7 @@ use argument_mod,      only : arg_type, func_type,       &
                               ANY_SPACE_1, GH_BASIS,     &
                               ANY_DISCONTINUOUS_SPACE_1, &
                               CELL_COLUMN
-use constants_mod,     only : r_def, i_def
+use constants_mod,     only : r_def, i_def, r_tran
 use kernel_mod,        only : kernel_type
 
 implicit none
@@ -93,8 +93,8 @@ subroutine poly1d_vert_adv_coeffs_code( nlayers, &
   integer(kind=i_def), dimension(ndf_c),  intent(in) :: map_c
   integer(kind=i_def), dimension(ndf_wx), intent(in) :: map_wx
 
-  real(kind=r_def), dimension(undf_wx), intent(in)    :: height
-  real(kind=r_def), dimension(undf_c),  intent(inout) :: coeff
+  real(kind=r_def),  dimension(undf_wx), intent(in)    :: height
+  real(kind=r_tran), dimension(undf_c),  intent(inout) :: coeff
 
   ! Local variables
   integer(kind=i_def)                     :: k, p, df, kmin, kmax, i, j, np
@@ -117,13 +117,13 @@ subroutine poly1d_vert_adv_coeffs_code( nlayers, &
   use_upwind = mod(vertical_order, 2_i_def)
 
   do df = 0, ndata-1
-    coeff(map_c(1) + df) = 0.0_r_def
+    coeff(map_c(1) + df) = 0.0_r_tran
   end do
 
   layer_loop: do k = 1, nlayers - 1
     ! Initialise polynomial coefficients to zero
     do df = 0, ndata-1
-      coeff(map_c(1) + k*ndata + df) = 0.0_r_def
+      coeff(map_c(1) + k*ndata + df) = 0.0_r_tran
     end do
 
     ! For upwind polynomials (odd order) compute the coefficients
@@ -176,14 +176,14 @@ subroutine poly1d_vert_adv_coeffs_code( nlayers, &
         alpha = matmul(inv_monomial, delta)
         ! dPdz = diff(P,z) = sum_i=1^np ( i*a(i)*z^(i-1) )
         ! evaluated at z = 0 -> dPdz = a(2)
-        coeff( map_c(1) + k*ndata + direction*(order+1) + p - 1 ) = alpha(2)
+        coeff( map_c(1) + k*ndata + direction*(order+1) + p - 1 ) = real( alpha(2), r_tran )
       end do
     end do direction_loop
   end do layer_loop
 
   k = nlayers
   do df = 0, ndata-1
-    coeff(map_c(1) + k*ndata + df) = 0.0_r_def
+    coeff(map_c(1) + k*ndata + df) = 0.0_r_tran
   end do
 
   deallocate( z, alpha, delta, monomial, inv_monomial )

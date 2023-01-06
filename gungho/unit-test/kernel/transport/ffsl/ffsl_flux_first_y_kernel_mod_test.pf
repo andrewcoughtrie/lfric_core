@@ -7,7 +7,7 @@
 
 module ffsl_flux_first_y_kernel_mod_test
 
-  use constants_mod, only : i_def, r_def
+  use constants_mod, only : i_def, r_def, r_tran
   use pFUnit_Mod
 
   implicit none
@@ -68,8 +68,8 @@ contains
 
     class(ffsl_flux_first_y_test_type), intent(inout) :: this
 
-    real(kind=r_def), parameter :: tol = 1.0e-12_r_def   ! r_def 64-bit
-    real(kind=r_def)            :: answer, use_tol
+    real(kind=r_tran), parameter :: tol = 1.0e-12_r_tran   ! r_tran 64-bit
+    real(kind=r_tran)            :: answer, use_tol
 
     integer(kind=i_def), parameter :: nlayers = 1
     integer(kind=i_def), parameter :: ndf_w3 = 1
@@ -84,11 +84,11 @@ contains
     integer(kind=i_def), dimension(ndf_w2)              :: map_w2
     integer(kind=i_def), dimension(ndf_w3,stencil_size) :: stencil_map
 
-    real(kind=r_def), dimension(undf_w3) :: field
-    real(kind=r_def), dimension(undf_w2) :: dep_pts
-    real(kind=r_def), dimension(undf_w2) :: flux
+    real(kind=r_tran), dimension(undf_w3) :: field
+    real(kind=r_tran), dimension(undf_w2) :: dep_pts
+    real(kind=r_tran), dimension(undf_w2) :: flux
 
-    real(kind=r_def) :: dt
+    real(kind=r_tran) :: dt
 
     ! Set up maps
     stencil_map(1,:) = (/ 5, 4, 3, 2, 1, 6, 7, 8, 9 /)
@@ -96,16 +96,16 @@ contains
     map_w3(1) = 1
 
     ! Set up field to have quadratic profile
-    field(:) = (/ 17.0_r_def, 10.0_r_def, 5.0_r_def, &
-                  2.0_r_def,  1.0_r_def,  2.0_r_def, &
-                  5.0_r_def,  10.0_r_def, 17.0_r_def /)
+    field(:) = (/ 17.0_r_tran, 10.0_r_tran, 5.0_r_tran, &
+                  2.0_r_tran,  1.0_r_tran,  2.0_r_tran, &
+                  5.0_r_tran,  10.0_r_tran, 17.0_r_tran /)
 
     ! Initialise flux to zero before each test
-    flux(:) = 0.0_r_def
+    flux(:) = 0.0_r_tran
 
     ! Test with integer departure distance
-    dep_pts(:) = 1.0_r_def
-    dt = 1.0_r_def
+    dep_pts(:) = 1.0_r_tran
+    dt = 1.0_r_tran
     call ffsl_flux_first_y_code( nlayers,        &
                                  flux,           &
                                  field,          &
@@ -122,19 +122,19 @@ contains
                                  undf_w3,        &
                                  map_w3 )
     ! Get correct tolerance
-    if ( r_def == real64 ) then
+    if ( r_tran == real64 ) then
       use_tol = tol
     else
-      use_tol = 10.0_r_def*spacing( maxval( flux(1:4) ) )
+      use_tol = 10.0_r_tran*spacing( maxval( flux(1:4) ) )
     end if
-    answer = 2.0_r_def
+    answer = 2.0_r_tran
     @assertEqual(answer, flux(2), use_tol)
-    answer = 1.0_r_def
+    answer = 1.0_r_tran
     @assertEqual(answer, flux(4), use_tol)
 
     ! Test with positive distance
-    dep_pts(:) = 0.75_r_def
-    dt = 1.0_r_def
+    dep_pts(:) = 0.75_r_tran
+    dt = 1.0_r_tran
     flux(:) = 0.0_r_def
     call ffsl_flux_first_y_code( nlayers,        &
                                  flux,           &
@@ -151,14 +151,14 @@ contains
                                  ndf_w3,         &
                                  undf_w3,        &
                                  map_w3 )
-    answer = 1.296875_r_def
+    answer = 1.296875_r_tran
     @assertEqual(answer, flux(2), use_tol)
-    answer = 0.734375_r_def
+    answer = 0.734375_r_tran
     @assertEqual(answer, flux(4), use_tol)
 
     ! Test with negative distance
-    dep_pts(:) = -0.75_r_def
-    dt = 1.0_r_def
+    dep_pts(:) = -0.75_r_tran
+    dt = 1.0_r_tran
     flux(:) = 0.0_r_def
     call ffsl_flux_first_y_code( nlayers,        &
                                  flux,           &
@@ -175,9 +175,9 @@ contains
                                  ndf_w3,         &
                                  undf_w3,        &
                                  map_w3 )
-    answer = -0.734375_r_def
+    answer = -0.734375_r_tran
     @assertEqual(answer, flux(2), use_tol)
-    answer = -1.296875_r_def
+    answer = -1.296875_r_tran
     @assertEqual(answer, flux(4), use_tol)
 
   end subroutine test_all

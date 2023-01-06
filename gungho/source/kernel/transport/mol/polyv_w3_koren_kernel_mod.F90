@@ -23,7 +23,7 @@ use argument_mod,      only : arg_type, func_type,         &
                               ANY_DISCONTINUOUS_SPACE_1,   &
                               GH_READ, CELL_COLUMN
 use fs_continuity_mod, only : W3
-use constants_mod,     only : r_def, i_def, l_def, tiny_eps, EPS
+use constants_mod,     only : i_def, l_def, tiny_eps, EPS_R_TRAN, r_tran
 use kernel_mod,        only : kernel_type
 
 implicit none
@@ -95,17 +95,17 @@ subroutine polyv_w3_koren_code( nlayers,                           &
   integer(kind=i_def), dimension(ndf_md),  intent(in) :: map_md
   integer(kind=i_def), dimension(ndf_w3),  intent(in) :: map_w3
 
-  real(kind=r_def), dimension(undf_md),  intent(inout) :: reconstruction
-  real(kind=r_def), dimension(undf_w3),  intent(in)    :: tracer
-  logical(kind=l_def), intent(in)                      :: reversible
-  logical(kind=l_def), intent(in)                      :: logspace
+  real(kind=r_tran), dimension(undf_md),  intent(inout) :: reconstruction
+  real(kind=r_tran), dimension(undf_w3),  intent(in)    :: tracer
+  logical(kind=l_def), intent(in)                       :: reversible
+  logical(kind=l_def), intent(in)                       :: logspace
 
   ! Local variables
-  integer(kind=i_def)                             :: k, k1, k2, k3
-  real(kind=r_def)                                :: x, y, r, r1, r2, phi
-  integer(kind=i_def), parameter                  :: ext = 2
-  real(kind=r_def), dimension(2, nlayers)         :: tracer_edge
-  real(kind=r_def), dimension(1-ext:nlayers+ext)  :: tracer_1d
+  integer(kind=i_def)                              :: k, k1, k2, k3
+  real(kind=r_tran)                                :: x, y, r, r1, r2, phi
+  integer(kind=i_def), parameter                   :: ext = 2
+  real(kind=r_tran), dimension(2, nlayers)         :: tracer_edge
+  real(kind=r_tran), dimension(1-ext:nlayers+ext)  :: tracer_1d
 
   ! Extract the global data into 1d-array
   do k = 0,nlayers - 1
@@ -128,16 +128,16 @@ subroutine polyv_w3_koren_code( nlayers,                           &
   ! If using the logspace option, the tracer is forced to be positive
   if (logspace) then
       do k = 1-ext,nlayers+ext
-         tracer_1d(k) = log(max(EPS,abs(tracer_1d(k))))
+         tracer_1d(k) = log(max(EPS_R_TRAN,abs(tracer_1d(k))))
       end do
   end if
 
   if (reversible) then !The reversible is the koren-scheme with phi=r
     do k = 1, nlayers
       ! Bottom edge of cell
-      tracer_edge(1,k) = 0.5_r_def*(tracer_1d(k-1) + tracer_1d(k))
+      tracer_edge(1,k) = 0.5_r_tran*(tracer_1d(k-1) + tracer_1d(k))
       ! Top edge of cell
-      tracer_edge(2,k) = 0.5_r_def*(tracer_1d(k) + tracer_1d(k+1))
+      tracer_edge(2,k) = 0.5_r_tran*(tracer_1d(k) + tracer_1d(k+1))
     end do
   else
     do k = 1, nlayers
@@ -148,10 +148,10 @@ subroutine polyv_w3_koren_code( nlayers,                           &
         x = tracer_1d(k2) - tracer_1d(k1)
         y = tracer_1d(k3) - tracer_1d(k2)
         r = (y + tiny_eps)/(x + tiny_eps)
-        r1 = 2.0_r_def*r
-        r2 = (1.0_r_def + r1)/3.0_r_def
-        phi = max(0.0_r_def, min(r1,r2,2.0_r_def))
-        tracer_edge(1,k) = tracer_1d(k2) + 0.5_r_def*phi*x
+        r1 = 2.0_r_tran*r
+        r2 = (1.0_r_tran + r1)/3.0_r_tran
+        phi = max(0.0_r_tran, min(r1,r2,2.0_r_tran))
+        tracer_edge(1,k) = tracer_1d(k2) + 0.5_r_tran*phi*x
 
       ! Top edge
         k3 = k + 1
@@ -160,10 +160,10 @@ subroutine polyv_w3_koren_code( nlayers,                           &
         x = tracer_1d(k2) - tracer_1d(k1)
         y = tracer_1d(k3) - tracer_1d(k2)
         r = (y + tiny_eps)/(x + tiny_eps)
-        r1 = 2.0_r_def*r
-        r2 = (1.0_r_def + r1)/3.0_r_def
-        phi = max(0.0_r_def, min(r1,r2,2.0_r_def))
-        tracer_edge(2,k) = tracer_1d(k2) + 0.5_r_def*phi*x
+        r1 = 2.0_r_tran*r
+        r2 = (1.0_r_tran + r1)/3.0_r_tran
+        phi = max(0.0_r_tran, min(r1,r2,2.0_r_tran))
+        tracer_edge(2,k) = tracer_1d(k2) + 0.5_r_tran*phi*x
     end do
   end if
 

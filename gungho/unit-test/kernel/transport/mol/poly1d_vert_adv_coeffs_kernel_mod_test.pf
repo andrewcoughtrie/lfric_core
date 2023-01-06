@@ -7,7 +7,7 @@
 !> Test the computation of the vertical adv coefficients
 module poly1d_vert_adv_coeffs_kernel_mod_test
 
-  use constants_mod, only : i_def, r_def, l_def
+  use constants_mod, only : i_def, r_def, l_def, r_tran
   use pFUnit_Mod
   implicit none
 
@@ -97,9 +97,9 @@ contains
 
     class(poly1d_vert_adv_coeffs_test_type), intent(inout) :: this
 
-    real(r_def), parameter    :: tol = 1.0e-12_r_def   ! r_def 64bit tolerance
-    real(r_def), dimension(4) :: answer
-    real(r_def)               :: use_tol
+    real(r_tran), parameter    :: tol = 1.0e-6_r_tran   ! precision with 32bit r_defs
+    real(r_tran), dimension(4) :: answer
+    real(r_tran)               :: use_tol
 
     integer(i_def), parameter :: nfaces_v = 2
 
@@ -113,7 +113,7 @@ contains
     integer(i_def), dimension(ndf_c)  :: map_c
     integer(i_def), dimension(ndf_wx) :: map_wx
 
-    real(r_def), dimension(undf_c)  :: coeff
+    real(r_tran), dimension(undf_c)  :: coeff
     real(r_def), dimension(undf_wx) :: z
 
     real(r_def) :: dz = 3.0_r_def
@@ -139,16 +139,13 @@ contains
                                      ndf_wx,                    &
                                      undf_wx,                   &
                                      map_wx)
-    answer = (/ -2.0_r_def, -3.0_r_def, 6.0_r_def, -1.0_r_def /)/6.0_r_def
-    if ( r_def == real64 ) then
-      use_tol = tol
-    else
-      use_tol = 10.0_r_def*spacing( answer(1) )
-    endif
+    answer = (/ -2.0_r_tran, -3.0_r_tran, 6.0_r_tran, -1.0_r_tran /)/6.0_r_tran
+
+    use_tol = tol
     do df = 0,3
       @assertEqual(answer(df+1), coeff(df + map_c(1) + 2*ndata), use_tol)
     end do
-    answer = (/ 1.0_r_def, -6.0_r_def, 3.0_r_def, 2.0_r_def /)/6.0_r_def
+    answer = (/ 1.0_r_tran, -6.0_r_tran, 3.0_r_tran, 2.0_r_tran /)/6.0_r_tran
     do df = 0,3
       @assertEqual(answer(df+1), coeff(df + (mol_order+1) + map_c(1) + 2*ndata), use_tol)
     end do
@@ -165,8 +162,8 @@ contains
 
     class(poly1d_vert_adv_coeffs_test_type), intent(inout) :: this
 
-    real(r_def), parameter    :: tol = 1.0e-12_r_def  ! r_def 64bit tolerance
-    real(r_def)               :: use_tol
+    real(r_tran), parameter    :: tol = 1.0e-6_r_tran  ! precision with 32bit r_defs
+    real(r_tran)               :: use_tol
 
     integer(i_def), parameter :: nfaces_v = 2
 
@@ -184,9 +181,9 @@ contains
     integer(i_def), dimension(ndf_wt) :: map_wt
     integer(i_def), dimension(ndf_wx) :: map_wx
 
-    real(r_def), dimension(undf_c)  :: coeff
+    real(r_tran), dimension(undf_c)  :: coeff
     real(r_def), dimension(undf_wx) :: z
-    real(r_def), dimension(undf_wt) :: mdwt
+    real(r_tran), dimension(undf_wt) :: mdwt
 
     real(r_def), parameter :: dx = 2.0_r_def
     real(r_def), parameter :: dy = 1.5_r_def
@@ -197,11 +194,11 @@ contains
     integer(i_def), parameter :: ndf_w2v = 2
     integer(i_def), parameter :: undf_w2v = nlayers+1
     integer(i_def), dimension(ndf_w2v)  :: map_w2v
-    real(r_def),    dimension(undf_w2v) :: flux
-    real(r_def),    dimension(undf_w2v) :: wind
-    real(r_def),    dimension(undf_wt)  :: density
-    real(r_def),    dimension(undf_wt)  :: ddensitydz
-    real(r_def)                         :: ddz
+    real(r_tran),    dimension(undf_w2v) :: flux
+    real(r_tran),    dimension(undf_w2v) :: wind
+    real(r_tran),    dimension(undf_wt)  :: density
+    real(r_tran),    dimension(undf_wt)  :: ddensitydz
+    real(r_tran)                         :: ddz
     integer(i_def)                      :: power = 1
     real(r_def)                         :: stretch = 1.5_r_def
 
@@ -211,8 +208,8 @@ contains
     map_wx(:) = map_wt(:)
 
     ! Test reconstruction on a stretched grid
-    coeff = 0.0_r_def
-    mdwt = 0.0_r_def
+    coeff = 0.0_r_tran
+    mdwt = 0.0_r_tran
     z(1) = 0.0_r_def
     dz = 2.3_r_def
     do k = 0,nlayers-1
@@ -242,8 +239,8 @@ contains
 
 
     do i = 0,1
-      wind = (-1.0_r_def + 2.0_r_def*real(i,r_def))*dx*dy
-      flux = 0.0_r_def
+      wind = (-1.0_r_tran + 2.0_r_tran*real(i,r_tran))*dx*dy
+      flux = 0.0_r_tran
 
       call poly1d_vert_adv_code( nlayers,              &
                                  flux,                 &
@@ -262,19 +259,13 @@ contains
                                  ndf_c,                &
                                  undf_c,               &
                                  map_c)
-       if ( r_def == real64 ) then
-         use_tol = tol
-         do k = 1,nlayers-1
-           ddz = flux(map_w2v(1)+k)/mdwt(map_wt(1)+k) * dx*dy/wind(map_w2v(1))
-           @assertEqual(ddensitydz(map_wt(1)+k), ddz, use_tol)
-         end do
-       else
-         do k = 1,nlayers-1
-           ddz = flux(map_w2v(1)+k)/mdwt(map_wt(1)+k) * dx*dy/wind(map_w2v(1))
-           use_tol = 10.0_r_def*spacing( ddz )
-           @assertEqual(ddensitydz(map_wt(1)+k), ddz, use_tol)
-         end do
-       endif
+
+      use_tol = tol
+      do k = 1,nlayers-1
+        ddz = flux(map_w2v(1)+k)/mdwt(map_wt(1)+k) * dx*dy/wind(map_w2v(1))
+        @assertEqual(ddensitydz(map_wt(1)+k), ddz, use_tol)
+      end do
+
     end do
 
   end subroutine test_stretched_mesh

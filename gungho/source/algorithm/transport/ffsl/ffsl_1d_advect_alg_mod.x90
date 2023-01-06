@@ -20,10 +20,11 @@
 
 module ffsl_1d_advect_alg_mod
 
-  use constants_mod,                    only: r_def, i_def, l_def
+  use constants_mod,                    only: r_tran, i_def, l_def
   use ffsl_1d_flux_alg_mod,             only: ffsl_1d_flux_first, &
                                               ffsl_1d_flux_final, &
                                               ffsl_1d_flux_vert
+  use r_tran_field_mod,                 only: r_tran_field_type
   use field_mod,                        only: field_type
   use flux_direction_mod,               only: x_direction, y_direction
   use function_space_mod,               only: function_space_type
@@ -70,29 +71,29 @@ contains
     implicit none
 
     ! Arguments
-    integer(i_def),   intent(in)    :: direction
-    type(field_type), intent(in)    :: field
-    type(field_type), intent(in)    :: dep_pts
-    type(field_type), intent(in)    :: detj_at_w2
-    real(r_def),      intent(in)    :: dt
-    integer(i_def),   intent(in)    :: order
+    integer(i_def),          intent(in) :: direction
+    type(r_tran_field_type), intent(in) :: field
+    type(r_tran_field_type), intent(in) :: dep_pts
+    type(r_tran_field_type), intent(in) :: detj_at_w2
+    real(r_tran),            intent(in) :: dt
+    integer(i_def),          intent(in) :: order
+    type(r_tran_field_type), intent(inout) :: increment
     logical(l_def),   intent(in)    :: strang
-    type(field_type), intent(inout) :: increment
 
     ! Fields and increments
-    type(field_type) :: inc_rho
-    type(field_type) :: flux
-    type(field_type) :: adv_rho
-    type(field_type) :: divide_part
-    type(field_type) :: inc_part
+    type(r_tran_field_type) :: inc_rho
+    type(r_tran_field_type) :: flux
+    type(r_tran_field_type) :: adv_rho
+    type(r_tran_field_type) :: divide_part
+    type(r_tran_field_type) :: inc_part
 
     ! Transport runtime, mesh, and unity transport pointers
     type(transport_runtime_type), pointer :: transport_runtime => null()
     type(mesh_type),              pointer :: mesh => null()
-    type(field_type),             pointer :: adv_one => null()
+    type(r_tran_field_type),      pointer :: adv_one => null()
 
     ! Constant
-    real(r_def)      :: one_over_dt
+    real(r_tran)      :: one_over_dt
 
     ! Get transport_runtime
     mesh => field%get_mesh()
@@ -104,14 +105,14 @@ contains
     call adv_rho%initialise( vector_space=field%get_function_space() )
     call inc_part%initialise( vector_space=field%get_function_space() )
     call divide_part%initialise( vector_space=field%get_function_space() )
-    call invoke( setval_c(inc_rho, 0.0_r_def),  &
-                 setval_c(flux, 0.0_r_def),     &
-                 setval_c(adv_rho, 0.0_r_def),  &
-                 setval_c(inc_part, 0.0_r_def), &
-                 setval_c(divide_part, 0.0_r_def) )
+    call invoke( setval_c(inc_rho, 0.0_r_tran),  &
+                 setval_c(flux, 0.0_r_tran),     &
+                 setval_c(adv_rho, 0.0_r_tran),  &
+                 setval_c(inc_part, 0.0_r_tran), &
+                 setval_c(divide_part, 0.0_r_tran) )
 
     ! Set constant value
-    one_over_dt = 1.0_r_def / dt
+    one_over_dt = 1.0_r_tran / dt
 
     ! Compute the increment of the field, F(q)
     call ffsl_1d_flux_first( direction,  &
@@ -188,31 +189,31 @@ contains
 
     ! Arguments
     integer(i_def),   intent(in)    :: direction
-    type(field_type), intent(in)    :: field_x
-    type(field_type), intent(in)    :: field_y
-    type(field_type), intent(in)    :: dep_pts
-    type(field_type), intent(in)    :: detj_at_w2
-    real(r_def),      intent(in)    :: dt
+    type(r_tran_field_type), intent(in)    :: field_x
+    type(r_tran_field_type), intent(in)    :: field_y
+    type(r_tran_field_type), intent(in)    :: dep_pts
+    type(r_tran_field_type), intent(in)    :: detj_at_w2
+    real(r_tran),      intent(in)    :: dt
     type(field_type), intent(in)    :: panel_id
     integer(i_def),   intent(in)    :: order
     logical(l_def),   intent(in)    :: strang
-    type(field_type), intent(inout) :: increment
+    type(r_tran_field_type), intent(inout) :: increment
 
     ! Fields and increments
-    type(field_type) :: inc_rho
-    type(field_type) :: flux
-    type(field_type) :: adv_rho
-    type(field_type) :: divide_part
-    type(field_type) :: inc_part
-    type(field_type) :: field_n
+    type(r_tran_field_type) :: inc_rho
+    type(r_tran_field_type) :: flux
+    type(r_tran_field_type) :: adv_rho
+    type(r_tran_field_type) :: divide_part
+    type(r_tran_field_type) :: inc_part
+    type(r_tran_field_type) :: field_n
 
     ! Transport runtime, mesh and unity transport pointers
     type(transport_runtime_type), pointer :: transport_runtime => null()
     type(mesh_type),              pointer :: mesh => null()
-    type(field_type),             pointer :: adv_one => null()
+    type(r_tran_field_type),      pointer :: adv_one => null()
 
     ! Constant
-    real(r_def)      :: one_over_dt
+    real(r_tran)      :: one_over_dt
 
     ! Get transport_runtime
     mesh => field_x%get_mesh()
@@ -225,14 +226,14 @@ contains
     call inc_part%initialise( vector_space=field_x%get_function_space() )
     call divide_part%initialise( vector_space=field_x%get_function_space() )
     call field_n%initialise( vector_space=field_x%get_function_space() )
-    call invoke( setval_c(inc_rho, 0.0_r_def),  &
-                 setval_c(flux, 0.0_r_def),     &
-                 setval_c(adv_rho, 0.0_r_def),  &
-                 setval_c(inc_part, 0.0_r_def), &
-                 setval_c(divide_part, 0.0_r_def) )
+    call invoke( setval_c(inc_rho, 0.0_r_tran),  &
+                 setval_c(flux, 0.0_r_tran),     &
+                 setval_c(adv_rho, 0.0_r_tran),  &
+                 setval_c(inc_part, 0.0_r_tran), &
+                 setval_c(divide_part, 0.0_r_tran) )
 
     ! Set constant
-    one_over_dt = 1.0_r_def / dt
+    one_over_dt = 1.0_r_tran / dt
 
     ! Get correct field to update based on direction
     if (direction == x_direction) then
@@ -306,28 +307,28 @@ contains
     implicit none
 
     ! Arguments
-    type(field_type), intent(in)    :: field
-    type(field_type), intent(in)    :: dep_pts
-    type(field_type), intent(in)    :: detj_at_w2
+    type(r_tran_field_type), intent(in)    :: field
+    type(r_tran_field_type), intent(in)    :: dep_pts
+    type(r_tran_field_type), intent(in)    :: detj_at_w2
     integer(i_def),   intent(in)    :: order
-    real(r_def),      intent(in)    :: dt
+    real(r_tran),      intent(in)    :: dt
+    type(r_tran_field_type), intent(inout) :: increment
     logical(l_def),   intent(in)    :: strang
-    type(field_type), intent(inout) :: increment
 
     ! Fields and increments
-    type(field_type) :: inc_rho
-    type(field_type) :: flux
-    type(field_type) :: adv_rho
-    type(field_type) :: divide_part
-    type(field_type) :: inc_part
+    type(r_tran_field_type) :: inc_rho
+    type(r_tran_field_type) :: flux
+    type(r_tran_field_type) :: adv_rho
+    type(r_tran_field_type) :: divide_part
+    type(r_tran_field_type) :: inc_part
 
     ! Transport runtime, mesh and unity transport pointers
     type(transport_runtime_type), pointer :: transport_runtime => null()
     type(mesh_type),              pointer :: mesh => null()
-    type(field_type),             pointer :: adv_one => null()
+    type(r_tran_field_type),      pointer :: adv_one => null()
 
     ! Constant
-    real(r_def)      :: one_over_dt
+    real(r_tran)      :: one_over_dt
 
     ! Get transport_runtime
     mesh => field%get_mesh()
@@ -339,14 +340,14 @@ contains
     call adv_rho%initialise( vector_space=field%get_function_space() )
     call inc_part%initialise( vector_space=field%get_function_space() )
     call divide_part%initialise( vector_space=field%get_function_space() )
-    call invoke( setval_c(inc_rho, 0.0_r_def),  &
-                 setval_c(flux, 0.0_r_def),     &
-                 setval_c(adv_rho, 0.0_r_def),  &
-                 setval_c(inc_part, 0.0_r_def), &
-                 setval_c(divide_part, 0.0_r_def)  )
+    call invoke( setval_c(inc_rho, 0.0_r_tran),  &
+                 setval_c(flux, 0.0_r_tran),     &
+                 setval_c(adv_rho, 0.0_r_tran),  &
+                 setval_c(inc_part, 0.0_r_tran), &
+                 setval_c(divide_part, 0.0_r_tran)  )
 
     ! Set constant
-    one_over_dt = 1.0_r_def / dt
+    one_over_dt = 1.0_r_tran / dt
 
     ! Compute the increment of the field, F(q)
     call ffsl_1d_flux_vert( field, dep_pts, detj_at_w2, order, &

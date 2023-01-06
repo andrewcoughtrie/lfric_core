@@ -23,7 +23,7 @@ contains
 
   @test
   subroutine test_all( this )
-    use restrict_w2_kernel_mod, only : restrict_w2_kernel_code
+    use restrict_w2_kernel_mod, only : restrict_w2_code
     implicit none
     class(restrict_w2_test_type), intent(inout) :: this
 
@@ -171,19 +171,19 @@ contains
       end if
     end do
 
-    call restrict_w2_kernel_code( nlayers,         &
-                                  cell_map,        &
-                                  ncell_f_per_c_x, &
-                                  ncell_f_per_c_y, &
-                                  ncell_f,         &
-                                  coarse_field,    &
-                                  fine_field,      &
-                                  rmultiplicity,   &
-                                  undf_c,          &
-                                  map_c,           &
-                                  ndf_f,           &
-                                  undf_f,          &
-                                  map_f            )
+    call restrict_w2_code( nlayers,         &
+                           cell_map,        &
+                           ncell_f_per_c_x, &
+                           ncell_f_per_c_y, &
+                           ncell_f,         &
+                           coarse_field,    &
+                           fine_field,      &
+                           rmultiplicity,   &
+                           undf_c,          &
+                           map_c,           &
+                           ndf_f,           &
+                           undf_f,          &
+                           map_f            )
 
     ! Check answer for all DoFs
     do df = 1, undf_c

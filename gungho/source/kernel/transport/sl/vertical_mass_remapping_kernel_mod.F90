@@ -17,7 +17,7 @@ use argument_mod,         only : arg_type,              &
                                  GH_READWRITE, GH_READ, &
                                  CELL_COLUMN, GH_LOGICAL
 use fs_continuity_mod,    only : W2, W3
-use constants_mod,        only : r_def, i_def, eps, l_def
+use constants_mod,        only : r_tran, i_def, EPS_R_TRAN, l_def
 use kernel_mod,           only : kernel_type
 ! TODO #3011: these config options should be passed through as arguments
 use transport_config_mod, only : slice_order_constant, slice_order_linear, &
@@ -115,18 +115,18 @@ contains
   integer(kind=i_def), intent(in)                         :: undf_w3
   integer(kind=i_def), dimension(ndf_w3), intent(in)      :: map_w3
 
-  real(kind=r_def), dimension(undf_w2), intent(in)        :: dep_pts_z
-  real(kind=r_def), dimension(undf_w3), intent(inout)     :: mass
+  real(kind=r_tran), dimension(undf_w2), intent(in)       :: dep_pts_z
+  real(kind=r_tran), dimension(undf_w3), intent(inout)    :: mass
   integer(kind=i_def), intent(in)                         :: order
   logical(kind=l_def), intent(in)  :: enforce_min_value
   integer(kind=i_def), intent(in)  :: vertical_monotone,       &
                                       vertical_monotone_order
-  real(kind=r_def),  intent(in)    :: min_value
+  real(kind=r_tran),  intent(in)    :: min_value
   ! locals
-  integer(kind=i_def)                    :: k, nz, nzl
-  real(kind=r_def), dimension(nlayers+1) :: dist, zl, zd, m_flux
-  real(kind=r_def), dimension(nlayers)   :: dz, m0, mn
-  real(kind=r_def), dimension(nlayers)   :: a0, a1, a2, a3
+  integer(kind=i_def)                     :: k, nz, nzl
+  real(kind=r_tran), dimension(nlayers+1) :: dist, zl, zd, m_flux
+  real(kind=r_tran), dimension(nlayers)   :: dz, m0, mn
+  real(kind=r_tran), dimension(nlayers)   :: a0, a1, a2, a3
 
   nz  = nlayers
   nzl = nlayers + 1_i_def
@@ -140,14 +140,14 @@ contains
   end do
 
   do k=1, nzl
-    zl(k) = real(k-1,r_def)
+    zl(k) = real(k-1,r_tran)
   end do
   do k=1, nzl
     zd(k) = zl(k) - dist(k)
     zd(k) = min( max(zl(1),zd(k)), zl(nzl) )
   end do
   do k=1,nz
-    dz(k)  = 1.0_r_def
+    dz(k)  = 1.0_r_tran
   end do
 
   call piecewise_reconstruction(zl,dz,m0,a0,a1,a2,a3,order,1,nz,            &
@@ -194,29 +194,29 @@ contains
    integer(kind=i_def), intent(in)                  :: vertical_monotone,  &
                                                        vertical_monotone_order
    logical(kind=l_def), intent(in)                  :: enforce_min_value
-   real(kind=r_def),    intent(in)                  :: min_value
-   real(kind=r_def), dimension(ns:nf+1), intent(in) :: xl
-   real(kind=r_def), dimension(ns:nf), intent(in)   :: dx, mass
-   real(kind=r_def), dimension(ns:nf), intent(out)  :: a0, a1, a2, a3
+   real(kind=r_tran),    intent(in)                  :: min_value
+   real(kind=r_tran), dimension(ns:nf+1), intent(in) :: xl
+   real(kind=r_tran), dimension(ns:nf), intent(in)   :: dx, mass
+   real(kind=r_tran), dimension(ns:nf), intent(out)  :: a0, a1, a2, a3
 
    ! Local variables
-   real(kind=r_def), dimension(ns:nf) :: rho_left_cv, rho_right_cv, slope_rho
-   real(kind=r_def), dimension(ns:nf) :: y_centre_cv, rho_bar
+   real(kind=r_tran), dimension(ns:nf) :: rho_left_cv, rho_right_cv, slope_rho
+   real(kind=r_tran), dimension(ns:nf) :: y_centre_cv, rho_bar
    integer(kind=i_def), parameter :: min_cvs_required = 4_i_def
-   real(kind=r_def), dimension(ns:nf+1) :: rho_left_cv_all,slope_im,slope_ip
+   real(kind=r_tran), dimension(ns:nf+1) :: rho_left_cv_all,slope_im,slope_ip
    integer(kind=i_def) :: j, j0, j1, cv_start
-   real(kind=r_def)    :: y0, y1, y2, y3, y4, y, m1, m2, m3, m4
-   real(kind=r_def), parameter :: c2=2.0_r_def, c3=3.0_r_def, c4=4.0_r_def,  &
-                                  c6=6.0_r_def, c9=9.0_r_def, c12=12.0_r_def
+   real(kind=r_tran)    :: y0, y1, y2, y3, y4, y, m1, m2, m3, m4
+   real(kind=r_tran), parameter :: c2=2.0_r_tran, c3=3.0_r_tran, c4=4.0_r_tran,  &
+                                  c6=6.0_r_tran, c9=9.0_r_tran, c12=12.0_r_tran
 
     j0 = int(min_cvs_required/2,i_def)
     j1 = min_cvs_required - 1_i_def
 
     do j = ns, nf
-      y_centre_cv(j) = 0.5_r_def * ( xl(j) + xl(j+1) )
-      a1(j) = 0.0_r_def
-      a2(j) = 0.0_r_def
-      a3(j) = 0.0_r_def
+      y_centre_cv(j) = 0.5_r_tran * ( xl(j) + xl(j+1) )
+      a1(j) = 0.0_r_tran
+      a2(j) = 0.0_r_tran
+      a3(j) = 0.0_r_tran
       rho_bar(j) = mass(j) / dx(j)
     end do
 
@@ -272,7 +272,7 @@ contains
       end if
 
       do j = ns, nf
-        slope_rho(j)   = 0.5_r_def * ( slope_im(j+1) + slope_ip(j) )
+        slope_rho(j)   = 0.5_r_tran * ( slope_im(j+1) + slope_ip(j) )
         slope_rho(j)   = slope_rho(j) * dx(j)
         rho_left_cv(j) = rho_left_cv_all(j)
         rho_right_cv(j)= rho_left_cv_all(j+1)
@@ -281,10 +281,10 @@ contains
         !   In this case a constant is the only valid representation
         !
         m1 = (rho_bar(j)-rho_left_cv(j))*(rho_right_cv(j)-rho_bar(j))
-        if (m1 < 0.0_r_def) then
+        if (m1 < 0.0_r_tran) then
            rho_left_cv(j)  = rho_bar(j)
            rho_right_cv(j) = rho_bar(j)
-           slope_rho(j)    = 0.0_r_def
+           slope_rho(j)    = 0.0_r_tran
         end if
       end do
 
@@ -303,9 +303,9 @@ contains
              a1(j) = c2*(rho_right_cv(j)-rho_bar(j))
            end if
            m1 = (rho_bar(j)-rho_left_cv(j))*(rho_right_cv(j)-rho_bar(j))
-           if (m1 < 0.0_r_def) then
+           if (m1 < 0.0_r_tran) then
                a0(j) = rho_bar(j)
-               a1(j) = 0.0_r_def
+               a1(j) = 0.0_r_tran
            end if
          end do
       case ( slice_order_parabola )
@@ -360,33 +360,33 @@ contains
   !-------------------------------------------------------------------------------
   subroutine remapp_mass( xld, xl, dx, mass, a0, a1, a2, a3, ns, nf, mass_d, mass_flux )
     implicit none
-    integer(kind=i_def), intent(in)                    :: ns,nf
-    real(kind=r_def), dimension(ns:nf+1), intent(in)   :: xl, xld
-    real(kind=r_def), dimension(ns:nf),   intent(in)   :: dx, mass, a0,a1,a2,a3
-    real(kind=r_def), dimension(ns:nf),   intent(out)  :: mass_d
-    real(kind=r_def), dimension(ns:nf+1), intent(out)  :: mass_flux
+    integer(kind=i_def), intent(in)                     :: ns,nf
+    real(kind=r_tran), dimension(ns:nf+1), intent(in)   :: xl, xld
+    real(kind=r_tran), dimension(ns:nf),   intent(in)   :: dx, mass, a0,a1,a2,a3
+    real(kind=r_tran), dimension(ns:nf),   intent(out)  :: mass_d
+    real(kind=r_tran), dimension(ns:nf+1), intent(out)  :: mass_flux
 
     ! Local variables
-    real(kind=r_def)    :: m1,m2,hd,s,s1,s2
+    real(kind=r_tran)   :: m1,m2,hd,s,s1,s2
     integer(kind=i_def) :: j,i,jd,sig1,sig2
-    real(kind=r_def)    :: c1,c2,c3,sig,sigm1
+    real(kind=r_tran)   :: c1,c2,c3,sig,sigm1
 
-    c1 = 0.5_r_def
-    c2 = 1.0_r_def/3.0_r_def
-    c3 = 0.25_r_def
+    c1 = 0.5_r_tran
+    c2 = 1.0_r_tran/3.0_r_tran
+    c3 = 0.25_r_tran
 
     do j = ns + 1, nf
-       m2 = 0.0_r_def
-       sig  = sign(1.0_r_def, xl(j) - xld(j) )
-       s = (1.0_r_def - sig)/2.0_r_def
+       m2 = 0.0_r_tran
+       sig  = sign(1.0_r_tran, xl(j) - xld(j) )
+       s = (1.0_r_tran - sig)/2.0_r_tran
        sig1 = int(sig, i_def)
        sig2 = int(s , i_def)
 
        jd = local_point_1d_array(xld(j), xl, ns, nf)
-       hd = 1.0_r_def/dx(jd)
+       hd = 1.0_r_tran/dx(jd)
 
        s = ( xld(j) - xl(jd) ) * hd
-       s1 = max(sig*s,0.0_r_def)
+       s1 = max(sig*s,0.0_r_tran)
        s2 = max(sig,s)
 
        m1 = a0(jd)*(s2-s1) + c1*a1(jd)*(s2**2-s1**2)  &
@@ -398,8 +398,8 @@ contains
        !      and discard the wrong mass.
        ! This to maintain the right mass bounds
        !
-       sigm1 = sign(1.0_r_def,mass(jd))
-       m1 = sigm1*max(sigm1*m1,0.0_r_def)
+       sigm1 = sign(1.0_r_tran,mass(jd))
+       m1 = sigm1*max(sigm1*m1,0.0_r_tran)
 
        do i = jd+sig1, j-sig1-sig2, sig1
           m2 = m2 + mass(i)
@@ -408,8 +408,8 @@ contains
        mass_flux(j) = (m1 + m2)*sig
 
     end do
-    mass_flux(ns  ) = 0.0_r_def
-    mass_flux(nf+1) = 0.0_r_def
+    mass_flux(ns  ) = 0.0_r_tran
+    mass_flux(nf+1) = 0.0_r_tran
 
   ! Compute the new/updated arrival mass (or mass of the lagrangian cell)
   do j = ns, nf
@@ -431,8 +431,8 @@ contains
   implicit none
 
   integer(kind=i_def), intent(in) :: ns, nf
-  real(kind=r_def), dimension(ns:nf), intent(in) :: x
-  real(kind=r_def),    intent(in) :: p
+  real(kind=r_tran), dimension(ns:nf), intent(in) :: x
+  real(kind=r_tran),   intent(in) :: p
   integer(kind=i_def)             :: jl,jm,ju
   integer(kind=i_def)             :: local_point_1d_array
 
@@ -465,12 +465,12 @@ contains
   !-------------------------------------------------------------------------------
    subroutine  monotone_quadratic_coeffs(vl,vr,vb,a0,a1,a2,ns,nf,vertical_monotone_order)
    implicit none
-   integer(kind=i_def),                intent(in)    :: ns, nf, vertical_monotone_order
-   real(kind=r_def), dimension(ns:nf), intent(in)    :: vl, vr, vb
-   real(kind=r_def), dimension(ns:nf), intent(inout) :: a0, a1, a2
+   integer(kind=i_def),                 intent(in)    :: ns, nf, vertical_monotone_order
+   real(kind=r_tran), dimension(ns:nf), intent(in)    :: vl, vr, vb
+   real(kind=r_tran), dimension(ns:nf), intent(inout) :: a0, a1, a2
 
    integer(kind=i_def) :: i
-   real(kind=r_def)    :: xm, vh, test1, test2
+   real(kind=r_tran)   :: xm, vh, test1, test2
    integer(kind=i_def), dimension(ns:nf) :: mod_id
 
   ! Identify the cells that needs modified and
@@ -480,17 +480,17 @@ contains
 
    mod_id(:) = 0_i_def
    do i = ns, nf
-      xm = -a1(i)/(2.0_r_def*a2(i)+eps)
-      vh = 0.5_r_def*(vr(i) + vl(i))
-      test1 = xm*(1.0_r_def - xm)
+      xm = -a1(i)/(2.0_r_tran*a2(i)+EPS_R_TRAN)
+      vh = 0.5_r_tran*(vr(i) + vl(i))
+      test1 = xm*(1.0_r_tran - xm)
       test2 = (vb(i) - vl(i))*(vh - vb(i))
       !
       ! test1 = test if the turning point is inside the cell
       ! test2 = test if integral (vb) is close to left cell value (vl)
       !
-      if ( test1 > 0.0_r_def .and. test2 >= 0.0_r_def ) then     ! flat left edge
+      if ( test1 > 0.0_r_tran .and. test2 >= 0.0_r_tran ) then     ! flat left edge
           mod_id(i) = 1_i_def
-      elseif ( test1 > 0.0_r_def .and. test2 < 0.0_r_def ) then  ! flat right edge
+      elseif ( test1 > 0.0_r_tran .and. test2 < 0.0_r_tran ) then  ! flat right edge
           mod_id(i) = 2_i_def
       end if
    end do
@@ -500,8 +500,8 @@ contains
         do i = ns, nf
           if ( mod_id(i) /= 0_i_def ) then
             a0(i) = vb(i)
-            a1(i) = 0.0_r_def
-            a2(i) = 0.0_r_def
+            a1(i) = 0.0_r_tran
+            a2(i) = 0.0_r_tran
           end if
         end do
 
@@ -510,13 +510,13 @@ contains
         if ( mod_id(i) == 1_i_def ) then
            ! Linear left satisfying vl and vb
              a0(i) = vl(i)
-             a1(i) = 2.0_r_def*(vb(i)-vl(i))
-             a2(i) = 0.0_r_def
+             a1(i) = 2.0_r_tran*(vb(i)-vl(i))
+             a2(i) = 0.0_r_tran
          elseif ( mod_id(i) == 2_i_def ) then
             ! Linear right satisfying vr and vb
-             a0(i) = 2.0_r_def*vb(i) - vr(i)
-             a1(i) = 2.0_r_def*(vr(i) - vb(i))
-             a2(i) = 0.0_r_def
+             a0(i) = 2.0_r_tran*vb(i) - vr(i)
+             a1(i) = 2.0_r_tran*(vr(i) - vb(i))
+             a2(i) = 0.0_r_tran
         end if
       end do
 
@@ -528,17 +528,17 @@ contains
            ! at x=0, with 3 conditions:
            ! (1) df(0)=0; (2) f(0)=vl,(3) Int(f,x=0..1) = m
            !-------------------------------------------------
-            a1(i)=0.0_r_def
-            a2(i)=3.0_r_def*(vb(i) - vl(i))
+            a1(i)=0.0_r_tran
+            a2(i)=3.0_r_tran*(vb(i) - vl(i))
         elseif ( mod_id(i) == 2_i_def ) then  ! flat right edge
            !-------------------------------------------------
            ! In this case the modified quadratic is flatened
            ! at x=1, with 3 conditions:
            ! (1) df(1)=0; (2) f(1)=vr,(3) Int(f,x=0..1) = vb
            !-------------------------------------------------
-           a0(i)=-2.0_r_def*vr(i) + 3.0_r_def*vb(i)
-           a1(i)= 6.0_r_def*vr(i) - 6.0_r_def*vb(i)
-           a2(i)=-3.0_r_def*vr(i) + 3.0_r_def*vb(i)
+           a0(i)=-2.0_r_tran*vr(i) + 3.0_r_tran*vb(i)
+           a1(i)= 6.0_r_tran*vr(i) - 6.0_r_tran*vb(i)
+           a2(i)=-3.0_r_tran*vr(i) + 3.0_r_tran*vb(i)
         end if
      end do
    end select
@@ -561,12 +561,12 @@ contains
   !-------------------------------------------------------------------------------
   subroutine  monotone_cubic_coeffs(vl,vr,vb,a0,a1,a2,a3,ns,nf,vertical_monotone_order)
   implicit none
-  integer(kind=i_def),                intent(in)    :: ns, nf, vertical_monotone_order
-  real(kind=r_def), dimension(ns:nf), intent(in)    :: vl, vr, vb
-  real(kind=r_def), dimension(ns:nf), intent(inout) :: a0, a1, a2, a3
+  integer(kind=i_def),                 intent(in)    :: ns, nf, vertical_monotone_order
+  real(kind=r_tran), dimension(ns:nf), intent(in)    :: vl, vr, vb
+  real(kind=r_tran), dimension(ns:nf), intent(inout) :: a0, a1, a2, a3
   integer(kind=i_def) :: i
-  real(kind=r_def)    :: a, b, c, d, x1, x2, v1, v2, vh
-  real(kind=r_def)            :: test1, test2, test3
+  real(kind=r_tran)   :: a, b, c, d, x1, x2, v1, v2, vh
+  real(kind=r_tran)   :: test1, test2, test3
   integer(kind=i_def), dimension(ns:nf) :: mod_id
 
   ! Identify the cells that needs modified and
@@ -576,21 +576,21 @@ contains
 
   mod_id(:) = 0_i_def
   do i = ns, nf
-     a = 3.0_r_def*a3(i)
-     b = 2.0_r_def*a2(i)
+     a = 3.0_r_tran*a3(i)
+     b = 2.0_r_tran*a2(i)
      c = a1(i)
-     d = b**2 - 4.0_r_def*a*c
-     if ( d > 0.0_r_def ) then  !possible turning points within the cell
-        x1 = (-b+sqrt(d))/(2.0_r_def*a + eps)
-        x2 = (-b-sqrt(d))/(2.0_r_def*a + eps)
+     d = b**2 - 4.0_r_tran*a*c
+     if ( d > 0.0_r_tran ) then  !possible turning points within the cell
+        x1 = (-b+sqrt(d))/(2.0_r_tran*a + EPS_R_TRAN)
+        x2 = (-b-sqrt(d))/(2.0_r_tran*a + EPS_R_TRAN)
         v1 = a0(i) + a1(i)*x1 + a2(i)*(x1**2) + a3(i)*(x1**3)
         v2 = a0(i) + a1(i)*x2 + a2(i)*(x2**2) + a3(i)*(x2**3)
-        test1 = x1*(1.0_r_def - x1)
-        test2 = x2*(1.0_r_def - x2)
-        if ( test1 > 0.0_r_def .or. test2 > 0.0_r_def ) then
-            vh = 0.5_r_def*(vr(i) + vl(i))
+        test1 = x1*(1.0_r_tran - x1)
+        test2 = x2*(1.0_r_tran - x2)
+        if ( test1 > 0.0_r_tran .or. test2 > 0.0_r_tran ) then
+            vh = 0.5_r_tran*(vr(i) + vl(i))
             test3 = (vb(i) - vl(i))*(vh - vb(i))
-            if ( test3 >= 0.0_r_def ) then  ! flat left
+            if ( test3 >= 0.0_r_tran ) then  ! flat left
                mod_id(i) = 1_i_def
             else                            ! flat right
                mod_id(i) = 2_i_def
@@ -605,9 +605,9 @@ contains
       do i = ns, nf
         if ( mod_id(i) /= 0_i_def ) then
           a0(i) = vb(i)
-          a1(i) = 0.0_r_def
-          a2(i) = 0.0_r_def
-          a3(i) = 0.0_r_def
+          a1(i) = 0.0_r_tran
+          a2(i) = 0.0_r_tran
+          a3(i) = 0.0_r_tran
         end if
       end do
    case ( vertical_monotone_order_linear )
@@ -615,15 +615,15 @@ contains
         if ( mod_id(i) == 1_i_def ) then
            ! Linear left satisfying vl and vb
              a0(i) = vl(i)
-             a1(i) = 2.0_r_def*(vb(i)-vl(i))
-             a2(i) = 0.0_r_def
-             a3(i) = 0.0_r_def
+             a1(i) = 2.0_r_tran*(vb(i)-vl(i))
+             a2(i) = 0.0_r_tran
+             a3(i) = 0.0_r_tran
          elseif ( mod_id(i) == 2_i_def ) then
             ! Linear right satisfying vr and vb
-             a0(i) = 2.0_r_def*vb(i) - vr(i)
-             a1(i) = 2.0_r_def*(vr(i) - vb(i))
-             a2(i) = 0.0_r_def
-             a3(i) = 0.0_r_def
+             a0(i) = 2.0_r_tran*vb(i) - vr(i)
+             a1(i) = 2.0_r_tran*(vr(i) - vb(i))
+             a2(i) = 0.0_r_tran
+             a3(i) = 0.0_r_tran
         end if
       end do
    case ( vertical_monotone_order_high ) !high-order modification
@@ -635,9 +635,9 @@ contains
             ! (1) df(0)=0; (2) d2f(0)=0, (3) f(0)=vl, and
             ! (4) Int(f,x=0..1) = vb
             !----------------------------------------------
-            a1(i) = 0.0_r_def
-            a2(i) = 0.0_r_def
-            a3(i) = -4.0_r_def*vl(i) + 4.0_r_def*vb(i)
+            a1(i) = 0.0_r_tran
+            a2(i) = 0.0_r_tran
+            a3(i) = -4.0_r_tran*vl(i) + 4.0_r_tran*vb(i)
         elseif ( mod_id(i) == 2_i_def ) then  ! flatten right edge
             !---------------------------------------------
             ! In this case the modified cubic is flatened
@@ -645,10 +645,10 @@ contains
             ! (1) df(1)=0; (2) d2f(1)=0, (3) f(1)=vr, and
             ! (4) Int(f,x=0..1) = vb
             !----------------------------------------------
-            a0(i) =  -3.0_r_def*vr(i) +  4.0_r_def*vb(i)
-            a1(i) =  12.0_r_def*vr(i) - 12.0_r_def*vb(i)
+            a0(i) =  -3.0_r_tran*vr(i) +  4.0_r_tran*vb(i)
+            a1(i) =  12.0_r_tran*vr(i) - 12.0_r_tran*vb(i)
             a2(i) = - a1(i)
-            a3(i) =   4.0_r_def*vr(i) -  4.0_r_def*vb(i)
+            a3(i) =   4.0_r_tran*vr(i) -  4.0_r_tran*vb(i)
         end if
      end do
    end select
@@ -668,14 +668,14 @@ contains
   implicit none
   integer(kind=i_def), intent(in) :: ns,nf,vertical_monotone
   logical(kind=l_def), intent(in) :: enforce_min_value
-  real(kind=r_def),    dimension(ns:nf+1), intent(inout) :: fl
-  real(kind=r_def),    dimension(ns:nf), intent(in)      :: fb, dx
+  real(kind=r_tran),   dimension(ns:nf+1), intent(inout) :: fl
+  real(kind=r_tran),   dimension(ns:nf), intent(in)      :: fb, dx
   !locals
   integer(kind=i_def) :: i, im1, im2, ip1
-  real(kind=r_def)    :: a, b, minv, maxv, test1, test2, test3
-  real(kind=r_def), dimension(ns:nf)     :: df
-  real(kind=r_def), dimension(ns-1:nf+1) :: fbe
-  real(kind=r_def) :: relative_min_value
+  real(kind=r_tran)   :: a, b, minv, maxv, test1, test2, test3
+  real(kind=r_tran), dimension(ns:nf)     :: df
+  real(kind=r_tran), dimension(ns-1:nf+1) :: fbe
+  real(kind=r_tran) :: relative_min_value
 
   ! Add two extra points beyond boundaries with linear extrapolation
   ! so every edge value is within two average-value points
@@ -683,11 +683,11 @@ contains
   ip1 = min(ns+1, nf)
   a = dx(ns )/(dx(ns)+dx(ip1))
   b = dx(ip1)/(dx(ns)+dx(ip1))
-  fbe(ns-1) = a*(3.0_r_def*fb(ns) - 2.0_r_def*fb(ip1)) + b*fb(ns)
+  fbe(ns-1) = a*(3.0_r_tran*fb(ns) - 2.0_r_tran*fb(ip1)) + b*fb(ns)
   im1 = max(nf-1, ns)
   a = dx(nf )/(dx(nf)+dx(im1))
   b = dx(im1)/(dx(nf)+dx(im1))
-  fbe(nf+1) = a*(3.0_r_def*fb(nf) - 2.0_r_def*fb(im1)) + b*fb(nf)
+  fbe(nf+1) = a*(3.0_r_tran*fb(nf) - 2.0_r_tran*fb(im1)) + b*fb(nf)
 
   select case( vertical_monotone )
 
@@ -712,8 +712,8 @@ contains
         test2 = df(im2)*(fl(i)-fbe(im1))
         test3 = df(im2)*df(i)
 
-        if ( ( test1 < 0.0_r_def ) .and.  &
-             ( test2 <= 0.0_r_def .or. test3 <= 0.0_r_def ) ) then
+        if ( ( test1 < 0.0_r_tran ) .and.  &
+             ( test2 <= 0.0_r_tran .or. test3 <= 0.0_r_tran ) ) then
            minv = min( fbe(i), fbe(im1) )
            maxv = max( fbe(i), fbe(im1) )
            fl(i) = max( minv, min(fl(i), maxv) )
@@ -727,7 +727,7 @@ contains
   !
   if ( enforce_min_value )  then
        relative_min_value = maxval(abs(fl(:)))
-       relative_min_value = max(eps, relative_min_value*eps)
+       relative_min_value = max(EPS_R_TRAN, relative_min_value*EPS_R_TRAN)
        fl(:) = max( fl(:), relative_min_value )
   end if
   end subroutine monotone_edge_values

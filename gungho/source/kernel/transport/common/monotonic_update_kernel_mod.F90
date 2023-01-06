@@ -22,7 +22,7 @@ use argument_mod,      only : arg_type,                  &
                               GH_READWRITE, GH_READ,     &
                               ANY_DISCONTINUOUS_SPACE_1, &
                               STENCIL, CROSS, CELL_COLUMN
-use constants_mod,     only : r_def, i_def, l_def
+use constants_mod,     only : r_def, i_def, l_def, r_tran
 use kernel_mod,        only : kernel_type
 
 implicit none
@@ -90,14 +90,14 @@ subroutine monotonic_update_code( nlayers,              &
 
   logical(kind=l_def), intent(in) :: do_horizontal, do_vertical
 
-  real(kind=r_def), dimension(undf), intent(inout) :: adv
-  real(kind=r_def), dimension(undf), intent(in)    :: field
-  real(kind=r_def),                  intent(in)    :: dt
+  real(kind=r_tran), dimension(undf), intent(inout) :: adv
+  real(kind=r_tran), dimension(undf), intent(in)    :: field
+  real(kind=r_tran),                  intent(in)    :: dt
 
   ! Internal variables
   integer(kind=i_def) :: k, cell, p, ijkp, pmin, pmax, nl
 
-  real(kind=r_def) :: field0, field_max, field_min, a_min, a_max
+  real(kind=r_tran) :: field0, field_max, field_min, a_min, a_max
 
   ! Upper limit
   ! nl  == nlayers - 1 for W3 spaces

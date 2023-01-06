@@ -8,7 +8,7 @@
 !>
 module rtheta_kernel_mod_test
 
-  use constants_mod,                 only : i_def, r_def
+  use constants_mod,                 only : i_def, r_def, r_tran
   use pFUnit_Mod
 
   implicit none
@@ -70,8 +70,8 @@ contains
 
     class(rtheta_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: tol    = 1.0e-6_r_def
-    real(r_def), parameter :: answer = 1.0_r_def
+    real(r_tran), parameter :: tol    = 1.0e-6_r_tran
+    real(r_tran), parameter :: answer = 1.0_r_tran
 
     integer(i_def) :: cell, k
 
@@ -90,9 +90,9 @@ contains
     real(r_def), allocatable :: basis_wtheta(:,:,:,:)
     real(r_def), allocatable :: diff_basis_wtheta(:,:,:,:)
 
-    real(r_def),allocatable :: theta_data(:)
-    real(r_def),allocatable :: r_theta_data(:)
-    real(r_def),allocatable :: u_data(:)
+    real(r_tran),allocatable :: theta_data(:)
+    real(r_tran),allocatable :: r_theta_data(:)
+    real(r_tran),allocatable :: u_data(:)
 
     ! Dummy variable for passing into multi-getter routines where item is not needed
     integer(i_def) :: unused
@@ -133,9 +133,9 @@ contains
     allocate(u_data(undf_w2))
 
     ! Initialise the data
-    r_theta_data(:) = 1.0_r_def
-    theta_data(:)   = 300.0_r_def
-    u_data(:)       = 0.0_r_def
+    r_theta_data(:) = 1.0_r_tran
+    theta_data(:)   = 300.0_r_tran
+    u_data(:)       = 0.0_r_tran
 
     ! Test the first cell
     cell = 1

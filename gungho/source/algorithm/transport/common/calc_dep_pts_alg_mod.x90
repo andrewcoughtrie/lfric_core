@@ -15,9 +15,10 @@
 
 module calc_dep_pts_alg_mod
 
-  use constants_mod,                     only: i_def, r_def
+  use constants_mod,                     only: i_def, r_tran
   use io_config_mod,                     only: subroutine_timers
   use timer_mod,                         only: timer
+  use r_tran_field_mod,                  only: r_tran_field_type
   use field_mod,                         only: field_type
   use calc_upwind_detj_at_w2_kernel_mod, only: calc_upwind_detj_at_w2_kernel_type
   use vertical_deppt_kernel_mod,         only: vertical_deppt_kernel_type
@@ -39,18 +40,19 @@ module calc_dep_pts_alg_mod
                                                departure_grid_physical, &
                                                departure_grid_uniform,  &
                                                departure_grid
-  use subgrid_config_mod,                only: dep_pt_stencil_extent,        &
-                                               calculate_detj,               &
-                                               calculate_detj_averaged,      &
+  use subgrid_config_mod,                only: dep_pt_stencil_extent,   &
+                                               calculate_detj,          &
+                                               calculate_detj_averaged, &
                                                calculate_detj_upwind
-  use fem_constants_mod,                 only: get_detj_at_w2,               &
-                                               get_detj_at_w2_above,         &
+  use fem_constants_mod,                 only: get_detj_at_w2,          &
+                                               get_detj_at_w2_above,    &
                                                get_detj_at_w2_below
   use geometric_constants_mod,           only: get_height
-  use log_mod,                           only: log_event,                    &
-                                               LOG_LEVEL_INFO,               &
+  use log_mod,                           only: log_event,               &
+                                               LOG_LEVEL_INFO,          &
                                                LOG_LEVEL_ERROR
   use mesh_mod,                          only: mesh_type
+  use psykal_lite_mod,                   only: invoke_copy_to_rtran
 
   implicit none
 
@@ -85,17 +87,17 @@ contains
 
     implicit none
 
-    type( field_type ), intent(inout) :: dep_pts_x
-    type( field_type ), intent(inout) :: dep_pts_y
-    type( field_type ), intent(in)    :: wind_n
-    type( field_type ), intent(in)    :: wind_np1
-    type( field_type ), intent(in)    :: detj_at_w2
-    real( kind=r_def ), intent(in)    :: dt
+    type( r_tran_field_type ), intent(inout) :: dep_pts_x
+    type( r_tran_field_type ), intent(inout) :: dep_pts_y
+    type( r_tran_field_type ), intent(in)    :: wind_n
+    type( r_tran_field_type ), intent(in)    :: wind_np1
+    type( r_tran_field_type ), intent(in)    :: detj_at_w2
+    real( kind=r_tran ), intent(in)    :: dt
 
-    type( field_type ) :: wind_adv
-    type( field_type ) :: dep_wind
-    type( field_type ) :: dep_wind_n
-    type( field_type ) :: dep_wind_np1
+    type( r_tran_field_type ) :: wind_adv
+    type( r_tran_field_type ) :: dep_wind
+    type( r_tran_field_type ) :: dep_wind_n
+    type( r_tran_field_type ) :: dep_wind_np1
 
     type( function_space_type ), pointer :: w2_fs => null()
     type(mesh_type), pointer ::  mesh => null()
@@ -112,12 +114,12 @@ contains
     call dep_wind_np1%initialise( vector_space = w2_fs )
 
     ! Initialise variables as zero
-    call invoke( setval_c( dep_pts_x, 0.0_r_def ),    &
-                 setval_c( dep_pts_y, 0.0_r_def ),    &
-                 setval_c( wind_adv, 0.0_r_def ),     &
-                 setval_c( dep_wind_n, 0.0_r_def ),   &
-                 setval_c( dep_wind_np1, 0.0_r_def ), &
-                 setval_c( dep_wind, 0.0_r_def )   )
+    call invoke( setval_c( dep_pts_x, 0.0_r_tran ),    &
+                 setval_c( dep_pts_y, 0.0_r_tran ),    &
+                 setval_c( wind_adv, 0.0_r_tran ),     &
+                 setval_c( dep_wind_n, 0.0_r_tran ),   &
+                 setval_c( dep_wind_np1, 0.0_r_tran ), &
+                 setval_c( dep_wind, 0.0_r_tran )   )
 
     ! Calculate the departure points based on Eulerian or Lagrangian approach
     select case ( method )
@@ -140,7 +142,7 @@ contains
         if ( method == method_euler ) then
           call invoke( setval_X(wind_adv, wind_np1) )
         else
-          call invoke( aX_plus_bY(wind_adv, 0.5_r_def, wind_n,0.5_r_def, wind_np1) )
+          call invoke( aX_plus_bY(wind_adv, 0.5_r_tran, wind_n,0.5_r_tran, wind_np1) )
         end if
         call invoke( X_divideby_Y(dep_wind, wind_adv, detj_at_w2),     &
                      eulerian_deppt_kernel_type( dep_pts_x, dep_pts_y, &
@@ -184,16 +186,17 @@ contains
 
     implicit none
 
-    type( field_type ), intent(inout) :: dep_pts_z
-    type( field_type ), intent(inout) :: cfl
-    type( field_type ), intent(in)    :: wind_n
-    type( field_type ), intent(in)    :: wind_np1
-    type( field_type ), intent(in)    :: detj_at_w2
-    real( kind=r_def ), intent(in)    :: dt
+    type( r_tran_field_type ), intent(inout) :: dep_pts_z
+    type( r_tran_field_type ), intent(inout) :: cfl
+    type( r_tran_field_type ), intent(in)    :: wind_n
+    type( r_tran_field_type ), intent(in)    :: wind_np1
+    type( r_tran_field_type ), intent(in)    :: detj_at_w2
+    real( kind=r_tran ), intent(in)    :: dt
 
-    type( field_type ) :: departure_wind_n, departure_wind_np1
+    type( r_tran_field_type ) :: departure_wind_n, departure_wind_np1
 
-    type( field_type ), pointer :: height_w2 => null()
+    type( field_type ), pointer :: height_w2_rdef => null()
+    type( r_tran_field_type )   :: height_w2
 
     type( function_space_type ), pointer :: w2_fs => null()
     type( function_space_type ), pointer :: w3_fs => null()
@@ -204,7 +207,10 @@ contains
     mesh  => wind_n%get_mesh()
     w3_fs => function_space_collection%get_fs( mesh, element_order, W3 )
 
-    height_w2 => get_height(W2, mesh%get_id())
+    height_w2_rdef => get_height(W2, mesh%get_id())
+    call height_w2%initialise(vector_space = height_w2_rdef%get_function_space() )
+    call invoke_copy_to_rtran(height_w2, height_w2_rdef )
+
 
     call departure_wind_n%initialise( vector_space = w2_fs )
     call departure_wind_np1%initialise( vector_space = w2_fs )
@@ -216,11 +222,11 @@ contains
     ! points in the vertical.
     ! *_n and *_np1 denotes fields at timestep n and timestep n+1 with density known
     ! at timestep n.
-    call invoke( setval_c( dep_pts_z, 0.0_r_def ),                       &
-                 setval_c( cfl, 0.0_r_def ),                             &
-                 setval_c( departure_wind_n, 0.0_r_def ),                &
-                 setval_c( departure_wind_np1, 0.0_r_def ),              &
-                 X_divideby_Y(departure_wind_n, wind_n, detj_at_w2),     &
+    call invoke( setval_c( dep_pts_z, 0.0_r_tran ),                       &
+                 setval_c( cfl, 0.0_r_tran ),                             &
+                 setval_c( departure_wind_n, 0.0_r_tran ),                &
+                 setval_c( departure_wind_np1, 0.0_r_tran ),              &
+                 X_divideby_Y(departure_wind_n, wind_n, detj_at_w2),      &
                  X_divideby_Y(departure_wind_np1, wind_np1, detj_at_w2) )
 
     select case(departure_grid)
@@ -264,15 +270,21 @@ contains
   subroutine select_detj_at_w2( advecting_wind, &
                                 detj_at_w2 )
 
+    use psykal_lite_mod,               only: invoke_copy_rtran_to_rdef, &
+                                             invoke_copy_to_rtran
     implicit none
 
-    type( field_type ), intent(in)    :: advecting_wind
-    type( field_type ), intent(inout) :: detj_at_w2
+    type( r_tran_field_type ), intent(in)    :: advecting_wind
+    type( r_tran_field_type ), intent(inout) :: detj_at_w2
 
     ! Det(J) at W2 fields
-    type( field_type ), pointer :: detj_at_w2_ave   => null()
-    type( field_type ), pointer :: detj_at_w2_above => null()
-    type( field_type ), pointer :: detj_at_w2_below => null()
+    type( field_type ), pointer :: detj_at_w2_ave_rdef   => null()
+    type( field_type ), pointer :: detj_at_w2_above_rdef  => null()
+    type( field_type ), pointer :: detj_at_w2_below_rdef  => null()
+
+    ! r_tran detj fields
+    type( r_tran_field_type ) :: detj_at_w2_above
+    type( r_tran_field_type ) :: detj_at_w2_below
 
     ! Mesh ID variable
     integer( kind=i_def ) ::  mesh_id
@@ -281,23 +293,29 @@ contains
     mesh_id = advecting_wind%get_mesh_id()
 
     ! Get Det(J) at W2 using averaged Det(J)
-    detj_at_w2_ave => get_detj_at_w2(mesh_id)
+    detj_at_w2_ave_rdef  => get_detj_at_w2(mesh_id)
 
     select case (calculate_detj)
 
       case (calculate_detj_averaged)
         ! Set detj_at_w2 to use average Det(J) of neighbouring cells
-        call invoke( setval_X(detj_at_w2,detj_at_w2_ave) )
+        call invoke_copy_to_rtran(detj_at_w2, detj_at_w2_ave_rdef )
 
       case (calculate_detj_upwind)
         ! Get Det(J) at W2 from cells above and below respectively
-        detj_at_w2_above => get_detj_at_w2_above(mesh_id)
-        detj_at_w2_below => get_detj_at_w2_below(mesh_id)
+        detj_at_w2_above_rdef => get_detj_at_w2_above(mesh_id)
+        detj_at_w2_below_rdef  => get_detj_at_w2_below(mesh_id)
+
+        call detj_at_w2_above%initialise(vector_space = detj_at_w2_above_rdef%get_function_space() )
+        call detj_at_w2_below%initialise(vector_space = detj_at_w2_below_rdef%get_function_space() )
+        call invoke_copy_to_rtran(detj_at_w2_above, detj_at_w2_above_rdef )
+        call invoke_copy_to_rtran(detj_at_w2_below, detj_at_w2_below_rdef )
 
         ! Set detj_at_w2 to use average Det(J) for horizontal dofs
-        call invoke( setval_X(detj_at_w2,detj_at_w2_ave),                 &
+        call invoke_copy_to_rtran(detj_at_w2, detj_at_w2_ave_rdef )
+
         ! Update vertical parts of detj_at_w2 to use upwind Det(J)
-                     calc_upwind_detj_at_w2_kernel_type(detj_at_w2,       &
+        call invoke( calc_upwind_detj_at_w2_kernel_type(detj_at_w2 ,      &
                                                         detj_at_w2_above, &
                                                         detj_at_w2_below, &
                                                         advecting_wind) )
@@ -306,7 +324,7 @@ contains
           call log_event( "Gungho: Invalid Det(J) calculation method", LOG_LEVEL_ERROR )
     end select
 
-    nullify( detj_at_w2_above, detj_at_w2_below, detj_at_w2_ave )
+    nullify( detj_at_w2_above_rdef, detj_at_w2_below_rdef, detj_at_w2_ave_rdef )
 
   end subroutine select_detj_at_w2
 

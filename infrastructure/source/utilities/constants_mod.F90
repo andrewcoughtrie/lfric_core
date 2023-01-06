@@ -33,7 +33,7 @@ module constants_mod
             LARGE_REAL_NEGATIVE, LARGE_REAL_POSITIVE,                    &
             PI, degrees_to_radians, radians_to_degrees,                  &
             cache_block, PRECISION_REAL, PRECISION_R_SOLVER,             &
-            PRECISION_R_TRAN
+            PRECISION_R_TRAN, EPS_R_TRAN
 
   ! Define default application-defined kinds for all intrinsic data types
 
@@ -155,9 +155,13 @@ module constants_mod
 
   !> @name Numerical constants
   !> @{
-  real(kind=r_def), parameter :: EPS = 3.0e-15_r_def      !< Relative precision: if (abs(x-y) > EPS) then assume x==y.
-  real(kind=r_def), parameter :: tiny_eps = 1.0e-30_r_def !< Similar to EPS but lot smaller, which can be used where
-  !<                             x/y < EPS but (x-y) is not considered to be zero like many chemistry tracers.
+  real(kind=r_def), parameter  :: EPS = 3.0e-15_r_def
+  !<                              Relative precision: if (abs(x-y) < EPS) then assume x==y.
+  real(kind=r_tran), parameter :: EPS_R_TRAN = 3.0e-15_r_def
+  !<                              Relative precision: if (abs(x-y) < EPS_R_TRAN) then assume x==y.
+  real(kind=r_tran), parameter :: tiny_eps = 1.0e-30_r_tran
+  !<                              Similar to EPS but lot smaller, which can be used where
+  !<                              x/y < EPS but (x-y) is not considered to be zero like many chemistry tracers.
   !> @}
 
   !> @name Mathematical constants

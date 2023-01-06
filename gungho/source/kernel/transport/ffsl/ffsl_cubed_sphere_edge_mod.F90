@@ -20,7 +20,7 @@
 !------------------------------------------------------------------------------
 module ffsl_cubed_sphere_edge_mod
 
-  use constants_mod, only : r_def, i_def
+  use constants_mod, only : r_tran, i_def
 
   implicit none
 
@@ -52,10 +52,10 @@ contains
 
     integer(kind=i_def), intent(in)  :: stencil_size
     integer(kind=i_def), intent(in)  :: stencil_half
-    real(kind=r_def),    intent(in)  :: rho_x(1:stencil_size)
-    real(kind=r_def),    intent(in)  :: rho_y(1:stencil_size)
+    real(kind=r_tran),   intent(in)  :: rho_x(1:stencil_size)
+    real(kind=r_tran),   intent(in)  :: rho_y(1:stencil_size)
     integer(kind=i_def), intent(in)  :: ipanel(1:stencil_size)
-    real(kind=r_def),    intent(out) :: rho_out(1:stencil_size)
+    real(kind=r_tran),   intent(out) :: rho_out(1:stencil_size)
 
     integer(kind=i_def) :: ii, jj
 
@@ -109,10 +109,10 @@ contains
 
     integer(kind=i_def), intent(in)  :: stencil_size
     integer(kind=i_def), intent(in)  :: stencil_half
-    real(kind=r_def),    intent(in)  :: rho_x(1:stencil_size)
-    real(kind=r_def),    intent(in)  :: rho_y(1:stencil_size)
+    real(kind=r_tran),   intent(in)  :: rho_x(1:stencil_size)
+    real(kind=r_tran),   intent(in)  :: rho_y(1:stencil_size)
     integer(kind=i_def), intent(in)  :: ipanel(1:stencil_size)
-    real(kind=r_def),    intent(out) :: rho_out(1:stencil_size)
+    real(kind=r_tran),   intent(out) :: rho_out(1:stencil_size)
 
     integer(kind=i_def) :: ii, jj
 

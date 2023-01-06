@@ -28,7 +28,9 @@ module fem_constants_mod
   use mesh_collection_mod,                only: mesh_collection
   use mesh_mod,                           only: mesh_type
   use model_clock_mod,                    only: model_clock_type
-  use operator_mod,                       only: operator_type, r_solver_operator_type
+  use operator_mod,                       only: operator_type, &
+                                                r_solver_operator_type, &
+                                                r_tran_operator_type
   use quadrature_xyoz_mod,                only: quadrature_xyoz_type
   use quadrature_rule_gaussian_mod,       only: quadrature_rule_gaussian_type
   use timer_mod,                          only: timer
@@ -76,7 +78,8 @@ module fem_constants_mod
   use project_ws_to_w2_operator_kernel_mod,   only: project_ws_to_w2_operator_kernel_type
   use project_w3_to_w2b_operator_kernel_mod,  only: project_w3_to_w2b_operator_kernel_type
   use w2_normalisation_kernel_mod,            only: w2_normalisation_kernel_type
-  use psykal_lite_mod,                        only: invoke_copy_to_rsolver
+  use psykal_lite_mod,                        only: invoke_copy_to_rsolver, &
+                                                    invoke_operator_setval_x_rtran
 
   implicit none
 
@@ -155,6 +158,13 @@ module fem_constants_mod
   type(r_solver_field_type),    allocatable, dimension(:), target :: w2_normalisation_r_solver
   type(r_solver_field_type),    allocatable, dimension(:), target :: wt_normalisation_r_solver
   type(r_solver_field_type),    allocatable, dimension(:), target :: detj_at_w3_r_solver
+  ! r_tran versions of operators
+  type(r_tran_operator_type), allocatable, dimension(:), target :: im3_div_r_tran
+  type(r_tran_operator_type), allocatable, dimension(:), target :: im3_div_h_r_tran
+  type(r_tran_operator_type), allocatable, dimension(:), target :: im3_div_v_r_tran
+  type(r_tran_operator_type), allocatable, dimension(:), target :: mm_w3_r_tran
+  type(r_tran_operator_type), allocatable, dimension(:), target :: mm_w3_inv_r_tran
+  type(r_tran_operator_type), allocatable, dimension(:), target :: div_r_tran
 
   ! Public functions to create and access the module contents
 
@@ -196,6 +206,11 @@ module fem_constants_mod
   public :: get_normalisation_r_solver
   public :: get_detj_at_w3_r_solver
 
+  ! Getters for r_tran objects
+  public :: get_directional_im3_div_r_tran
+  public :: get_mass_matrix_r_tran
+  public :: get_inverse_w3_mass_matrix_r_tran
+  public :: get_div_r_tran
 
 contains
 
@@ -308,6 +323,12 @@ contains
              detj_at_w2_above(num_meshes),          &
              detj_at_w2_below(num_meshes),          &
              detj_at_w3_r_solver(num_meshes),       &
+             im3_div_r_tran(num_meshes),            &
+             im3_div_h_r_tran(num_meshes),          &
+             im3_div_v_r_tran(num_meshes),          &
+             mm_w3_inv_r_tran(num_meshes),          &
+             mm_w3_r_tran(num_meshes),              &
+             div_r_tran(num_meshes),                &
              project_xdot_to_w2(num_meshes),        &
              project_ydot_to_w2(num_meshes),        &
              project_zdot_to_w2(num_meshes),        &
@@ -373,6 +394,10 @@ contains
                                                          qr) )
         call div_r_solver(i)%initialise( w3_fs, w2_fs )
         call invoke( operator_setval_x_kernel_type( div_r_solver(i), div(i) ) )
+        call div_r_tran(i)%initialise( w3_fs, w2_fs )
+        call invoke_operator_setval_x_rtran( div_r_tran(i), div(i) )
+        call mm_w3_r_tran(i)%initialise( w3_fs, w3_fs )
+        call invoke_operator_setval_x_rtran( mm_w3_r_tran(i), mm_w3(i))
 
       else
         ! Multigrid mesh, so only set-up certain mass matrices and operators
@@ -388,7 +413,10 @@ contains
                                                 panel_id_list(i), qr) )
         call div_r_solver(i)%initialise( w3_fs, w2_fs )
         call invoke( operator_setval_x_kernel_type( div_r_solver(i), div(i) ) )
-
+        call div_r_tran(i)%initialise( w3_fs, w2_fs )
+        call invoke_operator_setval_x_rtran( div_r_tran(i), div(i) )
+        call mm_w3_r_tran(i)%initialise( w3_fs, w3_fs )
+        call invoke_operator_setval_x_rtran( mm_w3_r_tran(i), mm_w3(i))
       end if
 
       !============ Compute vertical and horizontal only operators ============!
@@ -421,12 +449,19 @@ contains
         call im3_div(i)%initialise( w3_fs, w2_fs )
         call im3_div_h(i)%initialise( w3_fs, w2h_fs )
         call im3_div_v(i)%initialise( w3_fs, w2v_fs )
+        call im3_div_r_tran(i)%initialise( w3_fs, w2_fs )
+        call im3_div_h_r_tran(i)%initialise( w3_fs, w2h_fs )
+        call im3_div_v_r_tran(i)%initialise( w3_fs, w2v_fs )
 
         call invoke( name = "create_W3_inv_mass_matrix", &
                      invert_local_operator_kernel_type(mm_w3_inv(i), mm_w3(i)) )
         call invoke( operator_x_times_y_kernel_type( im3_div(i), mm_w3_inv(i), div(i) ),     &
                      operator_x_times_y_kernel_type( im3_div_h(i), mm_w3_inv(i), div_h(i) ), &
                      operator_x_times_y_kernel_type( im3_div_v(i), mm_w3_inv(i), div_v(i) )  )
+
+        call invoke_operator_setval_x_rtran( im3_div_r_tran(i), im3_div(i) )
+        call invoke_operator_setval_x_rtran( im3_div_h_r_tran(i), im3_div_h(i) )
+        call invoke_operator_setval_x_rtran( im3_div_v_r_tran(i), im3_div_v(i) )
       end if
 
       !======================== Inverse W2b mass matrix =======================!
@@ -536,6 +571,9 @@ contains
                      mm_diagonal_kernel_type(mm3_lumped_inv(i), mm_w3_inv(i)) )
         call mm_w3_inv_r_solver(i)%initialise( w3_fs, w3_fs )
         call invoke( operator_setval_x_kernel_type( mm_w3_inv_r_solver(i), mm_w3_inv(i) ) )
+        call mm_w3_inv_r_tran(i)%initialise( w3_fs, w3_fs )
+        call invoke_operator_setval_x_rtran( mm_w3_inv_r_tran(i), mm_w3_inv(i) )
+
       end if
 
       if ( label_list(i) == primary_mesh_label ) then
@@ -831,6 +869,30 @@ contains
 
   end function get_mass_matrix_r_solver
 
+  !> @brief Returns a pointer to a mass matrix
+  !> @param[in] space   The space of the desired mass matrix
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The mass matrix operator
+  function get_mass_matrix_r_tran(space, mesh_id) result(mm_op_r_tran)
+    implicit none
+    integer(kind=i_def),   intent(in) :: space
+    integer(kind=i_def),   intent(in) :: mesh_id
+    integer(kind=i_def)               :: mesh_index
+    type(r_tran_operator_type), pointer :: mm_op_r_tran
+
+    mesh_index = find_mesh_index(mesh_id)
+
+    select case (space)
+      case (W3)
+        mm_op_r_tran => mm_w3_r_tran(mesh_index)
+      case default
+        mm_op_r_tran  => null()
+        call log_event( "Mass matrix operator does not exist", LOG_LEVEL_ERROR)
+        stop
+    end select
+
+  end function get_mass_matrix_r_tran
+
   !> @brief Returns a pointer to a mass matrix diagonal
   !> @param[in] space   The space of the desired diagonal mass matrix
   !> @param[in] mesh_id The ID of the mesh to get the object for
@@ -919,6 +981,20 @@ contains
     call check_initialised_operator(mm_w3_inv_op, op_name, mesh_id)
 
   end function get_inverse_w3_mass_matrix
+
+  !> @brief Returns a pointer to the inverse W3 mass matrix operator
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The inverse W3 mass matrix operator
+  function get_inverse_w3_mass_matrix_r_tran(mesh_id) result(mm_w3_inv_op_r_tran)
+    implicit none
+    integer(kind=i_def),   intent(in) :: mesh_id
+    integer(kind=i_def)               :: mesh_index
+    type(r_tran_operator_type),      pointer :: mm_w3_inv_op_r_tran
+
+    mesh_index = find_mesh_index(mesh_id)
+    mm_w3_inv_op_r_tran => mm_w3_inv_r_tran(mesh_index)
+
+  end function get_inverse_w3_mass_matrix_r_tran
 
   !> @brief Returns a pointer to the inverse W3 r_solver mass matrix operator
   !> @param[in] mesh_id The ID of the mesh to get the object for
@@ -1071,6 +1147,19 @@ contains
 
   end function get_div_r_solver
 
+  !> @brief Returns a pointer to the r_tran div operator
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The grad operator
+  function get_div_r_tran(mesh_id) result(div_op_r_tran)
+    implicit none
+    integer(kind=i_def),        intent(in) :: mesh_id
+    integer(kind=i_def)                    :: mesh_index
+    type(r_tran_operator_type),  pointer :: div_op_r_tran
+
+    mesh_index = find_mesh_index(mesh_id)
+    div_op_r_tran => div_r_tran(mesh_index)
+
+  end function get_div_r_tran
 
   !> @brief Returns a pointer to the broken div operator
   !> @param[in] mesh_id The ID of the mesh to get the object for
@@ -1170,6 +1259,35 @@ contains
     call check_initialised_operator(div_op, op_name, mesh_id)
 
   end function get_directional_im3_div
+
+  !> @brief Returns a pointer to the inv_m3 * div operator for a particular direction
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @param[in] mesh_id The enumerator for the direction
+  !> @return The inv_m3 * div operator
+  function get_directional_im3_div_r_tran(mesh_id, direction) result(div_op_r_tran)
+    use transport_enumerated_types_mod, only: direction_h, &
+                                              direction_v, &
+                                              direction_3d
+    implicit none
+    integer(kind=i_def),   intent(in) :: mesh_id
+    integer(kind=i_def),   intent(in) :: direction
+    integer(kind=i_def)               :: mesh_index
+    type(r_tran_operator_type),      pointer :: div_op_r_tran
+    character(str_def)                :: op_name
+
+    mesh_index = find_mesh_index(mesh_id)
+    op_name = 'directional_im3_div'
+
+    select case (direction)
+    case (direction_3d)
+      div_op_r_tran => im3_div_r_tran(mesh_index)
+    case (direction_h)
+      div_op_r_tran => im3_div_h_r_tran(mesh_index)
+    case (direction_v)
+      div_op_r_tran => im3_div_v_r_tran(mesh_index)
+    end select
+
+  end function get_directional_im3_div_r_tran
 
   !> @brief Returns a pointer to the normalisation of prognostic fields
   !> @param[in] space   The space of the normalisation field

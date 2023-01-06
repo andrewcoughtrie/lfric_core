@@ -29,7 +29,7 @@ use argument_mod,      only : arg_type, func_type,       &
                               STENCIL, REGION, GH_BASIS, &
                               GH_QUADRATURE_XYoZ,        &
                               GH_QUADRATURE_edge
-use constants_mod,     only : r_def, i_def, l_def
+use constants_mod,     only : r_def, i_def, l_def, r_tran
 use fs_continuity_mod, only : Wtheta
 use kernel_mod,        only : kernel_type
 
@@ -52,7 +52,7 @@ type, public, extends(kernel_type) :: poly2d_advective_coeffs_kernel_type
        arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),                                              &
        arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),                                              &
        arg_type(GH_SCALAR,  GH_REAL,    GH_READ),                                              &
-       arg_type(GH_SCALAR,  GH_INTEGER, GH_READ)                                              &
+       arg_type(GH_SCALAR,  GH_INTEGER, GH_READ)                                               &
        /)
   type(func_type) :: meta_funcs(1) = (/                                          &
        func_type(ANY_SPACE_1, GH_BASIS)                                          &
@@ -192,7 +192,7 @@ subroutine poly2d_advective_coeffs_code(one_layer,                  &
 
   real(kind=r_def), dimension(undf_wt),  intent(in)    :: mdwt
   real(kind=r_def), dimension(undf_wx),  intent(in)    :: chi1, chi2, chi3
-  real(kind=r_def), dimension(undf_c),   intent(inout) :: coeff
+  real(kind=r_tran), dimension(undf_c),  intent(inout) :: coeff
   real(kind=r_def), dimension(undf_pid), intent(in)    :: panel_id
 
   real(kind=r_def), dimension(1,ndf_wx,nqp_h,nqp_v),     intent(in) :: basis_wx
@@ -344,7 +344,7 @@ subroutine poly2d_advective_coeffs_code(one_layer,                  &
 
   ! Initialise polynomial coefficients to zero
   do df = 0, ndata-1
-    coeff(map_c(1) + df) = 0.0_r_def
+    coeff(map_c(1) + df) = 0.0_r_tran
   end do
 
   ! Now compute the coefficients of each cell in the stencil for
@@ -386,7 +386,7 @@ subroutine poly2d_advective_coeffs_code(one_layer,                  &
           end if
         end do
         ijp = (stencil - 1 + (edge-1)*stencil_size) + map_c(1)
-        coeff(ijp) = coeff(ijp) + wqp_e(qp,edge)*poly*area(stencil)
+        coeff(ijp) = coeff(ijp) + real( wqp_e(qp,edge)*poly*area(stencil), r_tran )
 
       end do
     end do edge_quadrature_loop

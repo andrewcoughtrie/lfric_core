@@ -8,7 +8,7 @@
 !>
 module transport_metadata_test
 
-  use constants_mod,                  only : r_def, l_def, str_def, i_def
+  use constants_mod,                  only : l_def, str_def, i_def, r_tran
   use transport_enumerated_types_mod, only : equation_form_advective,      &
                                              splitting_hv,                 &
                                              scheme_split,                 &
@@ -79,7 +79,7 @@ contains
     integer(kind=i_def)           :: monotone_order = vertical_monotone_order_high
     logical(kind=l_def)           :: enforce_min_value = .true.
     logical(kind=l_def)           :: logspace = .true.
-    real(kind=r_def)              :: min_value = 1.9_r_def
+    real(kind=r_tran)             :: min_value = 1.9_r_tran
     logical(kind=l_def)           :: reversible = .false.
     type(transport_metadata_type) :: our_metadata
 

@@ -7,7 +7,7 @@
 !> @brief Contains metadata for transport.
 module transport_metadata_mod
 
-  use constants_mod,        only: i_def, l_def, r_def, str_def
+  use constants_mod,        only: i_def, l_def, r_def, str_def, r_tran
   use linked_list_data_mod, only: linked_list_data_type
 
   implicit none
@@ -29,7 +29,7 @@ module transport_metadata_mod
     integer(kind=i_def)    :: vertical_monotone        ! Vertical monotone scheme
     integer(kind=i_def)    :: vertical_monotone_order  ! Order of the vertical monotone scheme
     logical(kind=l_def)    :: enforce_min_value  ! enforce a min value (=T/F)
-    real(kind=r_def)       :: min_value          ! the min value to be enforced
+    real(kind=r_tran)      :: min_value          ! the min value to be enforced
     logical(kind=l_def)    :: log_space ! Do interpolation in log space
     logical(kind=l_def)    :: reversible ! Use a reversible transport scheme
 
@@ -89,7 +89,7 @@ contains
     integer(kind=i_def),    intent(in) :: vertical_monotone
     integer(kind=i_def),    intent(in) :: vertical_monotone_order
     logical(kind=l_def),    intent(in) :: enforce_min_value
-    real(kind=r_def),       intent(in) :: min_value
+    real(kind=r_tran),      intent(in) :: min_value
     logical(kind=l_def),    intent(in) :: log_space
     logical(kind=l_def),    intent(in) :: reversible
 
@@ -291,7 +291,7 @@ contains
     implicit none
 
     class(transport_metadata_type), intent(in) :: self
-    real(kind=r_def)                           :: min_value
+    real(kind=r_tran)                          :: min_value
 
     min_value = self%min_value
 

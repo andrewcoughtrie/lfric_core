@@ -17,7 +17,9 @@ module transport_runtime_alg_mod
                                             check_horz_dep_pts,     &
                                             check_vert_dep_pts
   use constants_mod,                  only: r_def, r_second, i_def, l_def,  &
-                                            str_def, tiny_eps, imdi
+                                            str_def, tiny_eps, imdi, r_tran
+  use r_tran_field_mod,               only: r_tran_field_type
+  use integer_field_mod,              only: integer_field_type
   use field_mod,                      only: field_type
   use finite_element_config_mod,      only: element_order
   use fs_continuity_mod,              only: W2, W2h, W2v, W3
@@ -33,6 +35,7 @@ module transport_runtime_alg_mod
   use model_clock_mod,                only: model_clock_type
   use runtime_tools_mod,              only: check_initialised_field
   use transport_enumerated_types_mod, only: scheme_split
+  use psykal_lite_mod,                only: invoke_copy_to_rtran
 
   implicit none
 
@@ -50,29 +53,29 @@ module transport_runtime_alg_mod
     integer(kind=i_def)                              :: dry_step_ctr
     integer(kind=i_def)                              :: tracer_step_ctr
     integer(kind=i_def), allocatable, dimension(:)   :: mesh_ids
-    type(field_type),    allocatable, dimension(:)   :: advecting_wind
-    type(field_type),    allocatable, dimension(:)   :: horizontal_advecting_wind
-    type(field_type),    allocatable, dimension(:)   :: vertical_advecting_wind
-    type(field_type),    allocatable, dimension(:)   :: detj_at_w2_transport
-    type(field_type),    allocatable, dimension(:)   :: departure_points_x_w2
-    type(field_type),    allocatable, dimension(:)   :: departure_points_y_w2
-    type(field_type),    allocatable, dimension(:)   :: departure_points_z_w2
-    type(field_type),    allocatable, dimension(:)   :: adv_unity_x
-    type(field_type),    allocatable, dimension(:)   :: adv_unity_y
-    type(field_type),    allocatable, dimension(:)   :: adv_unity_z
-    type(field_type),    allocatable, dimension(:)   :: adv_unity_half_x
-    type(field_type),    allocatable, dimension(:)   :: adv_unity_half_y
-    type(field_type),    allocatable, dimension(:)   :: adv_unity_half_z
-    type(field_type),    allocatable, dimension(:)   :: field_n
-    type(field_type),    allocatable, dimension(:,:) :: rho_d_n
-    type(field_type),    allocatable, dimension(:,:) :: rho_d_np1
-    type(field_type),    allocatable, dimension(:,:) :: flux_inc
-    type(field_type),    allocatable, dimension(:,:) :: dry_flux
-    type(field_type),    allocatable, dimension(:,:) :: hori_dry_flux
-    type(field_type),    allocatable, dimension(:,:) :: vert_dry_flux
-    real(kind=r_def),    allocatable, dimension(:)   :: horizontal_cfl_max
-    real(kind=r_def),    allocatable, dimension(:)   :: vertical_cfl_max
-    real(kind=r_def),    allocatable, dimension(:)   :: total_cfl_max
+    type(r_tran_field_type),    allocatable, dimension(:)   :: advecting_wind
+    type(r_tran_field_type),    allocatable, dimension(:)   :: horizontal_advecting_wind
+    type(r_tran_field_type),    allocatable, dimension(:)   :: vertical_advecting_wind
+    type(r_tran_field_type),    allocatable, dimension(:)   :: detj_at_w2_transport
+    type(r_tran_field_type),    allocatable, dimension(:)   :: departure_points_x_w2
+    type(r_tran_field_type),    allocatable, dimension(:)   :: departure_points_y_w2
+    type(r_tran_field_type),    allocatable, dimension(:)   :: departure_points_z_w2
+    type(r_tran_field_type),    allocatable, dimension(:)   :: adv_unity_x
+    type(r_tran_field_type),    allocatable, dimension(:)   :: adv_unity_y
+    type(r_tran_field_type),    allocatable, dimension(:)   :: adv_unity_z
+    type(r_tran_field_type),    allocatable, dimension(:)   :: adv_unity_half_x
+    type(r_tran_field_type),    allocatable, dimension(:)   :: adv_unity_half_y
+    type(r_tran_field_type),    allocatable, dimension(:)   :: adv_unity_half_z
+    type(r_tran_field_type),    allocatable, dimension(:)   :: field_n
+    type(r_tran_field_type),    allocatable, dimension(:,:) :: rho_d_n
+    type(r_tran_field_type),    allocatable, dimension(:,:) :: rho_d_np1
+    type(r_tran_field_type),    allocatable, dimension(:,:) :: flux_inc
+    type(r_tran_field_type),    allocatable, dimension(:,:) :: dry_flux
+    type(r_tran_field_type),    allocatable, dimension(:,:) :: hori_dry_flux
+    type(r_tran_field_type),    allocatable, dimension(:,:) :: vert_dry_flux
+    real(kind=r_tran),    allocatable, dimension(:)   :: horizontal_cfl_max
+    real(kind=r_tran),    allocatable, dimension(:)   :: vertical_cfl_max
+    real(kind=r_tran),    allocatable, dimension(:)   :: total_cfl_max
     class(model_clock_type), pointer                 :: model_clock
 
     contains
@@ -131,15 +134,15 @@ module transport_runtime_alg_mod
 contains
 
   !> @brief Constructs the transport_runtime object
-  !> @param[in] primal_wind_n    Wind field at start of current time step on the
+  !> @param[in] primal_wind_n_rdef    Wind field at start of current time step on the
   !!                             prime extrusion
-  !> @param[in] primal_wind_np1  Predictor of wind field at next time step on
+  !> @param[in] primal_wind_np1_rdef  Predictor of wind field at next time step on
   !!                             the prime extrusion
   !> @param[in] model_clock      Time within the model
   !> @param[in] shifted_mesh    (Optional) Shifted mesh
   !>
-  function transport_runtime_constructor( primal_wind_n,   &
-                                          primal_wind_np1, &
+  function transport_runtime_constructor( primal_wind_n_rdef,   &
+                                          primal_wind_np1_rdef, &
                                           model_clock,     &
                                           shifted_mesh) result(self)
 
@@ -154,31 +157,35 @@ contains
     use map_w2_to_sh_w2_alg_mod,       only: sample_w2_to_sh_w2_alg
     use calc_max_cfl_kernel_mod,       only: calc_max_cfl_kernel_type
     use dg_matrix_vector_kernel_mod,   only: dg_matrix_vector_kernel_type
-    use fem_constants_mod,             only: get_inverse_W3_mass_matrix
-    use operator_mod,                  only: operator_type
+    use fem_constants_mod,             only: get_div_r_tran, &
+                                             get_inverse_W3_mass_matrix_r_tran
+    use r_tran_operator_mod,           only: r_tran_operator_type
+    use psykal_lite_mod,               only: invoke_copy_to_rtran
 
     implicit none
 
-    type(field_type),        target, intent(in) :: primal_wind_n
-    type(field_type),        target, intent(in) :: primal_wind_np1
+    type(field_type),        target, intent(in) :: primal_wind_n_rdef
+    type(field_type),        target, intent(in) :: primal_wind_np1_rdef
     class(model_clock_type), target, intent(in) :: model_clock
 
     type(mesh_type),  pointer, intent(in), optional :: shifted_mesh
 
     type(transport_runtime_type)   :: self
-    type(field_type)               :: cfl, vertical_cfl, horizontal_cfl, cfl_dep
-    type(field_type)               :: sum_cfl, sum_horizontal_cfl, hori_cfl_dep
+    type(r_tran_field_type)               :: cfl, vertical_cfl, horizontal_cfl, cfl_dep
+    type(r_tran_field_type)               :: sum_cfl, sum_horizontal_cfl, hori_cfl_dep
     integer(kind=i_def)            :: mesh_idx, i, fs_idx, num_compute_meshes
     type(mesh_type),       pointer :: mesh => null()
     type(local_mesh_type), pointer :: local_mesh => null()
-    type(field_type),      pointer :: wind_n   => null()
-    type(field_type),      pointer :: wind_np1 => null()
-    type(field_type),      target  :: shifted_wind_n
-    type(field_type),      target  :: shifted_wind_np1
-    real(kind=r_def)               :: cfl_min, cfl_max
-    real(kind=r_def)               :: h_cfl_min, h_cfl_max
-    real(kind=r_def)               :: v_cfl_min, v_cfl_max
-    real(r_def)                    :: cast_dt
+    type(r_tran_field_type),      pointer :: wind_n   => null()
+    type(r_tran_field_type),      pointer :: wind_np1 => null()
+    type(r_tran_field_type),      target  :: shifted_wind_n
+    type(r_tran_field_type),      target  :: shifted_wind_np1
+    type(field_type),      target  :: shifted_wind_n_rdef
+    type(field_type),      target  :: shifted_wind_np1_rdef
+    real(kind=r_tran)               :: cfl_min, cfl_max
+    real(kind=r_tran)               :: h_cfl_min, h_cfl_max
+    real(kind=r_tran)               :: v_cfl_min, v_cfl_max
+    real(r_tran)                    :: cast_dt
     logical(kind=l_def)            :: any_scheme_mol, any_scheme_split
     logical(kind=l_def)            :: any_scheme_ffsl, any_shifted
     logical(kind=l_def)            :: any_horz_dep_pts, any_vert_dep_pts
@@ -189,9 +196,19 @@ contains
     type(function_space_type), pointer :: w2h_fs => null()
     type(function_space_type), pointer :: w2v_fs => null()
 
+    ! r_tran type fields
+    type(r_tran_field_type), target :: primal_wind_n
+    type(r_tran_field_type), target :: primal_wind_np1
+
     write(log_scratch_space, '(A,I4)') 'Setting up transport_runtime on mesh: ', &
-                                       primal_wind_n%get_mesh_id()
+                                       primal_wind_n_rdef%get_mesh_id()
     call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
+    ! Transfer r_def input to r_tran fields
+    call primal_wind_n%initialise(vector_space = primal_wind_n_rdef%get_function_space() )
+    call primal_wind_np1%initialise(vector_space = primal_wind_np1_rdef%get_function_space() )
+    call invoke_copy_to_rtran(primal_wind_n,primal_wind_n_rdef)
+    call invoke_copy_to_rtran(primal_wind_np1,primal_wind_np1_rdef)
 
     ! ======================================================================== !
     ! Checks for what schemes we have
@@ -223,9 +240,9 @@ contains
     !>       something done.
     !>
     self%model_clock => model_clock
-    cast_dt = real( model_clock%get_seconds_per_step(), r_def )
+    cast_dt = real( model_clock%get_seconds_per_step(), r_tran )
 
-    mesh => primal_wind_n%get_mesh()
+    mesh => primal_wind_n_rdef%get_mesh()
     local_mesh => mesh%get_local_mesh()
     self%local_mesh_id = local_mesh%get_id()
 
@@ -249,7 +266,7 @@ contains
               self%field_n(self%n_meshes) )
 
     ! Get mesh ID and element order
-    self%mesh_ids(1) = primal_wind_n%get_mesh_id()
+    self%mesh_ids(1) = primal_wind_n_rdef%get_mesh_id()
 
     ! If asked for compute objects on the shifted mesh
     if ( present(shifted_mesh ) ) then
@@ -265,14 +282,22 @@ contains
 
       ! TODO #3008: only initialise these if they will be used
       ! For now we need to initialise them for copying the transport runtime
+      call shifted_wind_n_rdef%initialise( vector_space = &
+              function_space_collection%get_fs(shifted_mesh, element_order, W2) )
+      call shifted_wind_np1_rdef%initialise( vector_space = &
+              function_space_collection%get_fs(shifted_mesh, element_order, W2) )
       call shifted_wind_n%initialise( vector_space = &
               function_space_collection%get_fs(shifted_mesh, element_order, W2) )
       call shifted_wind_np1%initialise( vector_space = &
               function_space_collection%get_fs(shifted_mesh, element_order, W2) )
 
       if (num_compute_meshes == 2) then
-        call sample_w2_to_sh_w2_alg(shifted_wind_n,   primal_wind_n)
-        call sample_w2_to_sh_w2_alg(shifted_wind_np1, primal_wind_np1)
+        ! Rather than duplicating a lot of mapping code for different field types,
+        ! we go by intermediate r_def fields before copying to r_tran fields
+        call sample_w2_to_sh_w2_alg(shifted_wind_n_rdef,   primal_wind_n_rdef)
+        call sample_w2_to_sh_w2_alg(shifted_wind_np1_rdef, primal_wind_np1_rdef)
+        call invoke_copy_to_rtran(shifted_wind_n,shifted_wind_n_rdef)
+        call invoke_copy_to_rtran(shifted_wind_np1,shifted_wind_np1_rdef)
       end if
     end if
 
@@ -323,11 +348,11 @@ contains
         wind_np1 => shifted_wind_np1
       end if
 
-      call invoke( aX_plus_bY(self%advecting_wind(mesh_idx), 0.5_r_def, wind_n, &
-                                                         0.5_r_def, wind_np1),  &
+      call invoke( aX_plus_bY(self%advecting_wind(mesh_idx), 0.5_r_tran, wind_n, &
+                                                         0.5_r_tran, wind_np1),  &
                    ! Presume that we always need horizontal and vertical winds
-                   setval_c(self%horizontal_advecting_wind(mesh_idx), 0.0_r_def),       &
-                   setval_c(self%vertical_advecting_wind(mesh_idx), 0.0_r_def),         &
+                   setval_c(self%horizontal_advecting_wind(mesh_idx), 0.0_r_tran),      &
+                   setval_c(self%vertical_advecting_wind(mesh_idx), 0.0_r_tran),        &
                    split_w2_field_kernel_type(self%horizontal_advecting_wind(mesh_idx), &
                                               self%vertical_advecting_wind(mesh_idx),   &
                                               self%advecting_wind(mesh_idx)) )
@@ -374,10 +399,10 @@ contains
       call invoke( setval_X(cfl, self%advecting_wind(mesh_idx)),               &
                    inc_X_divideby_Y(cfl, self%detj_at_w2_transport(mesh_idx)), &
                    inc_a_times_X(cast_dt, cfl),                                &
-                   setval_c(horizontal_cfl, 0.0_r_def),                        &
-                   setval_c(vertical_cfl, 0.0_r_def),                          &
-                   setval_c(sum_horizontal_cfl, 0.0_r_def),                    &
-                   setval_c(sum_cfl, 0.0_r_def),                               &
+                   setval_c(horizontal_cfl, 0.0_r_tran),                       &
+                   setval_c(vertical_cfl, 0.0_r_tran),                         &
+                   setval_c(sum_horizontal_cfl, 0.0_r_tran),                   &
+                   setval_c(sum_cfl, 0.0_r_tran),                              &
                    split_w2_field_kernel_type(horizontal_cfl,                  &
                                               vertical_cfl,                    &
                                               cfl) )
@@ -616,15 +641,18 @@ contains
     implicit none
 
     class(transport_runtime_type), target, intent(inout) :: self
-    type(field_type),                      intent(in)    :: rho_d_n
-    type(field_type),                      intent(in)    :: rho_d_np1
-    type(field_type),                      intent(in)    :: dry_flux
+    type(r_tran_field_type),               intent(in)    :: rho_d_n
+    type(r_tran_field_type),               intent(in)    :: rho_d_np1
+    type(r_tran_field_type),               intent(in)    :: dry_flux
 
     integer(kind=i_def)       :: fs_idx
     logical(kind=i_def)       :: any_w3_consistent, any_eqn_consistent
-    type(field_type), pointer :: consist_w3_to_sh_w3_op(:) => null()
+    type(field_type), pointer :: consist_w3_to_sh_w3_op_rdef(:) => null()
+    type(r_tran_field_type)   :: consist_w3_to_sh_w3_op(2)
     type(field_type), pointer :: rmultiplicity_w2 => null()
     type(mesh_type),  pointer :: prime_extrusion_mesh => null()
+
+    integer(kind=i_def) :: i
 
     ! The dry flux is on the prime extrusion mesh
     prime_extrusion_mesh => dry_flux%get_mesh()
@@ -655,8 +683,8 @@ contains
       select case (fs_idx)
       case (W2)
         call invoke(                                                           &
-          setval_c(self%hori_dry_flux(1,self%dry_step_ctr), 0.0_r_def),        &
-          setval_c(self%vert_dry_flux(1,self%dry_step_ctr), 0.0_r_def),        &
+          setval_c(self%hori_dry_flux(1,self%dry_step_ctr), 0.0_r_tran),       &
+          setval_c(self%vert_dry_flux(1,self%dry_step_ctr), 0.0_r_tran),       &
           split_w2_field_kernel_type(self%hori_dry_flux(1,self%dry_step_ctr),  &
                                      self%vert_dry_flux(1,self%dry_step_ctr),  &
                                      dry_flux) )
@@ -667,7 +695,12 @@ contains
 
     if (self%n_meshes > 1 .and. any_eqn_consistent) then
       ! Transform these densities and dry fluxes to the shifted mesh
-      consist_w3_to_sh_w3_op => get_consist_w3_to_sh_w3_op()
+      consist_w3_to_sh_w3_op_rdef => get_consist_w3_to_sh_w3_op()
+      do i = 1, 2
+        call consist_w3_to_sh_w3_op(i)%initialise(  &
+             vector_space = consist_w3_to_sh_w3_op_rdef(i)%get_function_space()  )
+        call invoke_copy_to_rtran(consist_w3_to_sh_w3_op(i), consist_w3_to_sh_w3_op_rdef(i))
+      end do
 
       call invoke( name='shift_dry_densities',                                 &
           apply_w3_to_sh_w3_kernel_type(self%rho_d_n(2,self%dry_step_ctr),     &
@@ -683,9 +716,9 @@ contains
         ! Shift and then split
         rmultiplicity_w2 => get_rmultiplicity(W2, dry_flux%get_mesh_id())
         call invoke(                                                           &
-          setval_c(self%dry_flux(2,self%dry_step_ctr), 0.0_r_def),             &
-          setval_c(self%hori_dry_flux(2,self%dry_step_ctr), 0.0_r_def),        &
-          setval_c(self%vert_dry_flux(2,self%dry_step_ctr), 0.0_r_def),        &
+          setval_c(self%dry_flux(2,self%dry_step_ctr), 0.0_r_tran),            &
+          setval_c(self%hori_dry_flux(2,self%dry_step_ctr), 0.0_r_tran),       &
+          setval_c(self%vert_dry_flux(2,self%dry_step_ctr), 0.0_r_tran),       &
           consist_w2_to_sh_w2_kernel_type(self%dry_flux(2,self%dry_step_ctr),  &
                                           self%dry_flux(1,self%dry_step_ctr),  &
                                           rmultiplicity_w2) )
@@ -698,7 +731,7 @@ contains
         ! Flux is already horizontal so just shift
         rmultiplicity_w2 => get_rmultiplicity(W2h, dry_flux%get_mesh_id())
         call invoke(                                                            &
-          setval_c(self%dry_flux(2,self%dry_step_ctr), 0.0_r_def),              &
+          setval_c(self%dry_flux(2,self%dry_step_ctr), 0.0_r_tran),             &
           consist_w2h_to_sh_w2h_kernel_type(self%dry_flux(2,self%dry_step_ctr), &
                                             self%dry_flux(1,self%dry_step_ctr), &
                                             rmultiplicity_w2) )
@@ -711,7 +744,7 @@ contains
         call log_event( "Can only store dry flux for W2, W2h and W2v spaces", LOG_LEVEL_ERROR )
       end select
 
-      nullify( rmultiplicity_w2, consist_w3_to_sh_w3_op )
+      nullify( rmultiplicity_w2, consist_w3_to_sh_w3_op_rdef )
     end if
 
     ! Increment counter for dry substep
@@ -729,7 +762,7 @@ contains
     implicit none
 
     class(transport_runtime_type), target, intent(inout) :: self
-    type(field_type),                      intent(in)    :: field_n
+    type(r_tran_field_type),               intent(in)    :: field_n
 
     integer(kind=i_def) :: idx
 
@@ -746,7 +779,7 @@ contains
     implicit none
 
     class(transport_runtime_type), target, intent(inout) :: self
-    type(field_type),                      intent(in)    :: flux_inc
+    type(r_tran_field_type),               intent(in)    :: flux_inc
 
     integer(kind=i_def) :: idx
 
@@ -774,13 +807,13 @@ contains
     type(function_space_type),             pointer       :: w3_fs => null()
     type(mesh_type),                       pointer       :: source_mesh => null()
     type(mesh_type),                       pointer       :: target_mesh => null()
-    type(field_type),                      pointer       :: source_rho_d_n => null()
-    type(field_type),                      pointer       :: source_rho_d_np1 => null()
-    type(field_type),                      pointer       :: source_dry_flux => null()
+    type(r_tran_field_type),               pointer       :: source_rho_d_n => null()
+    type(r_tran_field_type),               pointer       :: source_rho_d_np1 => null()
+    type(r_tran_field_type),               pointer       :: source_dry_flux => null()
     type(field_type),                      pointer       :: rmultiplicity_w2 => null()
-    type(field_type)                                     :: target_rho_d_n
-    type(field_type)                                     :: target_rho_d_np1
-    type(field_type)                                     :: target_dry_flux
+    type(r_tran_field_type)                              :: target_rho_d_n
+    type(r_tran_field_type)                              :: target_rho_d_np1
+    type(r_tran_field_type)                              :: target_dry_flux
     integer(kind=i_def)                                  :: source_ncells
     integer(kind=i_def)                                  :: target_ncells
     integer(kind=i_def)                                  :: source_mesh_id
@@ -827,14 +860,14 @@ contains
 
         ! Intergrid kernels have to be called in separate invokes
         call invoke(                                                    &
-            setval_c(target_dry_flux, 0.0_r_def),                       &
+            setval_c(target_dry_flux, 0.0_r_tran),                      &
             restrict_w2_kernel_type(target_dry_flux, source_dry_flux,   &
                                     rmultiplicity_w2) )
         call invoke(                                                    &
-            setval_c(target_rho_d_n, 0.0_r_def),                        &
+            setval_c(target_rho_d_n, 0.0_r_tran),                        &
             restrict_kernel_type(target_rho_d_n, source_rho_d_n) )
         call invoke(                                                    &
-            setval_c(target_rho_d_np1, 0.0_r_def),                      &
+            setval_c(target_rho_d_np1, 0.0_r_tran),                      &
             restrict_kernel_type(target_rho_d_np1, source_rho_d_np1) )
 
         ! Set dry fields
@@ -911,7 +944,7 @@ contains
         ! Strang_vhv splitting uses half timestep for the vertical stage
         if ( splitting == splitting_strang_vhv ) then
           number_substeps = int( self%vertical_cfl_max(idx)        &
-                              /(2.0_r_def*cfl_mol_1d_stab+tiny_eps),i_def) &
+                              /(2.0_r_tran*cfl_mol_1d_stab+tiny_eps),i_def) &
                           + 1_i_def
         end if
       case (direction_h)
@@ -921,7 +954,7 @@ contains
         ! Strang_hvh splitting uses half timestep for the horizontal stage
         if ( splitting == splitting_strang_hvh ) then
           number_substeps = int( self%horizontal_cfl_max(idx)        &
-                              /(2.0_r_def*cfl_mol_2d_stab+tiny_eps),i_def) &
+                              /(2.0_r_tran*cfl_mol_2d_stab+tiny_eps),i_def) &
                           + 1_i_def
         end if
 
@@ -954,15 +987,15 @@ contains
     integer(kind=i_def),           intent(in) :: direction
     integer(kind=i_def),           intent(in) :: splitting
     integer(kind=i_def)                       :: number_substeps
-    real(kind=r_def)                          :: dt_substep
+    real(kind=r_tran)                         :: dt_substep
 
     number_substeps = self%get_number_substeps(mesh_id, direction, splitting)
-    dt_substep = real(self%model_clock%get_seconds_per_step(), r_def) &
-                 / real(number_substeps, r_def)
+    dt_substep = real(self%model_clock%get_seconds_per_step(), r_tran) &
+                 / real(number_substeps, r_tran)
     if ( splitting  == splitting_strang_vhv .and. direction == direction_v ) then
-        dt_substep = dt_substep / 2.0_r_def
+        dt_substep = dt_substep / 2.0_r_tran
     else if ( splitting  == splitting_strang_hvh .and. direction == direction_h ) then
-        dt_substep = dt_substep / 2.0_r_def
+        dt_substep = dt_substep / 2.0_r_tran
     end if
 
   end function get_dt_substep
@@ -1002,7 +1035,7 @@ contains
 
     class(transport_runtime_type), target, intent(in) :: self
     integer(kind=i_def),                   intent(in) :: mesh_id
-    type(field_type),                      pointer    :: advecting_wind
+    type(r_tran_field_type),               pointer    :: advecting_wind
     character(str_def)                                :: field_name
 
     field_name = 'advecting_wind'
@@ -1026,7 +1059,7 @@ contains
     class(transport_runtime_type), target, intent(in) :: self
     integer(kind=i_def),                   intent(in) :: mesh_id
     integer(kind=i_def),                   intent(in) :: direction
-    type(field_type),                      pointer    :: advecting_wind
+    type(r_tran_field_type),               pointer    :: advecting_wind
     character(str_def)                                :: field_name
 
     field_name = 'directional_advecting_wind'
@@ -1055,7 +1088,7 @@ contains
 
     class(transport_runtime_type), target, intent(in) :: self
     integer(kind=i_def),                   intent(in) :: mesh_id
-    type(field_type),                      pointer    :: advecting_wind
+    type(r_tran_field_type),               pointer    :: advecting_wind
     character(str_def)                                :: field_name
 
     field_name = 'horizontal_advecting_wind'
@@ -1073,7 +1106,7 @@ contains
 
     class(transport_runtime_type), target, intent(in) :: self
     integer(kind=i_def),                   intent(in) :: mesh_id
-    type(field_type),                      pointer    :: advecting_wind
+    type(r_tran_field_type),               pointer    :: advecting_wind
     character(str_def)                                :: field_name
 
     field_name = 'vertical_advecting_wind'
@@ -1091,7 +1124,7 @@ contains
 
     class(transport_runtime_type), target, intent(in) :: self
     integer(kind=i_def),                   intent(in) :: mesh_id
-    type(field_type),                      pointer    :: detj_at_w2_transport
+    type(r_tran_field_type),               pointer    :: detj_at_w2_transport
     character(str_def)                                :: field_name
 
     field_name = 'detj_at_w2_transport'
@@ -1109,7 +1142,7 @@ contains
 
     class(transport_runtime_type), target, intent(in) :: self
     integer(kind=i_def),                   intent(in) :: mesh_id
-    type(field_type),                      pointer    :: departure_points_x_w2
+    type(r_tran_field_type),               pointer    :: departure_points_x_w2
     character(str_def)                                :: field_name
 
     field_name = 'departure_points_x_w2'
@@ -1127,7 +1160,7 @@ contains
 
     class(transport_runtime_type), target, intent(in) :: self
     integer(kind=i_def),                   intent(in) :: mesh_id
-    type(field_type),                      pointer    :: departure_points_y_w2
+    type(r_tran_field_type),               pointer    :: departure_points_y_w2
     character(str_def)                                :: field_name
 
     field_name = 'departure_points_y_w2'
@@ -1145,7 +1178,7 @@ contains
 
     class(transport_runtime_type), target, intent(in) :: self
     integer(kind=i_def),                   intent(in) :: mesh_id
-    type(field_type),                      pointer    :: departure_points_z_w2
+    type(r_tran_field_type),               pointer    :: departure_points_z_w2
     character(str_def)                                :: field_name
 
     field_name = 'get_departure_points_z_w2'
@@ -1163,7 +1196,7 @@ contains
 
     class(transport_runtime_type), target, intent(in) :: self
     integer(kind=i_def),                   intent(in) :: mesh_id
-    type(field_type),                      pointer    :: adv_unity_x
+    type(r_tran_field_type),                      pointer    :: adv_unity_x
     character(str_def)                                :: field_name
 
     field_name = 'adv_unity_x'
@@ -1181,7 +1214,7 @@ contains
 
     class(transport_runtime_type), target, intent(in) :: self
     integer(kind=i_def),                   intent(in) :: mesh_id
-    type(field_type),                      pointer    :: adv_unity_y
+    type(r_tran_field_type),                      pointer    :: adv_unity_y
     character(str_def)                                :: field_name
 
     field_name = 'adv_unity_y'
@@ -1199,7 +1232,7 @@ contains
 
     class(transport_runtime_type), target, intent(in) :: self
     integer(kind=i_def),                   intent(in) :: mesh_id
-    type(field_type),                      pointer    :: adv_unity_z
+    type(r_tran_field_type),                      pointer    :: adv_unity_z
     character(str_def)                                :: field_name
 
     field_name = 'adv_unity_z'
@@ -1217,7 +1250,7 @@ contains
 
     class(transport_runtime_type), target, intent(in) :: self
     integer(kind=i_def),                   intent(in) :: mesh_id
-    type(field_type),                      pointer    :: adv_unity_half_x
+    type(r_tran_field_type),                      pointer    :: adv_unity_half_x
     character(str_def)                                :: field_name
 
     field_name = 'adv_unity_half_x'
@@ -1235,7 +1268,7 @@ contains
 
     class(transport_runtime_type), target, intent(in) :: self
     integer(kind=i_def),                   intent(in) :: mesh_id
-    type(field_type),                      pointer    :: adv_unity_half_y
+    type(r_tran_field_type),                      pointer    :: adv_unity_half_y
     character(str_def)                                :: field_name
 
     field_name = 'adv_unity_half_y'
@@ -1253,7 +1286,7 @@ contains
 
     class(transport_runtime_type), target, intent(in) :: self
     integer(kind=i_def),                   intent(in) :: mesh_id
-    type(field_type),                      pointer    :: adv_unity_half_z
+    type(r_tran_field_type),                      pointer    :: adv_unity_half_z
     character(str_def)                                :: field_name
 
     field_name = 'adv_unity_half_z'
@@ -1284,7 +1317,7 @@ contains
 
     class(transport_runtime_type), target, intent(in) :: self
     integer(kind=i_def),                   intent(in) :: mesh_id
-    type(field_type),                      pointer    :: field_n
+    type(r_tran_field_type),               pointer    :: field_n
 
     field_n => self%field_n(self%idx_from_mesh_id(mesh_id))
 
@@ -1301,7 +1334,7 @@ contains
     class(transport_runtime_type), target, intent(in) :: self
     integer(kind=i_def),                   intent(in) :: mesh_id
     integer(kind=i_def),                   intent(in) :: step
-    type(field_type),                      pointer    :: rho_d_n
+    type(r_tran_field_type),               pointer    :: rho_d_n
     character(str_def)                                :: field_name
 
     field_name = 'rho_d_n'
@@ -1321,7 +1354,7 @@ contains
     class(transport_runtime_type), target, intent(in) :: self
     integer(kind=i_def),                   intent(in) :: mesh_id
     integer(kind=i_def),                   intent(in) :: step
-    type(field_type),                      pointer    :: rho_d_np1
+    type(r_tran_field_type),               pointer    :: rho_d_np1
     character(str_def)                                :: field_name
 
     field_name = 'rho_d_np1'
@@ -1341,7 +1374,7 @@ contains
     class(transport_runtime_type), target, intent(in) :: self
     integer(kind=i_def),                   intent(in) :: mesh_id
     integer(kind=i_def),                   intent(in) :: step
-    type(field_type),                      pointer    :: flux_inc
+    type(r_tran_field_type),               pointer    :: flux_inc
 
     flux_inc => self%flux_inc(self%idx_from_mesh_id(mesh_id), step)
 
@@ -1358,7 +1391,7 @@ contains
     class(transport_runtime_type), target, intent(in) :: self
     integer(kind=i_def),                   intent(in) :: mesh_id
     integer(kind=i_def),                   intent(in) :: step
-    type(field_type),                      pointer    :: dry_flux
+    type(r_tran_field_type),               pointer    :: dry_flux
     character(str_def)                                :: field_name
 
     field_name = 'dry_flux'
@@ -1378,7 +1411,7 @@ contains
     class(transport_runtime_type), target, intent(in) :: self
     integer(kind=i_def),                   intent(in) :: mesh_id
     integer(kind=i_def),                   intent(in) :: step
-    type(field_type),                      pointer    :: horizontal_flux
+    type(r_tran_field_type),               pointer    :: horizontal_flux
     character(str_def)                                :: field_name
 
     field_name = 'horizontal_dry_flux'
@@ -1398,7 +1431,7 @@ contains
     class(transport_runtime_type), target, intent(in) :: self
     integer(kind=i_def),                   intent(in) :: mesh_id
     integer(kind=i_def),                   intent(in) :: step
-    type(field_type),                      pointer    :: vertical_flux
+    type(r_tran_field_type),               pointer    :: vertical_flux
     character(str_def)                                :: field_name
 
     field_name = 'vertical_dry_flux'

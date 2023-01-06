@@ -21,7 +21,7 @@ module proj_mr_to_sh_rho_rhs_update_kernel_mod
                                 GH_WRITE, GH_READ,         &
                                 ANY_DISCONTINUOUS_SPACE_3, &
                                 CELL_COLUMN
-  use constants_mod,     only : r_def, i_def
+  use constants_mod,     only : r_single, r_double, i_def
   use fs_continuity_mod, only : W3
   use kernel_mod,        only : kernel_type
 
@@ -43,14 +43,19 @@ module proj_mr_to_sh_rho_rhs_update_kernel_mod
          arg_type(GH_FIELD*4, GH_REAL, GH_READ,  W3)                         & ! I_lower/upper
          /)
     integer :: operates_on = CELL_COLUMN
-  contains
-    procedure, nopass :: proj_mr_to_sh_rho_rhs_update_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
   public :: proj_mr_to_sh_rho_rhs_update_code
+
+  ! Generic interface for real32 and real64 types
+  interface proj_mr_to_sh_rho_rhs_update_code
+    module procedure  &
+      proj_mr_to_sh_rho_rhs_update_code_r_single, &
+      proj_mr_to_sh_rho_rhs_update_code_r_double
+  end interface
 contains
 
 !> @brief Compute the terms of the tridiagonal matrix for transforming from
@@ -77,7 +82,10 @@ contains
 !! @param[in] ndf_w3 The number of degrees of freedom per cell for w3
 !! @param[in] undf_w3 The number of unique degrees of freedom for w3
 !! @param[in] map_w3 Dofmap for the cell at the base of the column for w3
-subroutine proj_mr_to_sh_rho_rhs_update_code(                                    &
+
+! R_SINGLE PRECISION
+! ==================
+subroutine proj_mr_to_sh_rho_rhs_update_code_r_single(                           &
                                               nlayers_shifted,                   &
                                               tri_below,                         &
                                               tri_diag,                          &
@@ -100,14 +108,14 @@ subroutine proj_mr_to_sh_rho_rhs_update_code(                                   
   integer(kind=i_def), dimension(ndf_w3),    intent(in) :: map_w3
   integer(kind=i_def), dimension(ndf_sh_w3), intent(in) :: map_sh_w3
 
-  real(kind=r_def), dimension(undf_sh_w3),  intent(inout) :: tri_below
-  real(kind=r_def), dimension(undf_sh_w3),  intent(inout) :: tri_diag
-  real(kind=r_def), dimension(undf_sh_w3),  intent(inout) :: tri_above
-  real(kind=r_def), dimension(undf_w3),     intent(in)    :: rho_d
-  real(kind=r_def), dimension(undf_w3),     intent(in)    :: I_lower_i_ip1
-  real(kind=r_def), dimension(undf_w3),     intent(in)    :: I_upper_i_i
-  real(kind=r_def), dimension(undf_w3),     intent(in)    :: I_lower_i_i
-  real(kind=r_def), dimension(undf_w3),     intent(in)    :: I_upper_i_im1
+  real(kind=r_single), dimension(undf_sh_w3),  intent(inout) :: tri_below
+  real(kind=r_single), dimension(undf_sh_w3),  intent(inout) :: tri_diag
+  real(kind=r_single), dimension(undf_sh_w3),  intent(inout) :: tri_above
+  real(kind=r_single), dimension(undf_w3),     intent(in)    :: rho_d
+  real(kind=r_single), dimension(undf_w3),     intent(in)    :: I_lower_i_ip1
+  real(kind=r_single), dimension(undf_w3),     intent(in)    :: I_upper_i_i
+  real(kind=r_single), dimension(undf_w3),     intent(in)    :: I_lower_i_i
+  real(kind=r_single), dimension(undf_w3),     intent(in)    :: I_upper_i_im1
 
   ! Internal variables
   integer(kind=i_def) :: df, k
@@ -115,13 +123,13 @@ subroutine proj_mr_to_sh_rho_rhs_update_code(                                   
   ! Calculation for top and bottom layers (bottom is k=0)
   k = nlayers_shifted - 1
   do df = 1, ndf_sh_w3
-    tri_below(map_sh_w3(df)) = 0.0_r_def
+    tri_below(map_sh_w3(df)) = 0.0_r_single
     tri_diag(map_sh_w3(df)) = rho_d(map_w3(df)) * I_lower_i_i(map_w3(df))
     tri_above(map_sh_w3(df)) = rho_d(map_w3(df)) * I_lower_i_ip1(map_w3(df))
 
     tri_below(map_sh_w3(df)+k) = rho_d(map_w3(df)+k-1) * I_upper_i_im1(map_w3(df)+k-1)
     tri_diag(map_sh_w3(df)+k) = rho_d(map_w3(df)+k-1) * I_upper_i_i(map_w3(df)+k-1)
-    tri_above(map_sh_w3(df)+k) = 0.0_r_def
+    tri_above(map_sh_w3(df)+k) = 0.0_r_single
   end do
 
   ! Calculation for generic internal layers
@@ -134,6 +142,67 @@ subroutine proj_mr_to_sh_rho_rhs_update_code(                                   
     end do
   end do
 
-end subroutine proj_mr_to_sh_rho_rhs_update_code
+end subroutine proj_mr_to_sh_rho_rhs_update_code_r_single
+
+! R_DOUBLE PRECISION
+! ==================
+subroutine proj_mr_to_sh_rho_rhs_update_code_r_double(                           &
+                                              nlayers_shifted,                   &
+                                              tri_below,                         &
+                                              tri_diag,                          &
+                                              tri_above,                         &
+                                              rho_d,                             &
+                                              I_lower_i_ip1,                     &
+                                              I_lower_i_i,                       &
+                                              I_upper_i_i,                       &
+                                              I_upper_i_im1,                     &
+                                              ndf_sh_w3, undf_sh_w3, map_sh_w3,  &
+                                              ndf_w3, undf_w3, map_w3            &
+                                            )
+
+  implicit none
+
+  ! Arguments
+  integer(kind=i_def), intent(in) :: nlayers_shifted
+  integer(kind=i_def), intent(in) :: ndf_w3, ndf_sh_w3
+  integer(kind=i_def), intent(in) :: undf_w3, undf_sh_w3
+  integer(kind=i_def), dimension(ndf_w3),    intent(in) :: map_w3
+  integer(kind=i_def), dimension(ndf_sh_w3), intent(in) :: map_sh_w3
+
+  real(kind=r_double), dimension(undf_sh_w3),  intent(inout) :: tri_below
+  real(kind=r_double), dimension(undf_sh_w3),  intent(inout) :: tri_diag
+  real(kind=r_double), dimension(undf_sh_w3),  intent(inout) :: tri_above
+  real(kind=r_double), dimension(undf_w3),     intent(in)    :: rho_d
+  real(kind=r_double), dimension(undf_w3),     intent(in)    :: I_lower_i_ip1
+  real(kind=r_double), dimension(undf_w3),     intent(in)    :: I_upper_i_i
+  real(kind=r_double), dimension(undf_w3),     intent(in)    :: I_lower_i_i
+  real(kind=r_double), dimension(undf_w3),     intent(in)    :: I_upper_i_im1
+
+  ! Internal variables
+  integer(kind=i_def) :: df, k
+
+  ! Calculation for top and bottom layers (bottom is k=0)
+  k = nlayers_shifted - 1
+  do df = 1, ndf_sh_w3
+    tri_below(map_sh_w3(df)) = 0.0_r_double
+    tri_diag(map_sh_w3(df)) = rho_d(map_w3(df)) * I_lower_i_i(map_w3(df))
+    tri_above(map_sh_w3(df)) = rho_d(map_w3(df)) * I_lower_i_ip1(map_w3(df))
+
+    tri_below(map_sh_w3(df)+k) = rho_d(map_w3(df)+k-1) * I_upper_i_im1(map_w3(df)+k-1)
+    tri_diag(map_sh_w3(df)+k) = rho_d(map_w3(df)+k-1) * I_upper_i_i(map_w3(df)+k-1)
+    tri_above(map_sh_w3(df)+k) = 0.0_r_double
+  end do
+
+  ! Calculation for generic internal layers
+  do k = 1, nlayers_shifted-2
+    do df = 1, ndf_sh_w3
+      tri_below(map_sh_w3(df)+k) = rho_d(map_w3(df)+k-1) * I_upper_i_im1(map_w3(df)+k-1)
+      tri_diag(map_sh_w3(df)+k) = (rho_d(map_w3(df)+k) * I_lower_i_i(map_w3(df)+k) &
+                                  + rho_d(map_w3(df)+k-1) * I_upper_i_i(map_w3(df)+k-1))
+      tri_above(map_sh_w3(df)+k) = rho_d(map_w3(df)+k) * I_lower_i_ip1(map_w3(df)+k)
+    end do
+  end do
+
+end subroutine proj_mr_to_sh_rho_rhs_update_code_r_double
 
 end module proj_mr_to_sh_rho_rhs_update_kernel_mod

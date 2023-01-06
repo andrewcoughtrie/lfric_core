@@ -15,7 +15,7 @@ module enforce_lower_bound_kernel_mod
                             GH_READWRITE,              &
                             ANY_DISCONTINUOUS_SPACE_1, &
                             CELL_COLUMN
-  use constants_mod, only : i_def, r_def
+  use constants_mod, only : i_def, r_def, r_single, r_double
   use kernel_mod,    only : kernel_type
 
   implicit none
@@ -35,14 +35,19 @@ module enforce_lower_bound_kernel_mod
          arg_type(GH_SCALAR, GH_REAL, GH_READ )                                &
          /)
     integer :: operates_on = CELL_COLUMN
-  contains
-    procedure, nopass :: enforce_lower_bound_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
   public :: enforce_lower_bound_code
+
+  ! Generic interface for real32 and real64 types
+  interface enforce_lower_bound_code
+    module procedure  &
+      enforce_lower_bound_code_r_single, &
+      enforce_lower_bound_code_r_double
+  end interface
 
 contains
 
@@ -53,16 +58,20 @@ contains
 !! @param[in] ndf Number of degrees of freedom per cell
 !! @param[in] undf Total number of degrees of freedom
 !! @param[in] map Dofmap for the cell at the base of the column
-subroutine enforce_lower_bound_code(nlayers, field, lower_bound, &
-                                    ndf, undf, map)
+
+
+! R_SINGLE PRECISION
+! ==================
+subroutine enforce_lower_bound_code_r_single(nlayers, field, lower_bound, &
+                                             ndf, undf, map)
 
   implicit none
 
   ! Arguments
   integer(kind=i_def), intent(in) :: nlayers, ndf, undf
   integer(kind=i_def), dimension(ndf), intent(in) :: map
-  real(kind=r_def), dimension(undf), intent(inout) :: field
-  real(kind=r_def), intent(in) :: lower_bound
+  real(kind=r_single), dimension(undf), intent(inout) :: field
+  real(kind=r_single), intent(in) :: lower_bound
 
   ! Internal variables
   integer(kind=i_def) :: df, k
@@ -76,6 +85,33 @@ subroutine enforce_lower_bound_code(nlayers, field, lower_bound, &
     end do
   end do
 
-end subroutine enforce_lower_bound_code
+end subroutine enforce_lower_bound_code_r_single
+
+! R_DOUBLE PRECISION
+! ==================
+subroutine enforce_lower_bound_code_r_double(nlayers, field, lower_bound, &
+                                             ndf, undf, map)
+
+  implicit none
+
+  ! Arguments
+  integer(kind=i_def), intent(in) :: nlayers, ndf, undf
+  integer(kind=i_def), dimension(ndf), intent(in) :: map
+  real(kind=r_double), dimension(undf), intent(inout) :: field
+  real(kind=r_double), intent(in) :: lower_bound
+
+  ! Internal variables
+  integer(kind=i_def) :: df, k
+
+  do k = 0, nlayers-1
+    do df = 1, ndf
+
+      ! Clip field
+      if (field(map(df)+k) < lower_bound) field(map(df)+k) = lower_bound
+
+    end do
+  end do
+
+end subroutine enforce_lower_bound_code_r_double
 
 end module enforce_lower_bound_kernel_mod

@@ -15,50 +15,50 @@ contains
   subroutine get_local_rho_x_test()
 
     use pFUnit_Mod
-    use constants_mod, only: r_def, i_def
+    use constants_mod, only: r_tran, i_def
     use ffsl_cubed_sphere_edge_mod, only : get_local_rho_x
 
     implicit none
 
-    real(kind=r_def)    :: tol
-    real(kind=r_def)    :: rho_out(1:5)
-    real(kind=r_def)    :: rho_x(1:5)
-    real(kind=r_def)    :: rho_y(1:5)
+    real(kind=r_tran)    :: tol
+    real(kind=r_tran)    :: rho_out(1:5)
+    real(kind=r_tran)    :: rho_x(1:5)
+    real(kind=r_tran)    :: rho_y(1:5)
     integer(kind=i_def) :: ipanel(1:5)
     integer(kind=i_def) :: stencil_size, stencil_half, ii
 
-    tol = 1.0e-6_r_def
+    tol = 1.0e-6_r_tran
     stencil_size = 5_i_def
     stencil_half = (stencil_size+1_i_def)/2_i_def
 
-    rho_out(1:5) = 0.0_r_def
-    rho_x = (/ 1.0_r_def, 1.0_r_def, 1.0_r_def, 1.0_r_def, 1.0_r_def /)
-    rho_y = (/ 2.0_r_def, 2.0_r_def, 2.0_r_def, 2.0_r_def, 2.0_r_def /)
+    rho_out(1:5) = 0.0_r_tran
+    rho_x = (/ 1.0_r_tran, 1.0_r_tran, 1.0_r_tran, 1.0_r_tran, 1.0_r_tran /)
+    rho_y = (/ 2.0_r_tran, 2.0_r_tran, 2.0_r_tran, 2.0_r_tran, 2.0_r_tran /)
 
     ! If ipanel is the same then just take rho_x_value
     ipanel = (/ 1_i_def, 1_i_def, 1_i_def, 1_i_def, 1_i_def /)
     call get_local_rho_x(rho_out, rho_x, rho_y, ipanel, stencil_size, stencil_half)
     do ii = 1, stencil_size
-      @assertEqual(1.0_r_def, rho_out(ii), tol)
+      @assertEqual(1.0_r_tran, rho_out(ii), tol)
     end do
 
     ! Across panels 1 and 6 we need rho_y_values
     ipanel = (/ 6_i_def, 6_i_def, 1_i_def, 1_i_def, 1_i_def /)
     call get_local_rho_x(rho_out, rho_x, rho_y, ipanel, stencil_size, stencil_half)
     do ii = 1, 2
-      @assertEqual(2.0_r_def, rho_out(ii), tol)
+      @assertEqual(2.0_r_tran, rho_out(ii), tol)
     end do
     do ii = 3, stencil_size
-      @assertEqual(1.0_r_def, rho_out(ii), tol)
+      @assertEqual(1.0_r_tran, rho_out(ii), tol)
     end do
 
     ! Across panels 2 and 5 we need rho_y_values
     ipanel = (/ 2_i_def, 2_i_def, 2_i_def, 2_i_def, 5_i_def /)
     call get_local_rho_x(rho_out, rho_x, rho_y, ipanel, stencil_size, stencil_half)
     do ii = 1, 4
-      @assertEqual(1.0_r_def, rho_out(ii), tol)
+      @assertEqual(1.0_r_tran, rho_out(ii), tol)
     end do
-    @assertEqual(2.0_r_def, rho_out(5), tol)
+    @assertEqual(2.0_r_tran, rho_out(5), tol)
 
   end subroutine get_local_rho_x_test
 
@@ -66,50 +66,50 @@ contains
   subroutine get_local_rho_y_test()
 
     use pFUnit_Mod
-    use constants_mod, only: r_def, i_def
+    use constants_mod, only: r_tran, i_def
     use ffsl_cubed_sphere_edge_mod, only : get_local_rho_y
 
     implicit none
 
-    real(kind=r_def)    :: tol
-    real(kind=r_def)    :: rho_out(1:5)
-    real(kind=r_def)    :: rho_x(1:5)
-    real(kind=r_def)    :: rho_y(1:5)
+    real(kind=r_tran)    :: tol
+    real(kind=r_tran)    :: rho_out(1:5)
+    real(kind=r_tran)    :: rho_x(1:5)
+    real(kind=r_tran)    :: rho_y(1:5)
     integer(kind=i_def) :: ipanel(1:5)
     integer(kind=i_def) :: stencil_size, stencil_half, ii
 
-    tol = 1.0e-6_r_def
+    tol = 1.0e-6_r_tran
     stencil_size = 5_i_def
     stencil_half = (stencil_size+1_i_def)/2_i_def
 
-    rho_out(1:5) = 0.0_r_def
-    rho_x = (/ 1.0_r_def, 1.0_r_def, 1.0_r_def, 1.0_r_def, 1.0_r_def /)
-    rho_y = (/ 2.0_r_def, 2.0_r_def, 2.0_r_def, 2.0_r_def, 2.0_r_def /)
+    rho_out(1:5) = 0.0_r_tran
+    rho_x = (/ 1.0_r_tran, 1.0_r_tran, 1.0_r_tran, 1.0_r_tran, 1.0_r_tran /)
+    rho_y = (/ 2.0_r_tran, 2.0_r_tran, 2.0_r_tran, 2.0_r_tran, 2.0_r_tran /)
 
     ! If ipanel is the same then just take rho_y_value
     ipanel = (/ 1_i_def, 1_i_def, 1_i_def, 1_i_def, 1_i_def /)
     call get_local_rho_y(rho_out, rho_x, rho_y, ipanel, stencil_size, stencil_half)
     do ii = 1, stencil_size
-      @assertEqual(2.0_r_def, rho_out(ii), tol)
+      @assertEqual(2.0_r_tran, rho_out(ii), tol)
     end do
 
     ! Across panels 1 and 4 we need rho_x_values
     ipanel = (/ 4_i_def, 4_i_def, 1_i_def, 1_i_def, 1_i_def /)
     call get_local_rho_y(rho_out, rho_x, rho_y, ipanel, stencil_size, stencil_half)
     do ii = 1, 2
-      @assertEqual(1.0_r_def, rho_out(ii), tol)
+      @assertEqual(1.0_r_tran, rho_out(ii), tol)
     end do
     do ii = 3, stencil_size
-      @assertEqual(2.0_r_def, rho_out(ii), tol)
+      @assertEqual(2.0_r_tran, rho_out(ii), tol)
     end do
 
     ! Across panels 2 and 3 we need rho_x_values
     ipanel = (/ 2_i_def, 2_i_def, 2_i_def, 2_i_def, 3_i_def /)
     call get_local_rho_y(rho_out, rho_x, rho_y, ipanel, stencil_size, stencil_half)
     do ii = 1, 4
-      @assertEqual(2.0_r_def, rho_out(ii), tol)
+      @assertEqual(2.0_r_tran, rho_out(ii), tol)
     end do
-    @assertEqual(1.0_r_def, rho_out(5), tol)
+    @assertEqual(1.0_r_tran, rho_out(5), tol)
 
   end subroutine get_local_rho_y_test
 

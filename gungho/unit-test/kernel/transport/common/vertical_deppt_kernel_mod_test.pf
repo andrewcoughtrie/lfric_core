@@ -7,7 +7,7 @@
 module vertical_deppt_kernel_mod_test
 
   use pFUnit_Mod
-  use constants_mod,      only : i_def, r_def, r_second
+  use constants_mod,      only : i_def, r_def, r_tran, r_second
 
   implicit none
 
@@ -95,7 +95,6 @@ contains
   @Test
   subroutine test_all( this )
 
-    use calc_departure_point_kernel_mod, only : calc_departure_point_code
     use flux_direction_mod,              only : x_direction
     use departure_points_config_mod,     only : vertical_method
     use vertical_deppt_kernel_mod, only : vertical_deppt_code
@@ -104,8 +103,8 @@ contains
 
     class(vertical_deppt_test_type), intent(inout) :: this
 
-    real(kind=r_def), parameter   :: tol    = 1.0e-6_r_def
-    real(kind=r_def), allocatable :: u_field(:), dep_pts(:), heights(:), cfl(:)
+    real(kind=r_tran), parameter   :: tol    = 1.0e-6_r_tran
+    real(kind=r_tran), allocatable :: u_field(:), dep_pts(:), heights(:), cfl(:)
     integer(kind=i_def)           :: nlayers
     integer(kind=i_def)           :: ndf_w2
     integer(kind=i_def)           :: undf_w2
@@ -130,17 +129,17 @@ contains
     heights(26) = 5.0_r_def
 
     ! Assume a constant wind field with departure distances less than one.
-    u_field(:)  = 0.0_r_def
-    u_field(21) = 0.0_r_def
-    u_field(22) = 0.8_r_def
-    u_field(23) = 0.8_r_def
-    u_field(24) = 0.8_r_def
-    u_field(25) = 0.8_r_def
-    u_field(26) = 0.0_r_def
+    u_field(:)  = 0.0_r_tran
+    u_field(21) = 0.0_r_tran
+    u_field(22) = 0.8_r_tran
+    u_field(23) = 0.8_r_tran
+    u_field(24) = 0.8_r_tran
+    u_field(25) = 0.8_r_tran
+    u_field(26) = 0.0_r_tran
 
     ! Initialise dep_pts and CFL to zero
-    dep_pts(:)  = 0.0_r_def
-    cfl(:)  = 0.0_r_def
+    dep_pts(:)  = 0.0_r_tran
+    cfl(:)  = 0.0_r_tran
 
     call vertical_deppt_code(  nlayers,              &
                                dep_pts,              &
@@ -150,33 +149,33 @@ contains
                                heights,              &
                                n_dep_pt_iterations,  &
                                vertical_method,      &
-                               real(dt, r_def),      &
+                               real(dt, r_tran),      &
                                ndf_w2,               &
                                undf_w2,              &
                                map_w2 )
 
-    @assertEqual( 0.0_r_def, dep_pts(21), tol)
-    @assertEqual( 0.8_r_def, dep_pts(22), tol)
-    @assertEqual( 0.8_r_def, dep_pts(23), tol)
-    @assertEqual( 0.8_r_def, dep_pts(24), tol)
-    @assertEqual( 0.8_r_def, dep_pts(25), tol)
-    @assertEqual( 0.0_r_def, dep_pts(26), tol)
+    @assertEqual( 0.0_r_tran, dep_pts(21), tol)
+    @assertEqual( 0.8_r_tran, dep_pts(22), tol)
+    @assertEqual( 0.8_r_tran, dep_pts(23), tol)
+    @assertEqual( 0.8_r_tran, dep_pts(24), tol)
+    @assertEqual( 0.8_r_tran, dep_pts(25), tol)
+    @assertEqual( 0.0_r_tran, dep_pts(26), tol)
 
-    @assertEqual( 0.0_r_def, cfl(21), tol)
-    @assertEqual( 0.8_r_def, cfl(22), tol)
-    @assertEqual( 0.8_r_def, cfl(23), tol)
-    @assertEqual( 0.8_r_def, cfl(24), tol)
-    @assertEqual( 0.8_r_def, cfl(25), tol)
-    @assertEqual( 0.0_r_def, cfl(26), tol)
+    @assertEqual( 0.0_r_tran, cfl(21), tol)
+    @assertEqual( 0.8_r_tran, cfl(22), tol)
+    @assertEqual( 0.8_r_tran, cfl(23), tol)
+    @assertEqual( 0.8_r_tran, cfl(24), tol)
+    @assertEqual( 0.8_r_tran, cfl(25), tol)
+    @assertEqual( 0.0_r_tran, cfl(26), tol)
 
     ! Assume a varying wind field with departure distances greater than one.
-    u_field(:) =  0.0_r_def
-    u_field(21) = 0.0_r_def
-    u_field(22) = 0.8_r_def
-    u_field(23) = 1.6_r_def
-    u_field(24) = 1.6_r_def
-    u_field(25) = 0.8_r_def
-    u_field(26) = 0.0_r_def
+    u_field(:) =  0.0_r_tran
+    u_field(21) = 0.0_r_tran
+    u_field(22) = 0.8_r_tran
+    u_field(23) = 1.6_r_tran
+    u_field(24) = 1.6_r_tran
+    u_field(25) = 0.8_r_tran
+    u_field(26) = 0.0_r_tran
 
     call vertical_deppt_code( nlayers,              &
                               dep_pts,              &
@@ -186,24 +185,24 @@ contains
                               heights,              &
                               n_dep_pt_iterations,  &
                               vertical_method,      &
-                              real(dt, r_def),      &
+                              real(dt, r_tran),      &
                               ndf_w2,               &
                               undf_w2,              &
                               map_w2 )
 
-    @assertEqual( 0.0_r_def, dep_pts(21), tol)
-    @assertEqual( 0.8_r_def, dep_pts(22), tol)
-    @assertEqual( 1.6_r_def, dep_pts(23), tol)
-    @assertEqual( 1.6_r_def, dep_pts(24), tol)
-    @assertEqual( 0.8_r_def, dep_pts(25), tol)
-    @assertEqual( 0.0_r_def, dep_pts(26), tol)
+    @assertEqual( 0.0_r_tran, dep_pts(21), tol)
+    @assertEqual( 0.8_r_tran, dep_pts(22), tol)
+    @assertEqual( 1.6_r_tran, dep_pts(23), tol)
+    @assertEqual( 1.6_r_tran, dep_pts(24), tol)
+    @assertEqual( 0.8_r_tran, dep_pts(25), tol)
+    @assertEqual( 0.0_r_tran, dep_pts(26), tol)
 
-    @assertEqual( 0.0_r_def, cfl(21), tol)
-    @assertEqual( 0.8_r_def, cfl(22), tol)
-    @assertEqual( 1.6_r_def, cfl(23), tol)
-    @assertEqual( 1.6_r_def, cfl(24), tol)
-    @assertEqual( 0.8_r_def, cfl(25), tol)
-    @assertEqual( 0.0_r_def, cfl(26), tol)
+    @assertEqual( 0.0_r_tran, cfl(21), tol)
+    @assertEqual( 0.8_r_tran, cfl(22), tol)
+    @assertEqual( 1.6_r_tran, cfl(23), tol)
+    @assertEqual( 1.6_r_tran, cfl(24), tol)
+    @assertEqual( 0.8_r_tran, cfl(25), tol)
+    @assertEqual( 0.0_r_tran, cfl(26), tol)
 
     deallocate(u_field)
     deallocate(dep_pts)

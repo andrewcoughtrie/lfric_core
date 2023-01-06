@@ -7,7 +7,7 @@
 !> Test the vertical edge_values computed for a w3-field using the Koren scheme
 module polyv_w3_koren_kernel_mod_test
 
-  use constants_mod, only : i_def, r_def, l_def, EPS
+  use constants_mod, only : i_def, l_def, EPS, r_tran
   use pFUnit_Mod
 
   implicit none
@@ -34,8 +34,8 @@ contains
 
     class(polyv_w3_koren_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: tol = 1.0e-12_r_def  ! r_def 64bit tolerance
-    real(r_def)            :: use_tol
+    real(r_tran), parameter :: tol = 1.0e-12_r_tran  ! r_tran 64bit tolerance
+    real(r_tran)            :: use_tol
 
     integer(i_def), parameter :: nlayers = 10
     integer(i_def), parameter :: nfaces_v = 2
@@ -53,25 +53,25 @@ contains
     integer(i_def), dimension(ndf_w3) :: map_w3
     integer(i_def), dimension(ndf_c)  :: map_c
 
-    real(r_def), dimension(undf_md)   :: edge_values
-    real(r_def), dimension(undf_md)   :: edge_values_answer
-    real(r_def), dimension(undf_w3)   :: density
-    real(r_def), dimension(nlayers+1) :: edge_density
-    real(r_def), dimension(3) :: kw=(/-1.0_r_def,5.0_r_def,2.0_r_def/)/6.0_r_def
+    real(r_tran), dimension(undf_md)   :: edge_values
+    real(r_tran), dimension(undf_md)   :: edge_values_answer
+    real(r_tran), dimension(undf_w3)   :: density
+    real(r_tran), dimension(nlayers+1) :: edge_density
+    real(r_tran), dimension(3) :: kw=(/-1.0_r_tran,5.0_r_tran,2.0_r_tran/)/6.0_r_tran
 
     integer(i_def) :: df, k, p1, p2, p3
     logical(l_def) :: logspace, reversible
-    real(r_def)    :: constant, r, answerh, answerk
+    real(r_tran)    :: constant, r, answerh, answerk
 
     map_w3(1) = 1
     map_c(1) = 1
     map_md(1) = 1
 
     ! The density is constructed with constant r=slope ratio
-    constant = 2.0_r_def
-    r = 0.5_r_def
+    constant = 2.0_r_tran
+    r = 0.5_r_tran
     density(1) = constant
-    density(2) = 1.2_r_def*constant
+    density(2) = 1.2_r_tran*constant
     do k = 3,nlayers
       density(k) = density(k-1)+r*(density(k-1)-density(k-2))
     end do
@@ -88,7 +88,7 @@ contains
     edge_density(1:2) = density(1)
     edge_density(nlayers+1) = density(nlayers)
 
-    edge_values_answer(:) = 0.0_r_def
+    edge_values_answer(:) = 0.0_r_tran
     do k = 0, nlayers
        edge_values_answer(map_md(1) + k ) = edge_density(k+1)
     end do
@@ -97,7 +97,7 @@ contains
 
     logspace = .false.
     reversible=.false.
-    edge_values(:) = 0.0_r_def
+    edge_values(:) = 0.0_r_tran
     call polyv_w3_koren_code( nlayers,     &
                               edge_values, &
                               density,     &
@@ -111,10 +111,10 @@ contains
                               undf_w3,     &
                               map_w3 )
 
-    if ( r_def == real64 ) then
+    if ( r_tran == real64 ) then
       use_tol = tol
     else
-      use_tol = 10.0_r_def*spacing(maxval(edge_density(1:nlayers+1)))
+      use_tol = 10.0_r_tran*spacing(maxval(edge_density(1:nlayers+1)))
     end if
 
     do k = 0, nlayers-1
@@ -128,12 +128,12 @@ contains
     logspace = .true.
     density(:) = exp(density(:))
     edge_density(:) = exp(edge_density(:))
-    edge_values_answer(:) =  0.0_r_def
+    edge_values_answer(:) =  0.0_r_tran
     do k = 0, nlayers
        edge_values_answer(map_md(1)+k) = edge_density(k+1)
     end do
 
-    edge_values(:) = 0.0_r_def
+    edge_values(:) = 0.0_r_tran
     call polyv_w3_koren_code( nlayers,     &
                               edge_values, &
                               density,     &
@@ -147,10 +147,10 @@ contains
                               undf_w3,     &
                               map_w3 )
 
-    if ( r_def == real64 ) then
+    if ( r_tran == real64 ) then
       use_tol = tol
     else
-      use_tol = 10.0_r_def*spacing(maxval(edge_density(1:nlayers+1)))
+      use_tol = 10.0_r_tran*spacing(maxval(edge_density(1:nlayers+1)))
     end if
     do k = 0, nlayers-1
       answerh = edge_values_answer(map_md(1)+k+1)
@@ -163,8 +163,8 @@ contains
     ! ------------------------------------------------------------------------ !
 
     ! Do reconstruction with zero density
-    density(:) = 0.0_r_def
-    edge_values(:) = 0.0_r_def
+    density(:) = 0.0_r_tran
+    edge_values(:) = 0.0_r_tran
     call polyv_w3_koren_code( nlayers,     &
                               edge_values, &
                               density,     &
@@ -180,7 +180,7 @@ contains
 
     ! Now do reconstruction with tiny density as a control
     density(:) = EPS
-    edge_values_answer(:) = 0.0_r_def
+    edge_values_answer(:) = 0.0_r_tran
     call polyv_w3_koren_code( nlayers,            &
                               edge_values_answer, &
                               density,            &

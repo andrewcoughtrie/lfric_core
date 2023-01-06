@@ -27,7 +27,7 @@ use argument_mod,      only : arg_type, func_type,       &
                               GH_BASIS, CELL_COLUMN,     &
                               GH_QUADRATURE_XYoZ,        &
                               ANY_DISCONTINUOUS_SPACE_1
-use constants_mod,     only : r_def, i_def
+use constants_mod,     only : r_def, i_def, r_tran
 use fs_continuity_mod, only : Wtheta
 use kernel_mod,        only : kernel_type
 
@@ -112,7 +112,7 @@ subroutine poly1d_vert_flux_coeffs_code(nlayers,                    &
   integer(kind=i_def), dimension(ndf_wx), intent(in) :: map_wx
 
   real(kind=r_def), dimension(undf_wx), intent(in)    :: height
-  real(kind=r_def), dimension(undf_c),  intent(inout) :: coeff
+  real(kind=r_tran), dimension(undf_c), intent(inout) :: coeff
 
   real(kind=r_def), dimension(1,ndf_wx,nqp_h,nqp_v), intent(in) :: basis_wx
 
@@ -125,7 +125,8 @@ subroutine poly1d_vert_flux_coeffs_code(nlayers,                    &
 
   integer(kind=i_def), dimension(global_order+1) :: stencil
 
-  real(kind=r_def)                              :: z, z0, total_coeff
+  real(kind=r_def)                              :: z, z0
+  real(kind=r_tran)                             :: total_coeff
   real(kind=r_def), allocatable, dimension(:)   :: alpha, delta
   real(kind=r_def), allocatable, dimension(:,:) :: monomial, inv_monomial
 
@@ -151,7 +152,7 @@ subroutine poly1d_vert_flux_coeffs_code(nlayers,                    &
   layer_loop: do k = 0, nlayers
     ! Initialise polynomial coefficients to zero
     do df = 0, ndata-1
-      coeff(map_c(1) + k*ndata + df) = 0.0_r_def
+      coeff(map_c(1) + k*ndata + df) = 0.0_r_tran
     end do
 
     ! Origin of local coordinate system
@@ -211,12 +212,12 @@ subroutine poly1d_vert_flux_coeffs_code(nlayers,                    &
         ! P(z) = sum_i=1^np ( a(i)*z^(i-1) )
         ! evaluated at z = 0 -> P(0) = a(1)
         ik = map_c(1) + k*ndata + direction*(global_order+1) - 1
-        coeff( ik + p ) = alpha(1)
+        coeff( ik + p ) = real( alpha(1), r_tran )
       end do
 
       ! Normalise coeffs to ensure a constant remains exacly constant
       p =  map_c(1) + k*ndata + direction*(global_order+1)
-      total_coeff = 1.0_r_def/sum(coeff(p:p+vertical_order))
+      total_coeff = 1.0_r_tran/sum(coeff(p:p+vertical_order))
       coeff(p:p+vertical_order) = coeff(p:p+vertical_order)*total_coeff
 
     end do direction_loop

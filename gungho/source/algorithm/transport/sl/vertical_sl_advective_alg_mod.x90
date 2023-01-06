@@ -10,10 +10,11 @@
 
 module vertical_sl_advective_alg_mod
 
-  use constants_mod,                      only: r_def, i_def, l_def
+  use constants_mod,                      only: r_tran, i_def, l_def
   use io_config_mod,                      only: subroutine_timers
   use timer_mod,                          only: timer
   use field_mod,                          only: field_type
+  use r_tran_field_mod,                   only: r_tran_field_type
   use vertical_sl_theta_kernel_mod,       only: vertical_sl_theta_kernel_type
   use vertical_sl_rho_kernel_mod,         only: vertical_sl_rho_kernel_type
   use transport_config_mod,               only: vertical_sl_order,         &
@@ -27,13 +28,14 @@ module vertical_sl_advective_alg_mod
   use transport_runtime_alg_mod,          only: transport_runtime_type
   use transport_runtime_collection_mod,   only: get_transport_runtime
   use fs_continuity_mod,                  only: W3, Wtheta
-  use transport_enumerated_types_mod,    only : vertical_monotone_none,           &
+  use transport_enumerated_types_mod,     only: vertical_monotone_none,           &
                                                 vertical_monotone_strict,         &
                                                 vertical_monotone_relaxed,        &
                                                 vertical_monotone_order_constant, &
                                                 vertical_monotone_order_linear,   &
                                                 vertical_monotone_order_high
   use geometric_constants_mod,            only: get_height
+  use psykal_lite_mod,                    only: invoke_copy_to_rtran
 
   implicit none
 
@@ -54,19 +56,20 @@ contains
 
     implicit none
 
-    type(field_type),              intent(inout) :: field_np1
-    type(field_type),              intent(in)    :: field_n
-    real(kind=r_def),              intent(in)    :: dt
+    type(r_tran_field_type),       intent(inout) :: field_np1
+    type(r_tran_field_type),       intent(in)    :: field_n
+    real(kind=r_tran),             intent(in)    :: dt
     type(transport_metadata_type), intent(in)    :: transport_metadata
 
-    type(field_type)          :: dep_pts_z
-    type(field_type), pointer :: dep_pts_z_get => null()
-    type(field_type), pointer :: height => null()
+    type(r_tran_field_type)          :: dep_pts_z
+    type(r_tran_field_type), pointer :: dep_pts_z_get => null()
+    type(field_type), pointer :: height_rdef => null()
+    type(r_tran_field_type)   :: height
     type(mesh_type),  pointer :: mesh => null()
     type(transport_runtime_type), pointer :: transport_runtime => null()
     integer(kind=i_def)  :: monotone, monotone_order, sl_order
     logical(l_def)       :: enforce_min_value, reversibility
-    real(kind=r_def)     :: min_value
+    real(kind=r_tran)     :: min_value
 
     if ( subroutine_timers ) call timer( 'vertical_sl_advective_alg' )
 
@@ -84,7 +87,9 @@ contains
     enforce_min_value = transport_metadata%get_enforce_min_value()
     reversibility = transport_metadata%get_reversible()
     min_value = transport_metadata%get_min_value()
-    height => get_height( Wtheta, mesh%get_id() )
+    height_rdef => get_height( Wtheta, mesh%get_id() )
+    call height%initialise( vector_space = height_rdef%get_function_space() )
+    call invoke_copy_to_rtran( height, height_rdef )
 
     if ( monotone /= vertical_monotone_none    .and. &
          monotone /= vertical_monotone_strict  .and. &
@@ -109,7 +114,7 @@ contains
 
     ! If Strang splitting divide departure distance by 2
     if ( transport_metadata%get_splitting() ==  splitting_strang_vhv ) then
-      call invoke( inc_a_times_X(0.5_r_def, dep_pts_z) )
+      call invoke( inc_a_times_X(0.5_r_tran, dep_pts_z) )
     end if
 
     ! Compute SL advective transport (vertical only) of
@@ -129,7 +134,7 @@ contains
         call log_event( "Vertical_sl_advective_alg only valid for W3 & Wtheta spaces", LOG_LEVEL_ERROR )
     end select
 
-    nullify( dep_pts_z_get, mesh, transport_runtime, height )
+    nullify( dep_pts_z_get, mesh, transport_runtime, height_rdef )
 
     if ( subroutine_timers ) call timer( 'vertical_sl_advective_alg' )
 

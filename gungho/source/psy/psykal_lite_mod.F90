@@ -15,10 +15,12 @@ module psykal_lite_mod
 
   use field_mod,                    only : field_type, field_proxy_type
   use r_solver_field_mod,           only : r_solver_field_type, r_solver_field_proxy_type
+  use r_tran_field_mod,             only : r_tran_field_type, r_tran_field_proxy_type
   use scalar_mod,                   only : scalar_type
   use operator_mod,                 only : operator_type, operator_proxy_type, &
-                                           r_solver_operator_type, r_solver_operator_proxy_type
-  use constants_mod,                only : r_def, i_def, r_double, r_solver, cache_block
+                                           r_solver_operator_type, r_solver_operator_proxy_type, &
+                                           r_tran_operator_type, r_tran_operator_proxy_type
+  use constants_mod,                only : r_def, i_def, r_double, r_solver, r_tran, cache_block
   use mesh_mod,                     only : mesh_type
   use function_space_mod,           only : BASIS, DIFF_BASIS
 
@@ -678,18 +680,17 @@ contains
                                                     field_min, dt_step)
       USE impose_min_flux_kernel_mod, ONLY: impose_min_flux_code
       USE mesh_mod,                   ONLY: mesh_type
-      USE operator_mod,               ONLY: operator_type, operator_proxy_type
 
       implicit none
 
-      REAL(KIND=r_def), intent(in)    :: dt_step
-      REAL(KIND=r_def), intent(in)    :: field_min
-      TYPE(field_type), intent(in)    :: field, mass_flux
-      TYPE(operator_type), intent(in) :: div
+      REAL(KIND=r_tran), intent(in)    :: dt_step
+      REAL(KIND=r_tran), intent(in)    :: field_min
+      TYPE(r_tran_field_type), intent(in)    :: field, mass_flux
+      TYPE(r_tran_operator_type), intent(in) :: div
       INTEGER(KIND=i_def) cell
       INTEGER(KIND=i_def) nlayers
-      TYPE(operator_proxy_type) div_proxy
-      TYPE(field_proxy_type) field_proxy, mass_flux_proxy
+      TYPE(r_tran_operator_proxy_type) div_proxy
+      TYPE(r_tran_field_proxy_type) field_proxy, mass_flux_proxy
       INTEGER(KIND=i_def), pointer :: map_w2(:,:) => null(), map_w3(:,:) => null()
       INTEGER(KIND=i_def) ndf_w3, undf_w3, ndf_w2, undf_w2
       TYPE(mesh_type), pointer :: mesh => null()
@@ -1030,5 +1031,276 @@ contains
       CALL rdef_field_proxy%set_clean(1)
       !
     end subroutine invoke_copy_to_rdef
+
+
+    ! Psyclone does not currently have native support for builtins with mixed
+    ! precision, this will be addressed in https://github.com/stfc/PSyclone/issues/1786
+    ! Copy a r_tran_field_type to a field_type
+    subroutine invoke_copy_rtran_to_rdef(rdef_field, field)
+
+      use omp_lib,            only: omp_get_thread_num
+      use omp_lib,            only: omp_get_max_threads
+      use mesh_mod,           only: mesh_type
+      use r_tran_field_mod,   only: r_tran_field_type, r_tran_field_proxy_type
+      use field_mod,          only: field_type, field_proxy_type
+
+      implicit none
+
+      type(field_type),        intent(inout) :: rdef_field
+      type(r_tran_field_type), intent(in)    :: field
+
+      integer(kind=i_def)             :: df
+      integer(kind=i_def)             :: loop0_start, loop0_stop
+      type(r_tran_field_proxy_type)   :: field_proxy
+      type(field_proxy_type)          :: rdef_field_proxy
+      integer(kind=i_def)             :: max_halo_depth_mesh
+      type(mesh_type), pointer        :: mesh => null()
+      !
+      ! Initialise field and/or operator proxies
+      !
+      rdef_field_proxy = rdef_field%get_proxy()
+      field_proxy = field%get_proxy()
+      !
+      ! Create a mesh object
+      !
+      mesh => rdef_field_proxy%vspace%get_mesh()
+      max_halo_depth_mesh = mesh%get_halo_depth()
+      !
+      ! Set-up all of the loop bounds
+      !
+      loop0_start = 1
+      loop0_stop = rdef_field_proxy%vspace%get_last_dof_halo(1)
+      !
+      ! Call kernels and communication routines
+      !
+      IF (field_proxy%is_dirty(depth=1)) THEN
+        CALL field_proxy%halo_exchange(depth=1)
+      END IF
+      !
+      !$omp parallel default(shared), private(df)
+      !$omp do schedule(static)
+      DO df=loop0_start,loop0_stop
+        rdef_field_proxy%data(df) = real(field_proxy%data(df), r_def)
+      END DO
+      !$omp end do
+      !$omp end parallel
+      !
+      ! Set halos dirty/clean for fields modified in the above loop
+      !
+      CALL rdef_field_proxy%set_dirty()
+      CALL rdef_field_proxy%set_clean(1)
+      !
+    end subroutine invoke_copy_rtran_to_rdef
+
+
+    ! Psyclone does not currently have native support for builtins with mixed
+    ! precision, this will be addressed in https://github.com/stfc/PSyclone/issues/1786
+    ! Copy a field_type to a r_tran_field_type
+    subroutine invoke_copy_to_rtran(r_tran_field, field)
+
+      use omp_lib,            only: omp_get_thread_num
+      use omp_lib,            only: omp_get_max_threads
+      use mesh_mod,           only: mesh_type
+      use r_tran_field_mod,   only: r_tran_field_type, r_tran_field_proxy_type
+      use field_mod,          only: field_type, field_proxy_type
+
+      implicit none
+
+      type(r_tran_field_type), intent(inout) :: r_tran_field
+      type(field_type),        intent(in)    :: field
+
+      integer(kind=i_def)             :: df
+      integer(kind=i_def)             :: loop0_start, loop0_stop
+      type(r_tran_field_proxy_type)   :: r_tran_field_proxy
+      type(field_proxy_type)          :: field_proxy
+      integer(kind=i_def)             :: max_halo_depth_mesh
+      type(mesh_type), pointer        :: mesh => null()
+      !
+      ! Initialise field and/or operator proxies
+      !
+      r_tran_field_proxy = r_tran_field%get_proxy()
+      field_proxy = field%get_proxy()
+      !
+      ! Create a mesh object
+      !
+      mesh => r_tran_field_proxy%vspace%get_mesh()
+      max_halo_depth_mesh = mesh%get_halo_depth()
+      !
+      ! Set-up all of the loop bounds
+      !
+      loop0_start = 1
+      loop0_stop = r_tran_field_proxy%vspace%get_last_dof_halo(1)
+      !
+      ! Call kernels and communication routines
+      !
+      IF (field_proxy%is_dirty(depth=1)) THEN
+        CALL field_proxy%halo_exchange(depth=1)
+      END IF
+      !
+      !$omp parallel default(shared), private(df)
+      !$omp do schedule(static)
+      DO df=loop0_start,loop0_stop
+        r_tran_field_proxy%data(df) = real(field_proxy%data(df), r_tran)
+      END DO
+      !$omp end do
+      !$omp end parallel
+      !
+      ! Set halos dirty/clean for fields modified in the above loop
+      !
+      CALL r_tran_field_proxy%set_dirty()
+      CALL r_tran_field_proxy%set_clean(1)
+      !
+    end subroutine invoke_copy_to_rtran
+
+    ! Psyclone does not currently recognize r_tran_operator_type,
+    ! this will be addressed in https://github.com/stfc/PSyclone/issues/1998
+    SUBROUTINE invoke_operator_setval_x_rtran(op_r_tran, op)
+      USE operator_algebra_kernel_mod, ONLY: operator_setval_x_kernel_code
+      USE mesh_mod, ONLY: mesh_type
+      implicit none
+      TYPE(r_tran_operator_type), intent(in) :: op_r_tran
+      TYPE(operator_type), intent(in) :: op
+      INTEGER colour
+      INTEGER(KIND=i_def) cell
+      INTEGER(KIND=i_def) loop1_start
+      INTEGER(KIND=i_def) loop0_start, loop0_stop
+      INTEGER(KIND=i_def) nlayers
+      TYPE(operator_proxy_type) op_proxy
+      TYPE(r_tran_operator_proxy_type) op_r_tran_proxy
+      INTEGER(KIND=i_def) ndf_aspc1_op_r_tran, ndf_aspc2_op_r_tran
+      INTEGER(KIND=i_def), allocatable :: last_halo_cell_all_colours(:,:)
+      INTEGER(KIND=i_def) ncolour
+      INTEGER(KIND=i_def), pointer :: cmap(:,:)
+      INTEGER(KIND=i_def) max_halo_depth_mesh
+      TYPE(mesh_type), pointer :: mesh => null()
+      !
+      ! Initialise field and/or operator proxies
+      !
+      op_r_tran_proxy = op_r_tran%get_proxy()
+      op_proxy = op%get_proxy()
+      !
+      ! Initialise number of layers
+      !
+      nlayers = op_r_tran_proxy%fs_from%get_nlayers()
+      !
+      ! Create a mesh object
+      !
+      mesh => op_r_tran_proxy%fs_from%get_mesh()
+      max_halo_depth_mesh = mesh%get_halo_depth()
+      !
+      ! Get the colourmap
+      !
+      ncolour = mesh%get_ncolours()
+      cmap => mesh%get_colour_map()
+      !
+      ! Initialise number of DoFs for aspc1_op_r_tran
+      !
+      ndf_aspc1_op_r_tran = op_r_tran_proxy%fs_to%get_ndf()
+      !
+      ! Initialise number of DoFs for aspc2_op_r_tran
+      !
+      ndf_aspc2_op_r_tran = op_r_tran_proxy%fs_from%get_ndf()
+      !
+      ! Initialise mesh propertie
+      !
+      last_halo_cell_all_colours = mesh%get_last_halo_cell_all_colours()
+      !
+      ! Set-up all of the loop bounds
+      !
+      loop0_start = 1
+      loop0_stop = ncolour
+      loop1_start = 1
+      !
+      ! Call kernels and communication routines
+      !
+      DO colour=loop0_start,loop0_stop
+        !$omp parallel default(shared), private(cell)
+        !$omp do schedule(static)
+        DO cell=loop1_start,last_halo_cell_all_colours(colour,1)
+          !
+          CALL operator_setval_x_kernel_code(cmap(colour, cell), nlayers, op_r_tran_proxy%ncell_3d, &
+&op_r_tran_proxy%local_stencil, op_proxy%ncell_3d, op_proxy%local_stencil, ndf_aspc1_op_r_tran, ndf_aspc2_op_r_tran)
+        END DO
+        !$omp end do
+        !$omp end parallel
+      END DO
+      !
+    end SUBROUTINE invoke_operator_setval_x_rtran
+
+    ! Psyclone does not currently recognize r_tran_operator_type,
+    ! this will be addressed in https://github.com/stfc/PSyclone/issues/1998
+    SUBROUTINE invoke_dg_matrix_vector_rtran(lhs, x, matrix)
+      USE dg_matrix_vector_kernel_mod, ONLY: dg_matrix_vector_code
+      USE mesh_mod, ONLY: mesh_type
+      implicit none
+      TYPE(r_tran_field_type), intent(in) :: lhs, x
+      TYPE(r_tran_operator_type), intent(in) :: matrix
+      INTEGER(KIND=i_def) cell
+      INTEGER(KIND=i_def) loop0_start, loop0_stop
+      INTEGER(KIND=i_def) nlayers
+      TYPE(r_tran_operator_proxy_type) matrix_proxy
+      TYPE(r_tran_field_proxy_type) lhs_proxy, x_proxy
+      INTEGER(KIND=i_def), pointer :: map_adspc1_lhs(:,:) => null(), map_aspc1_x(:,:) => null()
+      INTEGER(KIND=i_def) ndf_adspc1_lhs, undf_adspc1_lhs, ndf_aspc1_x, undf_aspc1_x, &
+&ndf_aspc1_lhs, undf_aspc1_lhs
+      TYPE(mesh_type), pointer :: mesh => null()
+      !
+      ! Initialise field and/or operator proxies
+      !
+      lhs_proxy = lhs%get_proxy()
+      x_proxy = x%get_proxy()
+      matrix_proxy = matrix%get_proxy()
+      !
+      ! Initialise number of layers
+      !
+      nlayers = lhs_proxy%vspace%get_nlayers()
+      !
+      ! Create a mesh object
+      !
+      mesh => lhs_proxy%vspace%get_mesh()
+      !
+      ! Look-up dofmaps for each function space
+      !
+      map_adspc1_lhs => lhs_proxy%vspace%get_whole_dofmap()
+      map_aspc1_x => x_proxy%vspace%get_whole_dofmap()
+      !
+      ! Initialise number of DoFs for adspc1_lhs
+      !
+      ndf_adspc1_lhs = lhs_proxy%vspace%get_ndf()
+      undf_adspc1_lhs = lhs_proxy%vspace%get_undf()
+      !
+      ! Initialise number of DoFs for aspc1_x
+      !
+      ndf_aspc1_x = x_proxy%vspace%get_ndf()
+      undf_aspc1_x = x_proxy%vspace%get_undf()
+      !
+      ! Initialise number of DoFs for aspc1_lhs
+      !
+      ndf_aspc1_lhs = lhs_proxy%vspace%get_ndf()
+      undf_aspc1_lhs = lhs_proxy%vspace%get_undf()
+      !
+      ! Set-up all of the loop bounds
+      !
+      loop0_start = 1
+      loop0_stop = mesh%get_last_edge_cell()
+      !
+      ! Call kernels and communication routines
+      !
+      !$omp parallel default(shared), private(cell)
+      !$omp do schedule(static)
+      DO cell=loop0_start,loop0_stop
+        !
+        CALL dg_matrix_vector_code(cell, nlayers, lhs_proxy%data, x_proxy%data, matrix_proxy%ncell_3d, &
+&matrix_proxy%local_stencil, ndf_adspc1_lhs, undf_adspc1_lhs, map_adspc1_lhs(:,cell), &
+&ndf_aspc1_x, undf_aspc1_x, map_aspc1_x(:,cell))
+      END DO
+      !$omp end do
+      !$omp end parallel
+      !
+      ! Set halos dirty/clean for fields modified in the above loop(s)
+      !
+      CALL lhs_proxy%set_dirty()
+
+    END SUBROUTINE invoke_dg_matrix_vector_rtran
 
 end module psykal_lite_mod

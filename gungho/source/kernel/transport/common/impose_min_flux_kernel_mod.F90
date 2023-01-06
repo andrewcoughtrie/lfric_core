@@ -12,7 +12,7 @@ use argument_mod,            only : arg_type,                           &
                                     CELL_COLUMN, GH_REAL, GH_INC,       &
                                     GH_SCALAR
 use fs_continuity_mod,       only : W3, W2
-use constants_mod,           only : r_def, i_def, EPS
+use constants_mod,           only : r_tran, i_def, EPS_R_TRAN
 use kernel_mod,              only : kernel_type
 
 implicit none
@@ -77,16 +77,16 @@ subroutine impose_min_flux_code(cell,              &
   integer(kind=i_def),                  intent(in) :: undf2, ndf2
   integer(kind=i_def), dimension(ndf1), intent(in) :: map1
   integer(kind=i_def), dimension(ndf2), intent(in) :: map2
-  real(kind=r_def), dimension(undf2),               intent(inout) :: flux
-  real(kind=r_def), dimension(undf1),               intent(in)    :: field
-  real(kind=r_def), dimension(ndf1,ndf2,ncell_3d1), intent(in)    :: div
-  real(kind=r_def), intent(in)                                    :: field_min
-  real(kind=r_def), intent(in)                                    :: dts
+  real(kind=r_tran), dimension(undf2),               intent(inout) :: flux
+  real(kind=r_tran), dimension(undf1),               intent(in)    :: field
+  real(kind=r_tran), dimension(ndf1,ndf2,ncell_3d1), intent(in)    :: div
+  real(kind=r_tran), intent(in)                                    :: field_min
+  real(kind=r_tran), intent(in)                                    :: dts
 
   ! Internal variables
   integer(kind=i_def)                  :: k, ik, df1, df2
-  real(kind=r_def), dimension(ndf2)    :: cell_fluxes
-  real(kind=r_def)                     :: a, b, inc, inc_n, flux_scaler
+  real(kind=r_tran), dimension(ndf2)   :: cell_fluxes
+  real(kind=r_tran)                    :: a, b, inc, inc_n, flux_scaler
   integer(kind=i_def), dimension(ndf2) :: flux_change_id
 
   do k = 0, nlayers-1
@@ -98,20 +98,20 @@ subroutine impose_min_flux_code(cell,              &
 
     do df1 = 1, ndf1
 
-       inc_n = 0.0_r_def
+       inc_n = 0.0_r_tran
        flux_change_id = 0_i_def
 
        do df2 = 1, ndf2
          inc = - dts*div(df1,df2,ik)*cell_fluxes(df2)
-         if ( inc < 0.0_r_def ) then
+         if ( inc < 0.0_r_tran ) then
              inc_n = inc_n - inc
              flux_change_id(df2) = 1_i_def
          end if
        end do
 
-       a = field(map1(df1)+k) - (field_min + EPS)
-       b = a / max(inc_n, EPS)
-       flux_scaler = min(max(0.0_r_def,b),1.0_r_def)
+       a = field(map1(df1)+k) - (field_min + EPS_R_TRAN)
+       b = a / max(inc_n, EPS_R_TRAN)
+       flux_scaler = min(max(0.0_r_tran,b),1.0_r_tran)
 
        do df2 = 1, ndf2
           if ( flux_change_id(df2) == 1_i_def ) then

@@ -17,7 +17,7 @@ module consist_w2v_to_sh_w2v_kernel_mod
                                     GH_READ, GH_WRITE,         &
                                     ANY_DISCONTINUOUS_SPACE_2, &
                                     CELL_COLUMN
-  use constants_mod,         only : r_def, i_def
+  use constants_mod,         only : r_def, i_def, r_single, r_double
   use fs_continuity_mod,     only : W2v
   use kernel_mod,            only : kernel_type
 
@@ -38,14 +38,19 @@ module consist_w2v_to_sh_w2v_kernel_mod
          arg_type(GH_FIELD, GH_REAL, GH_READ,  W2v)                        &
          /)
     integer :: operates_on = CELL_COLUMN
-  contains
-    procedure, nopass :: consist_w2v_to_sh_w2v_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
   public :: consist_w2v_to_sh_w2v_code
+
+  ! Generic interface for real32 and real64 types
+  interface consist_w2v_to_sh_w2v_code
+    module procedure  &
+      consist_w2v_to_sh_w2v_code_r_single, &
+      consist_w2v_to_sh_w2v_code_r_double
+  end interface
 
 contains
 
@@ -59,16 +64,19 @@ contains
 !> @param[in] ndf_w2v Number of degrees of freedom per cell for W2v
 !> @param[in] undf_w2v Number of (local) unique degrees of freedom for W2v
 !> @param[in] map_w2v Dofmap for the cell at the base of the column for W2v
-subroutine consist_w2v_to_sh_w2v_code(  nlayers_sh,        &
-                                        field_w2v_sh,      &
-                                        field_w2v,         &
-                                        ndf_w2v_sh,        &
-                                        undf_w2v_sh,       &
-                                        map_w2v_sh,        &
-                                        ndf_w2v,           &
-                                        undf_w2v,          &
-                                        map_w2v            &
-                                      )
+
+! R_SINGLE PRECISION
+! ==================
+subroutine consist_w2v_to_sh_w2v_code_r_single(  nlayers_sh,        &
+                                                 field_w2v_sh,      &
+                                                 field_w2v,         &
+                                                 ndf_w2v_sh,        &
+                                                 undf_w2v_sh,       &
+                                                 map_w2v_sh,        &
+                                                 ndf_w2v,           &
+                                                 undf_w2v,          &
+                                                 map_w2v            &
+                                                 )
 
   implicit none
 
@@ -79,8 +87,8 @@ subroutine consist_w2v_to_sh_w2v_code(  nlayers_sh,        &
   integer(kind=i_def), dimension(ndf_w2v_sh),     intent(in) :: map_w2v_sh
   integer(kind=i_def), dimension(ndf_w2v),        intent(in) :: map_w2v
 
-  real(kind=r_def),    dimension(undf_w2v_sh), intent(inout) :: field_w2v_sh
-  real(kind=r_def),    dimension(undf_w2v),       intent(in) :: field_w2v
+  real(kind=r_single), dimension(undf_w2v_sh), intent(inout) :: field_w2v_sh
+  real(kind=r_single), dimension(undf_w2v),       intent(in) :: field_w2v
 
   ! Internal variables
   integer(kind=i_def) :: bottom_df, top_df, k
@@ -92,13 +100,58 @@ subroutine consist_w2v_to_sh_w2v_code(  nlayers_sh,        &
     ! Loop over vertical W2 DoFs. Only need to do bottom DoF of each cell.
     ! Values are the average from the overlapping cells on the original mesh.
     field_w2v_sh(map_w2v_sh(bottom_df)+k) = &
-      0.5_r_def * (field_w2v(map_w2v(bottom_df)+k-1) + field_w2v(map_w2v(bottom_df)+k) )
+      0.5_r_single * (field_w2v(map_w2v(bottom_df)+k-1) + field_w2v(map_w2v(bottom_df)+k) )
   end do
 
   ! Top and bottom values are the same as the original space
   field_w2v_sh(map_w2v_sh(bottom_df)) = field_w2v(map_w2v(bottom_df))
   field_w2v_sh(map_w2v_sh(top_df)+nlayers_sh-1) = field_w2v(map_w2v(top_df)+nlayers_sh-2)
 
-end subroutine consist_w2v_to_sh_w2v_code
+end subroutine consist_w2v_to_sh_w2v_code_r_single
+
+
+! R_DOUBLE PRECISION
+! ==================
+subroutine consist_w2v_to_sh_w2v_code_r_double(  nlayers_sh,        &
+                                                 field_w2v_sh,      &
+                                                 field_w2v,         &
+                                                 ndf_w2v_sh,        &
+                                                 undf_w2v_sh,       &
+                                                 map_w2v_sh,        &
+                                                 ndf_w2v,           &
+                                                 undf_w2v,          &
+                                                 map_w2v            &
+                                                 )
+
+  implicit none
+
+  ! Arguments
+  integer(kind=i_def),                            intent(in) :: nlayers_sh
+  integer(kind=i_def),                            intent(in) :: ndf_w2v_sh, ndf_w2v
+  integer(kind=i_def),                            intent(in) :: undf_w2v_sh, undf_w2v
+  integer(kind=i_def), dimension(ndf_w2v_sh),     intent(in) :: map_w2v_sh
+  integer(kind=i_def), dimension(ndf_w2v),        intent(in) :: map_w2v
+
+  real(kind=r_double), dimension(undf_w2v_sh), intent(inout) :: field_w2v_sh
+  real(kind=r_double), dimension(undf_w2v),       intent(in) :: field_w2v
+
+  ! Internal variables
+  integer(kind=i_def) :: bottom_df, top_df, k
+
+  bottom_df = 1
+  top_df = 2
+
+  do k = 1, nlayers_sh - 1
+    ! Loop over vertical W2 DoFs. Only need to do bottom DoF of each cell.
+    ! Values are the average from the overlapping cells on the original mesh.
+    field_w2v_sh(map_w2v_sh(bottom_df)+k) = &
+      0.5_r_double * (field_w2v(map_w2v(bottom_df)+k-1) + field_w2v(map_w2v(bottom_df)+k) )
+  end do
+
+  ! Top and bottom values are the same as the original space
+  field_w2v_sh(map_w2v_sh(bottom_df)) = field_w2v(map_w2v(bottom_df))
+  field_w2v_sh(map_w2v_sh(top_df)+nlayers_sh-1) = field_w2v(map_w2v(top_df)+nlayers_sh-2)
+
+end subroutine consist_w2v_to_sh_w2v_code_r_double
 
 end module consist_w2v_to_sh_w2v_kernel_mod

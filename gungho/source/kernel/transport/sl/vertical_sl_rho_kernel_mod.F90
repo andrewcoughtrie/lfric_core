@@ -18,7 +18,7 @@ use argument_mod,          only : arg_type,              &
                                   GH_READWRITE, GH_READ, &
                                   CELL_COLUMN, GH_LOGICAL
 use fs_continuity_mod,     only : W2, W3, Wtheta
-use constants_mod,         only : r_def, i_def, l_def
+use constants_mod,         only : r_tran, i_def, l_def
 use kernel_mod,            only : kernel_type
 ! TODO #3011: these config options should be passed through as arguments
 use transport_config_mod,  only : vertical_sl_order_cubic,   &
@@ -120,25 +120,25 @@ subroutine vertical_sl_rho_code( nlayers,                            &
   integer(kind=i_def), intent(in)                         :: ndf_wtheta
   integer(kind=i_def), intent(in)                         :: undf_wtheta
   integer(kind=i_def), dimension(ndf_wtheta), intent(in)  :: map_wtheta
-  real(kind=r_def), dimension(undf_w2), intent(in)        :: dep_pts_z
-  real(kind=r_def), dimension(undf_w3), intent(inout)     :: rho
-  real(kind=r_def), dimension(undf_wtheta),   intent(in)  :: theta_height
+  real(kind=r_tran), dimension(undf_w2), intent(in)       :: dep_pts_z
+  real(kind=r_tran), dimension(undf_w3), intent(inout)    :: rho
+  real(kind=r_tran), dimension(undf_wtheta),   intent(in) :: theta_height
   logical(kind=l_def), intent(in)  :: enforce_min_value
   integer(kind=i_def), intent(in)  :: sl_order, vertical_monotone,  &
                                       vertical_monotone_order
-  real(kind=r_def), intent(in)     :: min_value
+  real(kind=r_tran), intent(in)    :: min_value
   !
   ! locals
   !
-  real(kind=r_def),  dimension(nlayers)     :: zm, zmd, f0, fd
-  real(kind=r_def),  dimension(nlayers+1)   :: dist, zl, zld
+  real(kind=r_tran),  dimension(nlayers)    :: zm, zmd, f0, fd
+  real(kind=r_tran),  dimension(nlayers+1)  :: dist, zl, zld
   integer(kind=i_def)                       :: k, nz, nzl, km1, km2, si
-  real(kind=r_def)                          :: d, r, sr
-  real(kind=r_def),    dimension(nlayers,4) :: cc
+  real(kind=r_tran)                         :: d, r, sr
+  real(kind=r_tran),   dimension(nlayers,4) :: cc
   integer(kind=i_def), dimension(nlayers,4) :: sc
-  real(kind=r_def),    dimension(nlayers,2) :: cl
-  real(kind=r_def),    dimension(nlayers)   :: dz
-  real(kind=r_def),    dimension(nlayers,6) :: cq
+  real(kind=r_tran),   dimension(nlayers,2) :: cl
+  real(kind=r_tran),   dimension(nlayers)   :: dz
+  real(kind=r_tran),   dimension(nlayers,6) :: cq
   integer(kind=i_def), dimension(nlayers,6) :: sq
 
   nz  = nlayers
@@ -160,10 +160,10 @@ subroutine vertical_sl_rho_code( nlayers,                            &
   !Recover the physical departure points of cell edges zld
   do k = 1, nzl
      d     = abs(dist(k))
-     sr    = sign(1.0_r_def,dist(k))
+     sr    = sign(1.0_r_tran,dist(k))
      si    = int(sr,i_def)
      km1   = int( d,i_def)
-     r     = d - real(km1,r_def)
+     r     = d - real(km1,r_tran)
      km1   = k - km1*si
      km2   = km1 - si
      km1   = max(1_i_def, min(km1,nzl))
@@ -177,10 +177,10 @@ subroutine vertical_sl_rho_code( nlayers,                            &
   ! (zm,zmd) are averaged from (zl,zld)
   !
   do k = 1, nz
-    zm(k) = 0.5_r_def*(zl(k) +  zl(k+1))
+    zm(k) = 0.5_r_tran*(zl(k) +  zl(k+1))
   end do
   do k = 1, nz
-    zmd(k) = 0.5_r_def*( zld(k) + zld(k+1) )
+    zmd(k) = 0.5_r_tran*( zld(k) + zld(k+1) )
     zmd(k) = min(zm(nz),max(zm(1),zmd(k)))
   end do
   !Define the spacing dz between zm-points

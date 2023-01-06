@@ -8,7 +8,7 @@
 !>
 module calc_upwind_detj_at_w2_kernel_mod_test
 
-    use constants_mod,                 only : i_def, r_def
+    use constants_mod,                 only : i_def, r_tran
     use pFUnit_Mod
 
     use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w2_m3x3_q3x3x3_size
@@ -91,14 +91,14 @@ contains
 
     class(calc_upwind_detj_at_w2_test_type), intent(inout) :: this
 
-    real(kind=r_def), parameter :: tol = 1.0e-6_r_def
+    real(kind=r_tran), parameter :: tol = 1.0e-6_r_tran
 
     ! Fields
-    real(kind=r_def), allocatable :: detj_w2_p(:)
-    real(kind=r_def), allocatable :: detj_w2_above(:)
-    real(kind=r_def), allocatable :: detj_w2_below(:)
-    real(kind=r_def), allocatable :: pos_wind(:)
-    real(kind=r_def), allocatable :: neg_wind(:)
+    real(kind=r_tran), allocatable :: detj_w2_p(:)
+    real(kind=r_tran), allocatable :: detj_w2_above(:)
+    real(kind=r_tran), allocatable :: detj_w2_below(:)
+    real(kind=r_tran), allocatable :: pos_wind(:)
+    real(kind=r_tran), allocatable :: neg_wind(:)
 
     integer(kind=i_def) :: cell
 
@@ -127,11 +127,11 @@ contains
     allocate(neg_wind(undf_w2))
 
     ! Initialise the data
-    detj_w2_p(:) = 0.0_r_def
-    detj_w2_above(:) = 275.0_r_def
-    detj_w2_below(:) = 150.0_r_def
-    pos_wind(:) = 1.0_r_def
-    neg_wind(:) = -1.0_r_def
+    detj_w2_p(:) = 0.0_r_tran
+    detj_w2_above(:) = 275.0_r_tran
+    detj_w2_below(:) = 150.0_r_tran
+    pos_wind(:) = 1.0_r_tran
+    neg_wind(:) = -1.0_r_tran
 
     cell = 1
 
@@ -148,9 +148,9 @@ contains
                                       map_w2         &
                                       )
 
-    @assertEqual(150.0_r_def, detj_w2_p(map_w2(6,cell)+1), tol)
-    @assertEqual(0.0_r_def, detj_w2_p(map_w2(6,cell)+0), tol)
-    @assertEqual(0.0_r_def, detj_w2_p(map_w2(1,cell)+1), tol)
+    @assertEqual(150.0_r_tran, detj_w2_p(map_w2(6,cell)+1), tol)
+    @assertEqual(0.0_r_tran, detj_w2_p(map_w2(6,cell)+0), tol)
+    @assertEqual(0.0_r_tran, detj_w2_p(map_w2(1,cell)+1), tol)
 
     ! For neg_wind the value of detj_w2_above should be set at dof 6 in layer 1
     ! with no update in the bottom level or for horizontal dofs
@@ -165,9 +165,9 @@ contains
                                       map_w2         &
                                       )
 
-    @assertEqual(275.0_r_def, detj_w2_p(map_w2(6,cell)+1), tol)
-    @assertEqual(0.0_r_def, detj_w2_p(map_w2(6,cell)+0), tol)
-    @assertEqual(0.0_r_def, detj_w2_p(map_w2(1,cell)+1), tol)
+    @assertEqual(275.0_r_tran, detj_w2_p(map_w2(6,cell)+1), tol)
+    @assertEqual(0.0_r_tran, detj_w2_p(map_w2(6,cell)+0), tol)
+    @assertEqual(0.0_r_tran, detj_w2_p(map_w2(1,cell)+1), tol)
 
     deallocate(detj_w2_p)
     deallocate(detj_w2_above)

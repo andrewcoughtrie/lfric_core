@@ -13,24 +13,24 @@ contains
   @test
   subroutine frac_and_int_part_test()
     use pFUnit_Mod
-    use constants_mod, only: r_def
+    use constants_mod, only: r_tran
     use cosmic_flux_mod, only : frac_and_int_part
 
     implicit none
 
-    real(kind=r_def) :: x_value, frac_x, tol
+    real(kind=r_tran) :: x_value, frac_x, tol
     integer          :: int_x
 
-    tol = 1.0e-6_r_def
-    x_value = -3.4_r_def
+    tol = 1.0e-6_r_tran
+    x_value = -3.4_r_tran
     call frac_and_int_part(x_value,int_x,frac_x)
     @assertEqual(4, int_x)
-    @assertEqual(0.4_r_def, frac_x, tol)
+    @assertEqual(0.4_r_tran, frac_x, tol)
 
-    x_value = 3.4_r_def
+    x_value = 3.4_r_tran
     call frac_and_int_part(x_value,int_x,frac_x)
     @assertEqual(4, int_x)
-    @assertEqual(0.4_r_def, frac_x, tol)
+    @assertEqual(0.4_r_tran, frac_x, tol)
 
   end subroutine frac_and_int_part_test
 
@@ -38,12 +38,12 @@ contains
   @test
   subroutine populate_array_test()
     use pFUnit_Mod
-    use constants_mod, only: r_def
+    use constants_mod, only: r_tran
     use cosmic_flux_mod, only : populate_array
 
     implicit none
 
-    real(kind=r_def) :: departure_dist
+    real(kind=r_tran) :: departure_dist
     integer          :: edge_option, nCells
     integer, allocatable :: index_array(:)
 
@@ -51,7 +51,7 @@ contains
 
     allocate(index_array(1:nCells))
 
-    departure_dist = 3.4_r_def
+    departure_dist = 3.4_r_tran
     edge_option = 0
     call populate_array(ncells,index_array,departure_dist, edge_option)
     @assertEqual(-1, index_array(1))
@@ -89,31 +89,31 @@ contains
   @test
   subroutine calc_integration_limits_test()
     use pFUnit_Mod
-    use constants_mod, only: r_def
+    use constants_mod, only: r_tran
     use cosmic_flux_mod, only : calc_integration_limits_positive, &
                                 calc_integration_limits_negative
 
     implicit none
 
-    real(kind=r_def) :: departure_dist
-    real(kind=r_def) :: frac_x
-    real(kind=r_def) :: x_left_limit
-    real(kind=r_def) :: x_right_limit
-    real(kind=r_def) :: tol
+    real(kind=r_tran) :: departure_dist
+    real(kind=r_tran) :: frac_x
+    real(kind=r_tran) :: x_left_limit
+    real(kind=r_tran) :: x_right_limit
+    real(kind=r_tran) :: tol
 
     ! Set fractional distance and tolerance
-    frac_x = 0.4_r_def
-    tol    = 1.0e-6_r_def
+    frac_x = 0.4_r_tran
+    tol    = 1.0e-6_r_tran
 
     ! Positive departure distance
     call calc_integration_limits_positive(frac_x,x_left_limit,x_right_limit)
-    @assertEqual(0.6_r_def, x_left_limit,tol)
-    @assertEqual(1.0_r_def, x_right_limit,tol)
+    @assertEqual(0.6_r_tran, x_left_limit,tol)
+    @assertEqual(1.0_r_tran, x_right_limit,tol)
 
     ! Negative departure distance
     call calc_integration_limits_negative(frac_x,x_left_limit,x_right_limit)
-    @assertEqual(0.0_r_def, x_left_limit,tol)
-    @assertEqual(0.4_r_def, x_right_limit,tol)
+    @assertEqual(0.0_r_tran, x_left_limit,tol)
+    @assertEqual(0.4_r_tran, x_right_limit,tol)
 
   end subroutine calc_integration_limits_test
 
@@ -155,25 +155,25 @@ contains
   @test
   subroutine return_part_mass_test()
     use pFUnit_Mod
-    use constants_mod, only: r_def
+    use constants_mod, only: r_tran
     use cosmic_flux_mod, only : return_part_mass
 
     implicit none
 
-    real(kind=r_def) :: x_left_limit, x_right_limit, part_mass, tol
-    real(kind=r_def), allocatable :: subgrid_coeffs(:)
+    real(kind=r_tran) :: x_left_limit, x_right_limit, part_mass, tol
+    real(kind=r_tran), allocatable :: subgrid_coeffs(:)
     integer :: n_coeffs
 
-    tol = 1.0e-6_r_def
+    tol = 1.0e-6_r_tran
     n_coeffs = 3
     allocate(subgrid_coeffs(1:n_coeffs))
-    subgrid_coeffs = (/ 1.0_r_def,1.0_r_def,1.0_r_def /)
+    subgrid_coeffs = (/ 1.0_r_tran,1.0_r_tran,1.0_r_tran /)
 
-    x_left_limit  = 0.0_r_def
-    x_right_limit = 0.5_r_def
+    x_left_limit  = 0.0_r_tran
+    x_right_limit = 0.5_r_tran
 
     part_mass = return_part_mass(n_coeffs,subgrid_coeffs,x_left_limit,x_right_limit)
-    @assertEqual((2.0_r_def/3.0_r_def), part_mass,tol)
+    @assertEqual((2.0_r_tran/3.0_r_tran), part_mass,tol)
 
     deallocate(subgrid_coeffs)
 
@@ -183,24 +183,24 @@ contains
   @test
   subroutine eval_integral_test()
     use pFUnit_Mod
-    use constants_mod, only: r_def
+    use constants_mod, only: r_tran
     use cosmic_flux_mod, only : eval_integral
 
     implicit none
 
-    real(kind=r_def) :: func_at_x, xx, tol
-    real(kind=r_def), allocatable :: subgrid_coeffs(:)
+    real(kind=r_tran) :: func_at_x, xx, tol
+    real(kind=r_tran), allocatable :: subgrid_coeffs(:)
     integer :: n_coeffs
 
     n_coeffs = 3
     allocate(subgrid_coeffs(1:n_coeffs))
-    subgrid_coeffs = (/ 1.0_r_def,1.0_r_def,1.0_r_def /)
+    subgrid_coeffs = (/ 1.0_r_tran,1.0_r_tran,1.0_r_tran /)
 
-    xx = 0.5_r_def
-    tol = 1.0e-6_r_def
+    xx = 0.5_r_tran
+    tol = 1.0e-6_r_tran
 
     func_at_x = eval_integral(n_coeffs,subgrid_coeffs,xx)
-    @assertEqual((2.0_r_def/3.0_r_def), func_at_x,tol)
+    @assertEqual((2.0_r_tran/3.0_r_tran), func_at_x,tol)
 
     deallocate(subgrid_coeffs)
 
@@ -384,7 +384,7 @@ contains
   @test
   subroutine calc_local_vertical_index_test()
     use pFUnit_Mod
-    use constants_mod,      only : r_def, i_def
+    use constants_mod,      only : r_tran, i_def
     use cosmic_flux_mod,    only : calc_local_vertical_index
 
     implicit none
@@ -394,9 +394,9 @@ contains
     integer(i_def) :: nlayers
     integer(i_def) :: edge
     integer(i_def), allocatable :: local_index(:)
-    real(kind=r_def) :: departure_dist
+    real(kind=r_tran) :: departure_dist
 
-    departure_dist = 1.2_r_def
+    departure_dist = 1.2_r_tran
     n_cells_to_sum = ceiling(abs(departure_dist))
     allocate(local_index(n_cells_to_sum))
 
@@ -416,7 +416,7 @@ contains
     deallocate(local_index)
 
 
-    departure_dist = -2.4_r_def
+    departure_dist = -2.4_r_tran
     n_cells_to_sum = ceiling(abs(departure_dist))
     allocate(local_index(n_cells_to_sum))
 
@@ -443,7 +443,7 @@ contains
   @test
   subroutine get_index_positive_test()
     use pFUnit_Mod
-    use constants_mod,   only : r_def, i_def
+    use constants_mod,   only : r_tran, i_def
     use cosmic_flux_mod, only : get_index_positive
 
     implicit none
@@ -490,7 +490,7 @@ contains
   @test
   subroutine get_index_negative_test()
     use pFUnit_Mod
-    use constants_mod,   only : r_def, i_def
+    use constants_mod,   only : r_tran, i_def
     use cosmic_flux_mod, only : get_index_negative
 
     implicit none

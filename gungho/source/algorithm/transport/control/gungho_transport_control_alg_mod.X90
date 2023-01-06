@@ -7,7 +7,7 @@
 
 module gungho_transport_control_alg_mod
 
-  use constants_mod,                     only: i_def, r_def, l_def
+  use constants_mod,                     only: i_def, r_def, l_def, r_tran
   use extrusion_mod,                     only: SHIFTED
   use field_mod,                         only: field_type
   use formulation_config_mod,            only: moisture_formulation,    &
@@ -92,7 +92,7 @@ contains
                                                     vertical_monotone(config),       &
                                                     vertical_monotone_order(config), &
                                                     enforce_min_value(config),       &
-                                                    min_value(config),               &
+                                                    real(min_value(config), r_tran), &
                                                     log_space(config),               &
                                                     reversible(config) )
 

@@ -7,7 +7,7 @@
 !> Test the computation of the vertical flux coefficients
 module poly1d_vert_flux_coeffs_kernel_mod_test
 
-  use constants_mod, only: i_def, r_def, l_def
+  use constants_mod, only: i_def, r_def, l_def, r_tran
   use pFUnit_Mod
 
   implicit none
@@ -45,9 +45,9 @@ contains
 
     class(poly1d_vert_flux_coeffs_test_type), intent(inout) :: this
 
-    real(r_def), parameter    :: tol = 1.0e-12_r_def  ! r_def 64bit
-    real(r_def), dimension(3) :: answer
-    real(r_def)               :: use_tol
+    real(r_tran), parameter    :: tol = 1.0e-6_r_tran  ! precision with 32bit r_defs
+    real(r_tran), dimension(3) :: answer
+    real(r_tran)               :: use_tol
 
     integer(i_def), parameter :: nfaces_v = 2
     integer(i_def), parameter :: nlayers = 8
@@ -62,7 +62,7 @@ contains
     integer(i_def), dimension(ndf_wx) :: map_wx
     integer(i_def), dimension(ndf_c)  :: map_c
 
-    real(r_def), dimension(undf_c)               :: coeff
+    real(r_tran), dimension(undf_c)              :: coeff
     real(r_def), dimension(undf_wx)              :: z
     real(r_def), dimension(nqp_h)                :: wqp_h
     real(r_def), dimension(nqp_v)                :: wqp_v
@@ -89,7 +89,7 @@ contains
       basis_wx(1,1,:,k) = (1.0_r_def - xq(k))
       basis_wx(1,2,:,k) = xq(k)
     end do
-    coeff = 0.0_r_def
+    coeff = 0.0_r_tran
     call poly1d_vert_flux_coeffs_code(nlayers,                   &
                                       coeff,                     &
                                       z,                         &
@@ -103,25 +103,22 @@ contains
                                       map_wx,                    &
                                       basis_wx,                  &
                                       nqp_h, nqp_v, wqp_h, wqp_v)
-    if ( r_def == real64 ) then
-      use_tol = tol
-    else
-      use_tol = 10.0_r_def*spacing( 6.0_r_def )
-    end if
+
+    use_tol = tol
 
     k = 1
-    answer = (/ 2.0_r_def, 5.0_r_def, -1.0_r_def /)/6.0_r_def
+    answer = (/ 2.0_r_tran, 5.0_r_tran, -1.0_r_tran /)/6.0_r_tran
     do df = 0,2
       @assertEqual(answer(df+1), coeff(df + k*ndata + map_c(1)), use_tol)
       @assertEqual(answer(df+1), coeff(df + (mol_order+1) + k*ndata + map_c(1)), use_tol)
     end do
 
     k = 2
-    answer = (/ 2.0_r_def, 5.0_r_def, -1.0_r_def /)/6.0_r_def
+    answer = (/ 2.0_r_tran, 5.0_r_tran, -1.0_r_tran /)/6.0_r_tran
     do df = 0,2
       @assertEqual(answer(df+1), coeff(df + k*ndata + map_c(1)), use_tol)
     end do
-    answer = (/ -1.0_r_def, 5.0_r_def, 2.0_r_def /)/6.0_r_def
+    answer = (/ -1.0_r_tran, 5.0_r_tran, 2.0_r_tran /)/6.0_r_tran
     do df = 0,2
       @assertEqual(answer(df+1), coeff(df + (mol_order+1) + k*ndata + map_c(1)), use_tol)
     end do
@@ -140,8 +137,8 @@ contains
 
     class(poly1d_vert_flux_coeffs_test_type), intent(inout) :: this
 
-    real(r_def), parameter    :: tol = 1.0e-12_r_def  ! r_def 64bit
-    real(r_def)               :: ans, mx, use_tol
+    real(r_tran), parameter    :: tol = 1.0e-4_r_tran  ! precision with 32bit r_defs
+    real(r_tran)               :: ans, mx, use_tol
 
     integer(i_def), parameter :: nfaces_v = 2
     integer(i_def), parameter :: nlayers = 8
@@ -160,7 +157,7 @@ contains
     integer(i_def), dimension(ndf_w3) :: map_w3
     integer(i_def), dimension(ndf_c)  :: map_c
 
-    real(r_def), dimension(undf_c)  :: coeff
+    real(r_tran), dimension(undf_c) :: coeff
     real(r_def), dimension(undf_wx) :: z
 
     real(r_def), dimension(nqp_h) :: wqp_h
@@ -179,8 +176,8 @@ contains
     integer(i_def), parameter :: ndf_md = 1
     integer(i_def), parameter :: undf_md = 2*nlayers
     integer(i_def), dimension(ndf_md)   :: map_md
-    real(r_def),    dimension(undf_md)  :: reconstruction
-    real(r_def),    dimension(undf_w3)  :: density
+    real(r_tran),   dimension(undf_md)  :: reconstruction
+    real(r_tran),   dimension(undf_w3)  :: density
 
     real(r_def) :: z_w3
 
@@ -214,7 +211,7 @@ contains
     ! the reconstruction can exactly reconstruct
     ! a linear field.
 
-    coeff = 0.0_r_def
+    coeff = 0.0_r_tran
     dz = 2.3_r_def
     z(1) = 0.0_r_def
     do k = 0,nlayers-1
@@ -249,40 +246,32 @@ contains
     ! to check the upwind reconstruction in both directions
 
     call poly1d_vert_w3_reconstruction_init( mol_order, nlayers )
+
+    reconstruction = 0.0_r_tran
     do i = 0,1
-      reconstruction = 0.0_r_def
-
       call poly1d_vert_w3_reconstruction_code( nlayers,              &
-                                               reconstruction,       &
-                                               density,              &
-                                               coeff,                &
-                                               ndata,                &
-                                               mol_order,            &
-                                               logspace,             &
-                                               ndf_md,               &
-                                               undf_md,              &
-                                               map_md,               &
-                                               ndf_w3,               &
-                                               undf_w3,              &
-                                               map_w3,               &
-                                               ndf_c,                &
-                                               undf_c,               &
-                                               map_c )
-
-      if ( r_def == real64 ) then
-        use_tol = tol
-      else
-        mx = 0.0_r_def
-        do k = 0, nlayers
-           mx = max( mx, reconstruction(map_md(1)+k) )
-        end do
-        use_tol = max(tol, 10.0_r_def*spacing( mx ))
-      end if
+                                             reconstruction,       &
+                                             density,              &
+                                             coeff,                &
+                                             ndata,                &
+                                             mol_order,            &
+                                             logspace,             &
+                                             ndf_md,               &
+                                             undf_md,              &
+                                             map_md,               &
+                                             ndf_w3,               &
+                                             undf_w3,              &
+                                             map_w3,               &
+                                             ndf_c,                &
+                                             undf_c,               &
+                                             map_c )
+      use_tol = tol
       do k = 0,nlayers-1
         ans = this%test_function(z(map_wx(1)+k))
         @assertEqual(ans, reconstruction(map_md(1)+k), use_tol)
       end do
     end do
+
     call poly1d_vert_w3_reconstruction_final()
 
   end subroutine test_stretched_mesh

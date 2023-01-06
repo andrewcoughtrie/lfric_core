@@ -7,7 +7,7 @@
 
 module midpoint_deppt_kernel_mod_test
 
-  use constants_mod, only : i_def, r_def
+  use constants_mod, only : i_def, r_def, r_tran
   use pFUnit_Mod
 
   implicit none
@@ -72,8 +72,8 @@ contains
 
     class(midpoint_deppt_test_type), intent(inout) :: this
 
-    real(kind=r_def), parameter :: tol = 1.0e-12_r_def   ! r_def 64-bit
-    real(kind=r_def) :: answer, use_tol
+    real(kind=r_tran), parameter :: tol = 1.0e-12_r_tran   ! r_tran 64-bit
+    real(kind=r_tran) :: answer, use_tol
 
     integer(kind=i_def), parameter :: nlayers = 1
     integer(kind=i_def), parameter :: ndf_w2 = 4
@@ -84,11 +84,11 @@ contains
     integer(kind=i_def), dimension(ndf_w2)              :: map_w2
     integer(kind=i_def), dimension(ndf_w2,stencil_size) :: stencil_map
 
-    real(kind=r_def), dimension(undf_w2s) :: dep_pts_x
-    real(kind=r_def), dimension(undf_w2s) :: dep_pts_y
-    real(kind=r_def), dimension(undf_w2s) :: wind_n
+    real(kind=r_tran), dimension(undf_w2s) :: dep_pts_x
+    real(kind=r_tran), dimension(undf_w2s) :: dep_pts_y
+    real(kind=r_tran), dimension(undf_w2s) :: wind_n
 
-    real(kind=r_def)    :: dt
+    real(kind=r_tran)    :: dt
     integer(kind=i_def) :: n_it
 
     ! Set up maps
@@ -103,12 +103,12 @@ contains
     stencil_map(4,:) = (/ 16, 17, 18, 19, 20 /)
 
     ! Initialise output as zero
-    dep_pts_x(:) = 0.0_r_def
-    dep_pts_y(:) = 0.0_r_def
+    dep_pts_x(:) = 0.0_r_tran
+    dep_pts_y(:) = 0.0_r_tran
 
     ! Set up winds to be constant
-    wind_n(:) = 1.0_r_def
-    dt = 1.0_r_def
+    wind_n(:) = 1.0_r_tran
+    dt = 1.0_r_tran
     n_it = 1_i_def
     call midpoint_deppt_code( nlayers,      &
                               dep_pts_x,    &
@@ -122,30 +122,30 @@ contains
                               undf_w2s,     &
                               map_w2 )
     ! Get correct tolerance
-    if ( r_def == real64 ) then
+    if ( r_tran == real64 ) then
       use_tol = tol
     else
-      use_tol = 10.0_r_def*spacing( maxval( dep_pts_x(1:4) ) )
+      use_tol = 10.0_r_tran*spacing( maxval( dep_pts_x(1:4) ) )
     end if
-    answer = 1.0_r_def
+    answer = 1.0_r_tran
     @assertEqual(answer, dep_pts_x(1), use_tol)
     @assertEqual(answer, dep_pts_x(3), use_tol)
-    answer = -1.0_r_def
+    answer = -1.0_r_tran
     @assertEqual(answer, dep_pts_y(2), use_tol)
     @assertEqual(answer, dep_pts_y(4), use_tol)
     ! Check other dofs are zero
-    answer = 0.0_r_def
+    answer = 0.0_r_tran
     @assertEqual(answer, dep_pts_x(2), use_tol)
     @assertEqual(answer, dep_pts_x(4), use_tol)
     @assertEqual(answer, dep_pts_y(1), use_tol)
     @assertEqual(answer, dep_pts_y(3), use_tol)
 
     ! Set up winds to vary
-    wind_n(:) = (/ 1.0_r_def, 3.0_r_def, 4.0_r_def, 2.0_r_def, 4.0_r_def, &
-                   1.0_r_def, 4.0_r_def, 4.0_r_def, 4.0_r_def, 2.0_r_def, &
-                   2.0_r_def, 1.0_r_def, 4.0_r_def, 4.0_r_def, 5.0_r_def, &
-                   2.0_r_def, 4.0_r_def, 1.0_r_def, 4.0_r_def, 0.0_r_def  /)
-    dt = 0.5_r_def
+    wind_n(:) = (/ 1.0_r_tran, 3.0_r_tran, 4.0_r_tran, 2.0_r_tran, 4.0_r_tran, &
+                   1.0_r_tran, 4.0_r_tran, 4.0_r_tran, 4.0_r_tran, 2.0_r_tran, &
+                   2.0_r_tran, 1.0_r_tran, 4.0_r_tran, 4.0_r_tran, 5.0_r_tran, &
+                   2.0_r_tran, 4.0_r_tran, 1.0_r_tran, 4.0_r_tran, 0.0_r_tran  /)
+    dt = 0.5_r_tran
     n_it = 1_i_def
     call midpoint_deppt_code( nlayers,      &
                               dep_pts_x,    &
@@ -158,13 +158,13 @@ contains
                               ndf_w2,       &
                               undf_w2s,     &
                               map_w2 )
-    answer = 0.75_r_def
+    answer = 0.75_r_tran
     @assertEqual(answer, dep_pts_x(1), use_tol)
-    answer = 0.75_r_def
+    answer = 0.75_r_tran
     @assertEqual(answer, dep_pts_x(3), use_tol)
-    answer = -0.625_r_def
+    answer = -0.625_r_tran
     @assertEqual(answer, dep_pts_y(2), use_tol)
-    answer = -0.5_r_def
+    answer = -0.5_r_tran
     @assertEqual(answer, dep_pts_y(4), use_tol)
 
   end subroutine test_all

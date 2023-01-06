@@ -22,7 +22,7 @@ use argument_mod,      only : arg_type,          &
                               ANY_DISCONTINUOUS_SPACE_1, &
                               ANY_W2, &
                               CELL_COLUMN
-use constants_mod,     only : r_def, i_def
+use constants_mod,     only : r_def, i_def, r_tran
 use fs_continuity_mod, only : W3
 use kernel_mod,        only : kernel_type
 
@@ -99,15 +99,15 @@ subroutine w3v_advective_update_code( cell,                &
   integer(kind=i_def), dimension(ndf_w2),  intent(in) :: map_w2
   integer(kind=i_def), dimension(ndf_md),  intent(in) :: map_md
 
-  real(kind=r_def), dimension(undf_w3), intent(inout) :: advective_increment
-  real(kind=r_def), dimension(undf_w2), intent(in)    :: wind
-  real(kind=r_def), dimension(undf_md), intent(in)    :: tracer
+  real(kind=r_tran), dimension(undf_w3), intent(inout) :: advective_increment
+  real(kind=r_tran), dimension(undf_w2), intent(in)    :: wind
+  real(kind=r_tran), dimension(undf_md), intent(in)    :: tracer
 
   real(kind=r_def), dimension(ndf_w3, ndf_w3, ncell_3d), intent(in) :: m3_inv
 
   ! Internal variables
   integer(kind=i_def) :: k, ik, df, offset
-  real(kind=r_def)    :: w, dtdz, t_U, t_D
+  real(kind=r_tran)    :: w, dtdz, t_U, t_D
 
   if ( ndf_w2 == 2 ) then
     ! W2v space, reconstruction has ndata=2
@@ -126,9 +126,9 @@ subroutine w3v_advective_update_code( cell,                &
   ! so if u.n > 0 then we set the field to be the value on the top edge from the cell below
   ! and if u.n < 0 then we set the field to be the value on the bottom edge from this cell
   do k = 0, nlayers - 1
-    w =  0.5_r_def*( wind(map_w2(df) + k) + wind(map_w2(df) + k + 1) )
+    w =  0.5_r_tran*( wind(map_w2(df) + k) + wind(map_w2(df) + k + 1) )
 
-    if ( w > 0.0_r_def .and. k > 0 ) then
+    if ( w > 0.0_r_tran .and. k > 0 ) then
       ! Overwrite t_D from cell below
       t_D = tracer(map_md(1) + offset + nlayers + k - 1)
     else
@@ -136,7 +136,7 @@ subroutine w3v_advective_update_code( cell,                &
       t_D = tracer(map_md(1) + offset + k)
     end if
 
-    if ( w <= 0.0_r_def .and. k < nlayers-1 ) then
+    if ( w <= 0.0_r_tran .and. k < nlayers-1 ) then
       ! Overwrite t_U from cell above
       t_U = tracer(map_md(1) + offset + k + 1)
     else
@@ -147,7 +147,7 @@ subroutine w3v_advective_update_code( cell,                &
     dtdz = t_U - t_D
     ik = 1 + k + (cell-1)*nlayers
     advective_increment(map_w3(1)+k) = advective_increment(map_w3(1)+k) &
-                                     + m3_inv(1,1,ik)*w*dtdz
+                                     + real( m3_inv(1,1,ik), r_tran )*w*dtdz
   end do
 
 end subroutine w3v_advective_update_code

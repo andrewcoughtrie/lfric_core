@@ -9,7 +9,7 @@ module trapezoidal_deppt_kernel_mod_test
 
   use, intrinsic :: iso_fortran_env, only: real64
 
-  use constants_mod,                       only : i_def, r_def
+  use constants_mod,                       only : i_def, r_def, r_tran
   use get_unit_test_m3x3_dofmap_mod,       only : get_w2_m3x3_dofmap, &
                                                   get_m3x3_stencil_dofmap_cross
   use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w2_m3x3_q3x3x3_size
@@ -30,10 +30,10 @@ module trapezoidal_deppt_kernel_mod_test
     integer(kind=i_def), allocatable :: dofmap_w2(:, :)
     integer(kind=i_def), allocatable :: stencil_map_w2(:, :, :)
 
-    real(kind=r_def), allocatable :: wind_n(:)
-    real(kind=r_def), allocatable :: wind_np1(:)
-    real(kind=r_def), allocatable :: dep_pts_x(:)
-    real(kind=r_def), allocatable :: dep_pts_y(:)
+    real(kind=r_tran), allocatable :: wind_n(:)
+    real(kind=r_tran), allocatable :: wind_np1(:)
+    real(kind=r_tran), allocatable :: dep_pts_x(:)
+    real(kind=r_tran), allocatable :: dep_pts_y(:)
   contains
     private
     procedure, public :: setUp
@@ -44,7 +44,7 @@ module trapezoidal_deppt_kernel_mod_test
 
   integer(kind=i_def), parameter :: nlayers = 1
   integer(kind=i_def), parameter :: stencil_size = 5
-  real(kind=r_def),    parameter :: tol = 1.0e-12_r_def   ! r_def 64-bit
+  real(kind=r_tran),    parameter :: tol = 1.0e-12_r_tran   ! r_tran 64-bit
 
 contains
 
@@ -85,8 +85,8 @@ contains
     allocate( this%dep_pts_y(this%undf_w2) )
 
     ! Initialise output as zero
-    this%dep_pts_x(:) = 0.0_r_def
-    this%dep_pts_y(:) = 0.0_r_def
+    this%dep_pts_x(:) = 0.0_r_tran
+    this%dep_pts_y(:) = 0.0_r_tran
 
   end subroutine setUp
 
@@ -118,17 +118,17 @@ contains
 
     class(trapezoidal_deppt_test_type), intent(inout) :: this
 
-    real(kind=r_def),    parameter :: dt = 0.5_r_def
+    real(kind=r_tran),    parameter :: dt = 0.5_r_tran
     integer(kind=i_def), parameter :: n_it = 1_i_def
 
-    real(kind=r_def) :: use_tol
-    real(kind=r_def) :: slice(3)
+    real(kind=r_tran) :: use_tol
+    real(kind=r_tran) :: slice(3)
 
-    real(kind=r_def), allocatable :: expected(:)
+    real(kind=r_tran), allocatable :: expected(:)
 
     ! Set up winds to be constant
-    this%wind_n(:) = 1.0_r_def
-    this%wind_np1(:) = 1.0_r_def
+    this%wind_n(:) = 1.0_r_tran
+    this%wind_np1(:) = 1.0_r_tran
 
     ! Pass column 5 as this is the centre of the 3x3 mesh.
     !
@@ -150,19 +150,19 @@ contains
     slice(3) = this%dep_pts_x(21)
 
     ! Get correct tolerance
-    if ( r_def == real64 ) then
+    if ( r_tran == real64 ) then
       use_tol = tol
     else
-      use_tol = 10.0_r_def*spacing( maxval( slice ) )
+      use_tol = 10.0_r_tran*spacing( maxval( slice ) )
     end if
 
-    expected = (/0.0_r_def, 0.5_r_def, 0.5_r_def/)
+    expected = (/0.0_r_tran, 0.5_r_tran, 0.5_r_tran/)
     @assertEqual( expected, slice, use_tol )
 
     slice(1) = this%dep_pts_y(7)
     slice(2) = this%dep_pts_y(9)
     slice(3) = this%dep_pts_y(22)
-    expected = (/0.0_r_def, -0.5_r_def, -0.5_r_def/)
+    expected = (/0.0_r_tran, -0.5_r_tran, -0.5_r_tran/)
     @assertEqual( expected, slice, use_tol )
 
   end subroutine test_unitary_wind_field
@@ -175,24 +175,24 @@ contains
 
     class(trapezoidal_deppt_test_type), intent(inout) :: this
 
-    real(kind=r_def),    parameter :: dt = 0.4_r_def
+    real(kind=r_tran),    parameter :: dt = 0.4_r_tran
     integer(kind=i_def), parameter :: n_it = 1_i_def
 
-    real(kind=r_def) :: use_tol
-    real(kind=r_def) :: slice(3)
+    real(kind=r_tran) :: use_tol
+    real(kind=r_tran) :: slice(3)
 
-    real(kind=r_def), allocatable :: expected(:)
+    real(kind=r_tran), allocatable :: expected(:)
 
     ! Set up winds to vary
-    this%wind_n = 0.0_r_def
-    this%wind_n(7) = 4.0_r_def
-    this%wind_n(9) = 1.0_r_def
-    this%wind_n(22) = 2.0_r_def
-    this%wind_n(16) = 3.0_r_def
-    this%wind_n(17) = 1.0_r_def
-    this%wind_n(21) = 2.0_r_def
+    this%wind_n = 0.0_r_tran
+    this%wind_n(7) = 4.0_r_tran
+    this%wind_n(9) = 1.0_r_tran
+    this%wind_n(22) = 2.0_r_tran
+    this%wind_n(16) = 3.0_r_tran
+    this%wind_n(17) = 1.0_r_tran
+    this%wind_n(21) = 2.0_r_tran
 
-    this%wind_np1 = 1.0_r_def
+    this%wind_np1 = 1.0_r_tran
 
     ! Pass column 5 as this is the centre of the 3x3 mesh.
     !
@@ -214,13 +214,13 @@ contains
     slice(3) = this%dep_pts_x(21)
 
     ! Get correct tolerance
-    if ( r_def == real64 ) then
+    if ( r_tran == real64 ) then
       use_tol = tol
     else
-      use_tol = 10.0_r_def*spacing( maxval( slice ) )
+      use_tol = 10.0_r_tran*spacing( maxval( slice ) )
     end if
 
-    expected = (/0.0_r_def, 0.56_r_def, 0.44_r_def/)
+    expected = (/0.0_r_tran, 0.56_r_tran, 0.44_r_tran/)
     @assertEqual( expected, slice, use_tol )
 
   end subroutine test_varying_wind_field

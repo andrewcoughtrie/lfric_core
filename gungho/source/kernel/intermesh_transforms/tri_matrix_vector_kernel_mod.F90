@@ -16,7 +16,7 @@ module tri_matrix_vector_kernel_mod
                                 GH_WRITE, GH_READ,         &
                                 ANY_DISCONTINUOUS_SPACE_3, &
                                 CELL_COLUMN
-  use constants_mod,     only : r_def, i_def
+  use constants_mod,     only : r_single, r_double, i_def
   use fs_continuity_mod, only : Wtheta
   use kernel_mod,        only : kernel_type
 
@@ -38,14 +38,19 @@ module tri_matrix_vector_kernel_mod
          arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta)                     &
          /)
     integer :: operates_on = CELL_COLUMN
-  contains
-    procedure, nopass :: tri_matrix_vector_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
   public :: tri_matrix_vector_code
+
+  ! Generic interface for real32 and real64 types
+  interface tri_matrix_vector_code
+    module procedure  &
+      tri_matrix_vector_code_r_single, &
+      tri_matrix_vector_code_r_double
+  end interface
 
 contains
 
@@ -67,16 +72,18 @@ contains
 !! @param[in] undf_wt The number of unique degrees of freedom for Wtheta
 !! @param[in] map_wt Dofmap for the cell at the base of the column for Wtheta
 
-subroutine tri_matrix_vector_code(                                   &
-                                   nlayers_shifted,                  &
-                                   field_sh_w3,                      &
-                                   tri_below,                        &
-                                   tri_diag,                         &
-                                   tri_above,                        &
-                                   field_wt,                         &
-                                   ndf_sh_w3, undf_sh_w3, map_sh_w3, &
-                                   ndf_wt, undf_wt, map_wt           &
-                                  )
+! R_SINGLE PRECISION
+! ==================
+subroutine tri_matrix_vector_code_r_single(                                   &
+                                            nlayers_shifted,                  &
+                                            field_sh_w3,                      &
+                                            tri_below,                        &
+                                            tri_diag,                         &
+                                            tri_above,                        &
+                                            field_wt,                         &
+                                            ndf_sh_w3, undf_sh_w3, map_sh_w3, &
+                                            ndf_wt, undf_wt, map_wt           &
+                                            )
 
   implicit none
 
@@ -87,11 +94,11 @@ subroutine tri_matrix_vector_code(                                   &
   integer(kind=i_def), dimension(ndf_wt),    intent(in) :: map_wt
   integer(kind=i_def), dimension(ndf_sh_w3), intent(in) :: map_sh_w3
 
-  real(kind=r_def), dimension(undf_sh_w3), intent(inout) :: field_sh_w3
-  real(kind=r_def), dimension(undf_sh_w3), intent(in)    :: tri_below
-  real(kind=r_def), dimension(undf_sh_w3), intent(in)    :: tri_diag
-  real(kind=r_def), dimension(undf_sh_w3), intent(in)    :: tri_above
-  real(kind=r_def), dimension(undf_wt),    intent(in)    :: field_wt
+  real(kind=r_single), dimension(undf_sh_w3), intent(inout) :: field_sh_w3
+  real(kind=r_single), dimension(undf_sh_w3), intent(in)    :: tri_below
+  real(kind=r_single), dimension(undf_sh_w3), intent(in)    :: tri_diag
+  real(kind=r_single), dimension(undf_sh_w3), intent(in)    :: tri_above
+  real(kind=r_single), dimension(undf_wt),    intent(in)    :: field_wt
 
   ! Internal variables
   integer(kind=i_def) :: df, k
@@ -114,6 +121,57 @@ subroutine tri_matrix_vector_code(                                   &
     end do
   end do
 
-end subroutine tri_matrix_vector_code
+end subroutine tri_matrix_vector_code_r_single
+
+! R_DOUBLE PRECISION
+! ==================
+subroutine tri_matrix_vector_code_r_double(                                   &
+                                            nlayers_shifted,                  &
+                                            field_sh_w3,                      &
+                                            tri_below,                        &
+                                            tri_diag,                         &
+                                            tri_above,                        &
+                                            field_wt,                         &
+                                            ndf_sh_w3, undf_sh_w3, map_sh_w3, &
+                                            ndf_wt, undf_wt, map_wt           &
+                                            )
+
+  implicit none
+
+  ! Arguments
+  integer(kind=i_def), intent(in) :: nlayers_shifted
+  integer(kind=i_def), intent(in) :: ndf_wt, ndf_sh_w3
+  integer(kind=i_def), intent(in) :: undf_wt, undf_sh_w3
+  integer(kind=i_def), dimension(ndf_wt),    intent(in) :: map_wt
+  integer(kind=i_def), dimension(ndf_sh_w3), intent(in) :: map_sh_w3
+
+  real(kind=r_double), dimension(undf_sh_w3), intent(inout) :: field_sh_w3
+  real(kind=r_double), dimension(undf_sh_w3), intent(in)    :: tri_below
+  real(kind=r_double), dimension(undf_sh_w3), intent(in)    :: tri_diag
+  real(kind=r_double), dimension(undf_sh_w3), intent(in)    :: tri_above
+  real(kind=r_double), dimension(undf_wt),    intent(in)    :: field_wt
+
+  ! Internal variables
+  integer(kind=i_def) :: df, k
+
+  ! Top and bottom layers (bottom is k=0)
+  k = nlayers_shifted - 1
+  do df = 1, ndf_sh_w3
+    field_sh_w3(map_sh_w3(df)) = tri_above(map_sh_w3(df)) * field_wt(map_wt(df)+1) + &
+                                 tri_diag(map_sh_w3(df)) * field_wt(map_wt(df))
+
+    field_sh_w3(map_sh_w3(df)+k) = tri_below(map_sh_w3(df)+k) * field_wt(map_wt(df)+k-1) + &
+                                   tri_diag(map_sh_w3(df)+k) * field_wt(map_wt(df)+k)
+  end do
+
+  do k = 1, nlayers_shifted-2
+    do df = 1, ndf_sh_w3
+      field_sh_w3(map_sh_w3(df)+k) = tri_below(map_sh_w3(df)+k) * field_wt(map_wt(df)+k-1) + &
+                                     tri_diag(map_sh_w3(df)+k) * field_wt(map_wt(df)+k)    + &
+                                     tri_above(map_sh_w3(df)+k) * field_wt(map_wt(df)+k+1)
+    end do
+  end do
+
+end subroutine tri_matrix_vector_code_r_double
 
 end module tri_matrix_vector_kernel_mod

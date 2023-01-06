@@ -8,7 +8,7 @@
 !> (valid for lowest order quadrilateral elements)
 module rtheta_bd_kernel_mod_test
 
-  use constants_mod,                 only : i_def, r_def
+  use constants_mod,                 only : i_def, r_def, r_tran
   use pFUnit_Mod
 
   implicit none
@@ -70,10 +70,10 @@ contains
 
     class(rtheta_bd_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: tol    = 1.0e-6_r_def   ! r_def 64bit
-    real(r_def), parameter :: tol32  = 1.0e-2_r_def   ! r_def 32bit
-    real(r_def), parameter :: answer = 1.0_r_def
-    real(r_def)            :: use_tol
+    real(r_tran), parameter :: tol    = 1.0e-6_r_tran   ! r_tran 64bit
+    real(r_tran), parameter :: tol32  = 1.0e-2_r_tran   ! r_tran 32bit
+    real(r_tran), parameter :: answer = 1.0_r_tran
+    real(r_tran)            :: use_tol
 
     ! Mesh and reference element information
     real(r_def), allocatable    :: normals_to_horizontal_faces(:,:)
@@ -84,9 +84,9 @@ contains
     real(kind=r_def), allocatable :: wqp_f(:,:)
 
     ! Test field data
-    real(r_def), allocatable :: theta_data(:)
-    real(r_def), allocatable :: r_theta_bd_data(:)
-    real(r_def), allocatable :: u_data(:)
+    real(r_tran), allocatable :: theta_data(:)
+    real(r_tran), allocatable :: r_theta_bd_data(:)
+    real(r_tran), allocatable :: u_data(:)
 
     ! Basis functions
     real(r_def), allocatable :: basis_w2_face(:,:,:,:)
@@ -164,9 +164,9 @@ contains
     allocate(u_data(undf_w2))
 
     ! Initialise the data
-    r_theta_bd_data(:) = 1.0_r_def
-    theta_data(:) = 3000.0_r_def
-    u_data(:) = 20.0_r_def
+    r_theta_bd_data(:) = 1.0_r_tran
+    theta_data(:) = 3000.0_r_tran
+    u_data(:) = 20.0_r_tran
 
     ! Compute cell 5 only
     cell = 5
@@ -192,7 +192,7 @@ contains
                          nfaces_qr, nqp_f, wqp_f )
 
     ! Simple test, check that when theta=constant, the code inputs no increment
-    if ( r_def == real64 ) then
+    if ( r_tran == real64 ) then
       use_tol = tol
     else
       use_tol = tol32

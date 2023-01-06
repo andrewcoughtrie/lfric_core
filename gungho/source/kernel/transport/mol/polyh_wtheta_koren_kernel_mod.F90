@@ -22,7 +22,7 @@ use argument_mod,      only : arg_type, func_type,         &
                               STENCIL, CROSS,              &
                               CELL_COLUMN,                 &
                               ANY_DISCONTINUOUS_SPACE_1
-use constants_mod,     only : r_def, i_def, l_def, tiny_eps
+use constants_mod,     only : r_tran, i_def, l_def, tiny_eps, r_tran, EPS_R_TRAN
 use fs_continuity_mod, only : Wtheta
 use kernel_mod,        only : kernel_type
 
@@ -93,16 +93,16 @@ subroutine polyh_wtheta_koren_code(  nlayers,              &
   integer(kind=i_def), intent(in)                     :: ndata
   integer(kind=i_def), intent(in)                     :: stencil_size
 
-  real(kind=r_def), dimension(undf_md),  intent(inout) :: reconstruction
-  real(kind=r_def), dimension(undf_wt),  intent(in)    :: tracer
+  real(kind=r_tran), dimension(undf_md),  intent(inout) :: reconstruction
+  real(kind=r_tran), dimension(undf_wt),  intent(in)    :: tracer
   integer(kind=i_def), dimension(ndf_wt,stencil_size), intent(in) :: stencil_map
 
   ! Internal variables
   integer(kind=i_def), parameter      :: nfaces = 4
   integer(kind=i_def)                 :: k, df
-  real(kind=r_def)                    :: edge_tracer
+  real(kind=r_tran)                   :: edge_tracer
   integer(kind=i_def), dimension(3,4) :: point=reshape((/4,1,2,5,1,3,2,1,4,3,1,5/),shape(point))
-  real(kind=r_def)                    :: x, y, r, phi, r1, r2
+  real(kind=r_tran)                   :: x, y, r, phi, r1, r2
 
   ! for order = 2 the cross stencil map is
   !      | 5 |
@@ -115,10 +115,10 @@ subroutine polyh_wtheta_koren_code(  nlayers,              &
       x = tracer(stencil_map(1,point(2,df))+k) - tracer(stencil_map(1,point(1,df))+k)
       y = tracer(stencil_map(1,point(3,df))+k) - tracer(stencil_map(1,point(2,df))+k)
       r = (y + tiny_eps)/(x + tiny_eps)
-      r1 = 2.0_r_def*r
-      r2 = ( 1.0_r_def + r1 )/ 3.0_r_def
-      phi = max (0.0_r_def, min(r1,r2,2.0_r_def))
-      edge_tracer = tracer(stencil_map(1,point(2,df))+k) + 0.5_r_def*phi*x
+      r1 = 2.0_r_tran*r
+      r2 = ( 1.0_r_tran + r1 )/ 3.0_r_tran
+      phi = max (0.0_r_tran, min(r1,r2,2.0_r_tran))
+      edge_tracer = tracer(stencil_map(1,point(2,df))+k) + 0.5_r_tran*phi*x
       reconstruction(map_md(1) + (df-1)*(nlayers+1) + k ) = edge_tracer
     end do
   end do

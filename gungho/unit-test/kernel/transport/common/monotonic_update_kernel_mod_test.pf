@@ -7,7 +7,7 @@
 !> Test the monotonic update computation
 module monotonic_update_kernel_mod_test
 
-  use constants_mod, only : i_def, r_def, l_def
+  use constants_mod, only : i_def, r_def, l_def, r_tran
   use pFUnit_Mod
 
   implicit none
@@ -33,7 +33,7 @@ contains
 
     class(monotonic_update_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: tol = 1.0e-12_r_def
+    real(r_tran), parameter :: tol = 1.0e-12_r_tran
 
     integer(i_def), parameter                      :: nlayers = 1
     integer(i_def), parameter                      :: ndf_wt = 2
@@ -41,9 +41,9 @@ contains
     integer(i_def), parameter                      :: undf_wt = ndf_wt*stencil_size
     integer(i_def), dimension(ndf_wt,stencil_size) :: map_wt
 
-    real(r_def), dimension(undf_wt) :: adv, theta
-    real(r_def), parameter          :: dt = 10.0_r_def
-    real(r_def)                     :: answer
+    real(r_tran), dimension(undf_wt) :: adv, theta
+    real(r_tran), parameter          :: dt = 10.0_r_tran
+    real(r_tran)                     :: answer
 
     logical, parameter :: do_horizontal = .true.
     logical, parameter :: do_vertical   = .true.
@@ -58,7 +58,7 @@ contains
     ! Create a random theta_field
     call random_number(theta)
 
-    adv(:) = -1.0_r_def
+    adv(:) = -1.0_r_tran
 
     call monotonic_update_code( nlayers,              &
                                 adv,                  &

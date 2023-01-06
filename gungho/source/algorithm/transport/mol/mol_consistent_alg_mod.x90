@@ -7,13 +7,14 @@
 
 module mol_consistent_alg_mod
 
-  use constants_mod,                  only: r_def, i_def, l_def
+  use constants_mod,                  only: r_tran, i_def, l_def
   use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
   use enforce_lower_bound_kernel_mod, only: enforce_lower_bound_kernel_type
   use extrusion_mod,                  only: SHIFTED
-  use fem_constants_mod,              only: get_directional_im3_div
+  use fem_constants_mod,              only: get_directional_im3_div_r_tran
   use advective_and_flux_alg_mod,     only: advective_and_flux_alg
   use field_mod,                      only: field_type
+  use r_tran_field_mod,               only: r_tran_field_type
   use finite_element_config_mod,      only: element_order
   use fs_continuity_mod,              only: W3
   use function_space_mod,             only: function_space_type
@@ -24,7 +25,7 @@ module mol_consistent_alg_mod
   use log_mod,                        only: log_event, LOG_LEVEL_ERROR
   use mesh_mod,                       only: mesh_type
   use mesh_collection_mod,            only: mesh_collection
-  use operator_mod,                   only: operator_type
+  use r_tran_operator_mod,            only: r_tran_operator_type
   use psykal_lite_mod,                only: invoke_impose_min_flux_kernel_type
   use runge_kutta_init_mod,           only: get_rk_transport_weights
   use timer_mod,                      only: timer
@@ -35,8 +36,9 @@ module mol_consistent_alg_mod
   use transport_runtime_collection_mod,   &
                                       only: get_transport_runtime
   use boundaries_config_mod,          only: limited_area, transport_boundary_depth
-  use limited_area_lbc_alg_mod,       only: overwrite_blending_zone
+  use limited_area_lbc_alg_mod,       only: overwrite_blending_zone_rtran
   use base_mesh_config_mod,           only: topology, topology_non_periodic
+  use psykal_lite_mod,                only: invoke_dg_matrix_vector_rtran
 
   implicit none
 
@@ -61,8 +63,8 @@ module mol_consistent_alg_mod
     implicit none
 
     ! Arguments
-    type(field_type),              intent(inout) :: mr_wt_np1
-    type(field_type),              intent(in)    :: mr_wt_in
+    type(r_tran_field_type),       intent(inout) :: mr_wt_np1
+    type(r_tran_field_type),       intent(in)    :: mr_wt_in
     integer(kind=i_def),           intent(in)    :: direction
     type(transport_metadata_type), intent(in)    :: transport_metadata
 
@@ -79,32 +81,31 @@ module mol_consistent_alg_mod
     logical(kind=l_def)                :: final_rk_stage
     logical(kind=l_def)                :: final_substep
     logical(kind=l_def)                :: final_split_step
-    real(kind=r_def)                   :: dt_substep
-    real(kind=r_def)                   :: min_value
-    real(kind=r_def),      allocatable :: rk_weights(:,:)
+    real(kind=r_tran)                  :: dt_substep
+    real(kind=r_tran)                  :: min_value
+    real(kind=r_tran),     allocatable :: rk_weights(:,:)
     type(function_space_type), pointer :: w3_sh_fs => null()
     type(function_space_type), pointer :: w2_sh_fs => null()
     type(function_space_type), pointer :: wt_fs => null()
-    type(operator_type),       pointer :: div => null()
-    type(field_type),          pointer :: prime_advecting_wind => null()
-    type(field_type),          pointer :: dry_flux => null()
-    type(field_type),          pointer :: rho_d_n => null()
-    type(field_type),          pointer :: rho_d_np1 => null()
-    type(field_type),          pointer :: mr_wt_start => null()
-    type(field_type),          pointer :: rho_d_start => null()
-    type(field_type),          pointer :: old_flux_inc => null()
-    type(field_type)                   :: flux_X
-    type(field_type)                   :: mr_sh_w3_n, mr_sh_w3_np1, mr_sh_w3_start
-    type(field_type)                   :: mr_sh_w3_for_flux, mr_wt_for_flux
-    type(field_type)                   :: mr_wt_n
-    type(field_type)                   :: rho_X_n, rho_X_np1, rho_X_start
-    type(field_type)                   :: rhs_adv, rhs_flux, rhs_field
-    type(field_type),      allocatable :: rk_field(:)
-    type(mesh_type),           pointer :: prime_extrusion_mesh => null()
-    type(mesh_type),           pointer :: shifted_mesh => null()
-    type(transport_runtime_type), pointer &
-                                       :: transport_runtime => null()
-    type(field_type)                   :: dummy
+    type(r_tran_operator_type),       pointer :: div => null()
+    type(r_tran_field_type),          pointer :: prime_advecting_wind => null()
+    type(r_tran_field_type),          pointer :: dry_flux => null()
+    type(r_tran_field_type),          pointer :: rho_d_n => null()
+    type(r_tran_field_type),          pointer :: rho_d_np1 => null()
+    type(r_tran_field_type),          pointer :: mr_wt_start => null()
+    type(r_tran_field_type),          pointer :: rho_d_start => null()
+    type(r_tran_field_type),          pointer :: old_flux_inc => null()
+    type(r_tran_field_type)                   :: flux_X
+    type(r_tran_field_type)                   :: mr_sh_w3_n, mr_sh_w3_np1, mr_sh_w3_start
+    type(r_tran_field_type)                   :: mr_sh_w3_for_flux, mr_wt_for_flux
+    type(r_tran_field_type)                   :: mr_wt_n
+    type(r_tran_field_type)                   :: rho_X_n, rho_X_np1, rho_X_start
+    type(r_tran_field_type)                   :: rhs_adv, rhs_flux, rhs_field
+    type(r_tran_field_type),      allocatable :: rk_field(:)
+    type(mesh_type),                  pointer :: prime_extrusion_mesh => null()
+    type(mesh_type),                  pointer :: shifted_mesh => null()
+    type(transport_runtime_type),     pointer :: transport_runtime => null()
+    type(r_tran_field_type)                   :: dummy
 
     ! ------------------------------------------------------------------------ !
     if ( subroutine_timers ) call timer('mol_consistent_alg')
@@ -126,7 +127,7 @@ module mol_consistent_alg_mod
     w2_sh_fs => dry_flux%get_function_space()
     rho_d_n => transport_runtime%get_rho_d_n(shifted_mesh_id, transport_step)
     rho_d_np1 => transport_runtime%get_rho_d_np1(shifted_mesh_id, transport_step)
-    div => get_directional_im3_div(shifted_mesh_id, direction)
+    div => get_directional_im3_div_r_tran(shifted_mesh_id, direction)
 
     call get_rk_transport_weights( nstage, rk_weights, runge_kutta_method )
     allocate( rk_field(nstage) )
@@ -163,7 +164,7 @@ module mol_consistent_alg_mod
                  ! Compute rho_X at start of step
                  X_times_Y(rho_X_n, mr_sh_w3_n, rho_d_n),                 &
                  ! Initialise the mixing ratio used for the flux to zero
-                 setval_c( mr_wt_for_flux, 0.0_r_def ) )
+                 setval_c( mr_wt_for_flux, 0.0_r_tran ) )
 
     final_split_step = ( transport_step == transport_runtime%get_num_dry_steps() )
 
@@ -195,7 +196,7 @@ module mol_consistent_alg_mod
         ! Compute the field for this stage:
         ! rhs_field = sum(s=1,stage): a(stage,s)*field^(s)
         call invoke( setval_X( rk_field(stage), mr_wt_np1 ), &
-                     setval_c( rhs_field, 0.0_r_def ) )
+                     setval_c( rhs_field, 0.0_r_tran ) )
         do s = 1, stage
           call invoke( inc_X_plus_bY( rhs_field, rk_weights(stage,s), rk_field(s) ) )
         end do
@@ -223,7 +224,7 @@ module mol_consistent_alg_mod
           ! Don't update the field near the edge of the domain. A depth of 1 is chosen
           ! here to avoid problems right at the lateral boundary edge,
           ! but ticket #3112 will investigate further options.
-          call overwrite_blending_zone(mr_wt_np1, mr_wt_n, depth=1)
+          call overwrite_blending_zone_rtran(mr_wt_np1, mr_wt_n, depth=1)
         end if
 
       end do stage_loop
@@ -240,7 +241,7 @@ module mol_consistent_alg_mod
         ! the transport_boundary_depth is chosen here.  This will depend
         ! on the number of RK stages and spatial reconstruction order.
         ! Ticket #3112 will investigate further options.
-        call overwrite_blending_zone(mr_wt_np1, mr_wt_n, depth=transport_boundary_depth)
+        call overwrite_blending_zone_rtran(mr_wt_np1, mr_wt_n, depth=transport_boundary_depth)
       end if
 
     end do substep_loop
@@ -253,7 +254,7 @@ module mol_consistent_alg_mod
     ! Obtain mixing ratio used for reconstruction in shifted W3
     call invoke( inject_wt_to_sh_w3_kernel_type(mr_sh_w3_for_flux, &
                                                 mr_wt_for_flux),   &
-                 setval_c(flux_X, 0.0_r_def) )
+                 setval_c(flux_X, 0.0_r_tran) )
 
     ! In all cases, compute flux to rho_X
     call advective_and_flux_alg(flux_X, dummy, mr_sh_w3_for_flux, dummy, &
@@ -272,7 +273,8 @@ module mol_consistent_alg_mod
     if ( .not. advective_then_flux ) then
       ! Old behaviour: apply increment to rho_X and recompute mixing ratio
       ! Compute div(flux_X)
-      call invoke( dg_matrix_vector_kernel_type(rhs_flux, flux_X, div), &
+      call invoke_dg_matrix_vector_rtran(rhs_flux, flux_X, div)
+      call invoke( &
       ! Increment rho_X
                   X_minus_bY(rho_X_np1, rho_X_n, dt_substep, rhs_flux), &
       ! Turn density back into mixing ratio
@@ -292,14 +294,14 @@ module mol_consistent_alg_mod
         ! the transport_boundary_depth is chosen here.  This will depend
         ! on the number of RK stages and spatial reconstruction order.
         ! Ticket #3112 will investigate further options.
-        call overwrite_blending_zone(mr_wt_np1, mr_wt_n, depth=transport_boundary_depth)
+        call overwrite_blending_zone_rtran(mr_wt_np1, mr_wt_n, depth=transport_boundary_depth)
       end if
 
     else
-      dt_substep = -1.0_r_def*dt_substep
+      dt_substep = -1.0_r_tran*dt_substep
       ! Compute div(flux_X)
-      call invoke( dg_matrix_vector_kernel_type(rhs_flux, flux_X, div), &
-                   inc_a_times_X(dt_substep, rhs_flux) )
+      call invoke_dg_matrix_vector_rtran(rhs_flux, flux_X, div)
+      call invoke( inc_a_times_X(dt_substep, rhs_flux) )
 
       if ( final_split_step ) then
         ! -------------------------------------------------------------------- !
@@ -337,7 +339,7 @@ module mol_consistent_alg_mod
           ! the transport_boundary_depth is chosen here.  This will depend
           ! on the number of RK stages and spatial reconstruction order.
           ! Ticket #3112 will investigate further options.
-          call overwrite_blending_zone(mr_wt_np1, mr_wt_start, &
+          call overwrite_blending_zone_rtran(mr_wt_np1, mr_wt_start, &
                                        depth=transport_boundary_depth)
         end if
 

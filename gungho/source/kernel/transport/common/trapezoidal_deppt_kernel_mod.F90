@@ -20,7 +20,7 @@ module trapezoidal_deppt_kernel_mod
                                 GH_READ, GH_SCALAR,    &
                                 GH_INTEGER, STENCIL,   &
                                 CROSS
-  use constants_mod,     only : r_def, i_def
+  use constants_mod,     only : r_tran, i_def
   use fs_continuity_mod, only : W2
   use kernel_mod,        only : kernel_type
 
@@ -103,30 +103,30 @@ contains
     integer(kind=i_def), dimension(ndf_w2,stencil_size), intent(in) :: stencil_map
 
     ! Arguments: Fields
-    real(kind=r_def), dimension(undf_w2), intent(in)    :: wind_n
-    real(kind=r_def), dimension(undf_w2), intent(in)    :: wind_np1
-    real(kind=r_def), dimension(undf_w2), intent(inout) :: dep_pts_x
-    real(kind=r_def), dimension(undf_w2), intent(inout) :: dep_pts_y
-    real(kind=r_def),                     intent(in)    :: dt
+    real(kind=r_tran), dimension(undf_w2), intent(in)    :: wind_n
+    real(kind=r_tran), dimension(undf_w2), intent(in)    :: wind_np1
+    real(kind=r_tran), dimension(undf_w2), intent(inout) :: dep_pts_x
+    real(kind=r_tran), dimension(undf_w2), intent(inout) :: dep_pts_y
+    real(kind=r_tran),                     intent(in)    :: dt
     integer(kind=i_def),                  intent(in)    :: n_iterations
 
     integer(kind=i_def) :: k, jj, ind, stencil_half, stencil_centre, stencil_arm
-    real(kind=r_def)    :: dp_local_x_1
-    real(kind=r_def)    :: dp_local_x_3
-    real(kind=r_def)    :: dp_local_y_2
-    real(kind=r_def)    :: dp_local_y_4
-    real(kind=r_def)    :: u_local_x_1(1:(stencil_size+1)/2)
-    real(kind=r_def)    :: u_local_x_3(1:(stencil_size+1)/2)
-    real(kind=r_def)    :: u_local_y_2(1:(stencil_size+1)/2)
-    real(kind=r_def)    :: u_local_y_4(1:(stencil_size+1)/2)
-    real(kind=r_def)    :: u_n_d_x_1
-    real(kind=r_def)    :: u_n_d_x_3
-    real(kind=r_def)    :: u_n_d_y_2
-    real(kind=r_def)    :: u_n_d_y_4
-    real(kind=r_def)    :: u_np1_a_x_1
-    real(kind=r_def)    :: u_np1_a_x_3
-    real(kind=r_def)    :: u_np1_a_y_2
-    real(kind=r_def)    :: u_np1_a_y_4
+    real(kind=r_tran)    :: dp_local_x_1
+    real(kind=r_tran)    :: dp_local_x_3
+    real(kind=r_tran)    :: dp_local_y_2
+    real(kind=r_tran)    :: dp_local_y_4
+    real(kind=r_tran)    :: u_local_x_1(1:(stencil_size+1)/2)
+    real(kind=r_tran)    :: u_local_x_3(1:(stencil_size+1)/2)
+    real(kind=r_tran)    :: u_local_y_2(1:(stencil_size+1)/2)
+    real(kind=r_tran)    :: u_local_y_4(1:(stencil_size+1)/2)
+    real(kind=r_tran)    :: u_n_d_x_1
+    real(kind=r_tran)    :: u_n_d_x_3
+    real(kind=r_tran)    :: u_n_d_y_2
+    real(kind=r_tran)    :: u_n_d_y_4
+    real(kind=r_tran)    :: u_np1_a_x_1
+    real(kind=r_tran)    :: u_np1_a_x_3
+    real(kind=r_tran)    :: u_np1_a_y_2
+    real(kind=r_tran)    :: u_np1_a_y_4
 
     ! Cross stencil has the form
     !     | 5 |
@@ -185,10 +185,10 @@ contains
         call interpolate_u_to_x(u_n_d_y_4, dp_local_y_4, u_local_y_4, stencil_half, stencil_centre)
 
         ! Update the departure distance with the correct sign
-        dp_local_x_1 = 0.5_r_def * dt * ( u_np1_a_x_1 + u_n_d_x_1 )
-        dp_local_x_3 = 0.5_r_def * dt * ( u_np1_a_x_3 + u_n_d_x_3 )
-        dp_local_y_2 = 0.5_r_def * dt * ( u_np1_a_y_2 + u_n_d_y_2 )
-        dp_local_y_4 = 0.5_r_def * dt * ( u_np1_a_y_4 + u_n_d_y_4 )
+        dp_local_x_1 = 0.5_r_tran * dt * ( u_np1_a_x_1 + u_n_d_x_1 )
+        dp_local_x_3 = 0.5_r_tran * dt * ( u_np1_a_x_3 + u_n_d_x_3 )
+        dp_local_y_2 = 0.5_r_tran * dt * ( u_np1_a_y_2 + u_n_d_y_2 )
+        dp_local_y_4 = 0.5_r_tran * dt * ( u_np1_a_y_4 + u_n_d_y_4 )
       end do
 
       dep_pts_x( map_w2(1) + k ) = dp_local_x_1

@@ -7,7 +7,7 @@
 !> Test the computation of 2d flux coefficients
 module poly2d_flux_coeffs_kernel_mod_test
 
-  use constants_mod, only: i_def, r_def
+  use constants_mod, only: i_def, r_def, r_tran
   use pFUnit_Mod
   implicit none
 
@@ -69,9 +69,9 @@ contains
 
     class(poly2d_flux_coeffs_test_type), intent(inout) :: this
 
-    real(r_def), parameter    :: tol = 1.0e-12_r_def   ! r_def 64bit tolerance
-    real(r_def), dimension(9) :: answer, tstv
-    real(r_def)               :: tst, use_tol
+    real(r_tran), parameter    :: tol = 1.0e-6_r_tran   ! precision with 32-bit r_def
+    real(r_tran), dimension(9) :: answer, tstv
+    real(r_tran)               :: tst, use_tol
 
     integer(i_def), parameter :: nlayers = 1
     integer(i_def), parameter :: stencil_size = 9
@@ -101,7 +101,7 @@ contains
     real(r_def), dimension(nqp_v), parameter :: wqp_v = (/ 1.0_r_def /)
     real(r_def), dimension(nqp_e,nfaces), parameter :: wqp_e = 1.0_r_def
 
-    real(r_def), dimension(undf_c)   :: coeff
+    real(r_tran), dimension(undf_c)   :: coeff
     real(r_def), dimension(undf_w3)  :: mdw3
     real(r_def), dimension(undf_wx)  :: x, y, z
     real(r_def), dimension(undf_pid) :: panel_id
@@ -197,7 +197,7 @@ contains
       face_basis_wx(4+df,1,:) = face_basis_wx(df,1,:)
     end do
 
-    coeff = 0.0_r_def
+    coeff = 0.0_r_tran
 
     call poly2d_flux_coeffs_code(nlayers,                   &
                                  coeff,                     &
@@ -231,38 +231,20 @@ contains
                                  nqp_h, nqp_v, wqp_h, wqp_v,&
                                  nfaces, nqp_e, wqp_e )
 
-    answer = (/ 0.95_r_def, 0.15_r_def, -5.833333333333340E-002_r_def, &
-               -1.666666666666665E-002_r_def, -5.833333333333340E-002_r_def, 9.166666666666659E-002_r_def, &
-               -7.5E-002_r_def, -7.5E-002_r_def, 9.166666666666659E-002_r_def /)
-    if ( r_def == real64 ) then
-      use_tol = tol
-      @assertEqual(answer, coeff(1:9), use_tol)
-    else
-      tstv = coeff(1:9)
-      use_tol = 10.0_r_def*spacing( maxval(tstv) )
-      @assertEqual(answer, tstv, use_tol)
-    endif
+    answer = (/ 0.95_r_tran, 0.15_r_tran, -5.833333333333340E-002_r_tran, &
+               -1.666666666666665E-002_r_tran, -5.833333333333340E-002_r_tran, 9.166666666666659E-002_r_tran, &
+               -7.5E-002_r_tran, -7.5E-002_r_tran, 9.166666666666659E-002_r_tran /)
+
+    use_tol = tol
+    @assertEqual(answer, coeff(1:9), use_tol)
 
     ! Check summation over y direction equals known quadratic in x intepolation
     ! weights
-    if ( r_def == real64 ) then
-      use_tol = tol
-      @assertEqual( 2.0_r_def/6.0_r_def, coeff(2)+coeff(6)+coeff(9), use_tol)
-      @assertEqual( 5.0_r_def/6.0_r_def, coeff(1)+coeff(3)+coeff(5), use_tol)
-      @assertEqual( -1.0_r_def/6.0_r_def, coeff(4)+coeff(7)+coeff(8), use_tol)
-    else
-      tst = coeff(2)+coeff(6)+coeff(9)
-      use_tol = 10.0_r_def*spacing(tst)
-      @assertEqual( 2.0_r_def/6.0_r_def, tst, use_tol)
+    use_tol = tol
+    @assertEqual( 2.0_r_tran/6.0_r_tran, coeff(2)+coeff(6)+coeff(9), use_tol)
+    @assertEqual( 5.0_r_tran/6.0_r_tran, coeff(1)+coeff(3)+coeff(5), use_tol)
+    @assertEqual( -1.0_r_tran/6.0_r_tran, coeff(4)+coeff(7)+coeff(8), use_tol)
 
-      tst = coeff(1)+coeff(3)+coeff(5)
-      use_tol = 10.0_r_def*spacing(tst)
-      @assertEqual( 5.0_r_def/6.0_r_def, tst, use_tol)
-
-      tst = coeff(4)+coeff(7)+coeff(8)
-      use_tol = 10.0_r_def*spacing(tst)
-      @assertEqual( -1.0_r_def/6.0_r_def, tst, use_tol)
-    endif
   end subroutine test_all
 
   subroutine tearDown( this )

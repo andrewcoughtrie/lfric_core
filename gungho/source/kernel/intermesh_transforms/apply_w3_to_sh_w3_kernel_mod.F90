@@ -15,7 +15,7 @@ module apply_w3_to_sh_w3_kernel_mod
                                       GH_READ, GH_WRITE,         &
                                       ANY_DISCONTINUOUS_SPACE_3, &
                                       CELL_COLUMN
-  use constants_mod,           only : r_def, i_def
+  use constants_mod,           only : r_def, i_def, r_single, r_double
   use fs_continuity_mod,       only : W3
 
   use kernel_mod,              only : kernel_type
@@ -38,14 +38,19 @@ module apply_w3_to_sh_w3_kernel_mod
          arg_type(GH_FIELD*2, GH_REAL, GH_READ,  W3)                         & ! T_ip1, T_i
          /)
     integer :: operates_on = CELL_COLUMN
-  contains
-    procedure, nopass :: apply_w3_to_sh_w3_code
   end type
 
-!-----------------------------------------------------------------------------
-! Contained functions/subroutines
-!-----------------------------------------------------------------------------
-public :: apply_w3_to_sh_w3_code
+  !-----------------------------------------------------------------------------
+  ! Contained functions/subroutines
+  !-----------------------------------------------------------------------------
+  public :: apply_w3_to_sh_w3_code
+
+  ! Generic interface for real32 and real64 types
+  interface apply_w3_to_sh_w3_code
+    module procedure  &
+      apply_w3_to_sh_w3_code_r_single, &
+      apply_w3_to_sh_w3_code_r_double
+  end interface
 
 contains
 
@@ -62,19 +67,22 @@ contains
 !> @param[in] ndf_w3 Number of degrees of freedom per cell for w3
 !> @param[in] undf_w3 Number of (local) unique degrees of freedom for w3
 !> @param[in] map_w3 Dofmap for the cell at the base of the column for w3
-subroutine apply_w3_to_sh_w3_code(                &
-                                   nlayers_sh,    &
-                                   rhs_w3_sh,     &
-                                   field_w3,      &
-                                   T_ip1,         &
-                                   T_i,           &
-                                   ndf_w3_sh,     &
-                                   undf_w3_sh,    &
-                                   map_w3_sh,     &
-                                   ndf_w3,        &
-                                   undf_w3,       &
-                                   map_w3         &
-                                 )
+
+! R_SINGLE PRECISION
+! ==================
+subroutine apply_w3_to_sh_w3_code_r_single(                &
+                                            nlayers_sh,    &
+                                            rhs_w3_sh,     &
+                                            field_w3,      &
+                                            T_ip1,         &
+                                            T_i,           &
+                                            ndf_w3_sh,     &
+                                            undf_w3_sh,    &
+                                            map_w3_sh,     &
+                                            ndf_w3,        &
+                                            undf_w3,       &
+                                            map_w3         &
+                                            )
 
   implicit none
 
@@ -85,9 +93,9 @@ subroutine apply_w3_to_sh_w3_code(                &
   integer(kind=i_def), dimension(ndf_w3_sh),     intent(in) :: map_w3_sh
   integer(kind=i_def), dimension(ndf_w3),        intent(in) :: map_w3
 
-  real(kind=r_def),    dimension(undf_w3_sh), intent(inout) :: rhs_w3_sh
-  real(kind=r_def),    dimension(undf_w3),       intent(in) :: field_w3
-  real(kind=r_def),    dimension(undf_w3),       intent(in) :: T_ip1, T_i
+  real(kind=r_single),    dimension(undf_w3_sh), intent(inout) :: rhs_w3_sh
+  real(kind=r_single),    dimension(undf_w3),       intent(in) :: field_w3
+  real(kind=r_single),    dimension(undf_w3),       intent(in) :: T_ip1, T_i
 
   ! Internal variables
   integer(kind=i_def) :: k
@@ -106,6 +114,54 @@ subroutine apply_w3_to_sh_w3_code(                &
                                 T_ip1(map_w3(1)+k-1) * field_w3(map_w3(1)+k-1)
   end do
 
-end subroutine apply_w3_to_sh_w3_code
+end subroutine apply_w3_to_sh_w3_code_r_single
+
+! R_DOUBLE PRECISION
+! ==================
+subroutine apply_w3_to_sh_w3_code_r_double(                &
+                                            nlayers_sh,    &
+                                            rhs_w3_sh,     &
+                                            field_w3,      &
+                                            T_ip1,         &
+                                            T_i,           &
+                                            ndf_w3_sh,     &
+                                            undf_w3_sh,    &
+                                            map_w3_sh,     &
+                                            ndf_w3,        &
+                                            undf_w3,       &
+                                            map_w3         &
+                                            )
+
+  implicit none
+
+  ! Arguments
+  integer(kind=i_def),                           intent(in) :: nlayers_sh
+  integer(kind=i_def),                           intent(in) :: ndf_w3_sh, ndf_w3
+  integer(kind=i_def),                           intent(in) :: undf_w3_sh, undf_w3
+  integer(kind=i_def), dimension(ndf_w3_sh),     intent(in) :: map_w3_sh
+  integer(kind=i_def), dimension(ndf_w3),        intent(in) :: map_w3
+
+  real(kind=r_double),    dimension(undf_w3_sh), intent(inout) :: rhs_w3_sh
+  real(kind=r_double),    dimension(undf_w3),       intent(in) :: field_w3
+  real(kind=r_double),    dimension(undf_w3),       intent(in) :: T_ip1, T_i
+
+  ! Internal variables
+  integer(kind=i_def) :: k
+
+  ! Assume lowest order so only a single DoF per cell
+  ! Bottom boundary value
+  rhs_w3_sh(map_w3_sh(1)) = T_i(map_w3(1)) * field_w3(map_w3(1))
+
+  ! Top boundary value
+  rhs_w3_sh(map_w3_sh(1)+nlayers_sh-1) = &
+    T_ip1(map_w3(1)+nlayers_sh-2) * field_w3(map_w3(1)+nlayers_sh-2)
+
+  ! All interior levels
+  do k = 1, nlayers_sh - 2
+    rhs_w3_sh(map_w3_sh(1)+k) = T_i(map_w3(1)+k) * field_w3(map_w3(1)+k) + &
+                                T_ip1(map_w3(1)+k-1) * field_w3(map_w3(1)+k-1)
+  end do
+
+end subroutine apply_w3_to_sh_w3_code_r_double
 
 end module apply_w3_to_sh_w3_kernel_mod

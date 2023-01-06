@@ -9,8 +9,9 @@
 
 module transport_field_mod
 
-  use constants_mod,                    only: r_def
+  use constants_mod,                    only: r_def, r_tran
   use field_mod,                        only: field_type
+  use r_tran_field_mod,                 only: r_tran_field_type
   use log_mod,                          only: log_event, LOG_LEVEL_ERROR
   use ffsl_control_alg_mod,             only: ffsl_conservative_control, &
                                               ffsl_advective_control
@@ -28,31 +29,73 @@ module transport_field_mod
   use mol_conservative_alg_mod,         only: mol_conservative_alg
   use mol_advective_alg_mod,            only: mol_advective_alg
   use mol_consistent_alg_mod,           only: mol_consistent_alg
+  use psykal_lite_mod,                  only: invoke_copy_rtran_to_rdef, &
+                                              invoke_copy_to_rtran
 
   implicit none
 
   private
 
-  public :: transport_field
+  public :: transport_field, transport_field_r_tran
+
 
 contains
 
   !> @brief Central routine for transporting fields.
   !> @details Performs a whole time step, solving the transport equation for
   !!          a (multidata) field.
-  !> @param[in,out] field_np1          Field to return at end of transport step
-  !> @param[in]     field_n            Field at the start of the transport step
-  !> @param[in]     model_dt           Time difference across time step
+  !> @param[in,out] field_np1_rdef     Field to return at end of transport step
+  !> @param[in]     field_n_rdef       Field at the start of the transport step
+  !> @param[in]     model_dt_rdef      Time difference across time step
   !> @param[in]     transport_metadata Contains the configuration options for
   !!                                   transporting these fields
-  subroutine transport_field(field_np1, field_n, model_dt, transport_metadata)
+
+  subroutine transport_field(field_np1_rdef, field_n_rdef, model_dt_rdef, transport_metadata)
 
     implicit none
 
     ! Arguments
-    type(field_type),              intent(inout) :: field_np1
-    type(field_type),              intent(in)    :: field_n
-    real(kind=r_def),              intent(in)    :: model_dt
+    type(field_type),              intent(inout) :: field_np1_rdef
+    type(field_type),              intent(in)    :: field_n_rdef
+    real(kind=r_def),              intent(in)    :: model_dt_rdef
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+
+    ! Local conversions to the r_tran precision
+    type(r_tran_field_type) :: field_np1
+    type(r_tran_field_type) :: field_n
+    real(kind=r_tran)       :: model_dt
+
+
+    if (r_tran == r_def )then
+      ! If the default precision is the same as the transport precision, then
+      ! just call as normal
+      call transport_field_r_tran(field_np1_rdef, field_n_rdef, model_dt_rdef, transport_metadata)
+    else
+      ! If the default precision is NOT the same as the transport precision, then
+      ! transfer r_def input to r_tran fields
+      call field_np1%initialise( vector_space = field_np1_rdef%get_function_space()  )
+      call field_n%initialise( vector_space = field_n_rdef%get_function_space()  )
+      call invoke_copy_to_rtran( field_np1, field_np1_rdef )
+      call invoke_copy_to_rtran( field_n, field_n_rdef )
+      model_dt = real( model_dt_rdef, r_tran )
+
+      call transport_field_r_tran(field_np1, field_n, model_dt, transport_metadata)
+
+      ! Transfer back to r_def output
+      call invoke_copy_rtran_to_rdef( field_np1_rdef, field_np1 )
+    end if
+
+  end subroutine transport_field
+
+
+  subroutine transport_field_r_tran(field_np1, field_n, model_dt, transport_metadata)
+
+    implicit none
+
+    ! Arguments
+    type(r_tran_field_type),              intent(inout) :: field_np1
+    type(r_tran_field_type),              intent(in)    :: field_n
+    real(kind=r_tran),              intent(in)    :: model_dt
     type(transport_metadata_type), intent(in)    :: transport_metadata
     type(transport_runtime_type),  pointer       :: transport_runtime => null()
 
@@ -122,6 +165,6 @@ contains
 
     end select
 
-  end subroutine transport_field
+  end subroutine transport_field_r_tran
 
 end module transport_field_mod

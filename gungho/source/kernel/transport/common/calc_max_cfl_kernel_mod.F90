@@ -19,7 +19,7 @@ use argument_mod,      only : arg_type,          &
                               GH_FIELD, GH_REAL, &
                               GH_WRITE, GH_READ, &
                               CELL_COLUMN
-use constants_mod,     only : r_def, i_def
+use constants_mod,     only : r_tran, i_def
 use fs_continuity_mod, only : W3, W2h, W2v
 use kernel_mod,        only : kernel_type
 
@@ -91,14 +91,14 @@ subroutine calc_max_cfl_code( nlayers,              &
   integer(kind=i_def), dimension(ndf_w2h), intent(in) :: map_w2h
   integer(kind=i_def), dimension(ndf_w2v), intent(in) :: map_w2v
 
-  real(kind=r_def), dimension(undf_w3), intent(inout) :: sum_cfl
-  real(kind=r_def), dimension(undf_w3), intent(inout) :: sum_horizontal_cfl
-  real(kind=r_def), dimension(undf_w2h), intent(in)   :: horizontal_cfl
-  real(kind=r_def), dimension(undf_w2v), intent(in)   :: vertical_cfl
+  real(kind=r_tran), dimension(undf_w3), intent(inout) :: sum_cfl
+  real(kind=r_tran), dimension(undf_w3), intent(inout) :: sum_horizontal_cfl
+  real(kind=r_tran), dimension(undf_w2h), intent(in)   :: horizontal_cfl
+  real(kind=r_tran), dimension(undf_w2v), intent(in)   :: vertical_cfl
 
   ! Internal variables
   integer(kind=i_def) :: k
-  real(kind=r_def)    :: max_cfl_h, max_cfl_v
+  real(kind=r_tran)    :: max_cfl_h, max_cfl_v
 
   ! W2h dof map
   !

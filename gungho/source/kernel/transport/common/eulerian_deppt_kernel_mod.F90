@@ -16,7 +16,7 @@ module eulerian_deppt_kernel_mod
                                 GH_FIELD, GH_REAL,     &
                                 CELL_COLUMN, GH_WRITE, &
                                 GH_READ, GH_SCALAR
-  use constants_mod,     only : r_def, i_def
+  use constants_mod,     only : r_tran, i_def
   use fs_continuity_mod, only : W2
   use kernel_mod,        only : kernel_type
 
@@ -78,10 +78,10 @@ contains
     integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
 
     ! Arguments: Fields
-    real(kind=r_def), dimension(undf_w2), intent(in)    :: wind
-    real(kind=r_def), dimension(undf_w2), intent(inout) :: dep_pts_x
-    real(kind=r_def), dimension(undf_w2), intent(inout) :: dep_pts_y
-    real(kind=r_def), intent(in)                        :: dt
+    real(kind=r_tran), dimension(undf_w2), intent(in)    :: wind
+    real(kind=r_tran), dimension(undf_w2), intent(inout) :: dep_pts_x
+    real(kind=r_tran), dimension(undf_w2), intent(inout) :: dep_pts_y
+    real(kind=r_tran), intent(in)                        :: dt
 
     integer(kind=i_def) :: k
 

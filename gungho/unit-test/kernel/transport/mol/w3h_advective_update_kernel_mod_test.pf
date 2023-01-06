@@ -7,7 +7,7 @@
 module w3h_advective_update_kernel_mod_test
 
   use, intrinsic :: iso_fortran_env, only : real64, real32
-  use constants_mod,                 only : i_def, r_def
+  use constants_mod,                 only : i_def, r_def, r_tran
   use pFUnit_Mod
 
   implicit none
@@ -33,8 +33,8 @@ contains
 
     class(w3h_advective_update_test_type), intent(inout) :: this
 
-    real(kind=r_def) :: tol
-    real(kind=r_def) :: answer
+    real(kind=r_tran) :: tol
+    real(kind=r_tran) :: answer
 
     ! Mesh
     integer(kind=i_def), parameter :: nlayers = 2
@@ -44,7 +44,7 @@ contains
     integer(kind=i_def), parameter                           :: ndf_ws = 1_i_def
     integer(kind=i_def), parameter                           :: undf_ws = ndf_ws*nlayers
     integer(kind=i_def), dimension(ndf_ws)                   :: map_ws
-    real(kind=r_def),    dimension(undf_ws)                  :: advective_update
+    real(kind=r_tran),   dimension(undf_ws)                  :: advective_update
     real(kind=r_def),    dimension(ndf_ws, ndf_ws, ncell_3d) :: m3_inv
     ! Vector Space
     integer(kind=i_def), parameter                         :: ndf_wv  = 4_i_def
@@ -53,7 +53,7 @@ contains
     integer(kind=i_def), dimension(4)                      :: smap_wv_size
     integer(kind=i_def), parameter                         :: smap_wv_max = 2
     integer(kind=i_def), dimension(ndf_wv, smap_wv_max, 4) :: smap_wv
-    real(kind=r_def),    dimension(undf_wv)                :: wind
+    real(kind=r_tran),   dimension(undf_wv)                :: wind
     ! Multidata space
     integer(kind=i_def), parameter                         :: ndf_md  = 1_i_def
     integer(kind=i_def), parameter                         :: undf_md = 4_i_def*ndf_md*nlayers
@@ -61,7 +61,7 @@ contains
     integer(kind=i_def), dimension(4)                      :: smap_md_size
     integer(kind=i_def), parameter                         :: smap_md_max = 2
     integer(kind=i_def), dimension(ndf_md, smap_md_max, 4) :: smap_md
-    real(kind=r_def),    dimension(undf_md)                :: wind_recon
+    real(kind=r_tran),   dimension(undf_md)                :: wind_recon
 
     integer(kind=i_def) :: k, df
 
@@ -74,17 +74,17 @@ contains
 
     ! Set some values for the initial field
     do k = 0, nlayers - 1
-      wind(map_wv(1)+k) = 0.25_r_def + real(k,r_def)
-      wind(map_wv(3)+k) = 0.75_r_def + real(k,r_def)
-      wind(map_wv(2)+k) = -1.25_r_def - real(k,r_def)
-      wind(map_wv(4)+k) =  1.25_r_def + real(k,r_def)
+      wind(map_wv(1)+k) = 0.25_r_tran + real(k,r_tran)
+      wind(map_wv(3)+k) = 0.75_r_tran + real(k,r_tran)
+      wind(map_wv(2)+k) = -1.25_r_tran - real(k,r_tran)
+      wind(map_wv(4)+k) =  1.25_r_tran + real(k,r_tran)
     end do
 
     do k = 0, nlayers-1
-      wind_recon(map_md(1) + k + 0*nlayers) =-19.0_r_def - 3.52_r_def*real(k,r_def)
-      wind_recon(map_md(1) + k + 1*nlayers) =-23.0_r_def + 1.46_r_def*real(k,r_def)
-      wind_recon(map_md(1) + k + 2*nlayers) = 19.0_r_def + 3.52_r_def*real(k,r_def)
-      wind_recon(map_md(1) + k + 3*nlayers) = 0.0_r_def
+      wind_recon(map_md(1) + k + 0*nlayers) =-19.0_r_tran - 3.52_r_tran*real(k,r_tran)
+      wind_recon(map_md(1) + k + 1*nlayers) =-23.0_r_tran + 1.46_r_tran*real(k,r_tran)
+      wind_recon(map_md(1) + k + 2*nlayers) = 19.0_r_tran + 3.52_r_tran*real(k,r_tran)
+      wind_recon(map_md(1) + k + 3*nlayers) = 0.0_r_tran
     end do
 
     ! Set up stencil maps
@@ -99,7 +99,7 @@ contains
     smap_md = map_md(1)
 
     m3_inv(:,:,:) = 0.1_r_def
-    advective_update = 0.0_r_def
+    advective_update = 0.0_r_tran
 
     call w3h_advective_update_code(cell, nlayers,           &
                                    advective_update,        &
@@ -117,17 +117,9 @@ contains
                                    ndf_wv, undf_wv, map_wv  &
                                   )
 
-    select case(r_def)
-    case(real64)
-      tol = 1.0e-9_r_def
-    case(real32)
-      tol = 1.0e-6_r_def
-    case default
-      @assertFail("r_def precision not implemented")
-    end select
-
+    tol = 1.0e-6_r_tran ! precision with 32-bit r_def
     do k = 0,nlayers-1
-      answer = 0.2_r_def*(0.5_r_def + real(k,r_def))*wind_recon(map_md(1)+k+2*nlayers)
+      answer = 0.2_r_tran*(0.5_r_tran + real(k,r_tran))*wind_recon(map_md(1)+k+2*nlayers)
       @assertEqual(answer, advective_update(map_ws(1)+k), tol)
     end do
 

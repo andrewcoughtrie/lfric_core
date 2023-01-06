@@ -10,7 +10,7 @@
 !!        PSyclone and documented in issue 1099.
 module operator_algebra_kernel_mod
 
-use constants_mod, only: r_def, i_def, r_single, r_double, r_solver
+use constants_mod, only: r_def, i_def, r_single, r_double
 use kernel_mod,    only: kernel_type
 use argument_mod,  only: arg_type, func_type,        &
                          GH_OPERATOR, GH_SCALAR,     &

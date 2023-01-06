@@ -24,7 +24,7 @@ use argument_mod,       only : arg_type,          &
                                GH_READ, GH_WRITE, &
                                CELL_COLUMN
 use fs_continuity_mod,  only : W3
-use constants_mod,      only : r_def, i_def, l_def
+use constants_mod,      only : r_tran, i_def, l_def
 use kernel_mod,         only : kernel_type
 
 implicit none
@@ -84,18 +84,18 @@ subroutine vert_ppm_no_limiter_code( nlayers, &
   ! Arguments
   integer(kind=i_def), intent(in)   :: nlayers
   integer(kind=i_def), intent(in)   :: undf_w3
-  real(kind=r_def), intent(inout)   :: a0(undf_w3)
-  real(kind=r_def), intent(inout)   :: a1(undf_w3)
-  real(kind=r_def), intent(inout)   :: a2(undf_w3)
-  real(kind=r_def), intent(in)      :: rho(undf_w3)
-  real(kind=r_def), intent(in)      :: dz(undf_w3)
+  real(kind=r_tran), intent(inout)  :: a0(undf_w3)
+  real(kind=r_tran), intent(inout)  :: a1(undf_w3)
+  real(kind=r_tran), intent(inout)  :: a2(undf_w3)
+  real(kind=r_tran), intent(in)     :: rho(undf_w3)
+  real(kind=r_tran), intent(in)     :: dz(undf_w3)
   integer(kind=i_def), intent(in)   :: ndf_w3
   integer(kind=i_def), intent(in)   :: map_w3(ndf_w3)
 
-  real(kind=r_def)                  :: coeffs(1:3)
-  real(kind=r_def)                  :: rho_local(1:4)
-  real(kind=r_def)                  :: dz_local(1:4)
-  real(kind=r_def)                  :: edge_below(0:nlayers)
+  real(kind=r_tran)                 :: coeffs(1:3)
+  real(kind=r_tran)                 :: rho_local(1:4)
+  real(kind=r_tran)                 :: dz_local(1:4)
+  real(kind=r_tran)                 :: edge_below(0:nlayers)
   integer(kind=i_def)               :: k, ii, edge_to_do
   logical(kind=l_def)               :: positive, monotone
 

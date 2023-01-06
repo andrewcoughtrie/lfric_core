@@ -30,7 +30,7 @@ use argument_mod,      only : arg_type, func_type,         &
                               GH_QUADRATURE_XYoZ,          &
                               GH_QUADRATURE_face
 
-use constants_mod,     only : r_def, i_def, l_def
+use constants_mod,     only : r_def, i_def, l_def, r_tran
 use fs_continuity_mod, only : W3
 use kernel_mod,        only : kernel_type
 
@@ -177,7 +177,7 @@ subroutine poly1d_flux_coeffs_code(one_layer,                  &
 
   real(kind=r_def), dimension(undf_w3),  intent(in)    :: mdw3
   real(kind=r_def), dimension(undf_wx),  intent(in)    :: chi1, chi2, chi3
-  real(kind=r_def), dimension(undf_c),   intent(inout) :: coeff
+  real(kind=r_tran), dimension(undf_c),  intent(inout) :: coeff
   real(kind=r_def), dimension(undf_pid), intent(in)    :: panel_id
 
   real(kind=r_def), dimension(1,ndf_wx,nqp_h,nqp_v),     intent(in) :: basis_wx
@@ -230,8 +230,8 @@ subroutine poly1d_flux_coeffs_code(one_layer,                  &
   ! sensibly once PSyclone issue #1246 enables the global stencil size to be
   ! passed. https://github.com/stfc/PSyclone/issues/1246
   if (stencil_depth*4+1 > stencil_size_w3) then
-    coeff(:) = 0.0_r_def
-    coeff(1) = 1.0_r_def
+    coeff(:) = 0.0_r_tran
+    coeff(1) = 1.0_r_tran
     return
   end if
 
@@ -281,7 +281,7 @@ subroutine poly1d_flux_coeffs_code(one_layer,                  &
 
   ! Initialise polynomial coefficients to zero
   do df = 0, ndata-1
-    coeff(map_c(1) + df) = 0.0_r_def
+    coeff(map_c(1) + df) = 0.0_r_tran
   end do
 
   ! Compute the coefficients of each cell in the stencil for
@@ -372,7 +372,7 @@ subroutine poly1d_flux_coeffs_code(one_layer,                  &
         delta(stencil) = 1.0_r_def
         beta = matmul(inv_int_monomial,delta)
         ijp = (stencil - 1 + (face-1)*(order+1)) + map_c(1)
-        coeff(ijp) = dot_product(monomial,beta)*area(stencil)
+        coeff(ijp) = real(dot_product(monomial,beta)*area(stencil), r_tran)
       end do
     end do face_quadrature_loop
   end do face_loop

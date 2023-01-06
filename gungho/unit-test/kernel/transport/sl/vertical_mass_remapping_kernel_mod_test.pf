@@ -9,7 +9,7 @@
 !>
 module vertical_mass_remapping_kernel_mod_test
 
-  use constants_mod, only : i_def, r_def, l_def
+  use constants_mod, only : i_def, r_def, l_def, r_tran
   use pFUnit_Mod
   use transport_enumerated_types_mod, only : vertical_monotone_none,       &
                                              vertical_monotone_strict,     &
@@ -40,8 +40,8 @@ contains
 
     class(vertical_mass_remapping_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: tol = 1.0e-12_r_def    ! r_def 64bit tolerance
-    real(r_def)            :: use_tol
+    real(r_tran), parameter :: tol = 1.0e-12_r_tran    ! r_tran 64bit tolerance
+    real(r_tran)            :: use_tol
 
     integer(i_def), parameter :: nlayers = 10
     integer(i_def), parameter :: ndf_w2 = 6
@@ -53,15 +53,15 @@ contains
 
     integer(i_def), dimension(ndf_w2) :: map_w2
     integer(i_def), dimension(ndf_w3) :: map_w3
-    real(r_def), dimension(undf_w2)   :: dep_pts_z
-    real(r_def), dimension(undf_w3)   :: mass_in, mass_in2, mass_out
-    real(r_def), dimension(nlayers+1) :: zl, zld
-    real(r_def), dimension(4)         :: cubic_param, cubic_integ
-    real(r_def)     :: disp_const, xl, xr
+    real(r_tran), dimension(undf_w2)   :: dep_pts_z
+    real(r_tran), dimension(undf_w3)   :: mass_in, mass_in2, mass_out
+    real(r_tran), dimension(nlayers+1) :: zl, zld
+    real(r_tran), dimension(4)         :: cubic_param, cubic_integ
+    real(r_tran)     :: disp_const, xl, xr
     integer(i_def)  :: df, i, remap_order
     logical(l_def)  :: enforce_min_value
     integer(i_def)  :: monotone, monotone_order
-    real(r_def)     :: min_value
+    real(r_tran)     :: min_value
 
     ! Create the dof map for any number of layers
     ! Dofs are contiguous in the vertical and so each entry is
@@ -79,18 +79,18 @@ contains
     map_w3(:) = 1
 
     ! Set 6 parameters to define a unique global cubic function f(x)
-     cubic_param(:) = (/1.0_r_def,  2.0_r_def,  3.0_r_def, 4.0_r_def/)
-     cubic_integ(1) = 1.0_r_def/4.0_r_def
-     cubic_integ(2) = 1.0_r_def/3.0_r_def
-     cubic_integ(3) = 1.0_r_def/2.0_r_def
-     cubic_integ(4) = 1.0_r_def
+     cubic_param(:) = (/1.0_r_tran,  2.0_r_tran,  3.0_r_tran, 4.0_r_tran/)
+     cubic_integ(1) = 1.0_r_tran/4.0_r_tran
+     cubic_integ(2) = 1.0_r_tran/3.0_r_tran
+     cubic_integ(3) = 1.0_r_tran/2.0_r_tran
+     cubic_integ(4) = 1.0_r_tran
 
     ! Set the cell boundaries zl and their departures zld
 
     do i = 1, nlayers+1
-       zl(i)  = real(i-1_i_def,r_def)
+       zl(i)  = real(i-1_i_def,r_tran)
     end do
-    disp_const = 0.5_r_def
+    disp_const = 0.5_r_tran
     do i = 2, nlayers
        zld(i) = zl(i) - disp_const
     end do
@@ -121,7 +121,7 @@ contains
     monotone = vertical_monotone_none
     monotone_order = vertical_monotone_order_high
     enforce_min_value = .false.
-    min_value = 0.0_r_def
+    min_value = 0.0_r_tran
     remap_order = slice_order_cubic
     mass_in2(:) = mass_in(:)
 
@@ -136,10 +136,10 @@ contains
                                        ndf_w2, undf_w2, map_w2, &
                                        ndf_w3, undf_w3, map_w3  )
 
-    if ( r_def == real64 ) then
+    if ( r_tran == real64 ) then
        use_tol = tol
     else
-       use_tol = 10.0_r_def*spacing(maxval(mass_in(:)))
+       use_tol = 10.0_r_tran*spacing(maxval(mass_in(:)))
     end if
     do i = 1,nlayers
       @assertEqual(mass_out(i), mass_in(i) , use_tol)
@@ -150,7 +150,7 @@ contains
     monotone = vertical_monotone_strict
     monotone_order = vertical_monotone_order_high
     enforce_min_value = .false.
-    min_value = 0.0_r_def
+    min_value = 0.0_r_tran
     remap_order = slice_order_cubic
 
     call vertical_mass_remapping_code( nlayers,                 &
@@ -164,10 +164,10 @@ contains
                                        ndf_w2, undf_w2, map_w2, &
                                        ndf_w3, undf_w3, map_w3  )
 
-    if ( r_def == real64 ) then
+    if ( r_tran == real64 ) then
        use_tol = tol
     else
-       use_tol = 10.0_r_def*spacing(maxval(mass_in2(:)))
+       use_tol = 10.0_r_tran*spacing(maxval(mass_in2(:)))
     end if
     do i = 1,nlayers
       @assertEqual(mass_out(i), mass_in2(i) , use_tol)

@@ -28,7 +28,7 @@ use argument_mod,                only : arg_type,              &
                                         GH_SCALAR, GH_INTEGER, &
                                         CELL_COLUMN
 use fs_continuity_mod,           only : W2
-use constants_mod,               only : r_def, i_def
+use constants_mod,               only : r_tran, i_def
 use kernel_mod,                  only : kernel_type
 use departure_points_config_mod, only : vertical_limit,          &
                                         vertical_limit_boundary, &
@@ -103,30 +103,30 @@ subroutine vertical_uniform_deppt_code(  nlayers,             &
   integer(kind=i_def),                     intent(in)    :: undf_w2
   integer(kind=i_def),                     intent(in)    :: vertical_method
   integer(kind=i_def), dimension(ndf_w2),  intent(in)    :: map_w2
-  real(kind=r_def),    dimension(undf_w2), intent(in)    :: u_n
-  real(kind=r_def),    dimension(undf_w2), intent(in)    :: u_np1
-  real(kind=r_def),                        intent(in)    :: dt
-  real(kind=r_def),    dimension(undf_w2), intent(inout) :: dep_pts_z
-  real(kind=r_def),    dimension(undf_w2), intent(inout) :: cfl
+  real(kind=r_tran),   dimension(undf_w2), intent(in)    :: u_n
+  real(kind=r_tran),   dimension(undf_w2), intent(in)    :: u_np1
+  real(kind=r_tran),                       intent(in)    :: dt
+  real(kind=r_tran),   dimension(undf_w2), intent(inout) :: dep_pts_z
+  real(kind=r_tran),   dimension(undf_w2), intent(inout) :: cfl
 
   integer(kind=i_def), intent(in) :: n_dep_pt_iterations
 
   integer(kind=i_def) :: k
 
   integer(kind=i_def) :: nCellEdges
-  real(kind=r_def)    :: xArrival
-  real(kind=r_def)    :: u_n_local(1:nlayers+1)
-  real(kind=r_def)    :: u_np1_local(1:nlayers+1)
-  real(kind=r_def)    :: dep_local(1:nlayers-1)
-  real(kind=r_def)    :: cfl_local
+  real(kind=r_tran)    :: xArrival
+  real(kind=r_tran)    :: u_n_local(1:nlayers+1)
+  real(kind=r_tran)    :: u_np1_local(1:nlayers+1)
+  real(kind=r_tran)    :: dep_local(1:nlayers-1)
+  real(kind=r_tran)    :: cfl_local
 
   ! Number of cell edgs
   nCellEdges = nlayers+1
 
   ! Initialise local variables to zero
-  u_n_local    = 0.0_r_def
-  u_np1_local  = 0.0_r_def
-  dep_local    = 0.0_r_def
+  u_n_local    = 0.0_r_tran
+  u_np1_local  = 0.0_r_tran
+  dep_local    = 0.0_r_tran
 
   ! Get local departure_wind
   do k=1,nlayers-1
@@ -134,20 +134,20 @@ subroutine vertical_uniform_deppt_code(  nlayers,             &
     u_np1_local(k+1) = u_np1(map_w2(5)+k)
   end do
   ! Apply vertical boundary conditions
-  u_n_local(1)    = 0.0_r_def
-  u_np1_local(1)  = 0.0_r_def
-  u_n_local(nCellEdges)    = 0.0_r_def
-  u_np1_local(nCellEdges)  = 0.0_r_def
+  u_n_local(1)    = 0.0_r_tran
+  u_np1_local(1)  = 0.0_r_tran
+  u_n_local(nCellEdges)    = 0.0_r_tran
+  u_np1_local(nCellEdges)  = 0.0_r_tran
 
   ! Apply vertical boundary conditions to the departure points.
-  dep_pts_z( map_w2(5) ) =  0.0_r_def
-  dep_pts_z( map_w2(6)+nlayers-1 ) =  0.0_r_def
+  dep_pts_z( map_w2(5) ) =  0.0_r_tran
+  dep_pts_z( map_w2(6)+nlayers-1 ) =  0.0_r_tran
 
   ! Loop over all layers except the bottom layer.
   ! This code is hard-wired to work with 6 W2 dofs per cell where dof=5 is the
   ! vertical dof at the bottom of the cell.
   do k=1,nlayers-1
-    xArrival = real(k,r_def)
+    xArrival = real(k,r_tran)
     call calc_uniform_vertical_dep_cfl( xArrival,             &
                                         nCellEdges,           &
                                         u_n_local,            &
@@ -167,7 +167,7 @@ subroutine vertical_uniform_deppt_code(  nlayers,             &
   end if
 
   do k=1,nlayers-1
-    xArrival = real(k,r_def)
+    xArrival = real(k,r_tran)
     dep_pts_z( map_w2(5) + k ) =  xArrival - dep_local(k)
   end do
 

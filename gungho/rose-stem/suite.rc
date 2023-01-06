@@ -374,6 +374,7 @@
             LFRIC_TARGET_PLATFORM = {{TARGET_OPT}}
             MAKE_THREADS          = 4
             RDEF_PRECISION        = {{precision}}
+            R_TRAN_PRECISION      = {{precision}}
 
         {{ directives(PRIMARY_TARGET, 'build') }}
 {%-       endif %}

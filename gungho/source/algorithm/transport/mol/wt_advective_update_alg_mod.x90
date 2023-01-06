@@ -18,7 +18,7 @@
 !!                      size as an integer argument.
 module wt_advective_update_alg_mod
 
-  use constants_mod,                      only: r_def, i_def, l_def, str_def
+  use constants_mod,                      only: r_def, i_def, l_def, str_def, r_tran
   use extrusion_mod,                      only: TWOD
   use geometric_constants_mod,            only: get_coordinates,                &
                                                 get_panel_id,                   &
@@ -26,6 +26,7 @@ module wt_advective_update_alg_mod
   use fem_constants_mod,                  only: get_mass_matrix_diagonal,       &
                                                 get_inverse_lumped_mass_matrix
   use field_mod,                          only: field_type
+  use r_tran_field_mod,                   only: r_tran_field_type
   use finite_element_config_mod,          only: element_order,          &
                                                 nqp_exact,              &
                                                 coord_system,           &
@@ -72,6 +73,7 @@ module wt_advective_update_alg_mod
   use transport_runtime_collection_mod,   only: get_transport_runtime
   use polyh_wtheta_koren_kernel_mod,      only: polyh_wtheta_koren_kernel_type
   use polyv_wtheta_koren_kernel_mod,      only: polyv_wtheta_koren_kernel_type
+  use psykal_lite_mod,                    only: invoke_copy_to_rtran
   use io_config_mod,                      only: subroutine_timers
   use timer_mod,                          only: timer
 
@@ -86,9 +88,9 @@ module wt_advective_update_alg_mod
   integer(kind=i_def), allocatable, target :: ndata_h_list(:)
   integer(kind=i_def), allocatable, target :: ndata_v_list(:)
   integer(kind=i_def), allocatable, target :: reversible_ndata_v_list(:)
-  type(field_type),    allocatable, target :: adv_coeffs_list(:)
-  type(field_type),    allocatable, target :: vert_adv_coeffs_list(:)
-  type(field_type),    allocatable, target :: reversible_vert_adv_coeffs_list(:)
+  type(r_tran_field_type),    allocatable, target :: adv_coeffs_list(:)
+  type(r_tran_field_type),    allocatable, target :: vert_adv_coeffs_list(:)
+  type(r_tran_field_type),    allocatable, target :: reversible_vert_adv_coeffs_list(:)
 
   public  :: wt_advective_update_set_num_meshes
   public  :: wt_advective_update_alg_init
@@ -177,14 +179,14 @@ contains
     type(quadrature_xyoz_type)             :: qr
     type(quadrature_edge_type)             :: qre
     type(function_space_type),     pointer :: wt_fs => null()
-    type(field_type)                       :: wt_field
+    type(r_tran_field_type)                :: wt_field
     class(reference_element_type), pointer :: reference_element => null()
 
     integer(kind=i_def)                    :: edge_quad_order
     integer(kind=i_def)                    :: nqp_xy, nqp_z, nqp_xyz
     real(kind=r_def)                       :: transform_radius, chi3_max
     type(function_space_type),     pointer :: multidata_fs => null()
-    type(field_type),              pointer :: height => null()
+    type(field_type),              pointer :: height_rdef => null()
     integer(kind=i_def)                    :: vertical_order, nlayers
 
     reference_element => mesh%get_reference_element()
@@ -313,10 +315,10 @@ contains
         ndata_v_list(mesh_index) = ndata_v
         multidata_fs => function_space_collection%get_fs( mesh, element_order, Wtheta, ndata_v )
         call vert_adv_coeffs_list(mesh_index)%initialise( vector_space = multidata_fs, ndata_first = .true. )
-        height => get_height(Wtheta, mesh%get_id())
+        height_rdef => get_height(Wtheta, mesh%get_id())
         call invoke( poly1d_vert_adv_coeffs_kernel_type(                       &
                                             vert_adv_coeffs_list(mesh_index),  &
-                                            height, ndata_v,                   &
+                                            height_rdef, ndata_v,                   &
                                             vertical_order) )
 
         if ( any(reversible) ) then
@@ -327,10 +329,10 @@ contains
           multidata_fs => function_space_collection%get_fs( mesh, element_order, Wtheta, ndata_v )
           call reversible_vert_adv_coeffs_list(mesh_index)%initialise( &
               vector_space = multidata_fs, ndata_first = .true. )
-          height => get_height(Wtheta, mesh%get_id())
+          height_rdef => get_height(Wtheta, mesh%get_id())
           call invoke( poly1d_vert_adv_coeffs_kernel_type(                                  &
                                               reversible_vert_adv_coeffs_list(mesh_index),  &
-                                              height, ndata_v,                              &
+                                              height_rdef, ndata_v,                              &
                                               vertical_order) )
         end if
         !======================================================================!
@@ -343,7 +345,7 @@ contains
     adv_stencil_extent_list(mesh_index) = adv_stencil_extent
     adv_2d_stencil_size_list(mesh_index) = adv_2d_stencil_size
 
-    nullify( chi, panel_id, md_wt, wt_fs, reference_element, height, twod_mesh )
+    nullify( chi, panel_id, md_wt, wt_fs, reference_element, height_rdef, twod_mesh )
 
   end subroutine wt_advective_update_alg_init
 
@@ -374,12 +376,12 @@ contains
 
     implicit none
 
-    type(field_type),              intent(in)    :: field, wind
-    type(field_type),              intent(inout) :: u_grad_f
+    type(r_tran_field_type),       intent(in)    :: field, wind
+    type(r_tran_field_type),       intent(inout) :: u_grad_f
     type(transport_metadata_type), intent(in)    :: transport_metadata
 
-    type(field_type)          :: h_reconstruction
-    type(field_type), pointer :: adv_coeffs => null()
+    type(r_tran_field_type)          :: h_reconstruction
+    type(r_tran_field_type), pointer :: adv_coeffs => null()
 
     type(mesh_type),           pointer :: mesh => null()
     type(function_space_type), pointer :: multidata_fs => null()
@@ -470,8 +472,8 @@ contains
 
     implicit none
 
-    type(field_type),              intent(in)    :: field, wind
-    type(field_type),              intent(inout) :: u_grad_f
+    type(r_tran_field_type),       intent(in)    :: field, wind
+    type(r_tran_field_type),       intent(inout) :: u_grad_f
     type(transport_metadata_type), intent(in)    :: transport_metadata
     logical(kind=l_def),           intent(in)    :: final_rk_stage
 
@@ -479,7 +481,7 @@ contains
     integer(kind=i_def)          :: vertical_order
     integer(kind=i_def), pointer :: ndata_v => null()
     type(mesh_type),     pointer :: mesh => null()
-    type(field_type),    pointer :: vert_adv_coeffs => null()
+    type(r_tran_field_type), pointer :: vert_adv_coeffs => null()
     logical(kind=l_def)          :: logspace
     logical(kind=l_def)          :: reversible
     integer(kind=i_def)          :: monotonicity
@@ -550,22 +552,23 @@ contains
 
     implicit none
 
-    type(field_type),              intent(in)    :: adv_field, wind
-    type(field_type),              intent(inout) :: rhs
+    type(r_tran_field_type),       intent(in)    :: adv_field, wind
+    type(r_tran_field_type),       intent(inout) :: rhs
     integer(kind=i_def),           intent(in)    :: direction
     type(transport_metadata_type), intent(in)    :: transport_metadata
     logical(kind=l_def),           intent(in)    :: final_rk_stage
 
 
-    type(field_type)                       :: u_grad_f
-    type(field_type),              pointer :: wind_v => null()
-    type(field_type),              pointer :: wind_h => null()
+    type(r_tran_field_type)                :: u_grad_f
+    type(r_tran_field_type),       pointer :: wind_v => null()
+    type(r_tran_field_type),       pointer :: wind_h => null()
     type(transport_runtime_type),  pointer :: transport_runtime => null()
     type(field_type), pointer              :: chi(:) => null()
     type(field_type), pointer              :: mt_lumped_inv => null()
-    type(field_type)                       :: consistent_wind
-    type(field_type)                       :: u_grad_z
-    type(field_type), pointer              :: height => null()
+    type(r_tran_field_type)                :: consistent_wind
+    type(r_tran_field_type)                :: u_grad_z
+    type(field_type), pointer              :: height_rdef => null()
+    type(r_tran_field_type)                :: height
     class(reference_element_type), pointer :: reference_element => null()
     type(mesh_type), pointer               :: mesh => null()
     type(quadrature_xyoz_type)             :: qr
@@ -614,7 +617,9 @@ contains
         ! TODO #3325: Make consistent wind belong to transport_runtime thing
         if ( consistent_metric ) then
           ! Consistent wind will be vertical only -- initialise as wind_v
-          height => get_height(Wtheta, mesh%get_id())
+          height_rdef => get_height(Wtheta, mesh%get_id())
+          call height%initialise( vector_space = height_rdef%get_function_space() )
+          call invoke_copy_to_rtran( height, height_rdef )
           chi => get_coordinates(mesh%get_id())
           call u_grad_z%initialise( u_grad_f%get_function_space() )
           call consistent_wind%initialise( wind_v%get_function_space() )
@@ -626,7 +631,7 @@ contains
           ! Then vertical update uses consistent wind
           call vert_wt_update_alg(u_grad_f, consistent_wind, adv_field, &
                                   transport_metadata, final_rk_stage)
-          nullify( height, chi )
+          nullify( height_rdef, chi )
         else
           ! Not using consistent wind, so just do normal vertical update
           call vert_wt_update_alg(u_grad_f, wind_v, adv_field, &
@@ -754,7 +759,7 @@ contains
     implicit none
     integer(kind=i_def), intent(in) :: mesh_id
     integer(kind=i_def)             :: mesh_index
-    type(field_type),       pointer :: adv_coeffs
+    type(r_tran_field_type),pointer :: adv_coeffs
     character(str_def)              :: field_name
 
     mesh_index = find_mesh_index(mesh_id)
@@ -771,7 +776,7 @@ contains
     implicit none
     integer(kind=i_def), intent(in) :: mesh_id
     integer(kind=i_def)             :: mesh_index
-    type(field_type),       pointer :: vert_adv_coeffs
+    type(r_tran_field_type),pointer :: vert_adv_coeffs
     character(str_def)              :: field_name
 
     mesh_index = find_mesh_index(mesh_id)
@@ -788,7 +793,7 @@ contains
     implicit none
     integer(kind=i_def), intent(in) :: mesh_id
     integer(kind=i_def)             :: mesh_index
-    type(field_type),       pointer :: vert_adv_coeffs
+    type(r_tran_field_type),pointer :: vert_adv_coeffs
     character(str_def)              :: field_name
 
     mesh_index = find_mesh_index(mesh_id)

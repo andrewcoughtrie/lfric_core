@@ -8,7 +8,7 @@
 !>
 module consist_w2_to_sh_w2_kernel_mod_test
 
-  use constants_mod,         only: i_def, r_def
+  use constants_mod,         only: i_def, r_double, r_def
   use reference_element_mod, only: E, W, N, S, T, B
   use pFUnit_Mod
 
@@ -62,24 +62,24 @@ contains
 
     class(consist_w2_to_sh_w2_test_type), intent(inout) :: this
 
-    real(kind=r_def), parameter ::  tol = 1.0e-12_r_def
-    real(kind=r_def), parameter ::   dx = 5.0_r_def
-    real(kind=r_def), parameter ::   dy = 4.0_r_def
-    real(kind=r_def), parameter ::   u_W = 7.0_r_def
-    real(kind=r_def), parameter ::   u_E = 11.0_r_def
-    real(kind=r_def), parameter ::   u_N = 3.0_r_def
-    real(kind=r_def), parameter ::   u_S = 4.0_r_def
+    real(kind=r_double), parameter ::  tol = 1.0e-12_r_double
+    real(kind=r_double), parameter ::   dx = 5.0_r_double
+    real(kind=r_double), parameter ::   dy = 4.0_r_double
+    real(kind=r_double), parameter ::   u_W = 7.0_r_double
+    real(kind=r_double), parameter ::   u_E = 11.0_r_double
+    real(kind=r_double), parameter ::   u_N = 3.0_r_double
+    real(kind=r_double), parameter ::   u_S = 4.0_r_double
 
     ! Fields
-    real(kind=r_def), allocatable :: u_sh_field(:)
-    real(kind=r_def), allocatable :: u_field(:)
-    real(kind=r_def), allocatable :: answer(:)
-    real(kind=r_def), allocatable :: rmultiplicity_w2(:)
-    real(kind=r_def), allocatable :: height_wt(:)
-    real(kind=r_def), allocatable :: height_wt_sh(:)
+    real(kind=r_double), allocatable :: u_sh_field(:)
+    real(kind=r_double), allocatable :: u_field(:)
+    real(kind=r_double), allocatable :: answer(:)
+    real(kind=r_def),    allocatable :: rmultiplicity_w2(:)
+    real(kind=r_double), allocatable :: height_wt(:)
+    real(kind=r_double), allocatable :: height_wt_sh(:)
 
     integer(kind=i_def) :: cell, k
-    real(kind=r_def) :: dz
+    real(kind=r_double) :: dz
 
     ! Sizes
     integer(kind=i_def) :: nlayers, nlayers_sh, ncells
@@ -127,17 +127,17 @@ contains
     ! Set up the height fields for the meshes
     ! These are used for the initial conditions but not by the kernel
     ! Let's consider a quadratic extrusion
-    height_wt    = (/ 0.0_r_def, 1.0_r_def, 4.0_r_def, 9.0_r_def /)
-    height_wt_sh = (/ 0.0_r_def, 0.5_r_def, 2.5_r_def, 6.5_r_def, 9.0_r_def /)
+    height_wt    = (/ 0.0_r_double, 1.0_r_double, 4.0_r_double, 9.0_r_double /)
+    height_wt_sh = (/ 0.0_r_double, 0.5_r_double, 2.5_r_double, 6.5_r_double, 9.0_r_double /)
 
     ! Now set up initial field in W2 and the answer in shifted W2
     ! Assume a horizontal velocity that is constant in the vertical direction
     ! Vertical velocity varies linearly
-    u_field(:) = 0.0_r_def
-    answer(:) = 0.0_r_def
+    u_field(:) = 0.0_r_double
+    answer(:) = 0.0_r_double
     ! We only have one column so take multiplicity to be 1.0 for horizontal values
     ! The vertical values are set below
-    rmultiplicity_w2(:) = 1.0_r_def
+    rmultiplicity_w2(:) = 1.0_r_double
 
     do k = 1, nlayers
       dz = height_wt(map_wt(2, cell)+k-1) - height_wt(map_wt(1, cell)+k-1)
@@ -152,7 +152,7 @@ contains
 
     ! Correct rmultiplicity for vertical values
     do k = 1, nlayers - 1
-      rmultiplicity_w2(map_w2(B, cell)+k) = 0.5_r_def
+      rmultiplicity_w2(map_w2(B, cell)+k) = 0.5_r_double
     end do
 
     ! Set up shifted W2 fields (including the answer)
@@ -169,7 +169,7 @@ contains
       height_wt_sh(map_wt_sh(2, cell)+nlayers_sh-1) * dx * dy
 
     ! Perform kernel
-    u_sh_field(:) = 0.0_r_def
+    u_sh_field(:) = 0.0_r_double
 
     call consist_w2_to_sh_w2_code(  nlayers_sh,       &
                                     u_sh_field,       &
@@ -177,10 +177,10 @@ contains
                                     rmultiplicity_w2, &
                                     ndf_w2_sh,        &
                                     undf_w2_sh,       &
-                                    map_w2_sh,        &
+                                    map_w2_sh(:,1),   &
                                     ndf_w2,           &
                                     undf_w2,          &
-                                    map_w2            &
+                                    map_w2(:,1)       &
                                   )
 
     @assertEqual(answer(:), u_sh_field(:), tol)

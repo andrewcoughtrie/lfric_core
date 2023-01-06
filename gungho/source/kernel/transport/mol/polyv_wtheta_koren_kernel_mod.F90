@@ -21,7 +21,7 @@ use argument_mod,         only : arg_type, GH_FIELD,     &
                                  GH_INTEGER, GH_LOGICAL, &
                                  GH_READWRITE,           &
                                  GH_READ, CELL_COLUMN
-use constants_mod,        only : r_def, i_def, l_def, tiny_eps, EPS
+use constants_mod,        only : r_tran, i_def, l_def, tiny_eps, EPS_R_TRAN
 use fs_continuity_mod,    only : W2v, Wtheta
 use kernel_mod,           only : kernel_type
 
@@ -96,17 +96,17 @@ subroutine polyv_wtheta_koren_code( nlayers,              &
   integer(kind=i_def), dimension(ndf_wt),  intent(in) :: map_wt
   integer(kind=i_def), intent(in)                     :: ndata
 
-  real(kind=r_def), dimension(undf_wt),  intent(inout) :: advective
-  real(kind=r_def), dimension(undf_w2v), intent(in)    :: wind
-  real(kind=r_def), dimension(undf_wt),  intent(in)    :: tracer
-  logical(kind=l_def),                   intent(in)    :: reversible
-  logical(kind=l_def),                   intent(in)    :: logspace
+  real(kind=r_tran), dimension(undf_wt),  intent(inout) :: advective
+  real(kind=r_tran), dimension(undf_w2v), intent(in)    :: wind
+  real(kind=r_tran), dimension(undf_wt),  intent(in)    :: tracer
+  logical(kind=l_def),                   intent(in)     :: reversible
+  logical(kind=l_def),                   intent(in)     :: logspace
 
   !Internal variables
-  real(kind=r_def), dimension(nlayers+1)   :: wind_1d, dtracerdz
-  real(kind=r_def), dimension(0:nlayers+2) :: tracer_1d
+  real(kind=r_tran), dimension(nlayers+1)   :: wind_1d, dtracerdz
+  real(kind=r_tran), dimension(0:nlayers+2) :: tracer_1d
   integer(kind=i_def) :: k, k1, k2, k3, km, kp
-  real(kind=r_def)    :: x, y, r, r1, r2, phi, tracer_p, tracer_m
+  real(kind=r_tran)   :: x, y, r, r1, r2, phi, tracer_p, tracer_m
 
   !Extract vertical 1d-arrays from global data
   do k=0,nlayers
@@ -131,18 +131,18 @@ subroutine polyv_wtheta_koren_code( nlayers,              &
   ! If using the logspace option, the tracer is forced to be positive
   if (logspace) then
     do k=0,nlayers+2
-      tracer_1d(k) = log(max(EPS,abs(tracer_1d(k))))
+      tracer_1d(k) = log(max(EPS_R_TRAN,abs(tracer_1d(k))))
     end do
   end if
 
   do k = 2, nlayers
     if ( reversible ) then
-      tracer_m = 0.5_r_def*(tracer_1d(k-1) + tracer_1d(k))
-      tracer_p = 0.5_r_def*(tracer_1d(k)   + tracer_1d(k+1))
+      tracer_m = 0.5_r_tran*(tracer_1d(k-1) + tracer_1d(k))
+      tracer_p = 0.5_r_tran*(tracer_1d(k)   + tracer_1d(k+1))
     else
       ! Cell below
       km = k - 1
-      if ( wind_1d(k) > 0.0_r_def ) then
+      if ( wind_1d(k) > 0.0_r_tran ) then
         ! (k, k-1, k-2)
         k3 = km + 1_i_def
         k2 = km
@@ -156,14 +156,14 @@ subroutine polyv_wtheta_koren_code( nlayers,              &
       x = tracer_1d(k2) - tracer_1d(k1)
       y = tracer_1d(k3) - tracer_1d(k2)
       r = (y + tiny_eps)/(x + tiny_eps)
-      r1 = 2.0_r_def*r
-      r2 = (1.0_r_def + r1)/3.0_r_def
-      phi = max(0.0_r_def, min(r1,r2,2.0_r_def))
-      tracer_m = tracer_1d(k2) + 0.5_r_def*phi*x
+      r1 = 2.0_r_tran*r
+      r2 = (1.0_r_tran + r1)/3.0_r_tran
+      phi = max(0.0_r_tran, min(r1,r2,2.0_r_tran))
+      tracer_m = tracer_1d(k2) + 0.5_r_tran*phi*x
 
       ! Cell above
       kp = k
-      if ( wind_1d(k) > 0.0_r_def ) then
+      if ( wind_1d(k) > 0.0_r_tran ) then
         ! (k+1, k, k-1)
         k3 = kp + 1_i_def
         k2 = kp
@@ -177,10 +177,10 @@ subroutine polyv_wtheta_koren_code( nlayers,              &
       x = tracer_1d(k2) - tracer_1d(k1)
       y = tracer_1d(k3) - tracer_1d(k2)
       r = (y + tiny_eps)/(x + tiny_eps)
-      r1 = 2.0_r_def*r
-      r2 = (1.0_r_def + r1)/3.0_r_def
-      phi = max(0.0_r_def, min(r1,r2,2.0_r_def))
-      tracer_p = tracer_1d(k2) + 0.5_r_def*phi*x
+      r1 = 2.0_r_tran*r
+      r2 = (1.0_r_tran + r1)/3.0_r_tran
+      phi = max(0.0_r_tran, min(r1,r2,2.0_r_tran))
+      tracer_p = tracer_1d(k2) + 0.5_r_tran*phi*x
 
     end if
     if ( logspace ) then

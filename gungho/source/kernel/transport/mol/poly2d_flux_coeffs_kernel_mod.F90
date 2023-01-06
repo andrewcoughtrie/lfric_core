@@ -29,7 +29,7 @@ use argument_mod,      only : arg_type, func_type,          &
                               GH_BASIS, CELL_COLUMN,        &
                               GH_QUADRATURE_XYoZ, GH_QUADRATURE_face
 
-use constants_mod,     only : r_def, i_def, l_def
+use constants_mod,     only : r_def, i_def, l_def, r_tran
 use fs_continuity_mod, only : W3
 use kernel_mod,        only : kernel_type
 
@@ -185,7 +185,7 @@ subroutine poly2d_flux_coeffs_code(one_layer,                  &
 
   real(kind=r_def), dimension(undf_w3),  intent(in)    :: mdw3
   real(kind=r_def), dimension(undf_wx),  intent(in)    :: chi1, chi2, chi3
-  real(kind=r_def), dimension(undf_c),   intent(inout) :: coeff
+  real(kind=r_tran), dimension(undf_c),  intent(inout) :: coeff
   real(kind=r_def), dimension(undf_pid), intent(in)    :: panel_id
 
   real(kind=r_def), dimension(1,ndf_wx,nqp_h,nqp_v),     intent(in) :: basis_wx
@@ -274,7 +274,7 @@ subroutine poly2d_flux_coeffs_code(one_layer,                  &
 
   ! Initialise polynomial coefficients to zero
   do df = 0, ndata-1
-    coeff(map_c(1) + df) = 0.0_r_def
+    coeff(map_c(1) + df) = 0.0_r_tran
   end do
 
   ! Loop over all cells in stencils
@@ -359,7 +359,7 @@ subroutine poly2d_flux_coeffs_code(one_layer,                  &
           end if
         end do
         ijp = (stencil - 1 + (face-1)*stencil_size) + map_c(1)
-        coeff(ijp) = coeff(ijp) + wqp_f(qp,face)*poly*area(stencil)
+        coeff(ijp) = coeff(ijp) + real( wqp_f(qp,face)*poly*area(stencil), r_tran )
       end do
     end do face_quadrature_loop
 

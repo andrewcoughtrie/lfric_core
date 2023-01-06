@@ -16,7 +16,7 @@
 !------------------------------------------------------------------------------
 module cosmic_flux_mod
 
-use constants_mod, only : r_def, i_def
+use constants_mod, only : r_tran, i_def
 
 implicit none
 
@@ -61,9 +61,9 @@ contains
 
     implicit none
 
-    real(kind=r_def), intent(in)     :: x_value
+    real(kind=r_tran), intent(in)     :: x_value
     integer(kind=i_def), intent(out) :: int_x
-    real(kind=r_def), intent(out)    :: frac_x
+    real(kind=r_tran), intent(out)    :: frac_x
 
     frac_x = abs(x_value - int(x_value))
     int_x = abs(int(x_value))+1
@@ -86,17 +86,17 @@ contains
 
     integer(kind=i_def), intent(in)  :: ncells
     integer(kind=i_def), intent(out) :: index_array(ncells)
-    real(kind=r_def), intent(in)     :: departure_dist
+    real(kind=r_tran), intent(in)     :: departure_dist
     integer(kind=i_def), intent(in)  :: edge_option
 
-    real(kind=r_def)    :: frac_distance
+    real(kind=r_tran)    :: frac_distance
     integer(kind=i_def) :: ii
     integer(kind=i_def) :: int_distance
     integer(kind=i_def) :: istep, istart
 
     call frac_and_int_part(departure_dist,int_distance,frac_distance)
 
-    if (departure_dist < 0.0_r_def) then
+    if (departure_dist < 0.0_r_tran) then
       istart = 0
       istep = 1
     else
@@ -125,12 +125,12 @@ contains
 
     implicit none
 
-    real(kind=r_def), intent(in)  :: frac_x
-    real(kind=r_def), intent(out) :: x_left_limit
-    real(kind=r_def), intent(out) :: x_right_limit
+    real(kind=r_tran), intent(in)  :: frac_x
+    real(kind=r_tran), intent(out) :: x_left_limit
+    real(kind=r_tran), intent(out) :: x_right_limit
 
-    x_left_limit = 1.0_r_def-frac_x
-    x_right_limit = 1.0_r_def
+    x_left_limit = 1.0_r_tran-frac_x
+    x_right_limit = 1.0_r_tran
 
   end subroutine calc_integration_limits_positive
 
@@ -149,11 +149,11 @@ contains
 
     implicit none
 
-    real(kind=r_def), intent(in)  :: frac_x
-    real(kind=r_def), intent(out) :: x_left_limit
-    real(kind=r_def), intent(out) :: x_right_limit
+    real(kind=r_tran), intent(in)  :: frac_x
+    real(kind=r_tran), intent(out) :: x_left_limit
+    real(kind=r_tran), intent(out) :: x_right_limit
 
-    x_left_limit = 0.0_r_def
+    x_left_limit = 0.0_r_tran
     x_right_limit = frac_x
 
   end subroutine calc_integration_limits_negative
@@ -199,10 +199,10 @@ contains
     implicit none
 
     integer(kind=i_def), intent(in) :: n_coeffs
-    real(kind=r_def), intent(in)    :: subgrid_coeffs(1:n_coeffs)
-    real(kind=r_def), intent(in)    :: x_left_limit
-    real(kind=r_def), intent(in)    :: x_right_limit
-    real(kind=r_def)                :: part_mass
+    real(kind=r_tran), intent(in)    :: subgrid_coeffs(1:n_coeffs)
+    real(kind=r_tran), intent(in)    :: x_left_limit
+    real(kind=r_tran), intent(in)    :: x_right_limit
+    real(kind=r_tran)                :: part_mass
 
     part_mass = eval_integral(n_coeffs,subgrid_coeffs,x_right_limit) - &
                             eval_integral(n_coeffs,subgrid_coeffs,x_left_limit)
@@ -225,12 +225,12 @@ contains
     implicit none
 
     integer(kind=i_def), intent(in) :: n_coeffs
-    real(kind=r_def), intent(in)    :: subgrid_coeffs(1:n_coeffs)
-    real(kind=r_def), intent(in)    :: xx
-    real(kind=r_def)                :: func_at_xx
+    real(kind=r_tran), intent(in)    :: subgrid_coeffs(1:n_coeffs)
+    real(kind=r_tran), intent(in)    :: xx
+    real(kind=r_tran)                :: func_at_xx
 
-    func_at_xx = subgrid_coeffs(1)*xx + 0.5_r_def*subgrid_coeffs(2)*xx**2 + &
-                                  (1.0_r_def/3.0_r_def)*subgrid_coeffs(3)*xx**3
+    func_at_xx = subgrid_coeffs(1)*xx + 0.5_r_tran*subgrid_coeffs(2)*xx**2 + &
+                                  (1.0_r_tran/3.0_r_tran)*subgrid_coeffs(3)*xx**3
 
   end function eval_integral
 
@@ -383,8 +383,8 @@ contains
     implicit none
 
     integer(kind=i_def) :: orientation
-    real(kind=r_def)    :: w2field(1:4)
-    real(kind=r_def)    :: reorientate_w2field(1:4)
+    real(kind=r_tran)    :: w2field(1:4)
+    real(kind=r_tran)    :: reorientate_w2field(1:4)
 
     integer(kind=i_def) :: local_dof
 
@@ -452,7 +452,7 @@ contains
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: edge
     integer(kind=i_def)             :: local_index(n_cells_to_sum)
-    real(kind=r_def), intent(in)    :: departure_dist
+    real(kind=r_tran), intent(in)    :: departure_dist
 
     integer(kind=i_def) :: jj
 

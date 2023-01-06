@@ -9,7 +9,7 @@
 !>
 module vertical_sl_theta_kernel_mod_test
 
-  use constants_mod, only : i_def, r_def, l_def
+  use constants_mod, only : i_def, r_def, l_def, r_tran
   use pFUnit_Mod
   use transport_enumerated_types_mod, only : vertical_monotone_none,        &
                                              vertical_monotone_strict,      &
@@ -113,8 +113,8 @@ contains
     implicit none
 
     class(vertical_sl_theta_test_type), intent(inout) :: this
-    real(r_def), parameter :: tol = 1.0e-12_r_def
-    real(r_def)            :: use_tol
+    real(r_tran), parameter :: tol = 1.0e-12_r_tran
+    real(r_tran)            :: use_tol
     integer(i_def), parameter :: nlayers = 5
     integer(i_def), parameter :: ndf_w2 = 6
     integer(i_def), parameter :: nfaces_h  = 4
@@ -124,14 +124,14 @@ contains
     integer(i_def), parameter :: undf_wtheta = nlayers + 1
     integer(i_def), dimension(ndf_w2)     :: map_w2
     integer(i_def), dimension(ndf_wtheta) :: map_wtheta
-    real(r_def), dimension(undf_w2)       :: dep_pts_z
-    real(r_def), dimension(undf_wtheta)   :: theta_in, theta_in2, theta_out, z_edges
-    real(r_def), dimension(4) :: cubic_param, cubic_coeff
-    real(r_def)     :: x
+    real(r_tran), dimension(undf_w2)       :: dep_pts_z
+    real(r_tran), dimension(undf_wtheta)   :: theta_in, theta_in2, theta_out, z_edges
+    real(r_tran), dimension(4) :: cubic_param, cubic_coeff
+    real(r_tran)     :: x
     integer(i_def)  :: i, im1, ip1, ip2, df, sl_order
     logical(l_def)  :: enforce_min_value
     integer(i_def)  :: monotone, monotone_order
-    real(r_def)     :: min_value
+    real(r_tran)     :: min_value
     ! Create the dof map for any number of layers
     ! Dofs are contiguous in the vertical and so each entry is
     ! offset by nlayers
@@ -147,17 +147,17 @@ contains
     ! in the wind field
     map_wtheta(:) = (/ 1, 2 /)
     ! Get canned information for the reference cube
-    theta_in(:) = 0.0_r_def
-    cubic_param(:) = (/ -1.0_r_def, 2.0_r_def, 1.0_r_def,  2.0_r_def /)
-    cubic_coeff(:) = (/ -1.0_r_def, 9.0_r_def, 9.0_r_def, -1.0_r_def /)
-    cubic_coeff(:) = cubic_coeff(:)/16_r_def
-    dep_pts_z = -0.5_r_def
+    theta_in(:) = 0.0_r_tran
+    cubic_param(:) = (/ -1.0_r_tran, 2.0_r_tran, 1.0_r_tran,  2.0_r_tran /)
+    cubic_coeff(:) = (/ -1.0_r_tran, 9.0_r_tran, 9.0_r_tran, -1.0_r_tran /)
+    cubic_coeff(:) = cubic_coeff(:)/16_r_tran
+    dep_pts_z = -0.5_r_tran
     ! Set top and bottom departure distance (w=0)
-    dep_pts_z(map_w2(5))= 0.0_r_def
-    dep_pts_z(map_w2(5)+nlayers) = 0.0_r_def
+    dep_pts_z(map_w2(5))= 0.0_r_tran
+    dep_pts_z(map_w2(5)+nlayers) = 0.0_r_tran
 
     do i = 1, nlayers + 1
-      z_edges(i) = real(i-1,r_def)/real(nlayers,r_def)
+      z_edges(i) = real(i-1,r_tran)/real(nlayers,r_tran)
     end do
 
     do i = 1, nlayers + 1
@@ -174,13 +174,13 @@ contains
     end do
     theta_out(1)         = theta_in(1)
     theta_out(nlayers+1) = theta_in(nlayers+1)
-    theta_out(nlayers)   = 0.5_r_def*theta_in(nlayers) +  &
-                           0.5_r_def*theta_in(nlayers+1)
+    theta_out(nlayers)   = 0.5_r_tran*theta_in(nlayers) +  &
+                           0.5_r_tran*theta_in(nlayers+1)
     ! Theta_in gets overwitten by the new values on exit
     monotone = vertical_monotone_none
     monotone_order = vertical_monotone_order_high
     enforce_min_value = .false.
-    min_value = 0.0_r_def
+    min_value = 0.0_r_tran
     theta_in2(:)=theta_in(:)
 
     call vertical_sl_theta_code( nlayers,                             &
@@ -195,10 +195,10 @@ contains
                                  ndf_w2, undf_w2, map_w2,             &
                                  ndf_wtheta, undf_wtheta, map_wtheta  )
 
-    if ( r_def == real64 ) then
+    if ( r_tran == real64 ) then
        use_tol = tol
     else
-       use_tol = 10.0_r_def*spacing(maxval(theta_in(:)))
+       use_tol = 10.0_r_tran*spacing(maxval(theta_in(:)))
     end if
     do i = 1,nlayers + 1
       @assertEqual(theta_out(i), theta_in(i) ,use_tol)
@@ -209,7 +209,7 @@ contains
     monotone = vertical_monotone_strict
     monotone_order = vertical_monotone_order_high
     enforce_min_value = .false.
-    min_value = 0.0_r_def
+    min_value = 0.0_r_tran
 
     call vertical_sl_theta_code( nlayers,                             &
                                  dep_pts_z,                           &
@@ -223,10 +223,10 @@ contains
                                  ndf_w2, undf_w2, map_w2,             &
                                  ndf_wtheta, undf_wtheta, map_wtheta  )
 
-    if ( r_def == real64 ) then
+    if ( r_tran == real64 ) then
        use_tol = tol
     else
-       use_tol = 10.0_r_def*spacing(maxval(theta_in2(:)))
+       use_tol = 10.0_r_tran*spacing(maxval(theta_in2(:)))
     end if
     do i = 1,nlayers + 1
       @assertEqual(theta_out(i), theta_in2(i) ,use_tol)

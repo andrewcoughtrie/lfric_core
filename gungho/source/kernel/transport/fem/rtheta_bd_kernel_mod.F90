@@ -25,7 +25,7 @@ module rtheta_bd_kernel_mod
                                     CELL_COLUMN, adjacent_face,  &
                                     normals_to_horizontal_faces, &
                                     outward_normals_to_horizontal_faces
-  use constants_mod,         only : r_def, i_def, l_def
+  use constants_mod,         only : r_def, i_def, l_def, r_tran
   use cross_product_mod,     only : cross_product
   use fs_continuity_mod,     only : W2, Wtheta
   use kernel_mod,            only : kernel_type
@@ -148,22 +148,22 @@ contains
     real(kind=r_def),    intent(in) :: normals_to_horizontal_faces(:,:)
     real(kind=r_def),    intent(in) :: outward_normals_to_horizontal_faces(:,:)
 
-    real(kind=r_def), dimension(undf_wtheta), intent(inout) :: r_theta_bd
-    real(kind=r_def), dimension(undf_wtheta), intent(in)    :: theta
-    real(kind=r_def), dimension(undf_w2),     intent(in)    :: u
+    real(kind=r_tran), dimension(undf_wtheta), intent(inout) :: r_theta_bd
+    real(kind=r_tran), dimension(undf_wtheta), intent(in)    :: theta
+    real(kind=r_tran), dimension(undf_w2),     intent(in)    :: u
 
     ! Internal variables
     integer(kind=i_def) :: df, k, face, face_next
     integer(kind=i_def) :: qp
     integer(kind=i_def) :: i_face
 
-    real(kind=r_def), dimension(ndf_wtheta) :: theta_e, theta_next_e
-    real(kind=r_def), dimension(ndf_wtheta) :: rtheta_bd_e
-    real(kind=r_def), dimension(ndf_w2)     :: u_e, u_next_e
+    real(kind=r_tran), dimension(ndf_wtheta) :: theta_e, theta_next_e
+    real(kind=r_tran), dimension(ndf_wtheta) :: rtheta_bd_e
+    real(kind=r_tran), dimension(ndf_w2)     :: u_e, u_next_e
 
-    real(kind=r_def) :: u_at_uquad(3), u_next_at_uquad(3), face_next_inward_normal(3)
-    real(kind=r_def) :: theta_at_uquad, theta_next_at_uquad
-    real(kind=r_def) :: bdary_term, gamma_wtheta, sign_face_next_outward, flux_term
+    real(kind=r_tran) :: u_at_uquad(3), u_next_at_uquad(3), face_next_inward_normal(3)
+    real(kind=r_tran) :: theta_at_uquad, theta_next_at_uquad
+    real(kind=r_tran) :: bdary_term, gamma_wtheta, sign_face_next_outward, flux_term
 
     logical(kind=l_def) :: upwind = .false.
 
@@ -172,15 +172,15 @@ contains
     do k = 0, nlayers-1
 
       do df = 1, ndf_wtheta
-        rtheta_bd_e(df) = 0.0_r_def
+        rtheta_bd_e(df) = 0.0_r_tran
       end do
 
       do face = 1, nfaces_re_h
 
         ! Storing opposite face number on neighbouring cell
         face_next = adjacent_face(face)
-        i_face = int(floor(real(mod(face_next, nfaces_re_h),r_def)/2.0_r_def) + 1.0_r_def)
-        sign_face_next_outward = (-1.0_r_def)**i_face
+        i_face = int(floor(real(mod(face_next, nfaces_re_h),r_tran)/2.0_r_tran) + 1.0_r_tran)
+        sign_face_next_outward = (-1.0_r_tran)**i_face
         face_next_inward_normal(:) = -sign_face_next_outward &
                                      * normals_to_horizontal_faces(:,face_next)
 
@@ -198,51 +198,51 @@ contains
 
         ! Compute the boundary RHS integrated over one cell
         do qp = 1, nqp_f
-          theta_at_uquad = 0.0_r_def
-          theta_next_at_uquad = 0.0_r_def
+          theta_at_uquad = 0.0_r_tran
+          theta_next_at_uquad = 0.0_r_tran
 
           do df = 1, ndf_wtheta
             theta_at_uquad       = theta_at_uquad +      &
-                                   theta_e(df)*wtheta_basis_face(1,df,qp,face)
+                                   theta_e(df)*real(wtheta_basis_face(1,df,qp,face), r_tran)
             theta_next_at_uquad  = theta_next_at_uquad + &
-                                   theta_next_e(df)*wtheta_basis_face(1,df,qp,face_next)
+                                   theta_next_e(df)*real(wtheta_basis_face(1,df,qp,face_next), r_tran)
           end do
 
-          u_at_uquad(:) = 0.0_r_def
-          u_next_at_uquad(:) = 0.0_r_def
+          u_at_uquad(:) = 0.0_r_tran
+          u_next_at_uquad(:) = 0.0_r_tran
 
           do df = 1, ndf_w2
-            u_at_uquad(:)       = u_at_uquad(:)      + u_e(df)     *w2_basis_face(:,df,qp,face)
-            u_next_at_uquad(:)  = u_next_at_uquad(:) + u_next_e(df)*w2_basis_face(:,df,qp,face_next)
+            u_at_uquad(:)       = u_at_uquad(:)      + u_e(df)     *real(w2_basis_face(:,df,qp,face), r_tran)
+            u_next_at_uquad(:)  = u_next_at_uquad(:) + u_next_e(df)*real(w2_basis_face(:,df,qp,face_next), r_tran)
           end do
 
-          flux_term = 0.5_r_def * (theta_next_at_uquad *                  &
+          flux_term = 0.5_r_tran * (theta_next_at_uquad *                  &
                                    dot_product(u_next_at_uquad,           &
-                                               face_next_inward_normal) + &
+                                               real(face_next_inward_normal, r_tran)) + &
                                    theta_at_uquad      *                  &
                                    dot_product(u_at_uquad,                &
-                                       outward_normals_to_horizontal_faces(:, face)))
+                                       real(outward_normals_to_horizontal_faces(:, face), r_tran)))
 
           if (upwind) then
-            flux_term = flux_term + 0.5_r_def *                                     &
+            flux_term = flux_term + 0.5_r_tran *                                    &
                             abs(dot_product(                                        &
                                    u_at_uquad,                                      &
-                                   outward_normals_to_horizontal_faces(:, face))) * &
+                                   real(outward_normals_to_horizontal_faces(:, face), r_tran))) * &
                                (dot_product(                                        &
                                    theta_at_uquad *                                 &
-                                   outward_normals_to_horizontal_faces(:, face),    &
-                                   outward_normals_to_horizontal_faces(:, face)) -  &
+                                   real(outward_normals_to_horizontal_faces(:, face), r_tran),    &
+                                   real(outward_normals_to_horizontal_faces(:, face), r_tran)) -  &
                                 dot_product(                                        &
                                    theta_next_at_uquad *                            &
-                                   face_next_inward_normal,                         &
-                                   face_next_inward_normal))
+                                   real(face_next_inward_normal, r_tran),                         &
+                                   real(face_next_inward_normal, r_tran)))
           end if
 
           do df = 1, ndf_wtheta
-            gamma_wtheta  = wtheta_basis_face(1,df,qp,face)
+            gamma_wtheta  = real(wtheta_basis_face(1,df,qp,face), r_tran)
 
             bdary_term = gamma_wtheta * flux_term
-            rtheta_bd_e(df) = rtheta_bd_e(df) +  wqp_f(qp,face) * bdary_term
+            rtheta_bd_e(df) = rtheta_bd_e(df) +  real(wqp_f(qp,face), r_tran) * bdary_term
           end do
 
         end do ! qp

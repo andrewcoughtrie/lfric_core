@@ -24,6 +24,7 @@ module reconstruct_w3_field_alg_mod
   use geometric_constants_mod,        only: get_coordinates,          &
                                             get_panel_id
   use fem_constants_mod,              only: get_mass_matrix_diagonal
+  use r_tran_field_mod,               only: r_tran_field_type
   use field_mod,                      only: field_type
   use finite_element_config_mod,      only: element_order,          &
                                             coord_system,           &
@@ -69,6 +70,8 @@ module reconstruct_w3_field_alg_mod
   use transport_metadata_mod,         only: transport_metadata_type
   use polyv_w3_koren_kernel_mod,      only: polyv_w3_koren_kernel_type
   use polyh_w3_koren_kernel_mod,      only: polyh_w3_koren_kernel_type
+  use psykal_lite_mod,               only: invoke_copy_to_rtran
+
   use io_config_mod,                  only: subroutine_timers
   use timer_mod,                      only: timer
   implicit none
@@ -82,9 +85,9 @@ module reconstruct_w3_field_alg_mod
   integer(kind=i_def), allocatable, target :: ndata_h_list(:)
   integer(kind=i_def), allocatable, target :: ndata_v_list(:)
   integer(kind=i_def), allocatable, target :: reversible_ndata_v_list(:)
-  type(field_type),    allocatable, target :: flux_coeffs_list(:)
-  type(field_type),    allocatable, target :: vert_flux_coeffs_list(:)
-  type(field_type),    allocatable, target :: reversible_vert_flux_coeffs_list(:)
+  type(r_tran_field_type),    allocatable, target :: flux_coeffs_list(:)
+  type(r_tran_field_type),    allocatable, target :: vert_flux_coeffs_list(:)
+  type(r_tran_field_type),    allocatable, target :: reversible_vert_flux_coeffs_list(:)
   public :: reconstruct_w3_field_alg_set_num_meshes
   public :: reconstruct_w3_field_alg_init
   public :: reconstruct_w3_field_alg_final
@@ -376,14 +379,14 @@ contains
 
     implicit none
 
-    type(field_type),              intent(in)    :: field_old
-    type(field_type),              intent(inout) :: field_new
+    type(r_tran_field_type),       intent(in)    :: field_old
+    type(r_tran_field_type),       intent(inout) :: field_new
     integer(kind=i_def),           intent(in)    :: direction
     type(transport_metadata_type), intent(in)    :: transport_metadata
     logical(kind=l_def),           intent(in)    :: final_rk_stage
 
     type(mesh_type),              pointer :: mesh => null()
-    type(field_type)                      :: field_new_h, field_new_v
+    type(r_tran_field_type)               :: field_new_h, field_new_v
     type(function_space_type),    pointer :: w3md_v_fs => null()
     type(function_space_type),    pointer :: w3md_h_fs => null()
 
@@ -438,8 +441,8 @@ contains
 
     implicit none
 
-    type(field_type),              intent(inout) :: field_new
-    type(field_type),              intent(in)    :: field_old
+    type(r_tran_field_type),       intent(inout) :: field_new
+    type(r_tran_field_type),       intent(in)    :: field_old
     type(transport_metadata_type), intent(in)    :: transport_metadata
 
     type(mesh_type),     pointer :: mesh => null()
@@ -449,7 +452,7 @@ contains
     integer(kind=i_def), pointer :: flux_stencil_extent => null()
     integer(kind=i_def), pointer :: flux_2d_stencil_size => null()
     integer(kind=i_def), pointer :: ndata_h => null()
-    type(field_type),    pointer :: flux_coeffs => null()
+    type(r_tran_field_type),    pointer :: flux_coeffs => null()
 
     if ( subroutine_timers ) call timer('W3 horizontal recon')
 
@@ -507,15 +510,15 @@ contains
 
     implicit none
 
-    type(field_type),              intent(inout) :: field_new
-    type(field_type),              intent(in)    :: field_old
+    type(r_tran_field_type),       intent(inout) :: field_new
+    type(r_tran_field_type),       intent(in)    :: field_old
     type(transport_metadata_type), intent(in)    :: transport_metadata
     logical(kind=l_def),           intent(in)    :: final_rk_stage
 
     type(mesh_type),     pointer :: mesh => null()
     integer(kind=i_def)          :: mesh_index
     integer(kind=i_def), pointer :: ndata_v => null()
-    type(field_type),    pointer :: vert_flux_coeffs => null()
+    type(r_tran_field_type),    pointer :: vert_flux_coeffs => null()
     integer(kind=i_def)          :: vertical_order
     logical(kind=l_def)          :: logspace
     logical(kind=l_def)          :: reversible
@@ -647,7 +650,7 @@ contains
     implicit none
     integer(kind=i_def), intent(in) :: mesh_id
     integer(kind=i_def)             :: mesh_index
-    type(field_type),       pointer :: flux_coeffs
+    type(r_tran_field_type),pointer :: flux_coeffs
     character(str_def)              :: field_name
 
     mesh_index = find_mesh_index(mesh_id)
@@ -664,7 +667,7 @@ contains
     implicit none
     integer(kind=i_def), intent(in) :: mesh_id
     integer(kind=i_def)             :: mesh_index
-    type(field_type),       pointer :: vert_flux_coeffs
+    type(r_tran_field_type),pointer :: vert_flux_coeffs
     character(str_def)              :: field_name
 
     mesh_index = find_mesh_index(mesh_id)
@@ -680,7 +683,7 @@ contains
     implicit none
     integer(kind=i_def), intent(in) :: mesh_id
     integer(kind=i_def)             :: mesh_index
-    type(field_type),       pointer :: vert_flux_coeffs
+    type(r_tran_field_type),pointer :: vert_flux_coeffs
     character(str_def)              :: field_name
 
     mesh_index = find_mesh_index(mesh_id)

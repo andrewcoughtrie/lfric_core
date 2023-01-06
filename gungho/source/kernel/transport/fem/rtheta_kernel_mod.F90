@@ -20,7 +20,7 @@ use argument_mod,            only : arg_type, func_type,     &
                                     GH_READ, GH_READWRITE,   &
                                     GH_BASIS, GH_DIFF_BASIS, &
                                     CELL_COLUMN, GH_QUADRATURE_XYoZ
-use constants_mod,           only : r_def, i_def
+use constants_mod,           only : r_def, i_def, r_tran
 use fs_continuity_mod,       only : W2, Wtheta
 use kernel_mod,              only : kernel_type
 
@@ -100,9 +100,9 @@ subroutine rtheta_code(nlayers,                             &
   real(kind=r_def), dimension(3,ndf_w2,nqp_h,nqp_v), intent(in) :: w2_basis
   real(kind=r_def), dimension(1,ndf_w2,nqp_h,nqp_v), intent(in) :: w2_diff_basis
 
-  real(kind=r_def), dimension(undf_wtheta), intent(inout) :: r_theta
-  real(kind=r_def), dimension(undf_wtheta), intent(in)    :: theta
-  real(kind=r_def), dimension(undf_w2),     intent(in)    :: u
+  real(kind=r_tran), dimension(undf_wtheta), intent(inout) :: r_theta
+  real(kind=r_tran), dimension(undf_wtheta), intent(in)    :: theta
+  real(kind=r_tran), dimension(undf_w2),     intent(in)    :: u
 
   real(kind=r_def), dimension(nqp_h), intent(in)      ::  wqp_h
   real(kind=r_def), dimension(nqp_v), intent(in)      ::  wqp_v
@@ -111,16 +111,16 @@ subroutine rtheta_code(nlayers,                             &
   integer(kind=i_def)               :: df, k
   integer(kind=i_def)               :: qp1, qp2
 
-  real(kind=r_def), dimension(ndf_wtheta)      :: rtheta_e, theta_e
-  real(kind=r_def), dimension(ndf_w2)          :: u_e
-  real(kind=r_def) :: u_at_quad(3)
-  real(kind=r_def) :: theta_at_quad, div_u_at_quad
-  real(kind=r_def) :: gamma_wtheta, grad_gamma_wtheta(3)
+  real(kind=r_tran), dimension(ndf_wtheta)      :: rtheta_e, theta_e
+  real(kind=r_tran), dimension(ndf_w2)          :: u_e
+  real(kind=r_tran) :: u_at_quad(3)
+  real(kind=r_tran) :: theta_at_quad, div_u_at_quad
+  real(kind=r_tran) :: gamma_wtheta, grad_gamma_wtheta(3)
 
   do k = 0, nlayers-1
   ! Extract element arrays of chi
     do df = 1, ndf_wtheta
-      rtheta_e(df) = 0.0_r_def
+      rtheta_e(df) = 0.0_r_tran
       theta_e(df)  = theta(  map_wtheta(df) + k )
     end do
     do df = 1, ndf_w2
@@ -130,26 +130,27 @@ subroutine rtheta_code(nlayers,                             &
   ! Compute the RHS integrated over one cell
     do qp2 = 1, nqp_v
       do qp1 = 1, nqp_h
-        u_at_quad(:) = 0.0_r_def
+        u_at_quad(:) = 0.0_r_tran
         do df = 1, ndf_w2
-          u_at_quad(:)  = u_at_quad(:)  + u_e(df)*w2_basis(:,df,qp1,qp2)
+          u_at_quad(:)  = u_at_quad(:)  + u_e(df)*real( w2_basis(:,df,qp1,qp2), r_tran )
         end do
 
-        div_u_at_quad = 0.0_r_def
+        div_u_at_quad = 0.0_r_tran
         do df = 1, ndf_w2
-          div_u_at_quad    = div_u_at_quad + u_e(df)*w2_diff_basis(1,df,qp1,qp2)
+          div_u_at_quad    = div_u_at_quad + u_e(df)*real( w2_diff_basis(1,df,qp1,qp2), r_tran )
         end do
 
-        theta_at_quad = 0.0_r_def
+        theta_at_quad = 0.0_r_tran
         do df = 1, ndf_wtheta
-          theta_at_quad   = theta_at_quad + theta_e(df)*wtheta_basis(1,df,qp1,qp2)
+          theta_at_quad   = theta_at_quad + theta_e(df)*real( wtheta_basis(1,df,qp1,qp2), r_tran )
         end do
 
         do df = 1, ndf_wtheta
-          gamma_wtheta         = wtheta_basis(1, df, qp1, qp2)
-          grad_gamma_wtheta(:) = wtheta_diff_basis(:, df, qp1, qp2)
-          rtheta_e(df)         = rtheta_e(df) + wqp_h(qp1)*wqp_v(qp2) * theta_at_quad * &
-                                   ( gamma_wtheta * div_u_at_quad + &
+          gamma_wtheta         = real( wtheta_basis(1, df, qp1, qp2), r_tran )
+          grad_gamma_wtheta(:) = real( wtheta_diff_basis(:, df, qp1, qp2), r_tran )
+          rtheta_e(df)         = rtheta_e(df) + real(wqp_h(qp1)*wqp_v(qp2), r_tran ) &
+                                    * theta_at_quad * &
+                                    ( gamma_wtheta * div_u_at_quad + &
                                       dot_product(u_at_quad, grad_gamma_wtheta) )
         end do
       end do

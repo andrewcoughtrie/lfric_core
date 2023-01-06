@@ -7,7 +7,7 @@
 
 module eulerian_deppt_kernel_mod_test
 
-  use constants_mod, only : i_def, r_def
+  use constants_mod, only : i_def, r_def, r_tran
   use pFUnit_Mod
 
   implicit none
@@ -35,29 +35,29 @@ contains
 
     class(eulerian_deppt_test_type), intent(inout) :: this
 
-    real(kind=r_def), parameter :: tol = 1.0e-12_r_def   ! r_def 64bit
-    real(kind=r_def) :: answer, use_tol
+    real(kind=r_tran), parameter :: tol = 1.0e-12_r_tran   ! r_tran 64bit
+    real(kind=r_tran) :: answer, use_tol
 
     integer(kind=i_def), parameter :: nlayers = 1
     integer(kind=i_def), parameter :: ndf_w2 = 4
     integer(kind=i_def), parameter :: undf_w2 = ndf_w2*nlayers
 
     integer(kind=i_def), dimension(ndf_w2) :: map_w2
-    real(kind=r_def), dimension(undf_w2)   :: dep_pts_x
-    real(kind=r_def), dimension(undf_w2)   :: dep_pts_y
-    real(kind=r_def), dimension(undf_w2)   :: wind
-    real(kind=r_def)                       :: dt
+    real(kind=r_tran), dimension(undf_w2)   :: dep_pts_x
+    real(kind=r_tran), dimension(undf_w2)   :: dep_pts_y
+    real(kind=r_tran), dimension(undf_w2)   :: wind
+    real(kind=r_tran)                       :: dt
 
     ! Set up map
     map_w2(:) = (/ 1, 2, 3, 4 /)
 
     ! Initialise output to zero
-    dep_pts_x(:) = 0.0_r_def
-    dep_pts_y(:) = 0.0_r_def
+    dep_pts_x(:) = 0.0_r_tran
+    dep_pts_y(:) = 0.0_r_tran
 
     ! Test with integer wind
-    wind(:) = 1.0_r_def
-    dt = 1.0_r_def
+    wind(:) = 1.0_r_tran
+    dt = 1.0_r_tran
     call eulerian_deppt_code( nlayers,   &
                               dep_pts_x, &
                               dep_pts_y, &
@@ -67,27 +67,27 @@ contains
                               undf_w2,   &
                               map_w2 )
     ! Get correct tolerance
-    if ( r_def == real64 ) then
+    if ( r_tran == real64 ) then
       use_tol = tol
     else
-      use_tol = 10.0_r_def*spacing( maxval( dep_pts_x(1:4) ) )
+      use_tol = 10.0_r_tran*spacing( maxval( dep_pts_x(1:4) ) )
     end if
-    answer = 1.0_r_def
+    answer = 1.0_r_tran
     @assertEqual(answer, dep_pts_x(1), use_tol)
     @assertEqual(answer, dep_pts_x(3), use_tol)
-    answer = -1.0_r_def
+    answer = -1.0_r_tran
     @assertEqual(answer, dep_pts_y(2), use_tol)
     @assertEqual(answer, dep_pts_y(4), use_tol)
     ! Check other dofs are still zero
-    answer = 0.0_r_def
+    answer = 0.0_r_tran
     @assertEqual(answer, dep_pts_x(2), use_tol)
     @assertEqual(answer, dep_pts_x(4), use_tol)
     @assertEqual(answer, dep_pts_y(1), use_tol)
     @assertEqual(answer, dep_pts_y(3), use_tol)
 
     ! Test with different winds
-    wind = (/ 0.1_r_def, -0.1_r_def, -0.3_r_def,  0.4_r_def /)
-    dt = 0.8_r_def
+    wind = (/ 0.1_r_tran, -0.1_r_tran, -0.3_r_tran,  0.4_r_tran /)
+    dt = 0.8_r_tran
     call eulerian_deppt_code( nlayers,   &
                               dep_pts_x, &
                               dep_pts_y, &
@@ -96,13 +96,13 @@ contains
                               ndf_w2,    &
                               undf_w2,   &
                               map_w2 )
-    answer = 0.08_r_def
+    answer = 0.08_r_tran
     @assertEqual(answer, dep_pts_x(1), use_tol)
-    answer = -0.24_r_def
+    answer = -0.24_r_tran
     @assertEqual(answer, dep_pts_x(3), use_tol)
-    answer = 0.08_r_def
+    answer = 0.08_r_tran
     @assertEqual(answer, dep_pts_y(2), use_tol)
-    answer = -0.32_r_def
+    answer = -0.32_r_tran
     @assertEqual(answer, dep_pts_y(4), use_tol)
 
   end subroutine test_all

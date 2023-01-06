@@ -23,7 +23,7 @@ use argument_mod,      only : arg_type,                  &
                               ANY_DISCONTINUOUS_SPACE_1, &
                               ANY_W2, &
                               CELL_COLUMN
-use constants_mod,     only : r_def, i_def, l_def
+use constants_mod,     only : r_def, i_def, l_def, r_tran
 use fs_continuity_mod, only : W3
 use kernel_mod,        only : kernel_type
 
@@ -119,16 +119,16 @@ subroutine w3h_advective_update_code( cell,                 &
   integer(kind=i_def), dimension(4),                    intent(in) :: smap_w2_size
   integer(kind=i_def), dimension(ndf_w2,smap_w2_max,4), intent(in) :: smap_w2
 
-  real(kind=r_def), dimension(undf_w3), intent(inout) :: advective_increment
-  real(kind=r_def), dimension(undf_w2), intent(in)    :: wind
-  real(kind=r_def), dimension(undf_md), intent(in)    :: tracer
+  real(kind=r_tran), dimension(undf_w3), intent(inout) :: advective_increment
+  real(kind=r_tran), dimension(undf_w2), intent(in)    :: wind
+  real(kind=r_tran), dimension(undf_md), intent(in)    :: tracer
 
   real(kind=r_def), dimension(ndf_w3, ndf_w3, ncell_3d), intent(in) :: m3_inv
 
   ! Internal variables
   integer(kind=i_def) :: k, ik, face, df, df1, df2
-  real(kind=r_def)    :: u, v, dtdx, dtdy
-  real(kind=r_def)    :: t_E, t_W, t_N, t_S
+  real(kind=r_tran)    :: u, v, dtdx, dtdy
+  real(kind=r_tran)    :: t_E, t_W, t_N, t_S
 
   integer(kind=i_def), parameter         :: nfaces = 4
   integer(kind=i_def), dimension(nfaces) :: opposite
@@ -167,10 +167,10 @@ subroutine w3h_advective_update_code( cell,                 &
   do k = 0, nlayers - 1
 
     ! u * dt/dx
-    u =  0.5_r_def*( wind(map_w2(1) + k) + wind(map_w2(3) + k) )
+    u =  0.5_r_tran*( wind(map_w2(1) + k) + wind(map_w2(3) + k) )
 
     face = 1
-    if ( u > 0.0_r_def .and. .not. missing_neighbour(face) ) then
+    if ( u > 0.0_r_tran .and. .not. missing_neighbour(face) ) then
       ! t_W from neighbouring column (if it exists)
       t_W = tracer( smap_md(1,2,face) + (opposite(face)-1)*nlayers + k )
     else
@@ -179,7 +179,7 @@ subroutine w3h_advective_update_code( cell,                 &
     end if
 
     face = 3
-    if ( u <= 0.0_r_def .and. .not. missing_neighbour(face) ) then
+    if ( u <= 0.0_r_tran .and. .not. missing_neighbour(face) ) then
       ! t_E from neighbouring column (if it exists)
       t_E = tracer( smap_md(1,2,face) + (opposite(face)-1)*nlayers + k )
     else
@@ -190,10 +190,10 @@ subroutine w3h_advective_update_code( cell,                 &
     dtdx = t_E - t_W
 
     ! v*dt/dy
-    v = -0.5_r_def*( wind(map_w2(2) + k) + wind(map_w2(4) + k) )
+    v = -0.5_r_tran*( wind(map_w2(2) + k) + wind(map_w2(4) + k) )
 
     face = 2
-    if ( v > 0.0_r_def .and. .not. missing_neighbour(face) ) then
+    if ( v > 0.0_r_tran .and. .not. missing_neighbour(face) ) then
       ! t_S from neighbouring column (if it exists)
       t_S = tracer( smap_md(1,2,face) + (opposite(face)-1)*nlayers + k )
     else
@@ -202,7 +202,7 @@ subroutine w3h_advective_update_code( cell,                 &
     end if
 
     face = 4
-    if ( v <= 0.0_r_def .and. .not. missing_neighbour(face) ) then
+    if ( v <= 0.0_r_tran .and. .not. missing_neighbour(face) ) then
       ! t_N from neighbouring column (if it exists)
       face = 4
       t_N = tracer( smap_md(1,2,face) + (opposite(face)-1)*nlayers + k )
@@ -215,7 +215,7 @@ subroutine w3h_advective_update_code( cell,                 &
 
     ik = 1 + k + (cell-1)*nlayers
     advective_increment(map_w3(1)+k) = advective_increment(map_w3(1)+k) &
-                                     + m3_inv(1,1,ik)*(u*dtdx + v*dtdy)
+                                     + real( m3_inv(1,1,ik), r_tran )*(u*dtdx + v*dtdy)
   end do
 
 end subroutine w3h_advective_update_code

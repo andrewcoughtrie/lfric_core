@@ -25,7 +25,7 @@ module ffsl_flux_final_x_kernel_mod
                                  GH_READ, GH_SCALAR,       &
                                  STENCIL, X1D, GH_INTEGER, &
                                  ANY_DISCONTINUOUS_SPACE_1
-  use constants_mod,      only : r_def, i_def
+  use constants_mod,      only : r_tran, i_def, r_def
   use fs_continuity_mod,  only : W3, W2
   use kernel_mod,         only : kernel_type
 
@@ -146,32 +146,32 @@ contains
     integer(kind=i_def), dimension(ndf_wp,stencil_size_p), intent(in) :: stencil_map_p
 
     ! Arguments: Fields
-    real(kind=r_def), dimension(undf_w2), intent(inout) :: flux
-    real(kind=r_def), dimension(undf_w3), intent(in)    :: field_x
-    real(kind=r_def), dimension(undf_w3), intent(in)    :: field_y
-    real(kind=r_def), dimension(undf_wp), intent(in)    :: panel_id
-    real(kind=r_def), dimension(undf_w2), intent(in)    :: dep_pts
-    integer(kind=i_def), intent(in)                     :: order
-    integer(kind=i_def), intent(in)                     :: extent_size
-    real(kind=r_def), intent(in)                        :: dt
+    real(kind=r_tran), dimension(undf_w2), intent(inout) :: flux
+    real(kind=r_tran), dimension(undf_w3), intent(in)    :: field_x
+    real(kind=r_tran), dimension(undf_w3), intent(in)    :: field_y
+    real(kind=r_def), dimension(undf_wp), intent(in)     :: panel_id
+    real(kind=r_tran), dimension(undf_w2), intent(in)    :: dep_pts
+    integer(kind=i_def), intent(in)                      :: order
+    integer(kind=i_def), intent(in)                      :: extent_size
+    real(kind=r_tran), intent(in)                        :: dt
 
     ! Variables for flux calculation
-    real(kind=r_def) :: mass_total
-    real(kind=r_def) :: departure_dist
-    real(kind=r_def) :: fractional_distance
-    real(kind=r_def) :: mass_frac
-    real(kind=r_def) :: mass_from_whole_cells
-    real(kind=r_def) :: left_integration_limit
-    real(kind=r_def) :: right_integration_limit
+    real(kind=r_tran) :: mass_total
+    real(kind=r_tran) :: departure_dist
+    real(kind=r_tran) :: fractional_distance
+    real(kind=r_tran) :: mass_frac
+    real(kind=r_tran) :: mass_from_whole_cells
+    real(kind=r_tran) :: left_integration_limit
+    real(kind=r_tran) :: right_integration_limit
 
     ! Local fields
-    real(kind=r_def)    :: field_local(1:stencil_size_y)
-    real(kind=r_def)    :: field_x_local(1:stencil_size_x)
-    real(kind=r_def)    :: field_y_local(1:stencil_size_y)
+    real(kind=r_tran)   :: field_local(1:stencil_size_y)
+    real(kind=r_tran)   :: field_x_local(1:stencil_size_x)
+    real(kind=r_tran)   :: field_y_local(1:stencil_size_y)
     integer(kind=i_def) :: ipanel_local(1:stencil_size_p)
 
     ! PPM coefficients
-    real(kind=r_def)    :: coeffs(1:3)
+    real(kind=r_tran)   :: coeffs(1:3)
 
     ! DOFs
     integer(kind=i_def) :: local_dofs(1:2)
@@ -204,7 +204,7 @@ contains
       ! At edge of LAM, so set output to zero
       do k = 0,nlayers-1
         do dof_iterator = 1,2
-         flux( map_w2(local_dofs(dof_iterator)) + k ) = 0.0_r_def
+         flux( map_w2(local_dofs(dof_iterator)) + k ) = 0.0_r_tran
         end do
       end do
 
@@ -220,8 +220,8 @@ contains
         ipanel_local(jj) = int(panel_id(stencil_map_p(1,jj)), i_def)
       end do
       ! Initialise field_local to zero
-      field_local(1:stencil_size) = 0.0_r_def
-      coeffs(1:3) = 0.0_r_def
+      field_local(1:stencil_size) = 0.0_r_tran
+      coeffs(1:3) = 0.0_r_tran
 
       ! Loop over the x direction dofs to compute flux at each dof
       do dof_iterator = 1,2
@@ -232,10 +232,10 @@ contains
         ! fluxes have already been computed and don't need to be computed again. To save
         ! time we only check 2 fluxes - the lowest level and the half domain level.
 
-        half_level = floor( nlayers/2.0_r_def, i_def)
+        half_level = floor( nlayers/2.0_r_tran, i_def)
 
-        if ( flux(map_w2(local_dofs(dof_iterator)) ) == 0.0_r_def .AND. &
-             flux(map_w2(local_dofs(dof_iterator)) + half_level) == 0.0_r_def ) then
+        if ( flux(map_w2(local_dofs(dof_iterator)) ) == 0.0_r_tran .AND. &
+             flux(map_w2(local_dofs(dof_iterator)) + half_level) == 0.0_r_tran ) then
 
           ! Loop over vertical levels
           do k = 0,nlayers-1
@@ -258,8 +258,8 @@ contains
             call get_local_rho_y(field_local,field_x_local,field_y_local,ipanel_local,stencil_size,stencil_half)
 
             ! Get a0, a1, a2 in the required cell and build up whole cell part
-            mass_from_whole_cells = 0.0_r_def
-            if (departure_dist >= 0.0_r_def ) then
+            mass_from_whole_cells = 0.0_r_tran
+            if (departure_dist >= 0.0_r_tran ) then
               call get_index_positive(ind_lo,ind_hi,n_cells_to_sum,dof_iterator,stencil_size,stencil_half)
               do ii = 1, n_cells_to_sum-1
                 mass_from_whole_cells = mass_from_whole_cells + field_local(stencil_half - (2-dof_iterator) - (ii-1) )
@@ -293,7 +293,7 @@ contains
             mass_total = mass_from_whole_cells + mass_frac
 
             ! Assign to flux variable and divide by dt to get the correct form
-            flux(map_w2(local_dofs(dof_iterator)) + k) =  sign(1.0_r_def,departure_dist) * mass_total / dt
+            flux(map_w2(local_dofs(dof_iterator)) + k) =  sign(1.0_r_tran,departure_dist) * mass_total / dt
 
           end do ! vertical levels k
 

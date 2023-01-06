@@ -10,12 +10,14 @@
 
 module vertical_sl_conservative_alg_mod
 
-  use constants_mod,                      only: r_def, i_def, l_def
+  use constants_mod,                      only: r_tran, i_def, l_def
   use finite_element_config_mod,          only: element_order
   use geometric_constants_mod,            only: get_height
   use io_config_mod,                      only: subroutine_timers
   use timer_mod,                          only: timer
   use field_mod,                          only: field_type
+  use r_tran_operator_mod,                only: r_tran_operator_type
+  use r_tran_field_mod,                   only: r_tran_field_type
   use transport_config_mod,               only: slice_order,          &
                                                 slice_order_linear,   &
                                                 slice_order_parabola, &
@@ -32,9 +34,8 @@ module vertical_sl_conservative_alg_mod
   use vertical_mass_remapping_kernel_mod, only: vertical_mass_remapping_kernel_type
   use vertical_sl_rho_kernel_mod,         only: vertical_sl_rho_kernel_type
   use dg_matrix_vector_kernel_mod,        only: dg_matrix_vector_kernel_type
-  use fem_constants_mod,                  only: get_mass_matrix, &
-                                                get_inverse_w3_mass_matrix
-  use operator_mod,                       only: operator_type
+  use fem_constants_mod,                  only: get_mass_matrix_r_tran, &
+                                                get_inverse_w3_mass_matrix_r_tran
   use fs_continuity_mod,                  only: W2, W3, Wtheta
   use function_space_mod,                 only: function_space_type
   use function_space_collection_mod,      only: function_space_collection
@@ -44,6 +45,8 @@ module vertical_sl_conservative_alg_mod
                                                 vertical_monotone_order_constant, &
                                                 vertical_monotone_order_linear,   &
                                                 vertical_monotone_order_high
+  use psykal_lite_mod,                    only: invoke_dg_matrix_vector_rtran, &
+                                                invoke_copy_to_rtran
 
   implicit none
 
@@ -63,28 +66,29 @@ contains
 
     implicit none
 
-    type(field_type),              intent(inout) :: field_np1
-    type(field_type),              intent(in)    :: field_n
-    real(kind=r_def),              intent(in)    :: dt
+    type(r_tran_field_type),       intent(inout) :: field_np1
+    type(r_tran_field_type),       intent(in)    :: field_n
+    real(kind=r_tran),             intent(in)    :: dt
     type(transport_metadata_type), intent(in)    :: transport_metadata
 
-    integer(kind=i_def)          :: step, mesh_id
-    type(field_type)             :: mass
-    type(field_type)             :: dep_pts_z
-    type(field_type)             :: flux
-    type(field_type)             :: flux_inc
-    type(operator_type), pointer :: mm_w3_inv => null()
-    type(operator_type), pointer :: mm_w3 => null()
-    type(field_type),    pointer :: dep_pts_z_get => null()
-    type(field_type),    pointer :: height => null()
-    type(field_type),    pointer :: field_start => null()
-    type(field_type),    pointer :: old_flux_inc => null()
-    type(mesh_type),     pointer :: mesh => null()
+    integer(kind=i_def)                 :: step, mesh_id
+    type(r_tran_field_type)             :: mass
+    type(r_tran_field_type)             :: dep_pts_z
+    type(r_tran_field_type)             :: flux
+    type(r_tran_field_type)             :: flux_inc
+    type(r_tran_operator_type), pointer :: mm_w3_inv => null()
+    type(r_tran_operator_type), pointer :: mm_w3 => null()
+    type(r_tran_field_type),    pointer :: dep_pts_z_get => null()
+    type(field_type),           pointer :: height_rdef => null()
+    type(r_tran_field_type)             :: height
+    type(r_tran_field_type),    pointer :: field_start => null()
+    type(r_tran_field_type),    pointer :: old_flux_inc => null()
+    type(mesh_type),            pointer :: mesh => null()
     type(function_space_type),    pointer :: w2_fs => null()
     type(transport_runtime_type), pointer :: transport_runtime => null()
     integer(kind=i_def)  :: monotone, monotone_order
     logical(l_def)       :: enforce_min_value
-    real(kind=r_def)     :: min_value
+    real(kind=r_tran)    :: min_value
 
     if ( subroutine_timers ) call timer( 'vertical_sl_conservative_alg' )
 
@@ -124,7 +128,7 @@ contains
 
     ! If Strang splitting divide departure distance by 2
     if ( transport_metadata%get_splitting() ==  splitting_strang_vhv ) then
-      call invoke( inc_a_times_X(0.5_r_def, dep_pts_z) )
+      call invoke( inc_a_times_X(0.5_r_tran, dep_pts_z) )
     end if
 
     ! Compute conservative SL transport (vertical only) of
@@ -132,14 +136,15 @@ contains
     call invoke( setval_X( field_np1, field_n ) )
 
     call mass%initialise( vector_space = field_n%get_function_space() )
-    mm_w3 => get_mass_matrix(W3, field_n%get_mesh_id())
-    mm_w3_inv => get_inverse_w3_mass_matrix(field_n%get_mesh_id())
+    mm_w3 => get_mass_matrix_r_tran(W3, field_n%get_mesh_id())
+    mm_w3_inv => get_inverse_w3_mass_matrix_r_tran(field_n%get_mesh_id())
 
-    call invoke( dg_matrix_vector_kernel_type(mass, field_np1, mm_w3),               &
-                 vertical_mass_remapping_kernel_type(dep_pts_z, mass, slice_order,   &
+    call invoke_dg_matrix_vector_rtran(mass, field_np1, mm_w3)
+    call invoke( name="vertical remap",  &
+       vertical_mass_remapping_kernel_type(dep_pts_z, mass, slice_order,   &
                                                       monotone, monotone_order,      &
-                                                      enforce_min_value, min_value), &
-                 dg_matrix_vector_kernel_type(field_np1, mass, mm_w3_inv ) )
+                                                      enforce_min_value, min_value) )
+    call invoke_dg_matrix_vector_rtran(field_np1, mass, mm_w3_inv )
 
     if (advective_then_flux) then
       ! Calculate increment from this split step
@@ -148,7 +153,9 @@ contains
       if (transport_runtime%get_tracer_step_ctr() /=  &
           transport_runtime%get_num_dry_steps()) then
         ! Not the last split step. Redo in advective form
-        height => get_height( Wtheta, mesh%get_id() )
+        height_rdef => get_height( Wtheta, mesh%get_id() )
+        call height%initialise( vector_space = height_rdef%get_function_space() )
+        call invoke_copy_to_rtran( height, height_rdef )
         call invoke( setval_X(field_np1, field_n),                                   &
                      vertical_sl_rho_kernel_type( dep_pts_z, field_np1, height,      &
                                                   vertical_sl_order, monotone,       &
@@ -180,7 +187,7 @@ contains
 
     call transport_runtime%inc_tracer_step_ctr()
 
-    nullify( mm_w3, mm_w3_inv, dep_pts_z_get, mesh, transport_runtime, height )
+    nullify( mm_w3, mm_w3_inv, dep_pts_z_get, mesh, transport_runtime, height_rdef )
 
     if ( subroutine_timers ) call timer( 'vertical_sl_conservative_alg' )
 

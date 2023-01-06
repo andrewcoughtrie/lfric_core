@@ -7,12 +7,13 @@
 
 module moist_mr_transport_alg_mod
 
-  use constants_mod,                  only: i_def, r_def
+  use constants_mod,                  only: i_def, r_def, r_tran
   use enforce_lower_bound_kernel_mod, only: enforce_lower_bound_kernel_type
   use extrusion_mod,                  only: SHIFTED, DOUBLE_LEVEL
   use fem_constants_mod,              only: get_inverse_lumped_mass_matrix, &
                                             get_mass_matrix_diagonal
   use field_mod,                      only: field_type
+  use r_tran_field_mod,               only: r_tran_field_type
   use fs_continuity_mod,              only: W2, W3
   use function_space_mod,             only: function_space_type
   use function_space_collection_mod,  only: function_space_collection
@@ -27,7 +28,7 @@ module moist_mr_transport_alg_mod
   use transport_enumerated_types_mod, only: equation_form_advective,    &
                                             equation_form_conservative, &
                                             equation_form_consistent
-  use transport_field_mod,            only: transport_field
+  use transport_field_mod,            only: transport_field_r_tran, transport_field
   use transport_metadata_mod,         only: transport_metadata_type
   use transport_runtime_alg_mod,      only: transport_runtime_type
   use transport_runtime_collection_mod,   &
@@ -37,6 +38,8 @@ module moist_mr_transport_alg_mod
                                       only: proj_mr_to_sh_rho_rhs_update_kernel_type
   use tri_solve_sh_rho_to_mr_kernel_mod, &
                                       only: tri_solve_sh_rho_to_mr_kernel_type
+  use psykal_lite_mod,                only: invoke_copy_rtran_to_rdef, &
+                                            invoke_copy_to_rtran
 
   implicit none
 
@@ -58,29 +61,32 @@ contains
   !> @param[in]     model_dt           Model timestep
   !> @param[in]     transport_metadata Contains the configuration options for
   !!                                   transporting these fields
-  subroutine moist_mr_transport_alg(mr_out, mr_in, nummr_to_transport, &
-                                    model_dt, transport_metadata)
+  subroutine moist_mr_transport_alg(mr_out_rdef, mr_in_rdef, nummr_to_transport, &
+                                    model_dt_rdef, transport_metadata)
 
     implicit none
 
     ! Arguments
-    type(field_type),              intent(inout) :: mr_out(nummr)
-    type(field_type),              intent(in)    :: mr_in(nummr)
+    type(field_type),              intent(inout) :: mr_out_rdef(nummr)
+    type(field_type),              intent(in)    :: mr_in_rdef(nummr)
     integer(kind=i_def),           intent(in)    :: nummr_to_transport
-    real(kind=r_def),              intent(in)    :: model_dt
+    real(kind=r_def),              intent(in)    :: model_dt_rdef
     type(transport_metadata_type), intent(in)    :: transport_metadata
 
     ! Internal variables
     integer(kind=i_def)                :: i, imr
     integer(kind=i_def)                :: num_dry_steps
-    type(field_type)                   :: matrix_mr_to_sh_rho_n(3)
-    type(field_type)                   :: matrix_mr_to_sh_rho_star(3)
-    type(field_type)                   :: rho_X_n(nummr), rho_X_star(nummr)
-    type(field_type),          pointer :: rho_d_n => null()
-    type(field_type),          pointer :: rho_d_star => null()
-    type(field_type),          pointer :: mm_w3_shifted_inv_diag => null()
-    type(field_type),          pointer :: mm_w3_shifted_diag => null()
-    type(field_type),          pointer :: proj_mr_to_sh_rho_rhs_op(:) => null()
+    type(r_tran_field_type)            :: matrix_mr_to_sh_rho_n(3)
+    type(r_tran_field_type)            :: matrix_mr_to_sh_rho_star(3)
+    type(r_tran_field_type)            :: rho_X_n(nummr), rho_X_star(nummr)
+    type(r_tran_field_type),   pointer :: rho_d_n => null()
+    type(r_tran_field_type),   pointer :: rho_d_star => null()
+    type(field_type),          pointer :: mm_w3_shifted_inv_diag_rdef => null()
+    type(field_type),          pointer :: mm_w3_shifted_diag_rdef => null()
+    type(r_tran_field_type)            :: mm_w3_shifted_inv_diag
+    type(r_tran_field_type)            :: mm_w3_shifted_diag
+    type(field_type),          pointer :: proj_mr_to_sh_rho_rhs_op_rdef(:) => null()
+    type(r_tran_field_type)            :: proj_mr_to_sh_rho_rhs_op(4)
     type(function_space_type), pointer :: w3_shifted_fs => null()
     type(function_space_type), pointer :: w2_shifted_fs => null()
     type(mesh_type),           pointer :: primary_mesh => null()
@@ -88,6 +94,10 @@ contains
     type(mesh_type),           pointer :: double_level_mesh => null()
     type(transport_runtime_type), pointer :: transport_runtime => null()
 
+    ! Local conversions to the r_tran precision
+    type(r_tran_field_type) :: mr_out(nummr)
+    type(r_tran_field_type) :: mr_in(nummr)
+    real(kind=r_tran)       :: model_dt
 
     if ( subroutine_timers ) call timer('moist mixing ratio transport')
 
@@ -103,7 +113,7 @@ contains
       ! Consistent: Transformation to densities and evaluation of fluxes is in
       !             lowest level algorithms, so just call transport_field
       do imr = 1, nummr_to_transport
-        call transport_field(mr_out(imr), mr_in(imr), model_dt, transport_metadata)
+        call transport_field(mr_out_rdef(imr), mr_in_rdef(imr), model_dt_rdef, transport_metadata)
       end do
 
     ! ------------------------------------------------------------------------ !
@@ -111,15 +121,37 @@ contains
     ! ------------------------------------------------------------------------ !
     case ( equation_form_conservative )
 
+      ! Transfer r_def input to r_tran fields - no need to copy those that are not transported
+      do imr = 1, nummr_to_transport
+        call mr_out(imr)%initialise( vector_space = mr_out_rdef(imr)%get_function_space()  )
+        call mr_in(imr)%initialise( vector_space = mr_in_rdef(imr)%get_function_space()  )
+        call invoke_copy_to_rtran( mr_out(imr), mr_out_rdef(imr) )
+        call invoke_copy_to_rtran( mr_in(imr), mr_in_rdef(imr) )
+      end do
+      model_dt = real( model_dt_rdef, r_tran )
+
       primary_mesh => mr_in(1)%get_mesh()
       shifted_mesh => mesh_collection%get_mesh(primary_mesh, SHIFTED)
       double_level_mesh => mesh_collection%get_mesh(primary_mesh, DOUBLE_LEVEL)
 
-      proj_mr_to_sh_rho_rhs_op => get_proj_mr_to_sh_rho_rhs_op()
-      mm_w3_shifted_inv_diag => get_inverse_lumped_mass_matrix(W3, shifted_mesh%get_id())
-      mm_w3_shifted_diag => get_mass_matrix_diagonal(W3, shifted_mesh%get_id())
+      proj_mr_to_sh_rho_rhs_op_rdef => get_proj_mr_to_sh_rho_rhs_op()
+      mm_w3_shifted_inv_diag_rdef => get_inverse_lumped_mass_matrix(W3, shifted_mesh%get_id())
+      mm_w3_shifted_diag_rdef => get_mass_matrix_diagonal(W3, shifted_mesh%get_id())
       w3_shifted_fs => function_space_collection%get_fs(shifted_mesh, 0_i_def, W3)
       w2_shifted_fs => function_space_collection%get_fs(shifted_mesh, 0_i_def, W2)
+
+      ! get r_tran operators
+      do i = 1, 4
+        call proj_mr_to_sh_rho_rhs_op(i)%initialise( vector_space = &
+                                           proj_mr_to_sh_rho_rhs_op_rdef(i)%get_function_space() )
+        call invoke_copy_to_rtran( proj_mr_to_sh_rho_rhs_op(i), proj_mr_to_sh_rho_rhs_op_rdef(i) )
+      end do
+      call mm_w3_shifted_inv_diag%initialise( vector_space = &
+                                           mm_w3_shifted_inv_diag_rdef%get_function_space() )
+      call invoke_copy_to_rtran( mm_w3_shifted_inv_diag, mm_w3_shifted_inv_diag_rdef )
+      call mm_w3_shifted_diag%initialise( vector_space = &
+                                           mm_w3_shifted_diag_rdef%get_function_space() )
+      call invoke_copy_to_rtran( mm_w3_shifted_diag, mm_w3_shifted_diag_rdef )
 
       ! Get transport runtime
       transport_runtime => get_transport_runtime(primary_mesh)
@@ -171,8 +203,8 @@ contains
         ! Actually transport densities
         ! -------------------------------------------------------------------- !
 
-        call transport_field(rho_X_star(imr), rho_X_n(imr), model_dt, &
-                             transport_metadata)
+        call transport_field_r_tran(rho_X_star(imr), rho_X_n(imr), model_dt, &
+                                   transport_metadata)
 
         ! -------------------------------------------------------------------- !
         ! Return from densities on shifted mesh to mixing ratios in Wtheta
@@ -186,11 +218,17 @@ contains
                                               rho_X_star(imr),          &
                                               matrix_mr_to_sh_rho_star) )
 
+        ! ------------------------------------------------------------------------ !
+        ! Copy transported fields back to r_def
+        ! ------------------------------------------------------------------------ !
+        call invoke_copy_rtran_to_rdef( mr_out_rdef(imr), mr_out(imr) )
+
       end do
 
-      nullify( rho_d_n, rho_d_star, proj_mr_to_sh_rho_rhs_op, &
-               transport_runtime, mm_w3_shifted_diag,        &
-               mm_w3_shifted_inv_diag, w3_shifted_fs, w2_shifted_fs, &
+
+      nullify( rho_d_n, rho_d_star, proj_mr_to_sh_rho_rhs_op_rdef, &
+               transport_runtime, mm_w3_shifted_diag_rdef,        &
+               mm_w3_shifted_inv_diag_rdef, w3_shifted_fs, w2_shifted_fs, &
                primary_mesh, shifted_mesh, double_level_mesh )
 
     ! ------------------------------------------------------------------------ !
@@ -207,7 +245,7 @@ contains
     ! ------------------------------------------------------------------------ !
 
     do imr = nummr_to_transport + 1, nummr
-      call mr_in(imr)%copy_field(mr_out(imr))
+      call mr_in_rdef(imr)%copy_field(mr_out_rdef(imr))
     end do
 
     ! ------------------------------------------------------------------------ !
@@ -215,7 +253,7 @@ contains
     ! ------------------------------------------------------------------------ !
 
     do imr = 1, nummr
-      call invoke( enforce_lower_bound_kernel_type(mr_out(imr), 0.0_r_def) )
+      call invoke( enforce_lower_bound_kernel_type(mr_out_rdef(imr), 0.0_r_def) )
     end do
 
     if ( subroutine_timers ) call timer('moist mixing ratio transport')

@@ -9,7 +9,7 @@
 !------------------------------------------------------------------------------
 module departure_points_mod
 
-use constants_mod, only : r_def, i_def
+use constants_mod, only : r_tran, i_def
 use log_mod,       only : log_event, LOG_LEVEL_ERROR, log_scratch_space
 use departure_points_config_mod, only : method_euler,                &
                                         method_midpoint,             &
@@ -68,30 +68,30 @@ contains
 
     implicit none
 
-    real(kind=r_def), intent(in)    :: x_arrival
-    integer(kind=i_def), intent(in) :: nCellEdges
-    real(kind=r_def), intent(in)    :: u_n(1:nCellEdges)
-    real(kind=r_def), intent(in)    :: u_np1(1:nCellEdges)
-    real(kind=r_def), intent(in)    :: deltaT
-    integer(kind=i_def), intent(in) :: method
-    integer(kind=i_def), intent(in) :: n_dep_pt_iterations
-    real(kind=r_def)                :: distance
+    real(kind=r_tran), intent(in)    :: x_arrival
+    integer(kind=i_def), intent(in)  :: nCellEdges
+    real(kind=r_tran), intent(in)    :: u_n(1:nCellEdges)
+    real(kind=r_tran), intent(in)    :: u_np1(1:nCellEdges)
+    real(kind=r_tran), intent(in)    :: deltaT
+    integer(kind=i_def), intent(in)  :: method
+    integer(kind=i_def), intent(in)  :: n_dep_pt_iterations
+    real(kind=r_tran)                :: distance
 
-    real(kind=r_def) :: u_arrival
-    real(kind=r_def) :: u_at_midpoint
-    real(kind=r_def) :: u_departure
-    real(kind=r_def) :: x_at_mid_point
-    real(kind=r_def) :: left_limit
-    real(kind=r_def) :: right_limit
-    real(kind=r_def) :: x_departure
-    real(kind=r_def) :: u_arrival_np
+    real(kind=r_tran) :: u_arrival
+    real(kind=r_tran) :: u_at_midpoint
+    real(kind=r_tran) :: u_departure
+    real(kind=r_tran) :: x_at_mid_point
+    real(kind=r_tran) :: left_limit
+    real(kind=r_tran) :: right_limit
+    real(kind=r_tran) :: x_departure
+    real(kind=r_tran) :: u_arrival_np
 
     integer(kind=i_def) :: iLoop
 
     x_departure = x_arrival
 
-    left_limit = real(-nCellEdges/2_i_def + 1_i_def, r_def)
-    right_limit = real(nCellEdges/2_i_def, r_def)
+    left_limit = real(-nCellEdges/2_i_def + 1_i_def, r_tran)
+    right_limit = real(nCellEdges/2_i_def, r_tran)
     call test_value_in_limits(x_arrival,left_limit,right_limit)
 
     select case (method)
@@ -110,7 +110,7 @@ contains
 
       do iLoop=1,n_dep_pt_iterations
         u_departure = calc_u_at_x(x_departure,nCellEdges,u_n)
-        x_departure = x_arrival - deltaT*0.5_r_def*(u_arrival+u_departure)
+        x_departure = x_arrival - deltaT*0.5_r_tran*(u_arrival+u_departure)
         call test_value_in_limits(x_departure,left_limit,right_limit)
       end do
 
@@ -121,7 +121,7 @@ contains
       call test_value_in_limits(x_departure,left_limit,right_limit)
 
       do iLoop=1,n_dep_pt_iterations
-        x_at_mid_point = 0.5_r_def*(x_departure+x_arrival)
+        x_at_mid_point = 0.5_r_tran*(x_departure+x_arrival)
         u_at_midpoint = calc_u_at_x(x_at_mid_point,nCellEdges,u_n)
         x_departure = x_arrival - deltaT*u_at_midpoint
         call test_value_in_limits(x_departure,left_limit,right_limit)
@@ -131,7 +131,7 @@ contains
 
       u_arrival = calc_u_at_x(x_arrival,nCellEdges,u_n)
       u_arrival_np = calc_u_at_x(x_arrival,nCellEdges,u_np1)
-      x_departure = x_arrival - deltaT*0.5_r_def*(u_arrival+u_arrival_np)
+      x_departure = x_arrival - deltaT*0.5_r_tran*(u_arrival+u_arrival_np)
       call test_value_in_limits(x_departure,left_limit,right_limit)
 
     case default
@@ -189,37 +189,37 @@ contains
 
     implicit none
 
-    real(kind=r_def), intent(in)        :: x_arrival_comp
-    real(kind=r_def), intent(in)        :: x_arrival_phys
+    real(kind=r_tran), intent(in)       :: x_arrival_comp
+    real(kind=r_tran), intent(in)       :: x_arrival_phys
     integer(kind=i_def), intent(in)     :: nCellEdges
-    real(kind=r_def), intent(in)        :: u_n(1:nCellEdges)
-    real(kind=r_def), intent(in)        :: u_np1(1:nCellEdges)
-    real(kind=r_def), intent(in)        :: u_dep(1:nCellEdges)
-    real(kind=r_def), intent(in)        :: height(1:nCellEdges)
-    real(kind=r_def), intent(in)        :: deltaT
+    real(kind=r_tran), intent(in)       :: u_n(1:nCellEdges)
+    real(kind=r_tran), intent(in)       :: u_np1(1:nCellEdges)
+    real(kind=r_tran), intent(in)       :: u_dep(1:nCellEdges)
+    real(kind=r_tran), intent(in)       :: height(1:nCellEdges)
+    real(kind=r_tran), intent(in)       :: deltaT
     integer(kind=i_def), intent(in)     :: vertical_method
     integer(kind=i_def), intent(in)     :: n_dep_pt_iterations
     integer(kind=i_def), intent(in)     :: vertical_limit
-    real(kind=r_def), intent(inout)     :: departure_point
-    real(kind=r_def), intent(inout)     :: cfl
+    real(kind=r_tran), intent(inout)    :: departure_point
+    real(kind=r_tran), intent(inout)    :: cfl
 
-    real(kind=r_def) :: u_arrival
-    real(kind=r_def) :: u_arrival_np
-    real(kind=r_def) :: u_at_midpoint
-    real(kind=r_def) :: u_departure
-    real(kind=r_def) :: x_at_mid_point
-    real(kind=r_def) :: left_limit
-    real(kind=r_def) :: right_limit
-    real(kind=r_def) :: x_departure
-    real(kind=r_def) :: x_departure_comp
-    real(kind=r_def) :: x_departure_corr
-    real(kind=r_def) :: nn, dx, x0, x1
+    real(kind=r_tran) :: u_arrival
+    real(kind=r_tran) :: u_arrival_np
+    real(kind=r_tran) :: u_at_midpoint
+    real(kind=r_tran) :: u_departure
+    real(kind=r_tran) :: x_at_mid_point
+    real(kind=r_tran) :: left_limit
+    real(kind=r_tran) :: right_limit
+    real(kind=r_tran) :: x_departure
+    real(kind=r_tran) :: x_departure_comp
+    real(kind=r_tran) :: x_departure_corr
+    real(kind=r_tran) :: nn, dx, x0, x1
 
     integer(kind=i_def) :: iLoop
 
     ! Check computational arrival point is in range
-    left_limit = 0.0_r_def
-    right_limit = real(nCellEdges-1,r_def)
+    left_limit = 0.0_r_tran
+    right_limit = real(nCellEdges-1,r_tran)
     call test_value_in_limits(x_arrival_comp,left_limit,right_limit)
 
     ! Compute physical departure point
@@ -237,7 +237,7 @@ contains
 
         do iLoop=1,n_dep_pt_iterations
           u_departure = calc_u_in_vertical_phys(x_departure,nCellEdges,u_n,height)
-          x_departure = x_arrival_phys - deltaT*0.5_r_def*(u_arrival+u_departure)
+          x_departure = x_arrival_phys - deltaT*0.5_r_tran*(u_arrival+u_departure)
         end do
 
     case(vertical_method_midpoint) ! Mid-point
@@ -246,7 +246,7 @@ contains
         x_departure = x_arrival_phys - deltaT*u_arrival
 
         do iLoop=1,n_dep_pt_iterations
-          x_at_mid_point = 0.5_r_def*(x_departure+x_arrival_phys)
+          x_at_mid_point = 0.5_r_tran*(x_departure+x_arrival_phys)
           u_at_midpoint = calc_u_in_vertical_phys(x_at_mid_point,nCellEdges,u_n,height)
           x_departure = x_arrival_phys - deltaT*u_at_midpoint
         end do
@@ -255,7 +255,7 @@ contains
 
         u_arrival = calc_u_in_vertical_comp(x_arrival_comp,nCellEdges,u_n)
         u_arrival_np = calc_u_in_vertical_comp(x_arrival_comp,nCellEdges,u_np1)
-        x_departure = x_arrival_phys - deltaT*0.5_r_def*(u_arrival+u_arrival_np)
+        x_departure = x_arrival_phys - deltaT*0.5_r_tran*(u_arrival+u_arrival_np)
 
     case default
         call log_event( " Vertical departure point method undefined ", LOG_LEVEL_ERROR )
@@ -263,19 +263,19 @@ contains
 
     ! Convert to computational departure distance ensuring it is within range
 
-    nn = real(nCellEdges-1,r_def)
-    x_departure_comp = 0.0_r_def
+    nn = real(nCellEdges-1,r_tran)
+    x_departure_comp = 0.0_r_tran
 
     if (x_departure < height(1)) then
       select case (vertical_limit)
       case(vertical_limit_boundary)
         ! Set the computational departure point to zero
-        x_departure_comp = 0.0_r_def
+        x_departure_comp = 0.0_r_tran
       case(vertical_limit_exponential)
         ! Use exponential function to force departure point into the domain
         dx = height(2)-height(1)
         x_departure_corr = (x_arrival_phys-x_departure)/dx
-        x_departure_comp = max( exp(-x_departure_corr/x_arrival_comp), 0.0_r_def )
+        x_departure_comp = max( exp(-x_departure_corr/x_arrival_comp), 0.0_r_tran )
       end select
       u_arrival = calc_u_in_vertical_comp(x_arrival_comp,nCellEdges,u_dep)
       cfl = deltaT*u_arrival
@@ -283,7 +283,7 @@ contains
       select case (vertical_limit)
       case(vertical_limit_boundary)
         ! Set the computational departure point to be the top level
-        x_departure_comp = real(nCellEdges-1,r_def)
+        x_departure_comp = real(nCellEdges-1,r_tran)
       case(vertical_limit_exponential)
         ! Use exponential function to force departure point into the domain
         dx = height(nCellEdges)-height(nCellEdges-1)
@@ -297,7 +297,7 @@ contains
         if (x_departure .le. height(iloop+1) .AND. x_departure .gt. height(iloop)) then
             x0 = height(iloop)
             x1 = height(iloop+1)
-            x_departure_comp = real(iloop-1, r_def)  + (x_departure-x0)/(x1-x0)
+            x_departure_comp = real(iloop-1, r_tran)  + (x_departure-x0)/(x1-x0)
         end if
       end do
       cfl = x_arrival_comp - x_departure_comp
@@ -347,31 +347,31 @@ contains
 
     implicit none
 
-    real(kind=r_def), intent(in)        :: x_arrival
+    real(kind=r_tran), intent(in)       :: x_arrival
     integer(kind=i_def), intent(in)     :: nCellEdges
-    real(kind=r_def), intent(in)        :: u_n(1:nCellEdges)
-    real(kind=r_def), intent(in)        :: u_np1(1:nCellEdges)
-    real(kind=r_def), intent(in)        :: deltaT
+    real(kind=r_tran), intent(in)       :: u_n(1:nCellEdges)
+    real(kind=r_tran), intent(in)       :: u_np1(1:nCellEdges)
+    real(kind=r_tran), intent(in)       :: deltaT
     integer(kind=i_def), intent(in)     :: vertical_method
     integer(kind=i_def), intent(in)     :: n_dep_pt_iterations
     integer(kind=i_def), intent(in)     :: vertical_limit
-    real(kind=r_def), intent(inout)     :: departure_point
-    real(kind=r_def), intent(inout)     :: cfl
+    real(kind=r_tran), intent(inout)    :: departure_point
+    real(kind=r_tran), intent(inout)    :: cfl
 
-    real(kind=r_def) :: u_arrival
-    real(kind=r_def) :: u_arrival_np
-    real(kind=r_def) :: u_at_midpoint
-    real(kind=r_def) :: u_departure
-    real(kind=r_def) :: x_at_mid_point
-    real(kind=r_def) :: left_limit
-    real(kind=r_def) :: right_limit
-    real(kind=r_def) :: x_departure
+    real(kind=r_tran) :: u_arrival
+    real(kind=r_tran) :: u_arrival_np
+    real(kind=r_tran) :: u_at_midpoint
+    real(kind=r_tran) :: u_departure
+    real(kind=r_tran) :: x_at_mid_point
+    real(kind=r_tran) :: left_limit
+    real(kind=r_tran) :: right_limit
+    real(kind=r_tran) :: x_departure
 
     integer(kind=i_def) :: iLoop
 
     ! Check computational arrival point is in range
-    left_limit = 0.0_r_def
-    right_limit = real(nCellEdges-1,r_def)
+    left_limit = 0.0_r_tran
+    right_limit = real(nCellEdges-1,r_tran)
     call test_value_in_limits(x_arrival,left_limit,right_limit)
 
     select case (vertical_method)
@@ -388,7 +388,7 @@ contains
 
         do iLoop=1,n_dep_pt_iterations
           u_departure = calc_u_in_vertical_comp(x_departure,nCellEdges,u_n)
-          x_departure = x_arrival - deltaT*0.5_r_def*(u_arrival+u_departure)
+          x_departure = x_arrival - deltaT*0.5_r_tran*(u_arrival+u_departure)
         end do
 
     case(vertical_method_midpoint) ! Mid-point
@@ -397,7 +397,7 @@ contains
         x_departure = x_arrival - deltaT*u_arrival
 
         do iLoop=1,n_dep_pt_iterations
-          x_at_mid_point = 0.5_r_def*(x_departure+x_arrival)
+          x_at_mid_point = 0.5_r_tran*(x_departure+x_arrival)
           u_at_midpoint = calc_u_in_vertical_comp(x_at_mid_point,nCellEdges,u_n)
           x_departure = x_arrival - deltaT*u_at_midpoint
         end do
@@ -406,13 +406,13 @@ contains
 
         u_arrival = calc_u_in_vertical_comp(x_arrival,nCellEdges,u_n)
         u_arrival_np = calc_u_in_vertical_comp(x_arrival,nCellEdges,u_np1)
-        x_departure = x_arrival - deltaT*0.5_r_def*(u_arrival+u_arrival_np)
+        x_departure = x_arrival - deltaT*0.5_r_tran*(u_arrival+u_arrival_np)
 
     case default
         call log_event( " Vertical departure point method undefined ", LOG_LEVEL_ERROR )
     end select
 
-    if (x_departure < 0.0_r_def .OR. x_departure > real(nCellEdges-1,r_def)) then
+    if (x_departure < 0.0_r_tran .OR. x_departure > real(nCellEdges-1,r_tran)) then
       call test_value_in_vertical_limits(x_departure,left_limit,right_limit,vertical_limit)
       cfl = deltaT*u_arrival
     else
@@ -437,10 +437,10 @@ contains
 
     implicit none
 
-    real(kind=r_def), intent(in)     :: x_in
+    real(kind=r_tran), intent(in)    :: x_in
     integer(kind=i_def), intent(in)  :: nCellEdges
     integer(kind=i_def), intent(out) :: iEdge
-    real(kind=r_def), intent(out)    :: fractional_x_value
+    real(kind=r_tran), intent(out)   :: fractional_x_value
 
     ! Check that the number of CellEdges is even
     if (modulo(nCellEdges,2_i_def) == 1_i_def) then
@@ -472,10 +472,10 @@ contains
 
     implicit none
 
-    real(kind=r_def),    intent(in)       :: x_in
+    real(kind=r_tran),    intent(in)      :: x_in
     integer(kind=i_def), intent(in)       :: nCellEdges
     integer(kind=i_def), intent(out)      :: iEdge
-    real(kind=r_def),    intent(out)      :: fractional_x_value
+    real(kind=r_tran),    intent(out)     :: fractional_x_value
 
     iEdge = floor(x_in) + 1_i_def
 
@@ -500,9 +500,9 @@ contains
 
     implicit none
 
-    real(kind=r_def), intent(in) ::   x_in
-    real(kind=r_def), intent(in) ::   left_limit
-    real(kind=r_def), intent(in) ::   right_limit
+    real(kind=r_tran), intent(in) ::   x_in
+    real(kind=r_tran), intent(in) ::   left_limit
+    real(kind=r_tran), intent(in) ::   right_limit
 
     if (x_in < left_limit .OR. x_in > right_limit) then
       write(log_scratch_space, '(A,E12.4E3,A,2E12.4E3)')           &
@@ -528,10 +528,10 @@ contains
 
     implicit none
 
-    real(kind=r_def),    intent(inout) ::   x_dep
-    real(kind=r_def),    intent(in)    ::   lower_limit
-    real(kind=r_def),    intent(in)    ::   upper_limit
-    integer(kind=i_def), intent(in)    ::   vertical_limit
+    real(kind=r_tran),    intent(inout) ::   x_dep
+    real(kind=r_tran),    intent(in)    ::   lower_limit
+    real(kind=r_tran),    intent(in)    ::   upper_limit
+    integer(kind=i_def),  intent(in)    ::   vertical_limit
 
     if (x_dep > upper_limit) then
       ! Set departure point value to upper limit
@@ -548,7 +548,7 @@ contains
         ! x_departure = x_arrival exp(-dt * average_velocity/x_arrival)
         ! At the lowest level x_arrival = 1
         ! In our departure point calculation x_arrival - x_departure = dt * average_velocity
-        x_dep = exp(x_dep - 1.0_r_def)
+        x_dep = exp(x_dep - 1.0_r_tran)
       end select
     end if
 
@@ -566,12 +566,12 @@ contains
 
     implicit none
 
-    real(kind=r_def), intent(in)    ::  x_in
+    real(kind=r_tran), intent(in)   ::  x_in
     integer(kind=i_def), intent(in) ::  nCellEdges
-    real(kind=r_def), intent(in)    ::  u_wind(1:nCellEdges)
-    real(kind=r_def)                ::  u_out
+    real(kind=r_tran), intent(in)   ::  u_wind(1:nCellEdges)
+    real(kind=r_tran)               ::  u_out
 
-    real(kind=r_def)    :: fractional_x_value
+    real(kind=r_tran)   :: fractional_x_value
     integer(kind=i_def) :: iEdge
     integer(kind=i_def) :: iCellRight
 
@@ -583,7 +583,7 @@ contains
       iCellRight = iEdge + 1_i_def
     end if
 
-    u_out = (1.0_r_def-fractional_x_value)*u_wind(iEdge) +                &
+    u_out = (1.0_r_tran-fractional_x_value)*u_wind(iEdge) +                &
                                   fractional_x_value*u_wind(iCellRight)
 
   end function calc_u_at_x
@@ -601,12 +601,12 @@ contains
 
     implicit none
 
-    real(kind=r_def), intent(in)       ::  x_in
+    real(kind=r_tran), intent(in)      ::  x_in
     integer(kind=i_def), intent(in)    ::  nCellEdges
-    real(kind=r_def), intent(in)       ::  u_wind(1:nCellEdges)
-    real(kind=r_def)                   ::  u_out
+    real(kind=r_tran), intent(in)      ::  u_wind(1:nCellEdges)
+    real(kind=r_tran)                  ::  u_out
 
-    real(kind=r_def)    :: fractional_x_value
+    real(kind=r_tran)   :: fractional_x_value
     integer(kind=i_def) :: iEdge
     integer(kind=i_def) :: iCellRight
 
@@ -618,10 +618,10 @@ contains
       iCellRight = iEdge + 1_i_def
     end if
 
-    if (x_in .le. 0.0_r_def .OR. x_in .ge. real(nCellEdges-1,r_def) ) then
-      u_out=0.0_r_def
+    if (x_in .le. 0.0_r_tran .OR. x_in .ge. real(nCellEdges-1,r_tran) ) then
+      u_out=0.0_r_tran
     else
-      u_out = (1.0_r_def-fractional_x_value)*u_wind(iEdge) +                &
+      u_out = (1.0_r_tran-fractional_x_value)*u_wind(iEdge) +                &
                                   fractional_x_value*u_wind(iCellRight)
     end if
 
@@ -641,21 +641,21 @@ contains
 
     implicit none
 
-    real(kind=r_def), intent(in)    ::  x_in
+    real(kind=r_tran), intent(in)   ::  x_in
     integer(kind=i_def), intent(in) ::  nCellEdges
-    real(kind=r_def), intent(in)    ::  u_wind(1:nCellEdges)
-    real(kind=r_def), intent(in)    ::  height(1:nCellEdges)
-    real(kind=r_def)                ::  u_out
+    real(kind=r_tran), intent(in)   ::  u_wind(1:nCellEdges)
+    real(kind=r_tran), intent(in)   ::  height(1:nCellEdges)
+    real(kind=r_tran)               ::  u_out
 
-    real(kind=r_def)    :: fractional_x_value
+    real(kind=r_tran)   :: fractional_x_value
     integer(kind=i_def) :: iEdge
     integer(kind=i_def) :: iloop
     integer(kind=i_def) :: iCellRight
-    real(kind=r_def)    :: x0
-    real(kind=r_def)    :: x1
+    real(kind=r_tran)   :: x0
+    real(kind=r_tran)   :: x1
 
     if (x_in .le. height(1) .OR. x_in .ge. height(nCellEdges)) then
-      u_out=0.0_r_def
+      u_out=0.0_r_tran
     else
       do iloop=1,nCellEdges-1
         if (x_in .le. height(iloop+1) .AND. x_in .gt. height(iloop)) then
@@ -673,7 +673,7 @@ contains
               iCellRight = iEdge+1
             end if
 
-            u_out = (1.0_r_def-fractional_x_value)*u_wind(iEdge) +  &
+            u_out = (1.0_r_tran-fractional_x_value)*u_wind(iEdge) +  &
                                   fractional_x_value*u_wind(iCellRight)
 
         end if
@@ -696,7 +696,7 @@ contains
     implicit none
 
     integer(kind=i_def), intent(in)    ::  nlayers
-    real(kind=r_def),    intent(inout) ::  dep_pts(1:nlayers-1)
+    real(kind=r_tran),   intent(inout) ::  dep_pts(1:nlayers-1)
 
     integer(kind=i_def) :: k
 
@@ -705,11 +705,11 @@ contains
       if (dep_pts(k+1) < dep_pts(k)) then
         ! If departure point above is less than departure point below, set
         ! the above point equal to the below point plus epsilon
-        dep_pts(k+1) = dep_pts(k) + epsilon(1.0_r_def)
+        dep_pts(k+1) = dep_pts(k) + epsilon(1.0_r_tran)
 
         ! check epsilon doesn't push point outside the domain
-        if (dep_pts(k+1) > real(nlayers,r_def)) then
-          dep_pts(k+1) = real(nlayers,r_def)
+        if (dep_pts(k+1) > real(nlayers,r_tran)) then
+          dep_pts(k+1) = real(nlayers,r_tran)
         end if
       end if
 
@@ -730,15 +730,15 @@ contains
 
     implicit none
 
-    real(kind=r_def),    intent(out) :: u_int
-    real(kind=r_def),    intent(in)  :: x_in
+    real(kind=r_tran),   intent(out) :: u_int
+    real(kind=r_tran),   intent(in)  :: x_in
     integer(kind=i_def), intent(in)  :: n_points
     integer(kind=i_def), intent(in)  :: n_centre
-    real(kind=r_def),    intent(in)  :: u_in(1:n_points)
+    real(kind=r_tran),   intent(in)  :: u_in(1:n_points)
 
     integer(kind=i_def) :: int_x
-    real(kind=r_def)    :: frac_x
-    real(kind=r_def)    :: u_left, u_right
+    real(kind=r_tran)   :: frac_x
+    real(kind=r_tran)   :: u_left, u_right
     integer(kind=i_def) :: n_left, n_right
     integer(kind=i_def) :: sgx, shift_pos, shift_neg
 
@@ -758,7 +758,7 @@ contains
     ! u_int = u_left - frac_x*(u_left - u_right)
     ! We can combine these using the sign function to avoid an if statement
 
-    sgx = sign(1_i_def, int( sign(1.0_r_def, x_in), i_def))
+    sgx = sign(1_i_def, int( sign(1.0_r_tran, x_in), i_def))
     shift_pos = max(sgx, 0_i_def)
     n_left    = n_centre - sgx*(int_x + shift_pos)
     u_left    = u_in(n_left)

@@ -18,7 +18,7 @@ use argument_mod,          only : arg_type,              &
                                   GH_REAL, GH_INTEGER,   &
                                   CELL_COLUMN, GH_LOGICAL
 use fs_continuity_mod,     only : W2, Wtheta
-use constants_mod,         only : r_def, i_def, l_def, eps
+use constants_mod,         only : r_tran, i_def, l_def, eps
 use kernel_mod,            only : kernel_type
 ! TODO #3011: these config options should be passed through as arguments
 use transport_config_mod,  only : vertical_sl_order_cubic,   &
@@ -119,25 +119,25 @@ subroutine vertical_sl_theta_code( nlayers,                             &
   integer(kind=i_def), intent(in)                         :: undf_wtheta
   integer(kind=i_def), dimension(ndf_wtheta), intent(in)  :: map_wtheta
 
-  real(kind=r_def), dimension(undf_w2), intent(in)        :: dep_pts_z
-  real(kind=r_def), dimension(undf_wtheta), intent(inout) :: theta
-  real(kind=r_def), dimension(undf_wtheta), intent(in)    :: theta_height
+  real(kind=r_tran), dimension(undf_w2), intent(in)        :: dep_pts_z
+  real(kind=r_tran), dimension(undf_wtheta), intent(inout) :: theta
+  real(kind=r_tran), dimension(undf_wtheta), intent(in)    :: theta_height
   logical(kind=l_def), intent(in)  :: enforce_min_value
   integer(kind=i_def), intent(in)  :: sl_order, vertical_monotone,  &
                                       vertical_monotone_order
-  real(kind=r_def), intent(in)     :: min_value
+  real(kind=r_tran), intent(in)    :: min_value
 
-  real(kind=r_def)                       :: d, r, sr
-  real(kind=r_def), dimension(nlayers+1) :: zl, zld
-  real(kind=r_def), dimension(nlayers+1) :: dist, theta_local, theta_d_local
+  real(kind=r_tran)                       :: d, r, sr
+  real(kind=r_tran), dimension(nlayers+1) :: zl, zld
+  real(kind=r_tran), dimension(nlayers+1) :: dist, theta_local, theta_d_local
 
   integer(kind=i_def)                         :: k, nzl, km1, km2, si
-  real(kind=r_def),    dimension(nlayers+1,4) :: cc
+  real(kind=r_tran),   dimension(nlayers+1,4) :: cc
   integer(kind=i_def), dimension(nlayers+1,4) :: sc
-  real(kind=r_def),    dimension(nlayers+1,2) :: cl
-  real(kind=r_def),    dimension(nlayers+1)   :: dz
+  real(kind=r_tran),   dimension(nlayers+1,2) :: cl
+  real(kind=r_tran),   dimension(nlayers+1)   :: dz
   !
-  real(kind=r_def),    dimension(nlayers+1,6) :: cq
+  real(kind=r_tran),   dimension(nlayers+1,6) :: cq
   integer(kind=i_def), dimension(nlayers+1,6) :: sq
 
   !Extract and fill local column from global variables
@@ -151,10 +151,10 @@ subroutine vertical_sl_theta_code( nlayers,                             &
   !Extract physical departure of cell edges
   do k = 1, nzl
     d     = abs(dist(k))
-    sr    = sign(1.0_r_def,dist(k))
+    sr    = sign(1.0_r_tran,dist(k))
     si    = int(sr,i_def)
     km1   = int(d,i_def)
-    r     = d - real(km1, r_def)
+    r     = d - real(km1, r_tran)
     km1   = k - km1*si
     km2   = km1 - si
     km1   = max(1_i_def, min(km1,nzl))
@@ -279,14 +279,14 @@ end subroutine vertical_sl_theta_code
 subroutine monotone_cubic_sl(fi,f,sc,cl,vertical_monotone,vertical_monotone_order,ns,nf)
  implicit none
  integer(kind=i_def), intent(in) :: vertical_monotone, vertical_monotone_order, ns, nf
- real(kind=r_def),  dimension(ns:nf), intent(inout)  :: fi(ns:nf)
- real(kind=r_def),  dimension(ns:nf), intent(in)     :: f(ns:nf)
+ real(kind=r_tran), dimension(ns:nf), intent(inout)  :: fi(ns:nf)
+ real(kind=r_tran), dimension(ns:nf), intent(in)     :: f(ns:nf)
  integer(kind=i_def), dimension(ns:nf,4), intent(in) :: sc
- real(kind=r_def),    dimension(ns:nf,2), intent(in) :: cl
+ real(kind=r_tran),   dimension(ns:nf,2), intent(in) :: cl
  ! locals
  integer(kind=i_def), dimension(ns:nf) :: no_mono_id
  integer(kind=i_def)  :: k
- real(kind=r_def) :: test1,test2,test3,test4,minv,maxv,sigma,xi
+ real(kind=r_tran) :: test1,test2,test3,test4,minv,maxv,sigma,xi
 
  !
  !Identify points/values that are non-monotone using
@@ -301,8 +301,8 @@ subroutine monotone_cubic_sl(fi,f,sc,cl,vertical_monotone,vertical_monotone_orde
    do k = ns, nf
      test1 = (fi(k)-f(sc(k,2)))*(f(sc(k,3))-fi(k))
      test2 = (fi(k)-f(sc(k,2)))*(f(sc(k,3))-f(sc(k,2)))
-     if ( test1 < 0.0_r_def ) then
-       if (test2  < 0.0_r_def ) then
+     if ( test1 < 0.0_r_tran ) then
+       if (test2  < 0.0_r_tran ) then
          no_mono_id(k) = 1_i_def
        else
          no_mono_id(k) = 2_i_def
@@ -316,8 +316,8 @@ subroutine monotone_cubic_sl(fi,f,sc,cl,vertical_monotone,vertical_monotone_orde
      test2 = (f(sc(k,2))-f(sc(k,1)))*(f(sc(k,3))-f(sc(k,4)))
      test3 = (fi(k)-f(sc(k,2)))*(f(sc(k,2))-f(sc(k,1)))
      test4 = (fi(k)-f(sc(k,2)))*(f(sc(k,3))-f(sc(k,2)))
-     if ( test1 < 0.0_r_def .and. (test2 < 0.0_r_def .or. test3 < 0.0_r_def) ) then
-       if (test4  < 0.0_r_def ) then
+     if ( test1 < 0.0_r_tran .and. (test2 < 0.0_r_tran .or. test3 < 0.0_r_tran) ) then
+       if (test4  < 0.0_r_tran ) then
          no_mono_id(k) = 1_i_def
        else
          no_mono_id(k) = 2_i_def
@@ -375,14 +375,14 @@ end subroutine monotone_cubic_sl
 subroutine monotone_quintic_sl(fi,f,sq,cl,vertical_monotone,vertical_monotone_order,ns,nf)
  implicit none
  integer(kind=i_def), intent(in) :: vertical_monotone,vertical_monotone_order,ns,nf
- real(kind=r_def),  dimension(ns:nf), intent(inout)  :: fi(ns:nf)
- real(kind=r_def),  dimension(ns:nf), intent(in)     :: f(ns:nf)
+ real(kind=r_tran), dimension(ns:nf), intent(inout)  :: fi(ns:nf)
+ real(kind=r_tran), dimension(ns:nf), intent(in)     :: f(ns:nf)
  integer(kind=i_def), dimension(ns:nf,6), intent(in) :: sq
- real(kind=r_def),    dimension(ns:nf,2), intent(in) :: cl
+ real(kind=r_tran),   dimension(ns:nf,2), intent(in) :: cl
  ! locals
  integer(kind=i_def), dimension(ns:nf) :: no_mono_id
  integer(kind=i_def)  :: k
- real(kind=r_def) :: test1,test2,test3,test4,minv,maxv,sigma, xi
+ real(kind=r_tran) :: test1,test2,test3,test4,minv,maxv,sigma, xi
 
  !
  !Identify points/values that are non-monotone using
@@ -397,8 +397,8 @@ subroutine monotone_quintic_sl(fi,f,sq,cl,vertical_monotone,vertical_monotone_or
    do k = ns, nf
       test1 = (fi(k)-f(sq(k,3)))*(f(sq(k,4))-fi(k))
       test2 = (fi(k)-f(sq(k,3)))*(f(sq(k,4))-f(sq(k,3)))
-      if ( test1 < 0.0_r_def ) then
-        if (test2  < 0.0_r_def ) then
+      if ( test1 < 0.0_r_tran ) then
+        if (test2  < 0.0_r_tran ) then
           no_mono_id(k) = 1_i_def
         else
           no_mono_id(k) = 2_i_def
@@ -412,8 +412,8 @@ subroutine monotone_quintic_sl(fi,f,sq,cl,vertical_monotone,vertical_monotone_or
       test2 = (f(sq(k,3))-f(sq(k,2)))*(f(sq(k,4))-f(sq(k,5)))
       test3 = (fi(k)-f(sq(k,3)) )*(f(sq(k,3))-f(sq(k,2)))
       test4 = (fi(k)-f(sq(k,3)) )*(f(sq(k,4))-f(sq(k,3)))
-      if ( test1 < 0.0_r_def .and. (test2 < 0.0_r_def .or. test3 < 0.0_r_def) ) then
-         if ( test4  < 0.0_r_def ) then
+      if ( test1 < 0.0_r_tran .and. (test2 < 0.0_r_tran .or. test3 < 0.0_r_tran) ) then
+         if ( test4  < 0.0_r_tran ) then
            no_mono_id(k) = 1_i_def
          else
            no_mono_id(k) = 2_i_def
@@ -469,16 +469,16 @@ end subroutine monotone_quintic_sl
 subroutine compute_cubic_coeffs(zi,zg,dz,sc,cc,cl,nzi,nzg)
   implicit none
   integer(kind=i_def),                   intent(in)  :: nzi,nzg
-  real(kind=r_def),    dimension(nzi),   intent(in)  :: zi
-  real(kind=r_def),    dimension(nzg),   intent(in)  :: zg
-  real(kind=r_def),    dimension(nzg),   intent(in)  :: dz
-  real(kind=r_def),    dimension(nzi,4), intent(out) :: cc
+  real(kind=r_tran),   dimension(nzi),   intent(in)  :: zi
+  real(kind=r_tran),   dimension(nzg),   intent(in)  :: zg
+  real(kind=r_tran),   dimension(nzg),   intent(in)  :: dz
+  real(kind=r_tran),   dimension(nzi,4), intent(out) :: cc
   integer(kind=i_def), dimension(nzi,4), intent(out) :: sc
-  real(kind=r_def),    dimension(nzi,2), intent(out) :: cl
+  real(kind=r_tran),   dimension(nzi,2), intent(out) :: cl
   !
-  real(kind=r_def)    :: z1,z2,z3,z4,xi
-  real(kind=r_def)    :: d1,d2,d3,d4
-  real(kind=r_def)    :: n1,n2,n3,n4
+  real(kind=r_tran)   :: z1,z2,z3,z4,xi
+  real(kind=r_tran)   :: d1,d2,d3,d4
+  real(kind=r_tran)   :: n1,n2,n3,n4
   integer(kind=i_def) :: k,km
 
   do k = 1, nzi
@@ -490,7 +490,7 @@ subroutine compute_cubic_coeffs(zi,zg,dz,sc,cc,cl,nzi,nzg)
      sc(k,3) = min(nzg, km + 1 )
      sc(k,4) = min(nzg, km + 2 )
 
-     z1 = 0.0_r_def
+     z1 = 0.0_r_tran
      z2 = z1 + dz(sc(k,1))
      z3 = z2 + dz(sc(k,2))
      z4 = z3 + dz(sc(k,3))
@@ -522,16 +522,16 @@ subroutine compute_cubic_coeffs(zi,zg,dz,sc,cc,cl,nzi,nzg)
      cc(k,4) = n4/d4
      ! linear weights
      cl(k,1) = (z3-xi)/(z3-z2)
-     cl(k,2) = 1.0_r_def - cl(k,1)
+     cl(k,2) = 1.0_r_tran - cl(k,1)
 
      ! Next to boundaries there is not enough points for cubic
      ! then revert to linear
 
      if( sc(k,1) == sc(k,2) .or. sc(k,3) == sc(k,4) ) then
-        cc(k,1) = 0.0_r_def
+        cc(k,1) = 0.0_r_tran
         cc(k,2) = cl(k,1)
         cc(k,3) = cl(k,2)
-        cc(k,4) = 0.0_r_def
+        cc(k,4) = 0.0_r_tran
      end if
   end do
 end subroutine compute_cubic_coeffs
@@ -549,15 +549,15 @@ end subroutine compute_cubic_coeffs
 subroutine compute_cubic_hermite_coeffs(zi,zg,dz,sc,cc,cl,nzi,nzg)
   implicit none
   integer(kind=i_def),                   intent(in)  :: nzi,nzg
-  real(kind=r_def),    dimension(nzi),   intent(in)  :: zi
-  real(kind=r_def),    dimension(nzg),   intent(in)  :: zg
-  real(kind=r_def),    dimension(nzg),   intent(in)  :: dz
-  real(kind=r_def),    dimension(nzi,4), intent(out) :: cc
+  real(kind=r_tran),   dimension(nzi),   intent(in)  :: zi
+  real(kind=r_tran),   dimension(nzg),   intent(in)  :: zg
+  real(kind=r_tran),   dimension(nzg),   intent(in)  :: dz
+  real(kind=r_tran),   dimension(nzi,4), intent(out) :: cc
   integer(kind=i_def), dimension(nzi,4), intent(out) :: sc
-  real(kind=r_def),    dimension(nzi,2), intent(out) :: cl
+  real(kind=r_tran),   dimension(nzi,2), intent(out) :: cl
   !
-  real(kind=r_def)    :: xi,alfa,beta,inv_1p_alfa,inv_1p_beta
-  real(kind=r_def)    :: xip2,xip3,c1,c2,c3,c4
+  real(kind=r_tran)    :: xi,alfa,beta,inv_1p_alfa,inv_1p_beta
+  real(kind=r_tran)    :: xip2,xip3,c1,c2,c3,c4
   integer(kind=i_def) :: k,km
 
   do k = 1, nzi
@@ -571,13 +571,13 @@ subroutine compute_cubic_hermite_coeffs(zi,zg,dz,sc,cc,cl,nzi,nzg)
 
      alfa = dz(sc(k,1))/dz(sc(k,2))
      beta = dz(sc(k,3))/dz(sc(k,2))
-     inv_1p_alfa=1.0_r_def/(1.0_r_def + alfa)
-     inv_1p_beta=1.0_r_def/(1.0_r_def + beta)
+     inv_1p_alfa=1.0_r_tran/(1.0_r_tran + alfa)
+     inv_1p_beta=1.0_r_tran/(1.0_r_tran + beta)
      xip2 = xi**2
      xip3 = xi**3
-     c1 = 2.0_r_def*xip3 - 3.0_r_def*xip2 + 1.0_r_def
-     c2 = 1.0_r_def - c1
-     c3 = xip3 - 2.0_r_def*xip2 + xi
+     c1 = 2.0_r_tran*xip3 - 3.0_r_tran*xip2 + 1.0_r_tran
+     c2 = 1.0_r_tran - c1
+     c3 = xip3 - 2.0_r_tran*xip2 + xi
      c4 = xip3 - xip2
      ! Cubic-hermite weights
      if( sc(k,1) == sc(k,2) ) then
@@ -598,7 +598,7 @@ subroutine compute_cubic_hermite_coeffs(zi,zg,dz,sc,cc,cl,nzi,nzg)
      end if
      ! linear weights
      cl(k,2) = xi
-     cl(k,1) = 1.0_r_def - cl(k,2)
+     cl(k,1) = 1.0_r_tran - cl(k,2)
   end do
 end subroutine compute_cubic_hermite_coeffs
 !-------------------------------------------------------------------------------
@@ -614,16 +614,16 @@ end subroutine compute_cubic_hermite_coeffs
 subroutine compute_quintic_coeffs(zi,zg,dz,sq,cq,cl,nzi,nzg)
   implicit none
   integer(kind=i_def),                   intent(in)  :: nzi,nzg
-  real(kind=r_def),    dimension(nzi),   intent(in)  :: zi
-  real(kind=r_def),    dimension(nzg),   intent(in)  :: zg
-  real(kind=r_def),    dimension(nzg),   intent(in)  :: dz
-  real(kind=r_def),    dimension(nzi,6), intent(out) :: cq
+  real(kind=r_tran),   dimension(nzi),   intent(in)  :: zi
+  real(kind=r_tran),   dimension(nzg),   intent(in)  :: zg
+  real(kind=r_tran),   dimension(nzg),   intent(in)  :: dz
+  real(kind=r_tran),   dimension(nzi,6), intent(out) :: cq
   integer(kind=i_def), dimension(nzi,6), intent(out) :: sq
-  real(kind=r_def),    dimension(nzi,2), intent(out) :: cl
+  real(kind=r_tran),   dimension(nzi,2), intent(out) :: cl
   !
-  real(kind=r_def)    :: z1,z2,z3,z4,z5,z6,xi
-  real(kind=r_def)    :: d1,d2,d3,d4,d5,d6
-  real(kind=r_def)    :: n1,n2,n3,n4,n5,n6
+  real(kind=r_tran)   :: z1,z2,z3,z4,z5,z6,xi
+  real(kind=r_tran)   :: d1,d2,d3,d4,d5,d6
+  real(kind=r_tran)   :: n1,n2,n3,n4,n5,n6
   integer(kind=i_def) :: k,km
 
   do k = 1, nzi
@@ -637,7 +637,7 @@ subroutine compute_quintic_coeffs(zi,zg,dz,sq,cq,cl,nzi,nzg)
      sq(k,5) = min(nzg, km + 2 )
      sq(k,6) = min(nzg, km + 3 )
 
-     z1 = 0.0_r_def
+     z1 = 0.0_r_tran
      z2 = z1 + dz(sq(k,1))
      z3 = z2 + dz(sq(k,2))
      z4 = z3 + dz(sq(k,3))
@@ -681,7 +681,7 @@ subroutine compute_quintic_coeffs(zi,zg,dz,sq,cq,cl,nzi,nzg)
      cq(k,6) = n6/d6
      ! linear weights
      cl(k,1) = (z4-xi)/(z4-z3)
-     cl(k,2) = 1.0_r_def - cl(k,1)
+     cl(k,2) = 1.0_r_tran - cl(k,1)
      if( sq(k,1) == sq(k,2) .or. sq(k,5) == sq(k,6) ) then
         ! Revert to cubic weights
           d1 = (z2-z3)*(z2-z4)*(z2-z5)
@@ -694,21 +694,21 @@ subroutine compute_quintic_coeffs(zi,zg,dz,sq,cq,cl,nzi,nzg)
           n3 = (xi-z2)*(xi-z3)*(xi-z5)
           n4 = (xi-z2)*(xi-z3)*(xi-z4)
 
-          cq(k,1) = 0.0_r_def
+          cq(k,1) = 0.0_r_tran
           cq(k,2) = n1/d1
           cq(k,3) = n2/d2
           cq(k,4) = n3/d3
           cq(k,5) = n4/d4
-          cq(k,6) = 0.0_r_def
+          cq(k,6) = 0.0_r_tran
       end if
       if( sq(k,2) == sq(k,3) .or. sq(k,4) == sq(k,5) ) then
         ! Revert to linear weights
-          cq(k,1) = 0.0_r_def
-          cq(k,2) = 0.0_r_def
+          cq(k,1) = 0.0_r_tran
+          cq(k,2) = 0.0_r_tran
           cq(k,3) = cl(k,1)
           cq(k,4) = cl(k,2)
-          cq(k,5) = 0.0_r_def
-          cq(k,6) = 0.0_r_def
+          cq(k,5) = 0.0_r_tran
+          cq(k,6) = 0.0_r_tran
       end if
   end do
 end subroutine compute_quintic_coeffs

@@ -7,7 +7,7 @@
 module calc_max_cfl_kernel_mod_test
 
   use pFUnit_Mod
-  use constants_mod,      only : i_def, r_def, r_second
+  use constants_mod,      only : i_def, r_def, r_second, r_tran
 
   implicit none
 
@@ -57,9 +57,9 @@ contains
 
     class(calc_max_cfl_test_type), intent(inout) :: this
 
-    real(kind=r_def), parameter   :: tol    = 1.0e-6_r_def
-    real(kind=r_def), allocatable :: sum_cfl(:), sum_horizontal_cfl(:)
-    real(kind=r_def), allocatable :: horizontal_cfl(:), vertical_cfl(:)
+    real(kind=r_tran), parameter   :: tol    = 1.0e-6_r_tran
+    real(kind=r_tran), allocatable :: sum_cfl(:), sum_horizontal_cfl(:)
+    real(kind=r_tran), allocatable :: horizontal_cfl(:), vertical_cfl(:)
     integer(kind=i_def)           :: nlayers
     integer(kind=i_def)           :: ndf_w2h
     integer(kind=i_def)           :: undf_w2h
@@ -88,16 +88,16 @@ contains
     allocate(vertical_cfl(1:undf_w2v))
 
     ! Set horizontal and vertical CFL
-    horizontal_cfl(1) = 0.5_r_def
-    horizontal_cfl(2) = 0.6_r_def
-    horizontal_cfl(3) = 0.7_r_def
-    horizontal_cfl(4) = 0.8_r_def
-    vertical_cfl(1)   = 0.9_r_def
-    vertical_cfl(2)   = 1.0_r_def
+    horizontal_cfl(1) = 0.5_r_tran
+    horizontal_cfl(2) = 0.6_r_tran
+    horizontal_cfl(3) = 0.7_r_tran
+    horizontal_cfl(4) = 0.8_r_tran
+    vertical_cfl(1)   = 0.9_r_tran
+    vertical_cfl(2)   = 1.0_r_tran
 
     ! Initialise outputs to zero
-    sum_cfl(:) = 0.0_r_def
-    sum_horizontal_cfl(:)  = 0.0_r_def
+    sum_cfl(:) = 0.0_r_tran
+    sum_horizontal_cfl(:)  = 0.0_r_tran
 
     call calc_max_cfl_code( nlayers,              &
                             sum_cfl,              &
@@ -115,20 +115,20 @@ contains
                             map_w2v               &
                             )
 
-    @assertEqual( 2.5_r_def, sum_cfl(1), tol)
-    @assertEqual( 1.5_r_def, sum_horizontal_cfl(1), tol)
+    @assertEqual( 2.5_r_tran, sum_cfl(1), tol)
+    @assertEqual( 1.5_r_tran, sum_horizontal_cfl(1), tol)
 
     ! Set horizontal and vertical CFL with negative values
-    horizontal_cfl(1) = -1.0_r_def
-    horizontal_cfl(2) = 1.0_r_def
-    horizontal_cfl(3) = 0.5_r_def
-    horizontal_cfl(4) = -0.5_r_def
-    vertical_cfl(1)   = 0.1_r_def
-    vertical_cfl(2)   = -0.2_r_def
+    horizontal_cfl(1) = -1.0_r_tran
+    horizontal_cfl(2) = 1.0_r_tran
+    horizontal_cfl(3) = 0.5_r_tran
+    horizontal_cfl(4) = -0.5_r_tran
+    vertical_cfl(1)   = 0.1_r_tran
+    vertical_cfl(2)   = -0.2_r_tran
 
     ! Initialise outputs to zero
-    sum_cfl(:) = 0.0_r_def
-    sum_horizontal_cfl(:)  = 0.0_r_def
+    sum_cfl(:) = 0.0_r_tran
+    sum_horizontal_cfl(:)  = 0.0_r_tran
 
     call calc_max_cfl_code( nlayers,              &
                             sum_cfl,              &
@@ -146,8 +146,8 @@ contains
                             map_w2v               &
                             )
 
-    @assertEqual( 2.2_r_def, sum_cfl(1), tol)
-    @assertEqual( 2.0_r_def, sum_horizontal_cfl(1), tol)
+    @assertEqual( 2.2_r_tran, sum_cfl(1), tol)
+    @assertEqual( 2.0_r_tran, sum_horizontal_cfl(1), tol)
 
     deallocate(sum_cfl)
     deallocate(sum_horizontal_cfl)

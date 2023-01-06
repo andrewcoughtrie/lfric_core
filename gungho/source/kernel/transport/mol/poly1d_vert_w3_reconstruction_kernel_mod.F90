@@ -31,8 +31,8 @@ use argument_mod,      only : arg_type,                    &
                               CELL_COLUMN,                 &
                               ANY_DISCONTINUOUS_SPACE_1,   &
                               ANY_DISCONTINUOUS_SPACE_2
-use constants_mod,     only : r_def, i_def, l_def, EPS
 use fs_continuity_mod, only : W3
+use constants_mod,     only : i_def, l_def, r_tran, EPS_R_TRAN
 use kernel_mod,        only : kernel_type
 
 implicit none
@@ -122,9 +122,9 @@ subroutine poly1d_vert_w3_reconstruction_code( nlayers,                         
   integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
   integer(kind=i_def), intent(in)                    :: global_order
 
-  real(kind=r_def), dimension(undf_md), intent(inout) :: reconstruction
-  real(kind=r_def), dimension(undf_w3), intent(in)    :: tracer
-  real(kind=r_def), dimension(undf_c),  intent(in)    :: coeff
+  real(kind=r_tran), dimension(undf_md), intent(inout) :: reconstruction
+  real(kind=r_tran), dimension(undf_w3), intent(in)    :: tracer
+  real(kind=r_tran), dimension(undf_c),  intent(in)    :: coeff
 
   logical(kind=l_def), intent(in) :: logspace
 
@@ -132,7 +132,7 @@ subroutine poly1d_vert_w3_reconstruction_code( nlayers,                         
   integer(kind=i_def) :: k, ij, ik, p, f
   integer(kind=i_def) :: vertical_order
 
-  real(kind=r_def) :: new_tracer
+  real(kind=r_tran) :: new_tracer
 
   ! Ensure that we reduce the order if there are only a few layers
   vertical_order = min(global_order, nlayers-1)
@@ -149,7 +149,7 @@ subroutine poly1d_vert_w3_reconstruction_code( nlayers,                         
       ! i.e for face f index is map_md(1) + f*nlayers + k
       do k = 0, nlayers-1
         ! Compute the tracer reconstructed at W2v points
-        new_tracer = 1.0_r_def
+        new_tracer = 1.0_r_tran
         ! Interpolate log(tracer)
         ! I.e. polynomial = exp(c_1*log(tracer_1) + c_2*log(tracer_2) + ...)
         !                 = tracer_1**c_1*tracer_2**c_2...
@@ -160,7 +160,7 @@ subroutine poly1d_vert_w3_reconstruction_code( nlayers,                         
         ! in the haloes
         do p = 1, vertical_order + 1
           ik = p + f*(global_order+1) + k*ndata + map_c(1) - 1
-          new_tracer = new_tracer * max(EPS,abs(tracer(ij + stencil(p,k,f))))**coeff(ik)
+          new_tracer = new_tracer * max(EPS_R_TRAN,abs(tracer(ij + stencil(p,k,f))))**coeff(ik)
         end do
         reconstruction(map_md(1) + f*nlayers + k) = new_tracer
       end do
@@ -177,12 +177,13 @@ subroutine poly1d_vert_w3_reconstruction_code( nlayers,                         
       do k = 0, nlayers-1
 
         ! Compute the tracer reconstructed at W2v points
-        new_tracer = 0.0_r_def
+        new_tracer = 0.0_r_tran
         do p = 1, vertical_order + 1
           ik = p + f*(global_order+1) + k*ndata + map_c(1) - 1
           new_tracer = new_tracer + coeff(ik)*tracer(ij + stencil(p,k,f))
         end do
         reconstruction(map_md(1) + f*nlayers + k) = new_tracer
+
       end do
     end do
 
@@ -216,7 +217,7 @@ subroutine poly1d_vert_w3_reconstruction_init(global_order, &
   ! For vertical_order = 2 => offset = (-1,0,+1)
   ! For vertical_order = 3 => offset = (-2,-1,0,+1)
   do p = 0, vertical_order
-    offset(p+1) = - floor(real(vertical_order+1_i_def,r_def)/2.0_r_def) + p
+    offset(p+1) = - floor(real(vertical_order+1_i_def,r_tran)/2.0_r_tran) + p
   end do
 
 

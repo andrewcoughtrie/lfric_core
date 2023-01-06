@@ -7,7 +7,7 @@
 !> Test the wtheta_adv_inc computation using the Koren scheme
 module polyv_wtheta_koren_kernel_mod_test
 
-  use constants_mod, only : i_def, r_def, l_def, EPS
+  use constants_mod, only : i_def, r_def, l_def, EPS, r_tran
   use pFUnit_Mod
 
   implicit none
@@ -103,8 +103,8 @@ contains
 
     class(polyv_wtheta_koren_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: tol = 1.0e-12_r_def   ! r_def 64bit
-    real(r_def)            :: tst, use_tol
+    real(r_tran), parameter :: tol = 1.0e-12_r_tran   ! r_tran 64bit
+    real(r_tran)            :: tst, use_tol
 
     integer(i_def), parameter :: nlayers = 10
     integer(i_def), parameter :: nfaces_v = 2
@@ -118,32 +118,32 @@ contains
 
     integer(i_def), dimension(ndf_wt) :: map_wt
 
-    real(r_def), dimension(undf_wt) :: adv_inc
-    real(r_def), dimension(undf_wt) :: wind
-    real(r_def), dimension(undf_wt) :: density
-    real(r_def), dimension(undf_wt) :: adv_inc_answer1, adv_inc_answer2
+    real(r_tran), dimension(undf_wt) :: adv_inc
+    real(r_tran), dimension(undf_wt) :: wind
+    real(r_tran), dimension(undf_wt) :: density
+    real(r_tran), dimension(undf_wt) :: adv_inc_answer1, adv_inc_answer2
 
     integer(i_def) :: df, k, p1, p2, p3
     logical(l_def) :: logspace, reversible
-    real(r_def)    :: const, r, val_u, val_d
-    real(r_def), dimension(3) :: kw=(/-1.0_r_def,5.0_r_def,2.0_r_def/)/6.0_r_def
+    real(r_tran)    :: const, r, val_u, val_d
+    real(r_tran), dimension(3) :: kw=(/-1.0_r_tran,5.0_r_tran,2.0_r_tran/)/6.0_r_tran
 
     map_wt(:) = (/ 1, 2 /)
 
-    wind(:) = 1.0_r_def
+    wind(:) = 1.0_r_tran
 
    ! The density is constructed with constant r=slope ratio
-    r = 0.5_r_def
-    const = 1.0_r_def
+    r = 0.5_r_tran
+    const = 1.0_r_tran
     density(1) = const
-    density(2) = 1.2_r_def*const
+    density(2) = 1.2_r_tran*const
     do k = 3,nlayers+1
       density(k) = density(k-1)+r*(density(k-1)-density(k-2))
     end do
     ! Since r=0.5 => phi=(1+2r)/3, the Koren scheme reduces to a
     ! quadratic scheme with the weights {-1/6, 5/6, 2/6}
-    adv_inc_answer1(:) = 0.0_r_def
-    adv_inc_answer2(:) = 0.0_r_def
+    adv_inc_answer1(:) = 0.0_r_tran
+    adv_inc_answer2(:) = 0.0_r_tran
     do k = 2,nlayers
         p3 = k + 1
         p2 = k
@@ -163,7 +163,7 @@ contains
     ! Test subroutine with logspace = .false.
     logspace = .false.
     reversible =.false.
-    adv_inc = 0.0_r_def
+    adv_inc = 0.0_r_tran
     call polyv_wtheta_koren_code( nlayers,              &
                                   adv_inc,              &
                                   wind,                 &
@@ -178,10 +178,10 @@ contains
                                   undf_wt,              &
                                   map_wt                )
 
-    if ( r_def == real64 ) then
+    if ( r_tran == real64 ) then
       use_tol = tol
     else
-      use_tol = 10.0_r_def*spacing(maxval(adv_inc_answer1(2:nlayers)))
+      use_tol = 10.0_r_tran*spacing(maxval(adv_inc_answer1(2:nlayers)))
     end if
     do k = 1, undf_wt
       @assertEqual(adv_inc_answer1(k), adv_inc(k), use_tol)
@@ -191,7 +191,7 @@ contains
     logspace = .true.
     density(:) = exp(density(:))
 
-    adv_inc = 0.0_r_def
+    adv_inc = 0.0_r_tran
     call polyv_wtheta_koren_code( nlayers,              &
                                   adv_inc,              &
                                   wind,                 &
@@ -206,10 +206,10 @@ contains
                                   undf_wt,              &
                                   map_wt                )
 
-    if ( r_def == real64 ) then
+    if ( r_tran == real64 ) then
       use_tol = tol
     else
-      use_tol = 10.0_r_def*spacing(maxval(adv_inc_answer2(2:nlayers)))
+      use_tol = 10.0_r_tran*spacing(maxval(adv_inc_answer2(2:nlayers)))
     end if
     do k = 1, undf_wt
       @assertEqual(adv_inc_answer2(k), adv_inc(k), use_tol)
@@ -220,8 +220,8 @@ contains
     ! ------------------------------------------------------------------------ !
 
     ! Do reconstruction with zero density
-    density(:) = 0.0_r_def
-    adv_inc(:) = 0.0_r_def
+    density(:) = 0.0_r_tran
+    adv_inc(:) = 0.0_r_tran
     call polyv_wtheta_koren_code( nlayers,              &
                                   adv_inc,              &
                                   wind,                 &
@@ -238,7 +238,7 @@ contains
 
     ! Now do reconstruction with tiny density as a control
     density(:) = EPS
-    adv_inc_answer2(:) = 0.0_r_def
+    adv_inc_answer2(:) = 0.0_r_tran
     call polyv_wtheta_koren_code( nlayers,              &
                                   adv_inc_answer2,      &
                                   wind,                 &
