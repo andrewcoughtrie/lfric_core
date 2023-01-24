@@ -6,11 +6,9 @@
 {% set um2lfric_configs   = {} %}
 {% set lfric2um_configs   = {} %}
 {% set scintelapi_configs = {} %}
-{% set skeleton_configs   = {} %}
 {% include "configs/configs_um2lfric.rc" %}
 {% include "configs/configs_lfric2um.rc" %}
 {% include "configs/configs_scintelapi.rc" %}
-{% include "configs/configs_skeleton.rc" %}
 
 {# Set up variables needed in various suite configuration files #}
 {% set KGO_DIRS = {} %}
@@ -67,9 +65,6 @@
   {% endif %}
   {% if util == "scintelapi" %}
     {% include "templates/template_scintelapi.rc" %}
-  {% endif %}
-  {% if util == "skeleton" %}
-    {% include "templates/template_skeleton.rc" %}
   {% endif %}
   {% if util == "integration" %}
     {% if config == "um2um" %}
@@ -162,10 +157,6 @@
 
   {% if util == "scintelapi" %}
     {% include "templates/template_scintelapi.rc" %}
-  {% endif %}
-
-  {% if util == "skeleton" %}
-    {% include "templates/template_skeleton.rc" %}
   {% endif %}
 
   {% if util == "integration" %}
