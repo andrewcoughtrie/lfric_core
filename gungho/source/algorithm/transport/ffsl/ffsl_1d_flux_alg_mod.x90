@@ -25,6 +25,13 @@ module ffsl_1d_flux_alg_mod
   use flux_direction_mod,             only: x_direction, y_direction, z_direction
   use geometric_constants_mod,        only: get_dz_w3
   use r_tran_operator_mod,            only: r_tran_operator_type
+  use transport_enumerated_types_mod, only: horizontal_monotone_none,    &
+                                            horizontal_monotone_strict,  &
+                                            horizontal_monotone_relaxed, &
+                                            vertical_monotone_none,      &
+                                            vertical_monotone_strict,    &
+                                            vertical_monotone_relaxed
+
 
   ! Algorithms
   use remap_on_extended_mesh_alg_mod, only: remap_on_extended_mesh_alg
@@ -40,7 +47,10 @@ module ffsl_1d_flux_alg_mod
   use fv_divergence_x_kernel_mod,     only: fv_divergence_x_kernel_type
   use fv_divergence_y_kernel_mod,     only: fv_divergence_y_kernel_type
   use fv_divergence_z_kernel_mod,     only: fv_divergence_z_kernel_type
+  use vert_ppm_limiter_kernel_mod,    only: vert_ppm_limiter_kernel_type
   use vert_ppm_no_limiter_kernel_mod, only: vert_ppm_no_limiter_kernel_type
+  use vert_ppm_strict_limiter_kernel_mod, &
+                                      only: vert_ppm_strict_limiter_kernel_type
 
   use psykal_lite_mod,                only: invoke_dg_matrix_vector_rtran
 
@@ -72,16 +82,18 @@ contains
   !> @param[in]     detj_at_w2        Det(J) at W2 dofs
   !> @param[in]     order             Order of the reconstruction
   !> @param[in]     dt                The model timestep length
+  !> @param[in]     monotone          Horizontal monotone option for FFSL
   !> @param[in,out] flux              Horizontal flux. Included here to be
   !!                                  ready for #2997
   !> @param[in,out] increment         Conservative transport increment
-  subroutine ffsl_1d_flux_first( direction,      &
-                                 field,          &
-                                 dep_pts,        &
-                                 detj_at_w2,     &
-                                 order,          &
-                                 dt,             &
-                                 flux,           &
+  subroutine ffsl_1d_flux_first( direction,  &
+                                 field,      &
+                                 dep_pts,    &
+                                 detj_at_w2, &
+                                 order,      &
+                                 dt,         &
+                                 monotone,   &
+                                 flux,       &
                                  increment )
 
     implicit none
@@ -92,6 +104,7 @@ contains
     type(r_tran_field_type),         intent(in)    :: detj_at_w2
     integer(i_def),                  intent(in)    :: order
     real(r_tran),                    intent(in)    :: dt
+    integer(kind=i_def),             intent(in)    :: monotone
     type(r_tran_field_type),         intent(inout) :: flux
     type(r_tran_field_type),         intent(inout) :: increment
 
@@ -133,15 +146,17 @@ contains
     ! Compute the flux, multiply by Det(J) to get the mass flux,
     ! take the difference and multiply by inverse mass matrix to get increment
     if (direction == x_direction) then
-      call invoke( ffsl_flux_first_x_kernel_type( flux, field_ptr, stencil_extent,          &
-                                                  dep_pts, order, cfl_stencil_extent, dt ), &
-                   X_times_Y( mass_flux, flux, detj_at_w2 ),                                &
+      call invoke( ffsl_flux_first_x_kernel_type( flux, field_ptr, stencil_extent, &
+                                                  dep_pts, order, monotone,        &
+                                                  cfl_stencil_extent, dt ),        &
+                   X_times_Y( mass_flux, flux, detj_at_w2 ),                       &
                    fv_divergence_x_kernel_type( difference, mass_flux ) )
       call invoke_dg_matrix_vector_rtran(increment, difference, m3_inv)
     else if (direction == y_direction) then
-      call invoke( ffsl_flux_first_y_kernel_type( flux, field_ptr, stencil_extent,          &
-                                                  dep_pts, order, cfl_stencil_extent, dt ), &
-                   X_times_Y( mass_flux, flux, detj_at_w2 ),                                &
+      call invoke( ffsl_flux_first_y_kernel_type( flux, field_ptr, stencil_extent, &
+                                                  dep_pts, order, monotone,        &
+                                                  cfl_stencil_extent, dt ),        &
+                   X_times_Y( mass_flux, flux, detj_at_w2 ),                       &
                    fv_divergence_y_kernel_type( difference, mass_flux ) )
       call invoke_dg_matrix_vector_rtran(increment, difference, m3_inv)
     end if
@@ -167,6 +182,7 @@ contains
   !> @param[in]     order             Order of the reconstruction
   !> @param[in]     dt                The model timestep length
   !> @param[in]     panel_id          Panel ID of the cells
+  !> @param[in]     monotone          Horizontal monotone option for FFSL
   !> @param[in,out] flux              Horizontal flux. Included here to be
   !!                                  ready for #2997
   !> @param[in,out] increment         Conservative transport increment
@@ -178,6 +194,7 @@ contains
                                  order,      &
                                  dt,         &
                                  panel_id,   &
+                                 monotone,   &
                                  flux,       &
                                  increment )
 
@@ -191,6 +208,7 @@ contains
     integer(i_def),                  intent(in)    :: order
     real(r_tran),                    intent(in)    :: dt
     type(field_type),                intent(in)    :: panel_id
+    integer(kind=i_def),             intent(in)    :: monotone
     type(r_tran_field_type),         intent(inout) :: flux
     type(r_tran_field_type),         intent(inout) :: increment
 
@@ -236,19 +254,21 @@ contains
     ! Compute the flux, multiply by Det(J) to get the mass flux,
     ! take the difference and multiply by inverse mass matrix to get increment
     if (direction == x_direction) then
-      call invoke( ffsl_flux_final_x_kernel_type( flux, field_x_ptr, stencil_extent,        &
-                                                  field_y, stencil_extent,                  &
-                                                  panel_id, stencil_extent,                 &
-                                                  dep_pts, order, cfl_stencil_extent, dt ), &
-                   X_times_Y( mass_flux, flux, detj_at_w2 ),                                &
+      call invoke( ffsl_flux_final_x_kernel_type( flux, field_x_ptr, stencil_extent, &
+                                                  field_y, stencil_extent,           &
+                                                  panel_id, stencil_extent,          &
+                                                  dep_pts, order, monotone,          &
+                                                  cfl_stencil_extent, dt ),          &
+                   X_times_Y( mass_flux, flux, detj_at_w2 ),                         &
                    fv_divergence_x_kernel_type( difference, mass_flux ))
       call invoke_dg_matrix_vector_rtran(increment, difference, m3_inv)
     else if (direction == y_direction) then
-      call invoke( ffsl_flux_final_y_kernel_type( flux, field_x_ptr, stencil_extent,        &
-                                                  field_y, stencil_extent,                  &
-                                                  panel_id, stencil_extent,                 &
-                                                  dep_pts, order, cfl_stencil_extent, dt ), &
-                   X_times_Y( mass_flux, flux, detj_at_w2 ),                                &
+      call invoke( ffsl_flux_final_y_kernel_type( flux, field_x_ptr, stencil_extent, &
+                                                  field_y, stencil_extent,           &
+                                                  panel_id, stencil_extent,          &
+                                                  dep_pts, order, monotone,          &
+                                                  cfl_stencil_extent, dt ),          &
+                   X_times_Y( mass_flux, flux, detj_at_w2 ),                         &
                    fv_divergence_y_kernel_type( difference, mass_flux ) )
       call invoke_dg_matrix_vector_rtran(increment, difference, m3_inv)
     end if
@@ -268,15 +288,17 @@ contains
   !> @param[in]     detj_at_w2        Det(J) at W2 dofs
   !> @param[in]     order             Order of the reconstruction
   !> @param[in]     dt                The model timestep length
+  !> @param[in]     monotone          Vertical monotone option for FFSL
   !> @param[in,out] flux              Vertical flux. Included here to be
   !!                                  ready for #2997
   !> @param[in,out] increment         Conservative transport increment
-  subroutine ffsl_1d_flux_vert( field,          &
-                                dep_pts,        &
-                                detj_at_w2,     &
-                                order,          &
-                                dt,             &
-                                flux,           &
+  subroutine ffsl_1d_flux_vert( field,      &
+                                dep_pts,    &
+                                detj_at_w2, &
+                                order,      &
+                                dt,         &
+                                monotone,   &
+                                flux,       &
                                 increment )
 
     use psykal_lite_mod,               only: invoke_copy_to_rtran
@@ -287,6 +309,7 @@ contains
     type(r_tran_field_type), intent(in)    :: detj_at_w2
     integer(i_def),          intent(in)    :: order
     real(r_tran),            intent(in)    :: dt
+    integer(kind=i_def),     intent(in)    :: monotone
     type(r_tran_field_type), intent(inout) :: flux
     type(r_tran_field_type), intent(inout) :: increment
 
@@ -297,8 +320,8 @@ contains
 
     ! Pointers
     type(r_tran_operator_type), pointer :: m3_inv => null()
-    type(field_type),    pointer :: dz_w3_rdef => null()
-    type(r_tran_field_type)      :: dz_w3
+    type(field_type),           pointer :: dz_w3_rdef => null()
+    type(r_tran_field_type)             :: dz_w3
 
     ! Initialise variables
     call mass_flux%initialise( vector_space=flux%get_function_space() )
@@ -323,9 +346,19 @@ contains
       ! Constant reconstruction and flux
       call invoke( ffsl_vert_constant_flux_kernel_type(flux, dep_pts, field, dt) )
     else
-      ! Compute PPM coefficients for reconstruction and compute flux
-      call invoke( vert_ppm_no_limiter_kernel_type(a0, a1, a2, field, dz_w3), &
-                   ffsl_vertical_flux_kernel_type(flux, dep_pts, field, a0, a1, a2, dt) )
+      if ( monotone == vertical_monotone_none) then
+        ! Compute unlimited PPM coefficients for reconstruction and compute flux
+        call invoke( vert_ppm_no_limiter_kernel_type(a0, a1, a2, field, dz_w3), &
+                     ffsl_vertical_flux_kernel_type(flux, dep_pts, field, a0, a1, a2, dt) )
+      else if ( monotone == vertical_monotone_strict ) then
+        ! Compute strict monotonic PPM coefficients for reconstruction and compute flux
+        call invoke( vert_ppm_strict_limiter_kernel_type(a0, a1, a2, field, dz_w3), &
+                     ffsl_vertical_flux_kernel_type(flux, dep_pts, field, a0, a1, a2, dt) )
+      else
+        ! Compute relaxed monotonic PPM coefficients for reconstruction and compute flux
+        call invoke( vert_ppm_limiter_kernel_type(a0, a1, a2, field, dz_w3), &
+                     ffsl_vertical_flux_kernel_type(flux, dep_pts, field, a0, a1, a2, dt) )
+      end if
     end if
     ! Multiply by Det(J) to get mass flux, take difference and multiply by inverse
     ! mass matrix to get increment

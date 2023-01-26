@@ -44,11 +44,17 @@ module ffsl_control_alg_mod
 
   ! Transport runtime
   use transport_metadata_mod,           only: transport_metadata_type
-  use transport_enumerated_types_mod,   only: direction_v,          &
-                                              direction_h,          &
-                                              direction_3d,         &
-                                              splitting_strang_vhv, &
-                                              splitting_strang_hvh
+  use transport_enumerated_types_mod,   only: direction_v,                 &
+                                              direction_h,                 &
+                                              direction_3d,                &
+                                              horizontal_monotone_none,    &
+                                              horizontal_monotone_strict,  &
+                                              horizontal_monotone_relaxed, &
+                                              splitting_strang_vhv,        &
+                                              splitting_strang_hvh,        &
+                                              vertical_monotone_none,      &
+                                              vertical_monotone_strict,    &
+                                              vertical_monotone_relaxed
 
   use transport_runtime_alg_mod,        only: transport_runtime_type
   use transport_runtime_collection_mod, only: get_transport_runtime
@@ -106,6 +112,7 @@ contains
     type(r_tran_field_type), pointer :: old_flux_inc => null()
     type(mesh_type),         pointer :: mesh => null()
     type(field_type),        pointer :: panel_id => null()
+    integer(kind=i_def)              :: hori_monotone, vert_monotone
     type(function_space_type),    pointer :: w2_fs => null()
     type(transport_runtime_type), pointer :: transport_runtime => null()
 
@@ -134,13 +141,26 @@ contains
     call dep_pts_x_get%copy_field(dep_pts_x)
     call dep_pts_y_get%copy_field(dep_pts_y)
 
+    ! Set horizontal and vertical monotone options, checking that a valid option has been selected
+    hori_monotone = transport_metadata%get_horizontal_monotone()
+    vert_monotone = transport_metadata%get_vertical_monotone()
+    if ( hori_monotone /= horizontal_monotone_none   .and. &
+         hori_monotone /= horizontal_monotone_strict .and. &
+         hori_monotone /= horizontal_monotone_relaxed       ) then
+      call log_event( "ffsl_control_alg: Invalid horizontal monotone option", LOG_LEVEL_ERROR )
+    end if
+    if ( vert_monotone /= vertical_monotone_none   .and. &
+         vert_monotone /= vertical_monotone_strict .and. &
+         vert_monotone /= vertical_monotone_relaxed            ) then
+      call log_event( "ffsl_control_alg: Invalid vertical monotone option", LOG_LEVEL_ERROR )
+    end if
+
     call increment%initialise( vector_space=field_n%get_function_space() )
     call increment_con%initialise( vector_space=field_n%get_function_space() )
     call increment_adv%initialise( vector_space=field_n%get_function_space() )
     call invoke( setval_c(increment, 0.0_r_tran),     &
                  setval_c(increment_con, 0.0_r_tran), &
                  setval_c(increment_adv, 0.0_r_tran) )
-    call invoke( setval_c(increment, 0.0_r_tran) )
 
     ! Call routine based on direction: vertical; horizontal; or 3D.
     select case (direction)
@@ -165,9 +185,10 @@ contains
           if (transport_runtime%get_tracer_step_ctr() /=  &
               transport_runtime%get_num_dry_steps()) then
             ! Not the last split step so do both advective and flux form
-            call ffsl_1d_advect_then_flux_vert( field_n, dep_pts_z, detj_at_w2,       &
-                                                outer_order, step_dt, hori_half_flag, &
-                                                flux_z, increment_con, increment_adv )
+            call ffsl_1d_advect_then_flux_vert( field_n, dep_pts_z, detj_at_w2,      &
+                                                outer_order, step_dt, vert_monotone, &
+                                                hori_half_flag, flux_z,              &
+                                                increment_con, increment_adv )
             ! Save advective as field_np1 for use in next split step
             call invoke( X_minus_bY( field_np1, field_n, step_dt, increment_adv) )
             ! Save flux_inc for final splitting step
@@ -175,7 +196,7 @@ contains
           else
             ! Last split step just requires flux form
             call ffsl_1d_flux_vert( field_n, dep_pts_z, detj_at_w2, outer_order, &
-                                    step_dt, flux_z, increment )
+                                    step_dt, vert_monotone, flux_z, increment )
             call invoke( a_times_X(flux_inc, minus_step_dt, increment) )
             ! Add all the flux increments together
             field_start => transport_runtime%get_field_n(mesh_id)
@@ -190,7 +211,7 @@ contains
         else
           ! If not advective_then_flux just need flux increment
           call ffsl_1d_flux_vert( field_n, dep_pts_z, detj_at_w2, outer_order, &
-                                  step_dt, flux_z, increment )
+                                  step_dt, vert_monotone, flux_z, increment )
           ! Get field_np1 from field_n and conservative increment
           call invoke( X_minus_bY( field_np1, field_n, step_dt, increment) )
         end if
@@ -215,8 +236,8 @@ contains
             ! Not the last split step so do both advective and flux form
             call ffsl_conservative_horizontal_alg( field_n, dep_pts_x, dep_pts_y, &
                                                    detj_at_w2, panel_id, step_dt, &
-                                                   hori_half_flag, .true.,        &
-                                                   increment_con, increment_adv )
+                                                   hori_monotone, hori_half_flag, &
+                                                   .true., increment_con, increment_adv )
             ! Save advective as field_np1 for use in next split step
             call invoke( X_minus_bY( field_np1, field_n, step_dt, increment_adv) )
             ! Save flux_inc for final splitting step
@@ -225,8 +246,8 @@ contains
             ! Last split step just requires flux form
             call ffsl_conservative_horizontal_alg( field_n, dep_pts_x, dep_pts_y, &
                                                    detj_at_w2, panel_id, step_dt, &
-                                                   hori_half_flag, .false.,       &
-                                                   increment, increment_adv )
+                                                   hori_monotone, hori_half_flag, &
+                                                   .false., increment, increment_adv )
             call invoke( a_times_X(flux_inc, minus_step_dt, increment) )
             ! Add all the flux increments together
             field_start => transport_runtime%get_field_n(mesh_id)
@@ -242,8 +263,8 @@ contains
           ! If not advective_then_flux just need flux increment
           call ffsl_conservative_horizontal_alg( field_n, dep_pts_x, dep_pts_y, &
                                                  detj_at_w2, panel_id, step_dt, &
-                                                 hori_half_flag, .false.,       &
-                                                 increment, increment_adv )
+                                                 hori_monotone, hori_half_flag, &
+                                                 .false., increment, increment_adv )
           ! Get field_np1 from field_n and conservative increment
           call invoke( X_minus_bY( field_np1, field_n, step_dt, increment) )
         end if
@@ -253,8 +274,8 @@ contains
         call ffsl_conservative_transport_alg( field_n, dep_pts_x, dep_pts_y, &
                                               dep_pts_z, detj_at_w2,         &
                                               panel_id, step_dt,             &
+                                              hori_monotone, vert_monotone,  &
                                               increment )
-
         ! Get field_np1 from field_n and increment
         call invoke( X_minus_bY( field_np1, field_n, step_dt, increment) )
 
@@ -318,6 +339,7 @@ contains
     type(r_tran_field_type)          :: dep_pts_z, &
                                         dep_pts_x, &
                                         dep_pts_y
+    integer(kind=i_def)       :: hori_monotone, vert_monotone
     logical(kind=l_def)       :: vert_half_flag
     logical(kind=l_def)       :: hori_half_flag
     type(mesh_type),  pointer :: mesh => null()
@@ -372,6 +394,20 @@ contains
     call dep_pts_x_get%copy_field(dep_pts_x)
     call dep_pts_y_get%copy_field(dep_pts_y)
 
+    ! Set horizontal and vertical monotone options, checking that a valid option has been selected
+    hori_monotone = transport_metadata%get_horizontal_monotone()
+    vert_monotone = transport_metadata%get_vertical_monotone()
+    if ( hori_monotone /= horizontal_monotone_none   .and. &
+         hori_monotone /= horizontal_monotone_strict .and. &
+         hori_monotone /= horizontal_monotone_relaxed       ) then
+      call log_event( "ffsl_control_alg: Invalid horizontal monotone option", LOG_LEVEL_ERROR )
+    end if
+    if ( vert_monotone /= vertical_monotone_none   .and. &
+         vert_monotone /= vertical_monotone_strict .and. &
+         vert_monotone /= vertical_monotone_relaxed            ) then
+      call log_event( "ffsl_control_alg: Invalid vertical monotone option", LOG_LEVEL_ERROR )
+    end if
+
     call increment%initialise( vector_space=field_to_adv%get_function_space() )
     call invoke( setval_c(increment, 0.0_r_tran) )
 
@@ -388,7 +424,7 @@ contains
         end if
         ! Vertical PPM scheme
         call ffsl_1d_advect_vert( field_to_adv, dep_pts_z, detj_at_w2, outer_order, &
-                                  step_dt, vert_half_flag, increment )
+                                  step_dt, vert_monotone, vert_half_flag, increment )
 
       case (direction_h)
         ! If horizontal scheme for Strang splitting divide departure distance by 2
@@ -402,13 +438,14 @@ contains
         ! 2D FFSL
         call ffsl_advective_horizontal_alg( field_to_adv, dep_pts_x, dep_pts_y, &
                                             detj_at_w2, panel_id, step_dt,      &
-                                            hori_half_flag, increment )
+                                            hori_monotone, hori_half_flag, increment )
 
       case (direction_3d)
         ! 3D FFSL
         call ffsl_advective_transport_alg( field_to_adv, dep_pts_x, dep_pts_y, &
                                            dep_pts_z, detj_at_w2, panel_id,    &
-                                           step_dt, increment )
+                                           step_dt, hori_monotone,             &
+                                           vert_monotone, increment )
 
       case default
         call log_event( "Gungho: Unrecognized direction for transport.", LOG_LEVEL_ERROR )

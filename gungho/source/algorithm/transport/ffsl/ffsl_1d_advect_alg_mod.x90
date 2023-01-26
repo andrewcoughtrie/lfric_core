@@ -57,6 +57,7 @@ contains
   !> @param[in]     detj_at_w2        Det(J) at W2 dofs
   !> @param[in]     dt                The model timestep length
   !> @param[in]     order             Order of the reconstruction
+  !> @param[in]     monotone          Horizontal monotone option for FFSL
   !> @param[in]     strang            Logical flag to do half step in unity transport
   !> @param[in,out] increment         Advective increment
   subroutine ffsl_1d_advect_first( direction,  &
@@ -65,6 +66,7 @@ contains
                                    detj_at_w2, &
                                    dt,         &
                                    order,      &
+                                   monotone,   &
                                    strang,     &
                                    increment )
 
@@ -77,6 +79,7 @@ contains
     type(r_tran_field_type), intent(in)    :: detj_at_w2
     real(r_tran),            intent(in)    :: dt
     integer(i_def),          intent(in)    :: order
+    integer(kind=i_def),     intent(in)    :: monotone
     logical(l_def),          intent(in)    :: strang
     type(r_tran_field_type), intent(inout) :: increment
 
@@ -93,7 +96,7 @@ contains
     type(r_tran_field_type),      pointer :: adv_one => null()
 
     ! Constant
-    real(r_tran)      :: one_over_dt
+    real(r_tran) :: one_over_dt
 
     ! Get transport_runtime
     mesh => field%get_mesh()
@@ -121,6 +124,7 @@ contains
                              detj_at_w2, &
                              order,      &
                              dt,         &
+                             monotone,   &
                              flux,       &
                              inc_rho )
     call invoke( X_minus_bY( adv_rho, field, dt, inc_rho) )
@@ -172,6 +176,7 @@ contains
   !> @param[in]     dt                The model timestep length
   !> @param[in]     panel_id          Panel ID of the cells
   !> @param[in]     order             Order of the reconstruction
+  !> @param[in]     monotone          Horizontal monotone option for FFSL
   !> @param[in]     strang            Logical flag to do half step in unity transport
   !> @param[in,out] increment         Advective increment
   subroutine ffsl_1d_advect_final( direction,  &
@@ -182,6 +187,7 @@ contains
                                    dt,         &
                                    panel_id,   &
                                    order,      &
+                                   monotone,   &
                                    strang,     &
                                    increment )
 
@@ -194,8 +200,9 @@ contains
     type(r_tran_field_type), intent(in)    :: dep_pts
     type(r_tran_field_type), intent(in)    :: detj_at_w2
     real(r_tran),            intent(in)    :: dt
-    type(field_type),        intent(in)    :: panel_id
+    type(r_tran_field_type), intent(in)    :: panel_id
     integer(i_def),          intent(in)    :: order
+    integer(kind=i_def),     intent(in)    :: monotone
     logical(l_def),          intent(in)    :: strang
     type(r_tran_field_type), intent(inout) :: increment
 
@@ -213,7 +220,7 @@ contains
     type(r_tran_field_type),      pointer :: adv_one => null()
 
     ! Constant
-    real(r_tran)      :: one_over_dt
+    real(r_tran) :: one_over_dt
 
     ! Get transport_runtime
     mesh => field_x%get_mesh()
@@ -251,6 +258,7 @@ contains
                              order,      &
                              dt,         &
                              panel_id,   &
+                             monotone,   &
                              flux,       &
                              inc_rho )
     call invoke( X_minus_bY( adv_rho, field_n, dt, inc_rho) )
@@ -294,6 +302,7 @@ contains
   !> @param[in]     detj_at_w2        Det(J) at W2 dofs
   !> @param[in]     order             Order of the reconstruction
   !> @param[in]     dt                The model timestep length
+  !> @param[in]     monotone          Vertical monotone option for FFSL
   !> @param[in]     strang            Logical flag to do half step in unity transport
   !> @param[in,out] increment         Advective increment
   subroutine ffsl_1d_advect_vert( field,      &
@@ -301,6 +310,7 @@ contains
                                   detj_at_w2, &
                                   order,      &
                                   dt,         &
+                                  monotone,   &
                                   strang,     &
                                   increment )
 
@@ -312,6 +322,7 @@ contains
     type(r_tran_field_type), intent(in)    :: detj_at_w2
     integer(i_def),          intent(in)    :: order
     real(r_tran),            intent(in)    :: dt
+    integer(kind=i_def),     intent(in)    :: monotone
     logical(l_def),          intent(in)    :: strang
     type(r_tran_field_type), intent(inout) :: increment
 
@@ -328,7 +339,7 @@ contains
     type(r_tran_field_type),      pointer :: adv_one => null()
 
     ! Constant
-    real(r_tran)      :: one_over_dt
+    real(r_tran) :: one_over_dt
 
     ! Get transport_runtime
     mesh => field%get_mesh()
@@ -351,7 +362,7 @@ contains
 
     ! Compute the increment of the field, F(q)
     call ffsl_1d_flux_vert( field, dep_pts, detj_at_w2, order, &
-                            dt, flux, inc_rho )
+                            dt, monotone, flux, inc_rho )
     call invoke( X_minus_bY( adv_rho, field, dt, inc_rho ) )
 
     ! Get unity transport

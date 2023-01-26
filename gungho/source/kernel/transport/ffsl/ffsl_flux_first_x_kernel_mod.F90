@@ -36,11 +36,12 @@ module ffsl_flux_first_x_kernel_mod
   !> The type declaration for the kernel. Contains the metadata needed by the PSy layer
   type, public, extends(kernel_type) :: ffsl_flux_first_x_kernel_type
     private
-    type(arg_type) :: meta_args(6) = (/                               &
+    type(arg_type) :: meta_args(7) = (/                               &
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, W2),               & ! flux
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W3, STENCIL(X1D)), & ! field
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W2),               & ! dep_pts
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ     ),               & ! order
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ     ),               & ! monotone
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ     ),               & ! extent_size
          arg_type(GH_SCALAR, GH_REAL,    GH_READ     )                & ! dt
          /)
@@ -64,6 +65,7 @@ contains
   !> @param[in]     stencil_map       Dofmap for the field stencil
   !> @param[in]     dep_pts           Departure points in x
   !> @param[in]     order             Order of reconstruction
+  !> @param[in]     monotone          Horizontal monotone option for FFSL
   !> @param[in]     extent_size       Stencil extent needed for the LAM edge
   !> @param[in]     dt                Time step
   !> @param[in]     ndf_w2            Number of degrees of freedom for W2 per cell
@@ -80,6 +82,7 @@ contains
                                      stencil_map,  &
                                      dep_pts,      &
                                      order,        &
+                                     monotone,     &
                                      extent_size,  &
                                      dt,           &
                                      ndf_w2,       &
@@ -89,7 +92,7 @@ contains
                                      undf_w3,      &
                                      map_w3 )
 
-    use subgrid_rho_mod, only: second_order_coeffs
+    use subgrid_rho_mod, only: horizontal_ppm_coeffs
     use cosmic_flux_mod, only: frac_and_int_part,                &
                                calc_integration_limits_positive, &
                                calc_integration_limits_negative, &
@@ -117,6 +120,7 @@ contains
     real(kind=r_tran), dimension(undf_w3), intent(in)    :: field
     real(kind=r_tran), dimension(undf_w2), intent(in)    :: dep_pts
     integer(kind=i_def), intent(in)                      :: order
+    integer(kind=i_def), intent(in)                      :: monotone
     integer(kind=i_def), intent(in)                      :: extent_size
     real(kind=r_tran), intent(in)                        :: dt
 
@@ -234,7 +238,7 @@ contains
               coeffs(1) = field_local(ind_lo+2)
             else
               ! Piecewise parabolic reconstruction
-              call second_order_coeffs( field_local(ind_lo:ind_hi), coeffs, .false., .false.)
+              call horizontal_ppm_coeffs( coeffs, field_local(ind_lo:ind_hi), monotone )
             end if
 
             ! Compute fractional flux

@@ -59,6 +59,7 @@ contains
   !> @param[in]     dt                The model timestep length
   !> @param[in]     panel_id          Panel ID of the cells
   !> @param[in]     order             Order of the reconstruction
+  !> @param[in]     monotone          Horizontal monotone option for FFSL
   !> @param[in]     strang            Logical flag to do half step in unity transport
   !> @param[in,out] flux              Horizontal flux. Included here to be
   !!                                  ready for #2997
@@ -72,6 +73,7 @@ contains
                                              dt,            &
                                              panel_id,      &
                                              order,         &
+                                             monotone,      &
                                              strang,        &
                                              flux,          &
                                              increment_con, &
@@ -88,6 +90,7 @@ contains
     real(r_tran),            intent(in)    :: dt
     type(field_type),        intent(in)    :: panel_id
     integer(i_def),          intent(in)    :: order
+    integer(kind=i_def),     intent(in)    :: monotone
     logical(l_def),          intent(in)    :: strang
     type(r_tran_field_type), intent(inout) :: flux
     type(r_tran_field_type), intent(inout) :: increment_con
@@ -139,6 +142,7 @@ contains
                              order,      &
                              dt,         &
                              panel_id,   &
+                             monotone,   &
                              flux,       &
                              increment_con )
     call invoke( X_minus_bY( adv_rho, field_n, dt, increment_con) )
@@ -181,6 +185,7 @@ contains
   !> @param[in]     detj_at_w2        Det(J) at W2 dofs
   !> @param[in]     order             Order of the reconstruction
   !> @param[in]     dt                The model timestep length
+  !> @param[in]     monotone          Vertical monotone option for FFSL
   !> @param[in]     strang            Logical flag to do half step in unity transport
   !> @param[in,out] flux              Vertical flux. Included here to be
   !!                                  ready for #2997
@@ -191,6 +196,7 @@ contains
                                             detj_at_w2,    &
                                             order,         &
                                             dt,            &
+                                            monotone,      &
                                             strang,        &
                                             flux,          &
                                             increment_con, &
@@ -204,6 +210,7 @@ contains
     type(r_tran_field_type), intent(in)    :: detj_at_w2
     integer(i_def),          intent(in)    :: order
     real(r_tran),            intent(in)    :: dt
+    integer(kind=i_def),     intent(in)    :: monotone
     logical(l_def),          intent(in)    :: strang
     type(r_tran_field_type), intent(inout) :: flux
     type(r_tran_field_type), intent(inout) :: increment_con
@@ -239,7 +246,7 @@ contains
 
     ! Compute the conservative increment of the field, F(q)
     call ffsl_1d_flux_vert( field, dep_pts, detj_at_w2, order, &
-                            dt, flux, increment_con )
+                            dt, monotone, flux, increment_con )
     call invoke( X_minus_bY( adv_rho, field, dt, increment_con ) )
 
     ! Get unity transport

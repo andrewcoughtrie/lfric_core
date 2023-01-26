@@ -23,6 +23,8 @@ module ffsl_unity_transport_alg_mod
   use flux_direction_mod,               only: x_direction, y_direction
   use function_space_mod,               only: function_space_type
   use subgrid_config_mod,               only: outer_order
+  use transport_enumerated_types_mod,   only: horizontal_monotone_none, &
+                                              vertical_monotone_none
 
   use log_mod,                          only: log_event,         &
                                               log_scratch_space, &
@@ -96,8 +98,9 @@ contains
     type(field_type) :: flux_z
 
     ! Half time step and flags for departure points
-    real(r_def)         :: half_dt
+    real(kind=r_def)    :: half_dt
     logical(kind=l_def) :: any_horz_dep_pts, any_vert_dep_pts
+    integer(kind=i_def) :: hori_monotone, vert_monotone
 
     ! Check which unity transport directions are needed
     any_horz_dep_pts = check_horz_dep_pts()
@@ -121,40 +124,45 @@ contains
                  setval_c(flux_y,    0.0_r_def), &
                  setval_c(flux_z,    0.0_r_def)  )
 
-    ! Set half time step
+    ! Set half time step and monotone flag to none
     half_dt = 0.5_r_def * dt
+    hori_monotone = horizontal_monotone_none
+    vert_monotone = vertical_monotone_none
 
     ! Check if we need increment of unity in x and y directions
     if (any_horz_dep_pts) then
       ! Compute the increment of unity, F(1), in x direction
-      call ffsl_1d_flux_first( x_direction, &
-                               ini_one,     &
-                               dep_pts_x,   &
-                               detj_at_w2,  &
-                               outer_order, &
-                               dt,          &
-                               flux_x,      &
+      call ffsl_1d_flux_first( x_direction,   &
+                               ini_one,       &
+                               dep_pts_x,     &
+                               detj_at_w2,    &
+                               outer_order,   &
+                               dt,            &
+                               hori_monotone, &
+                               flux_x,        &
                                inc_one_x )
       ! Compute the increment of unity, F(1), in y direction
-      call ffsl_1d_flux_first( y_direction, &
-                               ini_one,     &
-                               dep_pts_y,   &
-                               detj_at_w2,  &
-                               outer_order, &
-                               dt,          &
-                               flux_y,      &
+      call ffsl_1d_flux_first( y_direction,   &
+                               ini_one,       &
+                               dep_pts_y,     &
+                               detj_at_w2,    &
+                               outer_order,   &
+                               dt,            &
+                               hori_monotone, &
+                               flux_y,        &
                                inc_one_y )
     end if
 
     ! Check if we need increment of unity in z directions
     if (any_vert_dep_pts) then
       ! Compute the increment of unity, F(1), in z direction
-      call ffsl_1d_flux_vert( ini_one,     &
-                              dep_pts_z,   &
-                              detj_at_w2,  &
-                              outer_order, &
-                              dt,          &
-                              flux_z,      &
+      call ffsl_1d_flux_vert( ini_one,       &
+                              dep_pts_z,     &
+                              detj_at_w2,    &
+                              outer_order,   &
+                              dt,            &
+                              vert_monotone, &
+                              flux_z,        &
                               inc_one_z )
     end if
 

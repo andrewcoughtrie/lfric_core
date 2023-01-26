@@ -38,8 +38,7 @@ module ffsl_conservative_transport_alg_mod
   use transport_config_mod,   only: ffsl_flux_splitting,       &
                                     ffsl_flux_splitting_macho, &
                                     ffsl_flux_splitting_afc,   &
-                                    ffsl_flux_splitting_full,  &
-                                    ffsl_flux_splitting_strang
+                                    ffsl_flux_splitting_full
 
   implicit none
 
@@ -64,14 +63,18 @@ contains
   !> @param[in]     detj_at_w2        Det(J) at W2 dofs
   !> @param[in]     panel_id          Panel ID of the cells
   !> @param[in]     dt                Time step
+  !> @param[in]     hori_monotone     Horizontal monotone option for FFSL
+  !> @param[in]     vert_monotone     Vertical monotone option for FFSL
   !> @param[in,out] increment         Conservative transport increment
-  subroutine ffsl_conservative_transport_alg( field,      &
-                                              dep_pts_x,  &
-                                              dep_pts_y,  &
-                                              dep_pts_z,  &
-                                              detj_at_w2, &
-                                              panel_id,   &
-                                              dt,         &
+  subroutine ffsl_conservative_transport_alg( field,         &
+                                              dep_pts_x,     &
+                                              dep_pts_y,     &
+                                              dep_pts_z,     &
+                                              detj_at_w2,    &
+                                              panel_id,      &
+                                              dt,            &
+                                              hori_monotone, &
+                                              vert_monotone, &
                                               increment )
 
     implicit none
@@ -83,6 +86,8 @@ contains
     type(r_tran_field_type), intent(in)    :: detj_at_w2
     type(field_type),        intent(in)    :: panel_id
     real(kind=r_tran),       intent(in)    :: dt
+    integer(kind=i_def),     intent(in)    :: hori_monotone
+    integer(kind=i_def),     intent(in)    :: vert_monotone
     type(r_tran_field_type), intent(inout) :: increment
 
     ! Subroutine name for timer
@@ -96,11 +101,6 @@ contains
     type(r_tran_field_type) :: field_g
     type(r_tran_field_type) :: field_h
     type(r_tran_field_type) :: field_xy
-    type(r_tran_field_type) :: field_star
-    type(r_tran_field_type) :: field_starstar
-
-    ! Half departure points for Strang splitting
-    type(r_tran_field_type) :: half_dep_pts_z
 
     ! Field increments and fluxes in given direction
     type(r_tran_field_type) :: increment_x
@@ -118,13 +118,11 @@ contains
     type(r_tran_field_type) :: flux_x
     type(r_tran_field_type) :: flux_y
     type(r_tran_field_type) :: flux_z
-    type(r_tran_field_type) :: flux_half_z
 
     ! Useful constants
     real(kind=r_tran)   :: half_dt
     real(kind=r_tran)   :: third_dt
-    logical(kind=l_def) :: hori_half_flag
-    logical(kind=l_def) :: vert_half_flag
+    logical(kind=l_def) :: half_flag
 
     ! Coordinate fields
     type(function_space_type), pointer :: dep_fs => null()
@@ -160,9 +158,8 @@ contains
     ! Set constants
     half_dt = 0.5_r_tran * dt
     third_dt = 1.0_r_tran / 3.0_r_tran * dt
-    ! Horizontal and vertical half step flags only used for Strang splitting
-    vert_half_flag = .false.
-    hori_half_flag = .false.
+    ! Half step flag only true for Strang splitting
+    half_flag = .false.
 
     ! Select type of splitting
     select case(ffsl_flux_splitting)
@@ -179,20 +176,23 @@ contains
 
       ! Compute rho_x
       call ffsl_1d_advect_first( x_direction, field, dep_pts_x, detj_at_w2, &
-                                 dt, inner_order, hori_half_flag, half_increment_x )
+                                 dt, inner_order, hori_monotone, half_flag, &
+                                 half_increment_x )
       call invoke( X_minus_bY( field_x, field, dt, half_increment_x ) )
 
       ! Compute rho_xy
       call ffsl_1d_advect_first( y_direction, field_x, dep_pts_y, detj_at_w2, &
-                                 dt, inner_order, hori_half_flag, half_increment_y )
+                                 dt, inner_order, hori_monotone, half_flag,   &
+                                 half_increment_y )
       call invoke( X_minus_bY( field_xy, field_x, dt, half_increment_y ) )
 
       ! Compute flux terms
       call ffsl_1d_flux_first( x_direction, field, dep_pts_x, detj_at_w2,   &
-                               outer_order, dt, flux_x, increment_x )
+                               outer_order, dt, hori_monotone, flux_x, increment_x )
       call ffsl_1d_flux_first( y_direction, field_x, dep_pts_y, detj_at_w2, &
-                               outer_order, dt, flux_y, increment_y )
-      call ffsl_1d_flux_vert( field_xy, dep_pts_z, detj_at_w2, outer_order, dt, flux_z, increment_z )
+                               outer_order, dt, hori_monotone, flux_y, increment_y )
+      call ffsl_1d_flux_vert( field_xy, dep_pts_z, detj_at_w2, outer_order, dt, &
+                               vert_monotone, flux_z, increment_z )
 
       ! Collect the increments
       call invoke( X_plus_Y( increment, increment_x, increment_y ), &
@@ -223,11 +223,13 @@ contains
 
       ! 1st advective step
       call ffsl_1d_advect_first( x_direction, field, dep_pts_x, detj_at_w2, &
-                                 dt, inner_order, hori_half_flag, half_increment_x )
+                                 dt, inner_order, hori_monotone, half_flag, &
+                                 half_increment_x )
       call ffsl_1d_advect_first( y_direction, field, dep_pts_y, detj_at_w2, &
-                                 dt, inner_order, hori_half_flag, half_increment_y )
-      call ffsl_1d_advect_vert( field, dep_pts_z, detj_at_w2, inner_order, &
-                                dt, vert_half_flag, half_increment_z )
+                                 dt, inner_order, hori_monotone, half_flag, &
+                                 half_increment_y )
+      call ffsl_1d_advect_vert( field, dep_pts_z, detj_at_w2, inner_order, dt, &
+                                vert_monotone, half_flag, half_increment_z )
       call invoke( X_minus_bY( field_x, field, third_dt, half_increment_x ), &
                    X_minus_bY( field_y, field, third_dt, half_increment_y ), &
                    X_minus_bY( field_z, field, third_dt, half_increment_z ) )
@@ -235,21 +237,25 @@ contains
       ! 2nd advective step
       call ffsl_1d_advect_final( x_direction, field_x, field_y, dep_pts_x, &
                                  detj_at_w2, dt, panel_id, inner_order,    &
-                                 hori_half_flag, half_increment_xy )
+                                 hori_monotone, half_flag, half_increment_xy )
       call ffsl_1d_advect_first( y_direction, field_z, dep_pts_y, detj_at_w2, &
-                                 dt, inner_order, hori_half_flag, half_increment_yz )
-      call ffsl_1d_advect_vert( field_x, dep_pts_z, detj_at_w2, inner_order, &
-                                dt, vert_half_flag, half_increment_zx )
+                                 dt, inner_order, hori_monotone, half_flag,   &
+                                 half_increment_yz )
+      call ffsl_1d_advect_vert( field_x, dep_pts_z, detj_at_w2, inner_order, dt, &
+                                vert_monotone, half_flag, half_increment_zx )
       call invoke( X_minus_bY( field_f, field, dt, half_increment_yz ), &
                    X_minus_bY( field_g, field, dt, half_increment_zx ), &
                    X_minus_bY( field_h, field, dt, half_increment_xy ) )
 
       ! Final conservative step
       call ffsl_1d_flux_final( x_direction, field_g, field_f, dep_pts_x, &
-                               detj_at_w2, outer_order, dt, panel_id, flux_x, increment_x )
+                               detj_at_w2, outer_order, dt, panel_id,    &
+                               hori_monotone, flux_x, increment_x )
       call ffsl_1d_flux_final( y_direction, field_g, field_f, dep_pts_y, &
-                               detj_at_w2, outer_order, dt, panel_id, flux_y, increment_y )
-      call ffsl_1d_flux_vert( field_h, dep_pts_z, detj_at_w2, outer_order, dt, flux_z, increment_z )
+                               detj_at_w2, outer_order, dt, panel_id,    &
+                               hori_monotone, flux_y, increment_y )
+      call ffsl_1d_flux_vert( field_h, dep_pts_z, detj_at_w2, outer_order, dt, &
+                              vert_monotone, flux_z, increment_z )
 
       ! Collect the increments
       call invoke( X_plus_Y( increment, increment_x, increment_y ), &
@@ -287,11 +293,13 @@ contains
 
       ! 1st advective step
       call ffsl_1d_advect_first( x_direction, field, dep_pts_x, detj_at_w2, &
-                                 dt, inner_order, hori_half_flag, half_increment_x )
+                                 dt, inner_order, hori_monotone, half_flag, &
+                                 half_increment_x )
       call ffsl_1d_advect_first( y_direction, field, dep_pts_y, detj_at_w2, &
-                                 dt, inner_order, hori_half_flag, half_increment_y )
-      call ffsl_1d_advect_vert( field, dep_pts_z, detj_at_w2, inner_order, &
-                                dt, vert_half_flag, half_increment_z )
+                                 dt, inner_order, hori_monotone, half_flag, &
+                                 half_increment_y )
+      call ffsl_1d_advect_vert( field, dep_pts_z, detj_at_w2, inner_order, dt, &
+                                vert_monotone, half_flag, half_increment_z )
       call invoke( X_minus_bY( field_x, field, third_dt, half_increment_x ), &
                    X_minus_bY( field_y, field, third_dt, half_increment_y ), &
                    X_minus_bY( field_z, field, third_dt, half_increment_z ) )
@@ -299,18 +307,20 @@ contains
       ! 2nd advective step
       call ffsl_1d_advect_final( x_direction, field_x, field_y, dep_pts_x, &
                                  detj_at_w2, dt, panel_id, inner_order,    &
-                                 hori_half_flag, half_increment_xy )
+                                 hori_monotone, half_flag, half_increment_xy )
       call ffsl_1d_advect_final( y_direction, field_x, field_y, dep_pts_y, &
                                  detj_at_w2, dt, panel_id, inner_order,    &
-                                 hori_half_flag, half_increment_yx )
+                                 hori_monotone, half_flag, half_increment_yx )
       call ffsl_1d_advect_first( x_direction, field_z, dep_pts_x, detj_at_w2, &
-                                 dt, inner_order, hori_half_flag, half_increment_xz )
+                                 dt, inner_order, hori_monotone, half_flag,   &
+                                 half_increment_xz )
       call ffsl_1d_advect_first( y_direction, field_z, dep_pts_y, detj_at_w2, &
-                                 dt, inner_order, hori_half_flag, half_increment_yz )
-      call ffsl_1d_advect_vert( field_x, dep_pts_z, detj_at_w2, inner_order, &
-                                dt, vert_half_flag, half_increment_zx )
-      call ffsl_1d_advect_vert( field_y, dep_pts_z, detj_at_w2, inner_order, &
-                                dt, vert_half_flag, half_increment_zy )
+                                 dt, inner_order, hori_monotone, half_flag,   &
+                                 half_increment_yz )
+      call ffsl_1d_advect_vert( field_x, dep_pts_z, detj_at_w2, inner_order, dt, &
+                                vert_monotone, half_flag, half_increment_zx )
+      call ffsl_1d_advect_vert( field_y, dep_pts_z, detj_at_w2, inner_order, dt, &
+                                vert_monotone, half_flag, half_increment_zy )
       call invoke( X_minus_bY( field_f, field, half_dt, half_increment_yz ), &
                    X_minus_bY( field_g, field, half_dt, half_increment_xz ), &
                    X_minus_bY( field_h, field, half_dt, half_increment_xy ), &
@@ -320,79 +330,17 @@ contains
 
       ! Final conservative step
       call ffsl_1d_flux_final( x_direction, field_g, field_f, dep_pts_x, &
-                               detj_at_w2, outer_order, dt, panel_id, flux_x, increment_x )
+                               detj_at_w2, outer_order, dt, panel_id,    &
+                               hori_monotone, flux_x, increment_x )
       call ffsl_1d_flux_final( y_direction, field_g, field_f, dep_pts_y, &
-                               detj_at_w2, outer_order, dt, panel_id, flux_y, increment_y )
-      call ffsl_1d_flux_vert( field_h, dep_pts_z, detj_at_w2, outer_order, dt, flux_z, increment_z )
+                               detj_at_w2, outer_order, dt, panel_id,    &
+                               hori_monotone, flux_y, increment_y )
+      call ffsl_1d_flux_vert( field_h, dep_pts_z, detj_at_w2, outer_order, dt, &
+                              vert_monotone, flux_z, increment_z )
 
       ! Collect the increments
       call invoke( X_plus_Y( increment, increment_x, increment_y ), &
                    inc_X_plus_Y( increment, increment_z ) )
-
-    case(ffsl_flux_splitting_strang)
-
-      ! Strang VHV with horizontal COSMIC splitting (from Leonard et al. 1996).
-      ! It has the form
-      !
-      !   rho_star = rho - dt/2 * h(rho,dt/2)    | First vertical step
-      !
-      !   rho_x = rho_star - dt/2 * f(rho_star)  | First part of horizontal step
-      !   rho_y = rho_star - dt/2 * g(rho_star)  |
-      !
-      !   rho_starstar = rho_star - dt * f(rho_y) - dt * g(rho_x) | Second part of horizontal step
-      !
-      ! Output: H(rho,dt/2) + F(rho_y) + G(rho_x) + H(rho_starstar,dt/2)
-
-      call field_star%initialise( field_fs )
-      call field_starstar%initialise( field_fs )
-      call half_dep_pts_z%initialise( dep_fs )
-      call flux_half_z%initialise( vector_space = dep_fs )
-
-      ! Use half departure points in the vertical
-      vert_half_flag = .true.
-      call invoke( a_times_X(half_dep_pts_z, 0.5_r_tran, dep_pts_z), &
-                   setval_c(flux_half_z, 0.0_r_tran) )
-
-      ! Advective stages to build up fluxes
-
-      ! First vertical half step
-      call ffsl_1d_advect_vert( field, half_dep_pts_z, detj_at_w2, outer_order, &
-                                half_dt, vert_half_flag, half_increment_z )
-      call invoke( X_minus_bY( field_star, field, half_dt, half_increment_z ) )
-
-      ! First horizontal step
-      call ffsl_1d_advect_first( x_direction, field_star, dep_pts_x, detj_at_w2, &
-                                 dt, inner_order, hori_half_flag, half_increment_x )
-      call ffsl_1d_advect_first( y_direction, field_star, dep_pts_y, detj_at_w2, &
-                                 dt, inner_order, hori_half_flag, half_increment_y )
-      call invoke( X_minus_bY( field_x, field_star, half_dt, half_increment_x ), &
-                   X_minus_bY( field_y, field_star, half_dt, half_increment_y ) )
-
-      ! Second horizontal step
-      call ffsl_1d_advect_final( x_direction, field_x, field_y, dep_pts_x, &
-                                 detj_at_w2, dt, panel_id, outer_order,    &
-                                 hori_half_flag, increment_x )
-      call ffsl_1d_advect_final( y_direction, field_x, field_y, dep_pts_y, &
-                                 detj_at_w2, dt, panel_id, outer_order,    &
-                                 hori_half_flag, increment_y )
-      call invoke( X_minus_bY( field_starstar, field_star, dt, increment_x ), &
-                   inc_X_minus_bY( field_starstar, dt, increment_y ) )
-
-      ! Flux Steps
-
-      call ffsl_1d_flux_vert( field, half_dep_pts_z, detj_at_w2, outer_order, &
-                              half_dt, flux_half_z, half_increment_z )
-      call ffsl_1d_flux_final( x_direction, field_x, field_y, dep_pts_x, &
-                               detj_at_w2, outer_order, dt, panel_id, flux_x, increment_x )
-      call ffsl_1d_flux_final( y_direction, field_x, field_y, dep_pts_y, &
-                               detj_at_w2, outer_order, dt, panel_id, flux_y, increment_y )
-      call ffsl_1d_flux_vert( field_starstar, half_dep_pts_z, detj_at_w2, outer_order, &
-                              half_dt, flux_z, increment_z )
-
-      ! Collect increments
-      call invoke( aX_plus_bY(increment, 0.5_r_tran, half_increment_z, 0.5_r_tran, increment_z), &
-                   inc_X_plus_Y( increment, increment_x ),                                     &
-                   inc_X_plus_Y( increment, increment_y ) )
 
     end select
 
@@ -418,6 +366,7 @@ contains
   !> @param[in]     detj_at_w2        Det(J) at W2 dofs
   !> @param[in]     panel_id          Panel ID of the cells
   !> @param[in]     dt                Time step
+  !> @param[in]     hori_monotone     Horizontal monotone option for FFSL
   !> @param[in]     strang            Logical flag to do half step in unity transport
   !> @param[in]     advect_flux       Flag to also compute advective update
   !> @param[in,out] increment_con     Conservative transport increment
@@ -428,6 +377,7 @@ contains
                                                detj_at_w2,    &
                                                panel_id,      &
                                                dt,            &
+                                               hori_monotone, &
                                                strang,        &
                                                advect_flux,   &
                                                increment_con, &
@@ -441,6 +391,7 @@ contains
     type(r_tran_field_type), intent(in)    :: detj_at_w2
     type(field_type),        intent(in)    :: panel_id
     real(kind=r_tran),       intent(in)    :: dt
+    integer(kind=i_def),     intent(in)    :: hori_monotone
     logical(l_def),          intent(in)    :: strang
     logical(kind=l_def),     intent(in)    :: advect_flux
     type(field_type),        intent(inout) :: increment_con
@@ -466,7 +417,7 @@ contains
     type(r_tran_field_type) :: flux_y
 
     ! Useful constants
-    real(kind=r_tran)    :: half_dt
+    real(kind=r_tran) :: half_dt
 
     ! Coordinate fields
     type(function_space_type), pointer :: dep_fs => null()
@@ -507,9 +458,11 @@ contains
 
     ! First advective step
     call ffsl_1d_advect_first( x_direction, field, dep_pts_x, detj_at_w2, &
-                               dt, inner_order, strang, half_increment_x )
+                               dt, inner_order, hori_monotone, strang,    &
+                               half_increment_x )
     call ffsl_1d_advect_first( y_direction, field, dep_pts_y, detj_at_w2, &
-                               dt, inner_order, strang, half_increment_y )
+                               dt, inner_order, hori_monotone, strang,    &
+                               half_increment_y )
     call invoke( X_minus_bY( field_x, field, half_dt, half_increment_x ), &
                  X_minus_bY( field_y, field, half_dt, half_increment_y ) )
 
@@ -517,19 +470,23 @@ contains
     if (advect_flux) then
       call ffsl_1d_advect_then_flux_final( x_direction, field_x, field_y, &
                                            dep_pts_x, detj_at_w2, dt,     &
-                                           panel_id, outer_order, strang, &
-                                           flux_x, increment_x, increment_adv_x )
+                                           panel_id, outer_order,         &
+                                           hori_monotone, strang, flux_x, &
+                                           increment_x, increment_adv_x )
       call ffsl_1d_advect_then_flux_final( y_direction, field_x, field_y, &
                                            dep_pts_y, detj_at_w2, dt,     &
-                                           panel_id, outer_order, strang, &
-                                           flux_y, increment_y, increment_adv_y )
+                                           panel_id, outer_order,         &
+                                           hori_monotone, strang, flux_y, &
+                                           increment_y, increment_adv_y )
       ! Collect the advective increments
       call invoke( X_plus_Y( increment_adv, increment_adv_x, increment_adv_y ) )
     else
       call ffsl_1d_flux_final( x_direction, field_x, field_y, dep_pts_x, &
-                               detj_at_w2, outer_order, dt, panel_id, flux_x, increment_x )
+                               detj_at_w2, outer_order, dt, panel_id,    &
+                               hori_monotone, flux_x, increment_x )
       call ffsl_1d_flux_final( y_direction, field_x, field_y, dep_pts_y, &
-                               detj_at_w2, outer_order, dt, panel_id, flux_y, increment_y )
+                               detj_at_w2, outer_order, dt, panel_id,    &
+                               hori_monotone, flux_y, increment_y )
       ! Set advective increment to zero
       call invoke( setval_c(increment_adv, 0.0_r_tran) )
     end if
