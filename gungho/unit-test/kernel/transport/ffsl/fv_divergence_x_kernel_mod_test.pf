@@ -8,7 +8,7 @@
 !>
 module fv_divergence_x_kernel_mod_test
 
-  use constants_mod, only : i_def, r_def
+  use constants_mod, only : i_def, r_tran
   use pFUnit_Mod
 
   implicit none
@@ -19,8 +19,8 @@ module fv_divergence_x_kernel_mod_test
   @TestCase
   type, extends(TestCase), public :: fv_divergence_x_test_type
     private
-    real(kind=r_def), allocatable :: mass_divergence(:)
-    real(kind=r_def), allocatable :: mass_flux(:)
+    real(kind=r_tran), allocatable :: mass_divergence(:)
+    real(kind=r_tran), allocatable :: mass_flux(:)
 
     integer(kind=i_def), allocatable :: map_w2(:)
     integer(kind=i_def), allocatable :: map_w3(:)
@@ -81,9 +81,9 @@ contains
 
     class(fv_divergence_x_test_type), intent(inout) :: this
 
-    real(kind=r_def), parameter :: tol = 1.0e-6_r_def
+    real(kind=r_tran), parameter :: tol = 1.0e-6_r_tran
 
-    this%mass_flux = (/ 3.0_r_def, 1.0_r_def, 10.0_r_def, 9.0_r_def, 0.0_r_def, 0.0_r_def /)
+    this%mass_flux = (/ 3.0_r_tran, 1.0_r_tran, 10.0_r_tran, 9.0_r_tran, 0.0_r_tran, 0.0_r_tran /)
     ! The fluxes have the following horizontal setup:
     !          9.0
     !     3.0       10.0
@@ -99,9 +99,9 @@ contains
                                ndf_w2,               &
                                undf_w2,              &
                                this%map_w2 )
-    @assertEqual(this%mass_divergence(1), 7.0_r_def, tol)
+    @assertEqual(this%mass_divergence(1), 7.0_r_tran, tol)
 
-    this%mass_flux = (/ -1.0_r_def, 10.0_r_def, 9.0_r_def, 3.0_r_def, 0.0_r_def, 0.0_r_def /)
+    this%mass_flux = (/ -1.0_r_tran, 10.0_r_tran, 9.0_r_tran, 3.0_r_tran, 0.0_r_tran, 0.0_r_tran /)
     ! The fluxes have the following horizontal setup:
     !          3.0
     !     -1.0       9.0
@@ -117,7 +117,7 @@ contains
                                ndf_w2,               &
                                undf_w2,              &
                                this%map_w2 )
-    @assertEqual(this%mass_divergence(1), 10.0_r_def, tol)
+    @assertEqual(this%mass_divergence(1), 10.0_r_tran, tol)
 
   end subroutine test_all
 

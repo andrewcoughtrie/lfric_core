@@ -18,7 +18,7 @@ module fv_divergence_z_kernel_mod
                                  GH_REAL, GH_INTEGER, &
                                  GH_WRITE, GH_READ,   &
                                  CELL_COLUMN
-  use constants_mod,      only : r_def, i_def
+  use constants_mod,      only : r_tran, i_def
   use flux_direction_mod, only : x_direction, y_direction, z_direction
   use fs_continuity_mod,  only : W2, W3
   use kernel_mod,         only : kernel_type
@@ -74,15 +74,15 @@ contains
     implicit none
 
     ! Arguments
-    integer(kind=i_def), intent(in)                     :: nlayers
-    integer(kind=i_def), intent(in)                     :: ndf_w3
-    integer(kind=i_def), intent(in)                     :: undf_w3
-    integer(kind=i_def), dimension(ndf_w3), intent(in)  :: map_w3
-    integer(kind=i_def), intent(in)                     :: ndf_w2
-    integer(kind=i_def), intent(in)                     :: undf_w2
-    integer(kind=i_def), dimension(ndf_w2), intent(in)  :: map_w2
-    real(kind=r_def), dimension(undf_w3), intent(inout) :: divergence
-    real(kind=r_def), dimension(undf_w2), intent(in)    :: mass_flux
+    integer(kind=i_def), intent(in)                        :: nlayers
+    integer(kind=i_def), intent(in)                        :: ndf_w3
+    integer(kind=i_def), intent(in)                        :: undf_w3
+    integer(kind=i_def), dimension(ndf_w3),  intent(in)    :: map_w3
+    integer(kind=i_def), intent(in)                        :: ndf_w2
+    integer(kind=i_def), intent(in)                        :: undf_w2
+    integer(kind=i_def), dimension(ndf_w2),  intent(in)    :: map_w2
+    real(kind=r_tran),   dimension(undf_w3), intent(inout) :: divergence
+    real(kind=r_tran),   dimension(undf_w2), intent(in)    :: mass_flux
 
     integer(kind=i_def) :: k
 
