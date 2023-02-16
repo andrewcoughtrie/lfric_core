@@ -55,7 +55,7 @@ coord_system='alphabetaz'
 &time
   calendar = 'timestep'
   timestep_start = '1'
-  timestep_end = '6'
+  timestep_end = '5'
   calendar_type='gregorian'
   calendar_start='2016-01-01 15:00:00'
 /

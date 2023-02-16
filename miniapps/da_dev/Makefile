@@ -91,7 +91,7 @@ document-latex: TEX_STUFF      = documentation/tex
 document-latex: COMMON_FIGURES = documentation/common-figures
 document-latex: ALWAYS
 	$(Q)$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/latex.mk       \
-                           SOURCE_DIR=$(SOURCE_DIR)         \
+                             SOURCE_DIR=$(SOURCE_DIR)         \
 	                         WORKING_DIR=$(WORKING_DIR)       \
 	                         DOCUMENT_DIR=$(DOCUMENT_DIR)     \
 	                         TEX_STUFF=$(TEX_STUFF)           \
@@ -116,7 +116,7 @@ build: export BIN_DIR     ?= $(PROJECT_DIR)/bin
 build: export LIB_DIR     ?= $(PROJECT_DIR)/lib
 build: export MOD_DIR     ?= $(PROJECT_DIR)/mod
 build: export CXX_LINK     = TRUE
-build: export PROGRAMS    := da_dev
+build: export PROGRAMS    := $(basename $(notdir $(shell find source -maxdepth 1 -name '*.[Ff]90' -print)))
 build: export PROJECT      = $(PROJECT_NAME)
 build: export WORKING_DIR := $(WORKING_DIR)/da-dev
 ifeq "$(PROFILE)" "full-debug"
@@ -138,19 +138,22 @@ build: ALWAYS
 	$(call MESSAGE,Extracting $(PROJECT_NAME))
 	$(call MESSAGE,========================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
-	          SOURCE_DIR=source
+	              SOURCE_DIR=source \
+                  WORKING_DIR=$(WORKING_DIR)
 	$(call MESSAGE,========================================)
 	$(call MESSAGE,PSycloning $(PROJECT_NAME))
 	$(call MESSAGE,========================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone.mk \
-	         SOURCE_DIR=source \
-	         OPTIMISATION_PATH=$(OPTIMISATION_PATH)
+	              SOURCE_DIR=source \
+	              OPTIMISATION_PATH=$(OPTIMISATION_PATH)
 	$(call MESSAGE,=========================================================)
 	$(call MESSAGE,Generating $(PROJECT) namelist loaders)
 	$(call MESSAGE,=========================================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/configuration.mk \
-	          SOURCE_DIR=source \
-	          META_FILE_DIR=$(META_FILE_DIR)
+	              PROJECT=$(PROJECT) \
+	              SOURCE_DIR=source \
+                  WORKING_DIR=$(WORKING_DIR) \
+                  META_FILE_DIR=$(META_FILE_DIR)
 	$(call MESSAGE,=========================================================)
 	$(call MESSAGE,Analysing $(PROJECT) build dependencies)
 	$(call MESSAGE,=========================================================)

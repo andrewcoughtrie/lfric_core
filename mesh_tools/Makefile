@@ -120,7 +120,7 @@ build: ALWAYS
 	$(call MESSAGE,=========================================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/configuration.mk \
                   PROJECT=$(PROJECT) \
-	          SOURCE_DIR=source \
+                  SOURCE_DIR=source \
                   WORKING_DIR=$(WORKING_DIR) \
                   META_FILE_DIR=$(META_FILE_DIR)
 	$(call MESSAGE,=========================================================)

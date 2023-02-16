@@ -6,72 +6,33 @@
 
 !> @page Miniapp da_dev program
 
-!> @brief Main program for running da_dev independently with jedi objects.
+!> @brief Main program for running da_dev independently.
 
-!> @details Setup and run a pseudo model forecast using the mock jedi objects
-!>          The jedi objects are constructed via an initialiser call and the
-!>          forecast is handled by the model object.
+!> @details Calls init, run and finalise routines from a driver module
 
 program da_dev
 
-  !
-  use constants_mod,          only : i_def
-  !! temp data types and methods to get/store configurations for geometry, state and model
-  use jedi_state_config_mod, only : jedi_state_config_type
-  use jedi_pseudo_model_config_mod, only : jedi_pseudo_model_config_type
-  use cli_mod,               only: get_initial_filename
-
-  ! Mock jedi objects
-  use jedi_run_mod,          only : jedi_run_type
-  use jedi_geometry_mod,     only : jedi_geometry_type
-  use jedi_state_mod,        only : jedi_state_type
-  use jedi_pseudo_model_mod, only : jedi_pseudo_model_type
-
-  !
-  use da_dev_driver_mod,     only : finalise_model
+  use da_dev_driver_mod,         only : initialise_lfric, run, finalise_lfric, &
+                                        initialise_model, finalise_model,      &
+                                        initialise_lfric_comm
+  use driver_model_data_mod,     only : model_data_type
+  use constants_mod,             only : i_native
 
   implicit none
 
-  ! jedi objects
-  type(jedi_geometry_type)     :: jedi_geometry
-  type(jedi_state_type)        :: jedi_state
-  type(jedi_pseudo_model_type) :: jedi_model
-  type(jedi_run_type)          :: jedi_run
+  type(model_data_type) :: model_data
+  integer(i_native)     :: model_communicator
 
-  ! faux configs
-  type(jedi_state_config_type)        :: jedi_state_config
-  type(jedi_pseudo_model_config_type) :: jedi_pseudo_model_config
-  integer( kind=i_def )               :: date_time_duration
-  character(:), allocatable           :: filename
+  call initialise_lfric_comm(model_communicator)
 
-  ! config for the mock jedi objects
-  ! Infrastructure config
-  call get_initial_filename( filename )
-  ! State config
-  call jedi_state_config%initialise(use_full_model=.false.)
-  ! Model Config
-  call jedi_pseudo_model_config%initialise()
-  ! Forecast config
-  date_time_duration = 5
+  call initialise_lfric(model_communicator)
 
-  ! Run object
-  ! handles initialization and finalization of required infrastructure
-  call jedi_run%initialise( filename )
+  call initialise_model(model_communicator, model_data)
 
-  ! Geometry
-  ! possibly pass in a comm?
-  call jedi_geometry%initialise()
+  call run(model_data)
 
-  ! State
-  call jedi_state%initialise( jedi_geometry, jedi_state_config )
+  call finalise_model(model_data)
 
-  ! Model
-  call jedi_model%initialise(jedi_pseudo_model_config)
-
-  ! run app via model class
-  call jedi_model%forecast(jedi_state, date_time_duration)
-
-  ! to provide KGO
-  call finalise_model(jedi_state%model_data)
+  call finalise_lfric()
 
 end program da_dev
