@@ -55,7 +55,8 @@ contains
     real(kind=r_def)             :: geopot
     real(kind=r_def)             :: long, lat
     real(kind=r_def)             :: fc, ubya, href, psi_dummy
-    real(kind=r_def)             :: x1, x2, y1, y2, sx, sy, ox, oy, &
+    real(kind=r_def)             :: x1_vortex, x2_vortex, y1_vortex, y2_vortex, &
+                                    sx, sy, ox, oy,                             &
                                     xc1, xc2, yc1, yc2, lx
     real(kind=r_def)             :: u0, gh0
     real(kind=r_def), parameter  :: day = 86400.0_r_def
@@ -109,13 +110,14 @@ contains
       xc2 =   lx * ox
       yc1 = - lx * oy
       yc2 =   lx * oy
-      x1 = lx * sin ( pi * ( chi(1) - xc1 ) / lx ) / ( pi * sx )
-      x2 = lx * sin ( pi * ( chi(1) - xc2 ) / lx ) / ( pi * sx )
-      y1 = lx * sin ( pi * ( chi(2) - yc1 ) / lx ) / ( pi * sy )
-      y2 = lx * sin ( pi * ( chi(2) - yc2 ) / lx ) / ( pi * sy )
-      geopot = ref_gp - 0.1_r_def * ref_gp * (  exp( - 0.5_r_def * ( x1 ** 2 + y1 ** 2 ) ) &
-                                              + exp( - 0.5_r_def * ( x2 ** 2 + y2 ** 2 ) ) &
-                                              - 4.0_r_def * pi * sx * sy / ( lx ** 2 ) )
+      x1_vortex = lx * sin ( pi * ( chi(1) - xc1 ) / lx ) / ( pi * sx )
+      x2_vortex = lx * sin ( pi * ( chi(1) - xc2 ) / lx ) / ( pi * sx )
+      y1_vortex = lx * sin ( pi * ( chi(2) - yc1 ) / lx ) / ( pi * sy )
+      y2_vortex = lx * sin ( pi * ( chi(2) - yc2 ) / lx ) / ( pi * sy )
+      geopot = ref_gp - 0.1_r_def * ref_gp *                                   &
+               (  exp( - 0.5_r_def * ( x1_vortex ** 2 + y1_vortex ** 2 ) )     &
+                + exp( - 0.5_r_def * ( x2_vortex ** 2 + y2_vortex ** 2 ) )     &
+                - 4.0_r_def * pi * sx * sy / ( lx ** 2 ) )
 
     case default
       write( log_scratch_space, '(A)' )  'Invalid geopotential profile choice, stopping'

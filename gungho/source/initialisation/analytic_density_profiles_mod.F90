@@ -147,7 +147,7 @@ function analytic_density(chi, choice, time) result(density)
   real(kind=r_def)             :: long, lat, radius
   real(kind=r_def)             :: l1, l2
   real(kind=r_def)             :: pressure, temperature
-  real(kind=r_def)             :: t0, rd, g
+  real(kind=r_def)             :: t0, g
   real(kind=r_def)             :: u, v, w
 
   integer                      :: id
@@ -206,7 +206,6 @@ function analytic_density(chi, choice, time) result(density)
     ! Project: Tracer Transport Test Cases, QJRMS
     z  = radius - scaled_radius
     t0 = 300.0_r_def
-    Rd = 287.0_r_def
     g  = 9.80616_r_def
 
     ! density_background plays the role of reference pressure
