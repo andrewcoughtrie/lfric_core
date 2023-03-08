@@ -491,8 +491,8 @@ subroutine radaer_code( nlayers,                                               &
   real(r_um),dimension( row_length*rows, nlayers, n_aer_mode, n_sw_band ) ::   &
                                                            aer_sw_asymmetry_um
 
-  logical, parameter :: l_ukca_tune_bc = .false.
-  logical, parameter :: l_glomap_clim_tune_bc = .false.
+  integer, parameter :: i_ukca_tune_bc = 0
+  integer, parameter :: i_glomap_clim_tune_bc = 0
   logical, parameter :: l_nitrate = .false. ! Make this a namelist option later
   logical, parameter :: l_sustrat = .true.  ! Make this a namelist option later
                                             ! l_sustrat=.true. for ga9
@@ -744,7 +744,7 @@ subroutine radaer_code( nlayers,                                               &
     ! Model level of the tropopause (input)
     trindxrad_um,                                                              &
     ! Maxwell-Garnett mixing approach logical control switches
-    l_ukca_tune_bc, l_glomap_clim_tune_bc,                                     &
+    i_ukca_tune_bc, i_glomap_clim_tune_bc,                                     &
     ! Band-averaged optical properties (output)
     aer_lw_absorption_um,                                                      &
     aer_lw_scattering_um,                                                      &
@@ -820,7 +820,7 @@ subroutine radaer_code( nlayers,                                               &
          ! Model level of the tropopause (input)
          trindxrad_um,                                                         &
          ! Maxwell-Garnett mixing approach logical control switches
-         l_ukca_tune_bc, l_glomap_clim_tune_bc,                                &
+         i_ukca_tune_bc, i_glomap_clim_tune_bc,                                &
          ! Band-averaged optical properties (output)
          aer_sw_absorption_um,                                                 &
          aer_sw_scattering_um,                                                 &
