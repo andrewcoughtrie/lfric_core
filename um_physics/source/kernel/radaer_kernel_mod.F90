@@ -434,6 +434,15 @@ subroutine radaer_code( nlayers,                                               &
 
   integer(i_um) :: npd_profile
 
+  ! Prescribed single-scattering albedo dummy variables
+  ! Make these namelist options later
+  logical, parameter       :: l_ukca_radaer_prescribe_ssa = .false.
+  integer(i_um), parameter :: nd_prof_ssa = 1
+  integer(i_um), parameter :: nd_layr_ssa = 1
+  integer(i_um), parameter :: nd_band_ssa = 1
+  real(r_um),dimension( nd_prof_ssa, nd_layr_ssa, nd_band_ssa ) ::             &
+                                                          ukca_radaer_presc_ssa
+
   ! Loop counters
   integer(i_um) :: k, i_band, i_mode, i_rmode
 
@@ -697,6 +706,9 @@ subroutine radaer_code( nlayers,                                               &
     end do
   end do
 
+  ! Populate (dummy) prescribed single scattering albedo array
+  ukca_radaer_presc_ssa(1,1,1) = 0.0_r_def
+
   ! Long wave ( e.g. ip_infra_red )
   call ukca_radaer_band_average(                                               &
     ! Fixed array dimensions (input)
@@ -716,6 +728,10 @@ subroutine radaer_code( nlayers,                                               &
     nlayers,                                                                   &
     n_ukca_mode,                                                               &
     n_ukca_cpnt,                                                               &
+    ! Prescribed SSA dimensions
+    nd_prof_ssa,                                                               &
+    nd_layr_ssa,                                                               &
+    nd_band_ssa,                                                               &
     ! UKCA_RADAER structure (input)
     nmodes,                                                                    &
     ncp_max,                                                                   &
@@ -741,8 +757,12 @@ subroutine radaer_code( nlayers,                                               &
     ukca_modal_wtv_um,                                                         &
     ! Logical to describe orientation
     l_inverted,                                                                &
+    ! Logical for prescribed single scattering albedo array
+    l_ukca_radaer_prescribe_ssa,                                               &
     ! Model level of the tropopause (input)
     trindxrad_um,                                                              &
+    ! Prescription of single-scattering albedo
+    ukca_radaer_presc_ssa,                                                     &
     ! Maxwell-Garnett mixing approach logical control switches
     i_ukca_tune_bc, i_glomap_clim_tune_bc,                                     &
     ! Band-averaged optical properties (output)
@@ -792,6 +812,10 @@ subroutine radaer_code( nlayers,                                               &
          nlayers,                                                              &
          n_ukca_mode,                                                          &
          n_ukca_cpnt,                                                          &
+         ! Prescribed SSA dimensions
+         nd_prof_ssa,                                                          &
+         nd_layr_ssa,                                                          &
+         nd_band_ssa,                                                          &
          ! UKCA_RADAER structure (input)
          nmodes,                                                               &
          ncp_max,                                                              &
@@ -817,8 +841,12 @@ subroutine radaer_code( nlayers,                                               &
          ukca_modal_wtv_um,                                                    &
          ! Logical to describe orientation
          l_inverted,                                                           &
+         ! Logical for prescribed single scattering albedo array
+         l_ukca_radaer_prescribe_ssa,                                          &
          ! Model level of the tropopause (input)
          trindxrad_um,                                                         &
+         ! Prescription of single-scattering albedo
+         ukca_radaer_presc_ssa,                                                &
          ! Maxwell-Garnett mixing approach logical control switches
          i_ukca_tune_bc, i_glomap_clim_tune_bc,                                &
          ! Band-averaged optical properties (output)
