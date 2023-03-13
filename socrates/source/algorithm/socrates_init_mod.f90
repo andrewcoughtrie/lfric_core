@@ -7,7 +7,7 @@
 
 module socrates_init_mod
 
-use constants_mod, only: r_def, i_def
+use constants_mod, only: r_def, i_def, l_def
 
 implicit none
 
@@ -37,6 +37,10 @@ real(r_def), allocatable, target :: &
 real(r_def), allocatable, target :: &
   lwinc_wavelength_short(:), lwinc_wavelength_long(:)
 
+integer(i_def) :: i_cloud_representation, i_overlap, i_inhom, i_inhom_inc
+integer(i_def) :: i_drop_re
+logical(l_def) :: l_orog
+
 private
 public :: socrates_init, &
   wavelength_short, wavelength_long, &
@@ -48,21 +52,46 @@ public :: socrates_init, &
   n_swinc_band, swinc_n_band_exclude, swinc_index_exclude, &
   swinc_wavelength_short, swinc_wavelength_long, swinc_weight_blue, &
   n_lwinc_band, lwinc_n_band_exclude, lwinc_index_exclude, &
-  lwinc_wavelength_short, lwinc_wavelength_long
+  lwinc_wavelength_short, lwinc_wavelength_long, &
+  i_cloud_representation, i_overlap, i_inhom, i_inhom_inc, i_drop_re, l_orog
 
 contains
 
 subroutine socrates_init()
 
-  use radiation_config_mod,  only:                                     &
-    spectral_file_sw, spectral_file_lw, mcica_data_file,               &
-    l_h2o_sw, l_co2_sw, l_o3_sw, l_n2o_sw, l_ch4_sw, l_o2_sw,          &
-    l_h2o_lw, l_co2_lw, l_o3_lw, l_n2o_lw, l_ch4_lw,                   &
-    l_cfc11_lw, l_cfc12_lw, l_cfc113_lw, l_hcfc22_lw, l_hfc134a_lw,    &
-    cloud_representation, cloud_representation_no_cloud,               &
-    cloud_inhomogeneity, cloud_inhomogeneity_mcica,                    &
-    l_inc_radstep, spectral_file_swinc, spectral_file_lwinc
+  use radiation_config_mod,  only: &
+    spectral_file_sw, spectral_file_lw, mcica_data_file, &
+    l_h2o_sw, l_co2_sw, l_o3_sw, l_n2o_sw, l_ch4_sw, l_o2_sw, &
+    l_h2o_lw, l_co2_lw, l_o3_lw, l_n2o_lw, l_ch4_lw, &
+    l_cfc11_lw, l_cfc12_lw, l_cfc113_lw, l_hcfc22_lw, l_hfc134a_lw, &
+    cloud_representation, cloud_overlap, cloud_inhomogeneity, &
+    cloud_representation_no_cloud, &
+    cloud_representation_liquid_and_ice, &
+    cloud_representation_combined, &
+    cloud_representation_conv_strat_liq_ice, &
+    cloud_representation_split, &
+    cloud_overlap_maximum_random, &
+    cloud_overlap_random, &
+    cloud_overlap_exponential_random, &
+    cloud_inhomogeneity_homogeneous, &
+    cloud_inhomogeneity_scaling, &
+    cloud_inhomogeneity_mcica, &
+    cloud_inhomogeneity_cairns, &
+    cloud_inhomogeneity_tripleclouds, &
+    droplet_effective_radius, &
+    droplet_effective_radius_constant, &
+    droplet_effective_radius_liu, &
+    l_inc_radstep, spectral_file_swinc, spectral_file_lwinc, &
+    topography, topography_flat
   use rad_ccf, only: set_socrates_constants
+  use socrates_runes, only: &
+    ip_cloud_representation_off, ip_cloud_representation_ice_water, &
+    ip_cloud_representation_combine_ice_water, &
+    ip_cloud_representation_csiw, ip_cloud_representation_split_ice_water, &
+    ip_overlap_max_random, ip_overlap_random, ip_overlap_exponential_random, &
+    ip_inhom_homogeneous, ip_inhom_scaling, ip_inhom_mcica, ip_inhom_cairns, &
+    ip_inhom_tripleclouds_2019, &
+    ip_droplet_re_default, ip_droplet_re_constant, ip_droplet_re_liu
   use socrates_set_spectrum, only: set_spectrum, get_spectrum, set_mcica
   use log_mod, only: log_event, log_scratch_space, LOG_LEVEL_INFO
 
@@ -76,6 +105,7 @@ subroutine socrates_init()
   call set_socrates_constants()
 
   if (l_inc_radstep) then
+    ! Read spectral files for incremental radiative timestepping
     n_spectral_files = 4
     call set_spectrum(                           &
       n_instances      = n_spectral_files,       &
@@ -117,6 +147,7 @@ subroutine socrates_init()
       wavelength_long  = lwinc_wavelength_long )
   end if
 
+  ! Read spectral files
   call set_spectrum(                        &
     spectrum_name    = 'sw',                &
     spectral_file    = spectral_file_sw,    &
@@ -172,8 +203,75 @@ subroutine socrates_init()
 
   if ( (cloud_representation /= cloud_representation_no_cloud) .and. &
        (cloud_inhomogeneity == cloud_inhomogeneity_mcica) ) then
+    ! Read MCICA data file
     call set_mcica(mcica_data_file, 'sw', 'lw')
     call log_event( 'Read MCICA data file.', LOG_LEVEL_INFO )
+  end if
+
+  ! Properties of clouds
+  select case (cloud_representation)
+  case (cloud_representation_no_cloud)
+    i_cloud_representation = ip_cloud_representation_off
+  case (cloud_representation_liquid_and_ice)
+    i_cloud_representation = ip_cloud_representation_ice_water
+  case (cloud_representation_combined)
+    i_cloud_representation = ip_cloud_representation_combine_ice_water
+  case (cloud_representation_conv_strat_liq_ice)
+    i_cloud_representation = ip_cloud_representation_csiw
+  case (cloud_representation_split)
+    i_cloud_representation = ip_cloud_representation_split_ice_water
+  case default
+    i_cloud_representation = ip_cloud_representation_off
+  end select
+
+  select case (cloud_overlap)
+  case (cloud_overlap_maximum_random)
+    i_overlap = ip_overlap_max_random
+  case (cloud_overlap_random)
+    i_overlap = ip_overlap_random
+  case (cloud_overlap_exponential_random)
+    i_overlap = ip_overlap_exponential_random
+  case default
+    i_overlap = ip_overlap_max_random
+  end select
+
+  select case (cloud_inhomogeneity)
+  case (cloud_inhomogeneity_homogeneous)
+    i_inhom = ip_inhom_homogeneous
+  case (cloud_inhomogeneity_scaling)
+    i_inhom = ip_inhom_scaling
+  case (cloud_inhomogeneity_mcica)
+    i_inhom = ip_inhom_mcica
+  case (cloud_inhomogeneity_cairns)
+    i_inhom = ip_inhom_cairns
+  case (cloud_inhomogeneity_tripleclouds)
+    i_inhom = ip_inhom_tripleclouds_2019
+  case default
+    i_inhom = ip_inhom_homogeneous
+  end select
+
+  ! Increment radiation calls should not use MCICA as there will not
+  ! be enough k-terms to sample the cloud field.
+  if (i_inhom == ip_inhom_mcica) then
+    i_inhom_inc = ip_inhom_scaling
+  else
+    i_inhom_inc = i_inhom
+  end if
+
+  select case (droplet_effective_radius)
+  case (droplet_effective_radius_constant)
+    i_drop_re = ip_droplet_re_constant
+  case (droplet_effective_radius_liu)
+    i_drop_re = ip_droplet_re_liu
+  case default
+    i_drop_re = ip_droplet_re_default
+  end select
+
+  ! Set logical for the orographic correction
+  if (topography == topography_flat) then
+    l_orog = .false.
+  else
+    l_orog = .true.
   end if
 
 end subroutine socrates_init

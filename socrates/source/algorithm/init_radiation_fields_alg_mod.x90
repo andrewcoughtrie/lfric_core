@@ -3,7 +3,7 @@
 !The file LICENCE, distributed with this code, contains details of the terms
 !under which the code may be used.
 !-------------------------------------------------------------------------------
-!>@brief Prepares the radiation fields
+!> @brief Prepares the radiation fields
 module init_radiation_fields_alg_mod
 
   use constants_mod,                   only: r_def, pi
@@ -23,7 +23,7 @@ contains
   !> @details The radiation fields need to be initialised so that they have a
   !>          value when passed on to the physics at the first time step,
   !>          if the radiation scheme is not used.
-  !> @param[in,out] radition_fields Collection of fields for radiation scheme
+  !> @param[in,out] radiation_fields Collection of fields for radiation scheme
   subroutine init_radiation_fields_alg(radiation_fields)
 
     implicit none

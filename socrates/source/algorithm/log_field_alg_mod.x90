@@ -3,7 +3,7 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !------------------------------------------------------------------------------
-! @brief Log checksum and readable average of a field
+!> @brief Log checksum and readable average of a field
 
 module log_field_alg_mod
 
@@ -13,9 +13,9 @@ public :: log_field_alg
 
 contains
 
-! @brief Computes the sum and average value of a field
-! @param[in] field Field to log checksum
-! @param[in] level Logging level for output
+!> @brief Computes the sum and average value of a field
+!> @param[in] field Field to log checksum
+!> @param[in] level Logging level for output
 
 subroutine log_field_alg(field, level)
   use field_mod,     only: field_type

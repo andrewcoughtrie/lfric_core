@@ -18,6 +18,7 @@ module radiation_diags_mod
   use mesh_mod,                 only: mesh_type
   use timer_mod,                only: timer
   use timestepping_config_mod,  only: dt
+  use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
 
   implicit none
 
@@ -41,6 +42,10 @@ module radiation_diags_mod
   logical( l_def ) :: ice_conv_mmr_rts_flag
   logical( l_def ) :: liq_cloud_path_rts_flag
   logical( l_def ) :: ice_cloud_path_rts_flag
+  logical( l_def ) :: cloud_absorptivity_rts_flag
+  logical( l_def ) :: cloud_weight_absorptivity_rts_flag
+  logical( l_def ) :: cloud_extinction_rts_flag
+  logical( l_def ) :: cloud_weight_extinction_rts_flag
   logical( l_def ) :: sw_aer_optical_depth_rts_flag
   logical( l_def ) :: lw_aer_optical_depth_rts_flag
   logical( l_def ) :: sw_direct_clear_rts_flag
@@ -85,11 +90,14 @@ subroutine initialise_diags_for_radiation( lw_down_surf, lw_heating_rate, &
   liq_cloud_mmr_rts, liq_conv_mmr_rts, &
   ice_cloud_mmr_rts, ice_conv_mmr_rts, &
   liq_cloud_path_rts, ice_cloud_path_rts, &
+  cloud_absorptivity_rts, cloud_weight_absorptivity_rts, &
+  cloud_extinction_rts, cloud_weight_extinction_rts, &
   sw_aer_optical_depth_rts, lw_aer_optical_depth_rts, &
   sw_direct_clear_rts, sw_down_clear_rts, sw_up_clear_rts, &
   lw_down_clear_rts, lw_up_clear_rts, &
   sw_down_clear_surf_rts, sw_up_clear_surf_rts, sw_up_clear_toa_rts, &
-  lw_down_clear_surf_rts, lw_up_clear_surf_rts, lw_up_clear_toa_rts )
+  lw_down_clear_surf_rts, lw_up_clear_surf_rts, lw_up_clear_toa_rts, &
+  cosp_this_tstep )
 
   implicit none
 
@@ -108,11 +116,16 @@ subroutine initialise_diags_for_radiation( lw_down_surf, lw_heating_rate, &
     liq_cloud_mmr_rts, liq_conv_mmr_rts, &
     ice_cloud_mmr_rts, ice_conv_mmr_rts, &
     liq_cloud_path_rts, ice_cloud_path_rts, &
+    cloud_absorptivity_rts, cloud_weight_absorptivity_rts, &
+    cloud_extinction_rts, cloud_weight_extinction_rts, &
     sw_aer_optical_depth_rts, lw_aer_optical_depth_rts, &
     sw_direct_clear_rts, sw_down_clear_rts, sw_up_clear_rts, &
     lw_down_clear_rts, lw_up_clear_rts, &
     sw_down_clear_surf_rts, sw_up_clear_surf_rts, sw_up_clear_toa_rts, &
     lw_down_clear_surf_rts, lw_up_clear_surf_rts, lw_up_clear_toa_rts
+
+  ! Logicals for diagnostic dependencies
+  logical( l_def ), intent(in) :: cosp_this_tstep
 
   ! Local working variables
   type( function_space_type ),  pointer :: flux_space => null()
@@ -240,6 +253,15 @@ subroutine initialise_diags_for_radiation( lw_down_surf, lw_heating_rate, &
   ice_conv_frac_rts_flag = .true.
   call lw_heating_rate%copy_field_properties(ice_conv_frac_rts)
 
+  cloud_absorptivity_rts_flag = init_diag( cloud_absorptivity_rts, &
+    'radiation__cloud_absorptivity_rts' )
+  cloud_weight_absorptivity_rts_flag = init_diag( cloud_weight_absorptivity_rts, &
+    'radiation__cloud_weight_absorptivity_rts' )
+  cloud_extinction_rts_flag = init_diag( cloud_extinction_rts, &
+    'radiation__cloud_extinction_rts' )
+  cloud_weight_extinction_rts_flag = init_diag( cloud_weight_extinction_rts, &
+    'radiation__cloud_weight_extinction_rts' )
+
   sw_aer_optical_depth_rts_flag = .true.
   call lw_heating_rate%copy_field_properties(sw_aer_optical_depth_rts)
 
@@ -293,6 +315,15 @@ subroutine initialise_diags_for_radiation( lw_down_surf, lw_heating_rate, &
   if ( ice_conv_mmr_rts_flag .and. .not. ice_conv_frac_rts_flag ) &
     call lw_heating_rate%copy_field_properties(ice_conv_frac_rts)
 
+  if ( cosp_this_tstep .and. .not. cloud_absorptivity_rts_flag ) &
+    call lw_heating_rate%copy_field_properties(cloud_absorptivity_rts)
+  if ( cosp_this_tstep .and. .not. cloud_weight_absorptivity_rts_flag ) &
+    call lw_heating_rate%copy_field_properties(cloud_weight_absorptivity_rts)
+  if ( cosp_this_tstep .and. .not. cloud_extinction_rts_flag ) &
+    call lw_heating_rate%copy_field_properties(cloud_extinction_rts)
+  if ( cosp_this_tstep .and. .not. cloud_weight_extinction_rts_flag ) &
+    call lw_heating_rate%copy_field_properties(cloud_weight_extinction_rts)
+
   if ( sw_down_clear_surf_rts_flag .and. .not. sw_down_clear_rts_flag ) &
     call sw_down_clear_rts%initialise(flux_space)
   if ( (sw_up_clear_surf_rts_flag .or. sw_up_clear_toa_rts_flag) .and. &
@@ -333,11 +364,14 @@ subroutine output_diags_for_radiation( dtheta_rad, &
   liq_cloud_mmr_rts, liq_conv_mmr_rts, &
   ice_cloud_mmr_rts, ice_conv_mmr_rts, &
   liq_cloud_path_rts, ice_cloud_path_rts, &
+  cloud_absorptivity_rts, cloud_weight_absorptivity_rts, &
+  cloud_extinction_rts, cloud_weight_extinction_rts, &
   sw_aer_optical_depth_rts, lw_aer_optical_depth_rts, &
   sw_direct_clear_rts, sw_down_clear_rts, sw_up_clear_rts, &
   lw_down_clear_rts, lw_up_clear_rts, &
   sw_down_clear_surf_rts, sw_up_clear_surf_rts, sw_up_clear_toa_rts, &
-  lw_down_clear_surf_rts, lw_up_clear_surf_rts, lw_up_clear_toa_rts )
+  lw_down_clear_surf_rts, lw_up_clear_surf_rts, lw_up_clear_toa_rts, &
+  cosp_this_tstep, cosp_lw_absorptivity, cosp_sw_extinction )
 
   implicit none
 
@@ -371,11 +405,18 @@ subroutine output_diags_for_radiation( dtheta_rad, &
     liq_cloud_mmr_rts, liq_conv_mmr_rts, &
     ice_cloud_mmr_rts, ice_conv_mmr_rts, &
     liq_cloud_path_rts, ice_cloud_path_rts, &
+    cloud_absorptivity_rts, cloud_weight_absorptivity_rts, &
+    cloud_extinction_rts, cloud_weight_extinction_rts, &
     sw_aer_optical_depth_rts, lw_aer_optical_depth_rts, &
     sw_direct_clear_rts, sw_down_clear_rts, sw_up_clear_rts, &
     lw_down_clear_rts, lw_up_clear_rts, &
     sw_down_clear_surf_rts, sw_up_clear_surf_rts, sw_up_clear_toa_rts, &
     lw_down_clear_surf_rts, lw_up_clear_surf_rts, lw_up_clear_toa_rts
+
+  ! Diagnostic fields for COSP computed here from other fields
+  logical( l_def ), intent(in) :: cosp_this_tstep
+  type( field_type ), intent(inout) :: &
+    cosp_lw_absorptivity, cosp_sw_extinction
 
   ! Diagnostics locally computed here from other fields
   type( field_type ) :: &
@@ -432,6 +473,17 @@ subroutine output_diags_for_radiation( dtheta_rad, &
   call sw_up_rts%write_field('radiation__sw_up_rts')
   call lw_down_rts%write_field('radiation__lw_down_rts')
   call lw_up_rts%write_field('radiation__lw_up_rts')
+
+
+  ! Diagnostic fields required if COSP is on
+  if (cosp_this_tstep) then
+    call lw_heating_rate%copy_field_properties(cosp_lw_absorptivity)
+    call invoke( X_divideby_Y(cosp_lw_absorptivity, &
+      cloud_absorptivity_rts, cloud_weight_absorptivity_rts) )
+    call sw_heating_rate%copy_field_properties(cosp_sw_extinction)
+    call invoke( X_divideby_Y(cosp_sw_extinction, &
+      cloud_extinction_rts, cloud_weight_extinction_rts) )
+  end if
 
 
   ! Diagnostics locally computed here from other fields
@@ -534,6 +586,17 @@ subroutine output_diags_for_radiation( dtheta_rad, &
   call liq_cloud_path_rts%write_field('radiation__liq_cloud_path_rts')
   if ( ice_cloud_path_rts_flag ) &
   call ice_cloud_path_rts%write_field('radiation__ice_cloud_path_rts')
+
+  if ( cloud_absorptivity_rts_flag ) &
+    call cloud_absorptivity_rts%write_field(cloud_absorptivity_rts%get_name())
+  if ( cloud_weight_absorptivity_rts_flag ) &
+  call cloud_weight_absorptivity_rts%write_field( &
+    cloud_weight_absorptivity_rts%get_name() )
+  if ( cloud_extinction_rts_flag ) &
+  call cloud_extinction_rts%write_field(cloud_extinction_rts%get_name())
+  if ( cloud_weight_extinction_rts_flag ) &
+  call cloud_weight_extinction_rts%write_field( &
+    cloud_weight_extinction_rts%get_name() )
 
   if ( sw_aer_optical_depth_rts_flag ) &
   call sw_aer_optical_depth_rts%write_field( &

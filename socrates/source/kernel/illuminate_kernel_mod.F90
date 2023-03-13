@@ -3,7 +3,7 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-! @brief Interface to Socrates for illumination of the atmosphere
+!> @brief Interface to Socrates for illumination of the atmosphere
 
 module illuminate_kernel_mod
 
@@ -22,15 +22,12 @@ implicit none
 
 private
 
-public :: illuminate_kernel_type
-public :: illuminate_code
-
 !------------------------------------------------------------------------------
 ! Public types
 !------------------------------------------------------------------------------
 ! The type declaration for the kernel.
 ! Contains the metadata needed by the PSy layer.
-type, extends(kernel_type) :: illuminate_kernel_type
+type, public, extends(kernel_type) :: illuminate_kernel_type
   private
   type(arg_type) :: meta_args(19) = (/                                           &
        arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1), & ! cos_zenith_angle
@@ -57,6 +54,8 @@ type, extends(kernel_type) :: illuminate_kernel_type
 contains
   procedure, nopass :: illuminate_code
 end type
+
+public :: illuminate_code
 
 !------------------------------------------------------------------------------
 ! Contained functions/subroutines

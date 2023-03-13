@@ -38,6 +38,7 @@ OPERATE_ON ?= lfric_atm                                  \
               miniapps/transport                         \
               miniapps/multires_coupling                 \
               um_physics                                 \
+              socrates                                   \
               lfricinputs
 
 export SUITE_GROUP ?= developer

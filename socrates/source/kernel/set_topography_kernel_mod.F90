@@ -3,7 +3,7 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-! @brief Interface to Socrates for calculation of topographic parameters
+!> @brief Interface to Socrates for calculation of topographic parameters
 
 module set_topography_kernel_mod
 
@@ -21,15 +21,12 @@ implicit none
 
 private
 
-public :: set_topography_kernel_type
-public :: set_topography_code
-
 !------------------------------------------------------------------------------
 ! Public types
 !------------------------------------------------------------------------------
 ! The type declaration for the kernel.
 ! Contains the metadata needed by the PSy layer.
-type, extends(kernel_type) :: set_topography_kernel_type
+type, public, extends(kernel_type) :: set_topography_kernel_type
   private
   type(arg_type) :: meta_args(9) = (/ &
     arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! grad_x_orog
@@ -46,6 +43,8 @@ type, extends(kernel_type) :: set_topography_kernel_type
 contains
   procedure, nopass :: set_topography_code
 end type
+
+public :: set_topography_code
 
 !------------------------------------------------------------------------------
 ! Contained functions/subroutines

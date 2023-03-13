@@ -31,6 +31,7 @@ module slow_physics_alg_mod
                                        blayer_placement_slow,          &
                                        convection_placement,           &
                                        convection_placement_slow
+  use radiation_config_mod,      only: n_radstep, l_inc_radstep, n_inc_radstep
   use section_choice_config_mod, only: aerosol, aerosol_um,                 &
                                        boundary_layer, boundary_layer_um,   &
                                        microphysics, microphysics_um,       &
@@ -64,6 +65,7 @@ module slow_physics_alg_mod
   use external_forcing_alg_mod,  only: external_forcing_alg
   ! Physics schemes called
 #ifdef UM_PHYSICS
+  use planet_config_mod,         only: p_zero, kappa
   use locate_tropopause_alg_mod, only: locate_tropopause_alg
   use radaer_alg_mod,            only: radaer_alg
   use glomap_aerosol_alg_mod,    only: glomap_aerosol_alg
@@ -72,6 +74,7 @@ module slow_physics_alg_mod
   use casim_alg_mod,             only: casim_alg
   use illuminate_alg_mod,        only: illuminate_alg
   use rad_tile_alg_mod,          only: rad_tile_alg
+  use rad_cloud_alg_mod,         only: rad_cloud_alg
   use radiation_alg_mod,         only: radiation_alg
   use pc2_rad_response_alg_mod,  only: pc2_rad_response_alg
   use spectral_gwd_alg_mod,      only: spectral_gwd_alg
@@ -183,17 +186,27 @@ contains
     type( field_type ), pointer :: dtheta_mphys => null()
     type( field_type ) :: dmr_mphys(nummr)
     type( field_type ) :: dcfl_pc2_mphys, dcff_pc2_mphys, dbcf_pc2_mphys
-    ! ...for radiation
     type( field_type ), pointer :: dtheta_rad => null()
     type( field_type ), pointer :: dmv_pc2_rad => null()
     type( field_type ) :: dtheta_pc2_rad, dmcl_pc2_rad
     type( field_type ) :: dcfl_pc2_rad, dbcf_pc2_rad
 #ifdef UM_PHYSICS
+    real( r_def ) :: inv_kappa
+    type( field_type ) :: pressure_in_wth
+    type( field_type ) :: temperature_in_wth
     type( integer_field_type ) :: trop_level
     type( field_type ) :: tile_lw_albedo
     type( field_type ) :: tile_lwinc_albedo
     type( field_type ) :: tile_sw_diffuse_albedo, tile_sw_direct_albedo
     type( field_type ) :: tile_swinc_diffuse_albedo, tile_swinc_direct_albedo
+    ! ...for radiation
+    logical( kind=l_def ) :: rad_this_tstep, rad_inc_this_tstep
+    logical( kind=l_def ) :: cosp_this_tstep
+    type( integer_field_type ) :: rand_seed, n_cloud_layer
+    type( field_type ) :: radiative_cloud_fraction, radiative_conv_fraction
+    type( field_type ) :: conv_liquid_fraction, conv_frozen_fraction
+    type( field_type ) :: conv_liquid_mmr, conv_frozen_mmr
+    type( field_type ) :: cosp_lw_absorptivity, cosp_sw_extinction
 #endif
     ! ...for spectral GWD
     type( field_type ) :: du_tot_spectral_gwd, dtheta_spectral_gwd
@@ -299,6 +312,17 @@ contains
     if ( microphysics == microphysics_um .or. &
          radiation == radiation_socrates ) then
 
+      ! Set pressure and temperature in wth
+      call pressure_in_wth%initialise( vector_space=theta%get_function_space() )
+      call temperature_in_wth%initialise( &
+                                       vector_space=theta%get_function_space() )
+      inv_kappa = 1.0_r_def/kappa
+      call invoke( &
+        setval_X(pressure_in_wth, exner_in_wth), &
+        inc_X_powreal_a(pressure_in_wth, inv_kappa), &
+        inc_a_times_X(p_zero, pressure_in_wth), &
+        X_times_Y(temperature_in_wth, theta, exner_in_wth) )
+
       !--------------------------------------------------------------------
       ! Fractional standard deviation (FSD) of cloud condensate
       !--------------------------------------------------------------------
@@ -379,6 +403,16 @@ contains
     if (radiation == radiation_socrates .and. &
         radiation_placement == radiation_placement_slow) then
 
+      ! Set logicals for the radiation calls to be made this timestep
+      rad_this_tstep = (mod(clock%get_step()-1_i_def, n_radstep) == 0)
+      if (l_inc_radstep) then
+        rad_inc_this_tstep = rad_this_tstep .or. &
+          (mod(clock%get_step()-1_i_def, n_inc_radstep) == 0)
+      else
+        rad_inc_this_tstep = .false.
+      end if
+      cosp_this_tstep = rad_this_tstep ! .and. COSP turned on
+
       call illuminate_alg( radiation_fields, clock%get_step(), &
                            clock%get_seconds_per_step() )
 
@@ -412,15 +446,29 @@ contains
       ! Switch UM back to columns
       call um_sizes_init(1_i_def)
 
+      call rad_cloud_alg(rand_seed, n_cloud_layer, &
+                         radiative_cloud_fraction, radiative_conv_fraction, &
+                         conv_liquid_fraction, conv_frozen_fraction, &
+                         conv_liquid_mmr, conv_frozen_mmr, &
+                         temperature_in_wth, &
+                         cloud_fields, convection_fields, &
+                         rad_this_tstep, rad_inc_this_tstep, twod_mesh)
+
       call radiation_fields%get_field('dtheta_rad', dtheta_rad)
       call radiation_fields%get_field('dmv_pc2_rad', dmv_pc2_rad)
       call radiation_alg( dtheta_rad, theta, exner, mr_n,                      &
+                          pressure_in_wth, temperature_in_wth,                 &
                           derived_fields, radiation_fields, cloud_fields,      &
-                          convection_fields, aerosol_fields, surface_fields,   &
-                          clock%get_step(),                                    &
+                          aerosol_fields, surface_fields,                      &
+                          rad_this_tstep, rad_inc_this_tstep, cosp_this_tstep, &
                           tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
                           tile_swinc_direct_albedo, tile_swinc_diffuse_albedo, &
-                          tile_lw_albedo, tile_lwinc_albedo )
+                          tile_lw_albedo, tile_lwinc_albedo,                   &
+                          rand_seed, n_cloud_layer,                            &
+                          radiative_cloud_fraction, radiative_conv_fraction,   &
+                          conv_liquid_fraction, conv_frozen_fraction,          &
+                          conv_liquid_mmr, conv_frozen_mmr,                    &
+                          cosp_lw_absorptivity, cosp_sw_extinction )
       radiation_done = .true. ! Collect this increment later on
 
       if (cloud == cloud_um .and. scheme == scheme_pc2) then

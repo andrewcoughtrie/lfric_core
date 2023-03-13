@@ -845,6 +845,10 @@
 	<field id="radiation__cloud_droplet_re_rts" name="cloud_droplet_re_rts" long_name="cloud_droplet_effective_radius_radiative_timestep" unit="m" grid_ref="full_level_face_grid" />
 	<field id="radiation__cloud_top_re_rts" name="cloud_top_re_rts" long_name="weighted_cloud_top_effective_radius_radiative_timestep" unit="m" domain_ref="face" />
 	<field id="radiation__cloud_top_weight_rts" name="cloud_top_weight_rts" long_name="cloud_top_weight_radiative_timestep" unit="1" domain_ref="face" />
+    <field id="radiation__cloud_absorptivity_rts" name="cloud_absorptivity_rts" long_name="weighted_longwave_cloud_absorptivity_radiative_timestep" unit="m2 kg-1" grid_ref="full_level_face_grid" />
+    <field id="radiation__cloud_weight_absorptivity_rts" name="cloud_weight_absorptivity_rts" long_name="weight_for_cloud_absorptivity_radiative_timestep" unit="1" grid_ref="full_level_face_grid" />
+    <field id="radiation__cloud_extinction_rts" name="cloud_extinction_rts" long_name="weighted_shortwave_cloud_extinction_radiative_timestep" unit="m2 kg-1" grid_ref="full_level_face_grid" />
+    <field id="radiation__cloud_weight_extinction_rts" name="cloud_weight_extinction_rts" long_name="weight_for_cloud_extinction_radiative_timestep" unit="1" grid_ref="full_level_face_grid" />
 	<field id="radiation__warm_cloud_top_re_rts" name="warm_cloud_top_re_rts" long_name="weighted_warm_cloud_top_effective_radius_radiative_timestep" unit="m" domain_ref="face" />
 	<field id="radiation__warm_cloud_top_weight_rts" name="warm_cloud_top_weight_rts" long_name="warm_cloud_top_weight_radiative_timestep" unit="1" domain_ref="face" />
 	<field id="radiation__liq_cloud_frac_rts" name="liq_cloud_frac_rts" long_name="liquid_cloud_fraction_radiative_timestep" unit="1" grid_ref="full_level_face_grid" />

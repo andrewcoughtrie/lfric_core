@@ -3,7 +3,7 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !------------------------------------------------------------------------------
-! @brief Calculate the solar illumination angles and flux
+!> @brief Calculate the solar illumination angles and flux
 
 module illuminate_alg_mod
 
@@ -28,9 +28,9 @@ public :: illuminate_alg
 
 contains
 
-! @param[in,out] radiation_fields Fields for radiation scheme
-! @param[in]     timestep         Model timestep number
-! @param[in]     dt               Model timestep length
+!> @param[in,out] radiation_fields Fields for radiation scheme
+!> @param[in]     timestep         Model timestep number
+!> @param[in]     dt               Model timestep length
 
 subroutine illuminate_alg(radiation_fields, timestep, dt)
 

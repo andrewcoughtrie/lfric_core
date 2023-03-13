@@ -52,6 +52,10 @@ liq_cloud_mmr_rts  = ['liq_cloud_mmr_rts', 0, 1e-4]
 ice_cloud_mmr_rts  = ['ice_cloud_mmr_rts', 0, 1e-4]
 liq_cloud_path_rts  = ['liq_cloud_path_rts', 0, 5e-1]
 ice_cloud_path_rts  = ['ice_cloud_path_rts', 0, 5e-1]
+cloud_absorptivity_rts = ['cloud_absorptivity_rts', 0, 0.1]
+cloud_weight_absorptivity_rts = ['cloud_weight_absorptivity_rts', 0, 5]
+cloud_extinction_rts = ['cloud_extinction_rts', 0, 1]
+cloud_weight_extinction_rts = ['cloud_weight_extinction_rts', 0, 50]
 sw_aod_rts = ['sw_aer_optical_depth_rts', 0, 1e-3]
 sw_net_surf_rts = ['sw_net_surf_rts', 0, 1200]
 sw_direct_toa_rts = ['sw_direct_toa_rts', 0, 1450]
@@ -178,6 +182,10 @@ if __name__ == "__main__":
         do_plot(datapath, cloud_cover_rts,        plotpath)
         do_plot(datapath, cloud_fraction_rts,     plotpath, plotlevel=17)
         do_plot(datapath, cloud_droplet_re_rts,   plotpath, plotlevel=17)
+        do_plot(datapath, cloud_absorptivity_rts, plotpath, plotlevel=17)
+        do_plot(datapath, cloud_extinction_rts,   plotpath, plotlevel=17)
+        do_plot(datapath, cloud_weight_absorptivity_rts, plotpath, plotlevel=17)
+        do_plot(datapath, cloud_weight_extinction_rts,   plotpath, plotlevel=17)
         do_plot(datapath, sw_aod_rts,             plotpath, plotlevel=38)
         do_plot(datapath, sw_net_surf_rts,        plotpath)
         do_plot(datapath, sw_direct_toa_rts,      plotpath)
