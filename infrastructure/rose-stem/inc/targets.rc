@@ -420,16 +420,16 @@
     'niwa-xc50-sl' : {
         'hostname' : 'login.maui.niwa.co.nz',
         'batcher' : 'slurm',
-        'build_root' : '\$CYLC_SUITE_RUN_DIR/share/lfric_build',
+        'build_root' : '\${CYLC_SUITE_RUN_DIR}/share/lfric_build',
         'update' : 'interupt',
         'setup' : {
             'base' : [
-                'export HDF5_USE_FILE_LOCKING=FALSE',
+                'export HDF5_USE_FILE_LOCKING=FALSE; export UMDIR=/opt/niwa/um_sys/um',
             ],
             'build' : [],
             'compiler' : {
                 'intel' : [
-                    'module swap NeSI NIWA; module load YAXT/0.9.0-CrayIntel-19.04b XIOS/r2279-CrayIntel-19.04b-NC4PAR pfunit/3.2.9-CrayIntel-19.04b PSyclone/2.3.0-Python-3.6 Jinja2/3.0.3-Python-3.6 Rose_Picker/1.0.0; export FC=ftn FPP=\"cpp -P -x f95-cpp-input\" LDMPI=ftn PFUNIT=$EBROOTPFUNIT FFLAGS=\"-I$EBROOTXIOS/inc -real-size 64\"'
+                    'module swap NeSI NIWA; module load YAXT/0.9.0-CrayIntel-23.02-19 XIOS/r2279-CrayIntel-23.02-19-NC4PAR-patched pfunit/3.2.9-CrayIntel-23.02-19 PSyclone/2.3.0-Python-3.9 Jinja2/3.0.3-Python-3.9 Rose_Picker/1.0.0 cray-hdf5-parallel/1.12.2.3; export FC=ftn FPP=\"cpp -P -x f95-cpp-input\" LDMPI=ftn PFUNIT=$EBROOTPFUNIT FFLAGS=\"-I$EBROOTXIOS/inc -real-size 64\"'
                 ],
             },
             'plot' : [],
@@ -451,7 +451,7 @@
                     '--account=niwa00001',
                     '--partition=nesi_research',
                     '--nodes=1',
-                    '--ntasks=6',
+                    '--ntasks=4',
                     '--cpus-per-task=1',
                     '--hint=nomultithread',
                     '--mem=60G',
@@ -477,7 +477,7 @@
     'niwa-xc50-bg' : {
         'hostname' : 'login.maui.niwa.co.nz',
         'batcher' : 'background',
-        'build_root' : '\$CYLC_SUITE_RUN_DIR/share/lfric_build',
+        'build_root' : '\${CYLC_SUITE_RUN_DIR}/share/lfric_build',
         'update' : 'interupt',
         'setup' : {
             'base' : [],

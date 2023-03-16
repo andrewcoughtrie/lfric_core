@@ -54,6 +54,19 @@ FFLAGS_FORTRAN_STANDARD   = -stand f08
 # ref #1486
 # When the Intel bug is fixed, this option will be removed by #1490
 export FFLAGS_INTEL_FIX_ARG         = -qoverride-limits
+#
+# -warn noexternals applied to code that imports mpi_mod to avoid
+# a warning-turned-error about missing interfaces for MPI calls in
+# mpi.mod, such as MPI_Allreduce - switching to mpi_f08.mod resolves
+# this via polymorphic interface declarations. Some SOCRATES functions
+# do not currently declare interfaces either. Flag was introduced in
+# Intel Fortran v19.1.0 according to Intel release notes.
+ifeq ($(shell test "$(IFORT_VERSION)" -ge 0190100; echo $$?), 0)
+  $(info ** Activating externals warning override for selected source files)
+  export FFLAGS_INTEL_EXTERNALS = -warn noexternals
+else
+  export FFLAGS_INTEL_EXTERNALS =
+endif
 ########################################################################
 
 # The "-assume realloc-lhs" switch causes Intel Fortran prior to v17 to

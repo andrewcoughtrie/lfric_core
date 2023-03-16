@@ -15,3 +15,8 @@ include $(PROJECT_DIR)/build/fortran/$(FORTRAN_COMPILER).mk
 
 science/%.o science/%.mod: private FFLAGS_EXTRA = $(FFLAGS_UM_PHYSICS)
 %/limited_area_constants_mod.o: private FFLAGS_EXTRA = $(FFLAGS_INTEL_FIX_ARG)
+
+$(info Disable warnings-turned-error caused by undeclared external functions - see ifort.mk)
+%mpi_mod.o %mpi_mod.mod: private FFLAGS_EXTRA = $(FFLAGS_INTEL_EXTERNALS)
+science/src/socrates/src/radiance_core/%.o: private FFLAGS_EXTRA = $(FFLAGS_INTEL_EXTERNALS)
+science/src/socrates/src/interface_core/%.o: private FFLAGS_EXTRA = $(FFLAGS_INTEL_EXTERNALS)
