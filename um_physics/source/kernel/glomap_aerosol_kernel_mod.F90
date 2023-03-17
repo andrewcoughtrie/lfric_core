@@ -277,27 +277,19 @@ subroutine glomap_aerosol_code( nlayers,                                       &
   ! UM modules
   !---------------------------------------
 
-  use glomap_clim_calc_md_mdt_nd_mod,     only: glomap_clim_calc_md_mdt_nd
-
-  use glomap_clim_calc_rh_frac_clear_mod, only: glomap_clim_calc_rh_frac_clear
-
-  use glomap_clim_option_mod,             only: i_gc_sussocbcdu_7mode
+  use glomap_clim_interface_mod,          only: glomap_clim_interface
 
   use planet_constants_mod,               only: p_zero, kappa
 
-  use ukca_calc_drydiam_mod,              only: ukca_calc_drydiam
+  use ukca_config_specification_mod,      only: i_sussbcocdu_7mode
 
-  use ukca_cdnc_jones_mod,                only: ukca_cdnc_jones
-
-  use ukca_mode_setup,                    only: nmodes, ncp,                   &
+  use ukca_mode_setup,                    only: nmodes,                        &
                                                 mode_nuc_sol,                  &
                                                 mode_ait_sol, mode_acc_sol,    &
                                                 mode_cor_sol, mode_ait_insol,  &
                                                 mode_acc_insol, mode_cor_insol,&
                                                 cp_su, cp_bc, cp_oc, cp_cl,    &
                                                 cp_du
-
-  use ukca_volume_mode_mod,               only: ukca_volume_mode
 
   implicit none
 
@@ -382,6 +374,12 @@ subroutine glomap_aerosol_code( nlayers,                                       &
 
   ! Local variables for the kernel
 
+  ! At a later date we would like to obtain this as a variable via the api
+  ! This value is hard coded for the time being to work with
+  ! ukca_mode_sussbcocdu_7mode
+  integer(i_um),  parameter :: ncp_lfric = 6
+
+  ! counter
   integer(i_um) :: k
 
   ! pressure on theta levels
@@ -405,21 +403,18 @@ subroutine glomap_aerosol_code( nlayers,                                       &
   ! Critical relative humidity
   real(r_um), dimension(nlayers) :: rh_crit_um
 
-  ! Clear sky relative humidity as a fraction
-  real(r_um), dimension(nlayers) :: rh_clr_um
-
   ! note - UM fields may have a redundant zeroth level
   real(r_um), dimension(nlayers) ::                                            &
-                                  n_nuc_sol_um, nuc_sol_su_um, nuc_sol_om_um,  &
-                                  n_ait_sol_um, ait_sol_su_um, ait_sol_bc_um,  &
+                                  n_nuc_sol_um,  nuc_sol_su_um, nuc_sol_om_um, &
+                                  n_ait_sol_um,  ait_sol_su_um, ait_sol_bc_um, &
                                   ait_sol_om_um,                               &
-                                  n_acc_sol_um, acc_sol_su_um, acc_sol_bc_um,  &
-                                  acc_sol_om_um, acc_sol_ss_um,acc_sol_du_um,  &
-                                  n_cor_sol_um, cor_sol_su_um, cor_sol_bc_um,  &
-                                  cor_sol_om_um, cor_sol_ss_um,cor_sol_du_um,  &
-                                  n_ait_ins_um, ait_ins_bc_um, ait_ins_om_um,  &
-                                  n_acc_ins_um, acc_ins_du_um,                 &
-                                  n_cor_ins_um, cor_ins_du_um
+                                  n_acc_sol_um,  acc_sol_su_um, acc_sol_bc_um, &
+                                  acc_sol_om_um, acc_sol_ss_um, acc_sol_du_um, &
+                                  n_cor_sol_um,  cor_sol_su_um, cor_sol_bc_um, &
+                                  cor_sol_om_um, cor_sol_ss_um, cor_sol_du_um, &
+                                  n_ait_ins_um,  ait_ins_bc_um, ait_ins_om_um, &
+                                  n_acc_ins_um,  acc_ins_du_um,                &
+                                  n_cor_ins_um,  cor_ins_du_um
 
   ! Median particle dry diameter for each mode (m)
   real(r_um), dimension(nlayers,nmodes)     :: drydp
@@ -434,28 +429,7 @@ subroutine glomap_aerosol_code( nlayers,                                       &
   real(r_um), dimension(nlayers,nmodes)     :: pvol_wat
 
   ! Partial volumes of each component in each mode (m^3^)
-  real(r_um), dimension(nlayers,nmodes,ncp) :: pvol
-
-  ! Aerosol ptcl no. concentration (ptcls per cc)
-  real(r_um), dimension(nlayers,nmodes)     :: nd
-
-  ! Total median aerosol mass (molecules per ptcl)
-  real(r_um), dimension(nlayers,nmodes)     :: mdt
-
-  ! Component median aerosol mass (molecules per ptcl)
-  real(r_um), dimension(nlayers,nmodes,ncp) :: md
-
-  ! Avg dry volume of size mode (cubic metres)
-  real(r_um), dimension(nlayers,nmodes)     :: dvol
-
-  ! This fields is only required by UKCA (not climatology).
-  ! This field argument passed OUT of ukca_cdnc_jones.
-  real(r_um), dimension(nlayers)            :: ccn_1d
-
-  ! These fields are only required by UKCA (not climatology).
-  ! These fields arguments passed OUT of ukca_volume_mode.
-  real(r_um), dimension(nlayers,nmodes)     :: wvol
-  real(r_um), dimension(nlayers,nmodes)     :: mdwat
+  real(r_um), dimension(nlayers,nmodes,ncp_lfric) :: pvol
 
   ! Cloud droplet number concentration from Jones method (m^-3^)
   real(r_um), dimension(nlayers)            :: cdnc_1d
@@ -521,36 +495,29 @@ subroutine glomap_aerosol_code( nlayers,                                       &
   end do
 
   !-----------------------------------------------------------------------
-  ! CDNC calculated via Jones method - see doi:10.1038/370450a0
+  ! send arguments to UM interface routine
   !-----------------------------------------------------------------------
 
-  ! Calculate clear sky relative humidity (rh_clr_um) as a fraction
-  call glomap_clim_calc_rh_frac_clear( nlayers,                                &
-                                       q_um, qcf_um,                           &
-                                       cloud_liq_frac_um, cloud_blk_frac_um,   &
-                                       t_theta_levels_1d, p_theta_levels_1d,   &
-                                       rh_crit_um, rh_clr_um )
+  call glomap_clim_interface( nlayers, i_sussbcocdu_7mode,                     &
+                              rad_this_tstep, l_radaer, act_radius,            &
+                              p_theta_levels_1d, t_theta_levels_1d,            &
+                              n_nuc_sol_um, nuc_sol_su_um, nuc_sol_om_um,      &
+                              n_ait_sol_um, ait_sol_su_um, ait_sol_bc_um,      &
+                              ait_sol_om_um,                                   &
+                              n_acc_sol_um, acc_sol_su_um, acc_sol_bc_um,      &
+                              acc_sol_om_um,acc_sol_ss_um, acc_sol_du_um,      &
+                              n_cor_sol_um, cor_sol_su_um, cor_sol_bc_um,      &
+                              cor_sol_om_um,cor_sol_ss_um, cor_sol_du_um,      &
+                              n_ait_ins_um, ait_ins_bc_um, ait_ins_om_um,      &
+                              n_acc_ins_um, acc_ins_du_um,                     &
+                              n_cor_ins_um, cor_ins_du_um,                     &
+                              rh_crit_um, q_um, qcf_um,                        &
+                              cloud_liq_frac_um, cloud_blk_frac_um,            &
+                              cdnc_1d, drydp, wetdp, rhopar, pvol_wat, pvol )
 
-  ! Calculate fields nd, md, mdt
-  call glomap_clim_calc_md_mdt_nd( nlayers, i_gc_sussocbcdu_7mode,             &
-                                   p_theta_levels_1d, t_theta_levels_1d,       &
-                                   n_nuc_sol_um, nuc_sol_su_um, nuc_sol_om_um, &
-                                   n_ait_sol_um, ait_sol_su_um, ait_sol_bc_um, &
-                                   ait_sol_om_um,                              &
-                                   n_acc_sol_um, acc_sol_su_um, acc_sol_bc_um, &
-                                   acc_sol_om_um, acc_sol_ss_um, acc_sol_du_um,&
-                                   n_cor_sol_um, cor_sol_su_um, cor_sol_bc_um, &
-                                   cor_sol_om_um, cor_sol_ss_um, cor_sol_du_um,&
-                                   n_ait_ins_um, ait_ins_bc_um, ait_ins_om_um, &
-                                   n_acc_ins_um, acc_ins_du_um,                &
-                                   n_cor_ins_um, cor_ins_du_um,                &
-                                   nd, md, mdt )
-
-  ! Calculate the dry diameters and volumes
-  call ukca_calc_drydiam( nlayers, nd, md, mdt, drydp, dvol )
-
-  ! obtain CDNC field (cdnc_1d)
-  call ukca_cdnc_jones( nlayers, act_radius, drydp, nd, ccn_1d, cdnc_1d )
+  !-----------------------------------------------------------------------
+  ! Convert returned fields from UM to LFRic formats
+  !-----------------------------------------------------------------------
 
   ! set zeroth level first (to the same as the first level)
   ! this appears in diagnostic field but should not be used in model evolution
@@ -566,13 +533,6 @@ subroutine glomap_aerosol_code( nlayers,                                       &
   ! need calculating if both radaer is being used, and it is a radiation
   ! timestep
   if (rad_this_tstep .and. l_radaer) then
-
-    ! Calculate drydp , wetdp , rhopar , pvol_wat , pvol
-    call ukca_volume_mode( nlayers, nd, md, mdt,                               &
-                           rh_clr_um, wvol, wetdp,                             &
-                           rhopar, dvol, drydp, mdwat, pvol,                   &
-                           pvol_wat, t_theta_levels_1d, p_theta_levels_1d, q_um)
-
     do k = 1, nlayers
       drydp_ait_sol(map_wth(1) + k)    = drydp(    k, mode_ait_sol )
       drydp_acc_sol(map_wth(1) + k)    = drydp(    k, mode_acc_sol )
@@ -592,25 +552,24 @@ subroutine glomap_aerosol_code( nlayers,                                       &
       pvol_wat_ait_sol(map_wth(1) + k) = pvol_wat( k, mode_ait_sol )
       pvol_wat_acc_sol(map_wth(1) + k) = pvol_wat( k, mode_acc_sol )
       pvol_wat_cor_sol(map_wth(1) + k) = pvol_wat( k, mode_cor_sol )
-      pvol_su_ait_sol(map_wth(1) + k)  = pvol( k, mode_ait_sol,   cp_su )
-      pvol_bc_ait_sol(map_wth(1) + k)  = pvol( k, mode_ait_sol,   cp_bc )
-      pvol_om_ait_sol(map_wth(1) + k)  = pvol( k, mode_ait_sol,   cp_oc )
-      pvol_su_acc_sol(map_wth(1) + k)  = pvol( k, mode_acc_sol,   cp_su )
-      pvol_bc_acc_sol(map_wth(1) + k)  = pvol( k, mode_acc_sol,   cp_bc )
-      pvol_om_acc_sol(map_wth(1) + k)  = pvol( k, mode_acc_sol,   cp_oc )
-      pvol_ss_acc_sol(map_wth(1) + k)  = pvol( k, mode_acc_sol,   cp_cl )
-      pvol_du_acc_sol(map_wth(1) + k)  = pvol( k, mode_acc_sol,   cp_du )
-      pvol_su_cor_sol(map_wth(1) + k)  = pvol( k, mode_cor_sol,   cp_su )
-      pvol_bc_cor_sol(map_wth(1) + k)  = pvol( k, mode_cor_sol,   cp_bc )
-      pvol_om_cor_sol(map_wth(1) + k)  = pvol( k, mode_cor_sol,   cp_oc )
-      pvol_ss_cor_sol(map_wth(1) + k)  = pvol( k, mode_cor_sol,   cp_cl )
-      pvol_du_cor_sol(map_wth(1) + k)  = pvol( k, mode_cor_sol,   cp_du )
-      pvol_bc_ait_ins(map_wth(1) + k)  = pvol( k, mode_ait_insol, cp_bc )
-      pvol_om_ait_ins(map_wth(1) + k)  = pvol( k, mode_ait_insol, cp_oc )
-      pvol_du_acc_ins(map_wth(1) + k)  = pvol( k, mode_acc_insol, cp_du )
-      pvol_du_cor_ins(map_wth(1) + k)  = pvol( k, mode_cor_insol, cp_du )
+      pvol_su_ait_sol(map_wth(1) + k)  = pvol(     k, mode_ait_sol,   cp_su )
+      pvol_bc_ait_sol(map_wth(1) + k)  = pvol(     k, mode_ait_sol,   cp_bc )
+      pvol_om_ait_sol(map_wth(1) + k)  = pvol(     k, mode_ait_sol,   cp_oc )
+      pvol_su_acc_sol(map_wth(1) + k)  = pvol(     k, mode_acc_sol,   cp_su )
+      pvol_bc_acc_sol(map_wth(1) + k)  = pvol(     k, mode_acc_sol,   cp_bc )
+      pvol_om_acc_sol(map_wth(1) + k)  = pvol(     k, mode_acc_sol,   cp_oc )
+      pvol_ss_acc_sol(map_wth(1) + k)  = pvol(     k, mode_acc_sol,   cp_cl )
+      pvol_du_acc_sol(map_wth(1) + k)  = pvol(     k, mode_acc_sol,   cp_du )
+      pvol_su_cor_sol(map_wth(1) + k)  = pvol(     k, mode_cor_sol,   cp_su )
+      pvol_bc_cor_sol(map_wth(1) + k)  = pvol(     k, mode_cor_sol,   cp_bc )
+      pvol_om_cor_sol(map_wth(1) + k)  = pvol(     k, mode_cor_sol,   cp_oc )
+      pvol_ss_cor_sol(map_wth(1) + k)  = pvol(     k, mode_cor_sol,   cp_cl )
+      pvol_du_cor_sol(map_wth(1) + k)  = pvol(     k, mode_cor_sol,   cp_du )
+      pvol_bc_ait_ins(map_wth(1) + k)  = pvol(     k, mode_ait_insol, cp_bc )
+      pvol_om_ait_ins(map_wth(1) + k)  = pvol(     k, mode_ait_insol, cp_oc )
+      pvol_du_acc_ins(map_wth(1) + k)  = pvol(     k, mode_acc_insol, cp_du )
+      pvol_du_cor_ins(map_wth(1) + k)  = pvol(     k, mode_cor_insol, cp_du )
     end do
-
 
     ! set zeroth level first (to the same as the first level)
     ! this appears in diagnostic field but should not be used in model evolution
@@ -632,24 +591,23 @@ subroutine glomap_aerosol_code( nlayers,                                       &
     pvol_wat_ait_sol(map_wth(1) + 0) = pvol_wat( 1, mode_ait_sol )
     pvol_wat_acc_sol(map_wth(1) + 0) = pvol_wat( 1, mode_acc_sol )
     pvol_wat_cor_sol(map_wth(1) + 0) = pvol_wat( 1, mode_cor_sol )
-    pvol_su_ait_sol(map_wth(1) + 0)  = pvol( 1, mode_ait_sol,   cp_su )
-    pvol_bc_ait_sol(map_wth(1) + 0)  = pvol( 1, mode_ait_sol,   cp_bc )
-    pvol_om_ait_sol(map_wth(1) + 0)  = pvol( 1, mode_ait_sol,   cp_oc )
-    pvol_su_acc_sol(map_wth(1) + 0)  = pvol( 1, mode_acc_sol,   cp_su )
-    pvol_bc_acc_sol(map_wth(1) + 0)  = pvol( 1, mode_acc_sol,   cp_bc )
-    pvol_om_acc_sol(map_wth(1) + 0)  = pvol( 1, mode_acc_sol,   cp_oc )
-    pvol_ss_acc_sol(map_wth(1) + 0)  = pvol( 1, mode_acc_sol,   cp_cl )
-    pvol_du_acc_sol(map_wth(1) + 0)  = pvol( 1, mode_acc_sol,   cp_du )
-    pvol_su_cor_sol(map_wth(1) + 0)  = pvol( 1, mode_cor_sol,   cp_su )
-    pvol_bc_cor_sol(map_wth(1) + 0)  = pvol( 1, mode_cor_sol,   cp_bc )
-    pvol_om_cor_sol(map_wth(1) + 0)  = pvol( 1, mode_cor_sol,   cp_oc )
-    pvol_ss_cor_sol(map_wth(1) + 0)  = pvol( 1, mode_cor_sol,   cp_cl )
-    pvol_du_cor_sol(map_wth(1) + 0)  = pvol( 1, mode_cor_sol,   cp_du )
-    pvol_bc_ait_ins(map_wth(1) + 0)  = pvol( 1, mode_ait_insol, cp_bc )
-    pvol_om_ait_ins(map_wth(1) + 0)  = pvol( 1, mode_ait_insol, cp_oc )
-    pvol_du_acc_ins(map_wth(1) + 0)  = pvol( 1, mode_acc_insol, cp_du )
-    pvol_du_cor_ins(map_wth(1) + 0)  = pvol( 1, mode_cor_insol, cp_du )
-
+    pvol_su_ait_sol(map_wth(1) + 0)  = pvol(     1, mode_ait_sol,   cp_su )
+    pvol_bc_ait_sol(map_wth(1) + 0)  = pvol(     1, mode_ait_sol,   cp_bc )
+    pvol_om_ait_sol(map_wth(1) + 0)  = pvol(     1, mode_ait_sol,   cp_oc )
+    pvol_su_acc_sol(map_wth(1) + 0)  = pvol(     1, mode_acc_sol,   cp_su )
+    pvol_bc_acc_sol(map_wth(1) + 0)  = pvol(     1, mode_acc_sol,   cp_bc )
+    pvol_om_acc_sol(map_wth(1) + 0)  = pvol(     1, mode_acc_sol,   cp_oc )
+    pvol_ss_acc_sol(map_wth(1) + 0)  = pvol(     1, mode_acc_sol,   cp_cl )
+    pvol_du_acc_sol(map_wth(1) + 0)  = pvol(     1, mode_acc_sol,   cp_du )
+    pvol_su_cor_sol(map_wth(1) + 0)  = pvol(     1, mode_cor_sol,   cp_su )
+    pvol_bc_cor_sol(map_wth(1) + 0)  = pvol(     1, mode_cor_sol,   cp_bc )
+    pvol_om_cor_sol(map_wth(1) + 0)  = pvol(     1, mode_cor_sol,   cp_oc )
+    pvol_ss_cor_sol(map_wth(1) + 0)  = pvol(     1, mode_cor_sol,   cp_cl )
+    pvol_du_cor_sol(map_wth(1) + 0)  = pvol(     1, mode_cor_sol,   cp_du )
+    pvol_bc_ait_ins(map_wth(1) + 0)  = pvol(     1, mode_ait_insol, cp_bc )
+    pvol_om_ait_ins(map_wth(1) + 0)  = pvol(     1, mode_ait_insol, cp_oc )
+    pvol_du_acc_ins(map_wth(1) + 0)  = pvol(     1, mode_acc_insol, cp_du )
+    pvol_du_cor_ins(map_wth(1) + 0)  = pvol(     1, mode_cor_insol, cp_du )
   end if ! radiation timestep
 
 end subroutine glomap_aerosol_code

@@ -195,7 +195,7 @@ contains
          var_diags_opt, i_interp_local, i_interp_local_gradients,          &
          split_tke_and_inv, l_noice_in_turb, l_use_var_fixes,              &
          i_interp_local_cf_dbdz, tke_diag_fac, a_ent_2, dec_thres_cloud,   &
-         dec_thres_cu, near_neut_z_on_l, cbl_mix_fac_nml
+         dec_thres_cu, near_neut_z_on_l
     use cloud_inputs_mod, only: i_cld_vn, forced_cu, i_rhcpt, i_cld_area,  &
          rhcrit, ice_fraction_method,falliceshear_method, cff_spread_rate, &
          l_subgrid_qv, ice_width, min_liq_overlap, i_eacf, not_mixph,      &
@@ -240,12 +240,13 @@ contains
     use cv_set_dependent_switches_mod, only: cv_set_dependent_switches
     use dust_parameters_mod, only: i_dust, i_dust_off, i_dust_flux,        &
          dust_veg_emiss, us_am, sm_corr, horiz_d, l_fix_size_dist,         &
-         l_twobin_dust, h_orog_limit, dust_parameters_load,                &
+         l_twobin_dust, dust_parameters_load,                              &
          dust_parameters_unload
     use electric_inputs_mod, only: electric_method, no_lightning
     use fsd_parameters_mod, only: fsd_eff_lam, fsd_eff_phi, f_cons
-    use glomap_clim_option_mod, only: i_glomap_clim_setup,                 &
-         i_gc_sussocbcdu_7mode, l_glomap_clim_aie2, l_glomap_clim_radaer
+    use glomap_clim_option_mod, only: i_glomap_clim_setup,                     &
+                                      l_glomap_clim_aie2,                      &
+                                      i_glomap_clim_tune_bc
     use g_wave_input_mod, only: ussp_launch_factor, wavelstar, l_add_cgw,  &
          cgw_scale_factor, i_moist, scale_aware, middle, var
     use mphys_bypass_mod, only: mphys_mod_top
@@ -297,6 +298,9 @@ contains
     use turb_diff_mod, only: l_subfilter_horiz, l_subfilter_vert,        &
          mix_factor, turb_startlev_vert, turb_endlev_vert, l_leonard_term
     use ukca_mode_setup, only: ukca_mode_sussbcocdu_7mode
+    use glomap_clim_mode_setup_interface_mod, only:                            &
+        glomap_clim_mode_setup_interface
+    use ukca_config_specification_mod, only: i_sussbcocdu_7mode
     use ukca_option_mod, only: l_ukca, l_ukca_plume_scav, mode_aitsol_cvscav
     use ukca_scavenging_mod, only: ukca_mode_scavcoeff
 
@@ -304,6 +308,7 @@ contains
     implicit none
 
     integer(i_def) :: k
+    logical(l_def) :: l_fix_nacl_density
     logical(l_def) :: dust_loaded = .false.
 
     ! ----------------------------------------------------------------
@@ -332,13 +337,15 @@ contains
           ! l_glomap_clim_aie1 is not used in LFRic. The 1st indirect effect is
           ! controlled through the radiation namelist: droplet_effective_radius
           l_glomap_clim_aie2 = .true.
-          ! This fixes a negative number in field value ( see um:#4383 )
-          l_glomap_clim_radaer = .true.
           ! Set up the correct mode and components for GLOMAP-mode:
           ! 5 mode with SU SS OM BC components
-          i_glomap_clim_setup = i_gc_sussocbcdu_7mode
-          call ukca_mode_sussbcocdu_7mode
-
+          i_glomap_clim_setup = i_sussbcocdu_7mode
+          l_fix_nacl_density = .false.
+          i_glomap_clim_tune_bc = 0
+          call glomap_clim_mode_setup_interface( i_glomap_clim_setup,          &
+                                                 l_radaer,                     &
+                                                 i_glomap_clim_tune_bc,        &
+                                                 l_fix_nacl_density )
         case(glomap_mode_ukca)
           ! UKCA initialisation (via a call to um_ukca_init) is deferred
           ! until after that for JULES since JULES settings are required
@@ -347,8 +354,13 @@ contains
         case(glomap_mode_radaer_test)
           ! Set up the correct mode and components for RADAER:
           ! 7 mode with SU SS OM BC DU components
-          call ukca_mode_sussbcocdu_7mode()
-
+          i_glomap_clim_setup = i_sussbcocdu_7mode
+          l_fix_nacl_density = .false.
+          i_glomap_clim_tune_bc = 0
+          call glomap_clim_mode_setup_interface( i_glomap_clim_setup,          &
+                                                 l_radaer,                     &
+                                                 i_glomap_clim_tune_bc,        &
+                                                 l_fix_nacl_density )
         case(glomap_mode_off)
           ! Do Nothing
 
