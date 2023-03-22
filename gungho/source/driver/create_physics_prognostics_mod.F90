@@ -59,6 +59,10 @@ module create_physics_prognostics_mod
   use microphysics_config_mod,        only : turb_gen_mixph
   use derived_config_mod,             only : l_esm_couple
   use esm_couple_config_mod,          only : l_esm_couple_test
+  use chemistry_config_mod,           only : chem_scheme,                      &
+                                             chem_scheme_strattrop,            &
+                                             chem_scheme_strat_test
+
 #ifdef UM_PHYSICS
   use multidata_field_dimensions_mod, only :                                   &
        get_ndata_val => get_multidata_field_dimension
@@ -1483,7 +1487,56 @@ contains
       call add_physics_field( chemistry_fields, depository, prognostic_fields, &
       adv_fields_last_outer, &
       'h2o2_limit', wtheta_space, checkpoint_flag=checkpoint_flag )
-    end if
+
+      ! Chemistry Emissions - need to define as long as ukca alg routine is
+      ! called, but checkpointed only if chemistry is active, never advected
+      if ( chem_scheme == chem_scheme_strattrop .or.                           &
+         chem_scheme == chem_scheme_strat_test ) then
+        checkpoint_flag = .true.
+      else
+        checkpoint_flag = .false.
+      end if
+
+      call add_physics_field( chemistry_fields, depository, prognostic_fields, &
+        adv_fields_last_outer,  &
+        'emiss_c2h6', twod_space, twod=.true., checkpoint_flag=checkpoint_flag )
+      call add_physics_field( chemistry_fields, depository, prognostic_fields, &
+        adv_fields_last_outer,  &
+        'emiss_c3h8', twod_space, twod=.true., checkpoint_flag=checkpoint_flag )
+      call add_physics_field( chemistry_fields, depository, prognostic_fields, &
+        adv_fields_last_outer,  &
+        'emiss_c5h8', twod_space, twod=.true., checkpoint_flag=checkpoint_flag )
+      call add_physics_field( chemistry_fields, depository, prognostic_fields, &
+        adv_fields_last_outer,  &
+        'emiss_ch4', twod_space, twod=.true., checkpoint_flag=checkpoint_flag )
+      call add_physics_field( chemistry_fields, depository, prognostic_fields, &
+        adv_fields_last_outer,  &
+        'emiss_co', twod_space, twod=.true., checkpoint_flag=checkpoint_flag )
+      call add_physics_field( chemistry_fields, depository, prognostic_fields, &
+        adv_fields_last_outer,  &
+        'emiss_hcho', twod_space, twod=.true., checkpoint_flag=checkpoint_flag )
+      call add_physics_field( chemistry_fields, depository, prognostic_fields, &
+        adv_fields_last_outer,  &
+        'emiss_me2co', twod_space, twod=.true., checkpoint_flag=checkpoint_flag )
+      call add_physics_field( chemistry_fields, depository, prognostic_fields, &
+        adv_fields_last_outer,  &
+        'emiss_mecho', twod_space, twod=.true., checkpoint_flag=checkpoint_flag )
+      call add_physics_field( chemistry_fields, depository, prognostic_fields, &
+        adv_fields_last_outer,  &
+        'emiss_nh3', twod_space, twod=.true., checkpoint_flag=checkpoint_flag )
+      call add_physics_field( chemistry_fields, depository, prognostic_fields, &
+        adv_fields_last_outer,  &
+        'emiss_no', twod_space, twod=.true., checkpoint_flag=checkpoint_flag )
+      call add_physics_field( chemistry_fields, depository, prognostic_fields, &
+        adv_fields_last_outer,  &
+        'emiss_meoh', twod_space, twod=.true., checkpoint_flag=checkpoint_flag )
+      ! 3-D emissions
+      call add_physics_field( chemistry_fields, depository, prognostic_fields, &
+        adv_fields_last_outer,  &
+        'emiss_no_aircrft', wtheta_space, checkpoint_flag=checkpoint_flag )
+
+    endif  ! glomap = ukca
+
     !========================================================================
     ! Fields owned by the aerosol scheme
     !========================================================================

@@ -69,6 +69,9 @@ contains
     use timer_mod,                     only: timer
     use log_mod,                       only: log_event, LOG_LEVEL_INFO
 
+    use chemistry_config_mod,          only: chem_scheme,                      &
+                                             chem_scheme_strattrop,            &
+                                             chem_scheme_strat_test
 
     implicit none
 
@@ -243,6 +246,18 @@ contains
     type( field_type ), pointer :: emiss_so2_nat => null()
     type( field_type ), pointer :: dust_flux => null()
     type( field_type ), pointer :: surf_wetness => null()
+    type( field_type ), pointer :: emiss_c2h6 => null()
+    type( field_type ), pointer :: emiss_c3h8 => null()
+    type( field_type ), pointer :: emiss_c5h8 => null()
+    type( field_type ), pointer :: emiss_ch4 => null()
+    type( field_type ), pointer :: emiss_co => null()
+    type( field_type ), pointer :: emiss_hcho => null()
+    type( field_type ), pointer :: emiss_me2co => null()
+    type( field_type ), pointer :: emiss_mecho => null()
+    type( field_type ), pointer :: emiss_nh3 => null()
+    type( field_type ), pointer :: emiss_no => null()
+    type( field_type ), pointer :: emiss_meoh => null()
+    type( field_type ), pointer :: emiss_no_aircrft => null()
 
     ! Derived fields (to be derived from current state after modification
     ! during the timestep)
@@ -428,6 +443,20 @@ contains
     call aerosol_fields%get_field('dust_flux', dust_flux)
     call aerosol_fields%get_field('surf_wetness', surf_wetness)
 
+    ! Chemistry emissions
+    CALL chemistry_fields%get_field('emiss_c2h6',emiss_c2h6)
+    CALL chemistry_fields%get_field('emiss_c3h8',emiss_c3h8)
+    CALL chemistry_fields%get_field('emiss_c5h8',emiss_c5h8)
+    CALL chemistry_fields%get_field('emiss_ch4',emiss_ch4)
+    CALL chemistry_fields%get_field('emiss_co',emiss_co)
+    CALL chemistry_fields%get_field('emiss_hcho',emiss_hcho)
+    CALL chemistry_fields%get_field('emiss_me2co',emiss_me2co)
+    CALL chemistry_fields%get_field('emiss_mecho',emiss_mecho)
+    CALL chemistry_fields%get_field('emiss_nh3',emiss_nh3)
+    CALL chemistry_fields%get_field('emiss_no',emiss_no)
+    CALL chemistry_fields%get_field('emiss_meoh',emiss_meoh)
+    CALL chemistry_fields%get_field('emiss_no_aircrft',emiss_no_aircrft)
+
     ! Get location and level heights data
 
     mesh => sin_stellar_declination_rts%get_mesh()
@@ -594,7 +623,19 @@ contains
                                           emiss_om_biofuel,                    &
                                           emiss_om_fossil,                     &
                                           emiss_so2_low,                       &
-                                          emiss_so2_high ))
+                                          emiss_so2_high,                      &
+                                          emiss_c2h6,                          &
+                                          emiss_c3h8,                          &
+                                          emiss_c5h8,                          &
+                                          emiss_ch4,                           &
+                                          emiss_co,                            &
+                                          emiss_hcho,                          &
+                                          emiss_me2co,                         &
+                                          emiss_mecho,                         &
+                                          emiss_nh3,                           &
+                                          emiss_no,                            &
+                                          emiss_meoh,                          &
+                                          emiss_no_aircrft ))
 
     ! Save time for reference at next step
     previous_time_year = current_time_year
@@ -697,7 +738,25 @@ contains
       call pvol_om_ait_ins%write_field('aerosol__pvol_om_ait_ins')
       call pvol_du_acc_ins%write_field('aerosol__pvol_du_acc_ins')
       call pvol_du_cor_ins%write_field('aerosol__pvol_du_cor_ins')
-    end if
+      ! Chemistry diagnostics
+      if ( chem_scheme == chem_scheme_strattrop .or.               &
+           chem_scheme == chem_scheme_strat_test ) then
+        call emiss_c2h6%write_field('chemistry__emiss_c2h6')
+        call emiss_c3h8%write_field('chemistry__emiss_c3h8')
+        call emiss_c5h8%write_field('chemistry__emiss_c5h8')
+        call emiss_ch4%write_field('chemistry__emiss_ch4')
+        call emiss_co%write_field('chemistry__emiss_co')
+        call emiss_hcho%write_field('chemistry__emiss_hcho')
+        call emiss_me2co%write_field('chemistry__emiss_me2co')
+        call emiss_mecho%write_field('chemistry__emiss_mecho')
+        call emiss_nh3%write_field('chemistry__emiss_nh3')
+        call emiss_no%write_field('chemistry__emiss_no')
+        call emiss_meoh%write_field('chemistry__emiss_meoh')
+        call emiss_no_aircrft%write_field('chemistry__emiss_no_aircrft')
+        call emiss_no_aircrft%log_minmax(LOG_LEVEL_INFO,' EMISS_NO_aircrft ')
+      end if    ! chem_scheme_strattrop
+
+    end if      ! write diag
 
     nullify( mesh )
 

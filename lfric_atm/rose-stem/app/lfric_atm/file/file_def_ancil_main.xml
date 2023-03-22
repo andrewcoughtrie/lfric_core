@@ -89,6 +89,66 @@
   </file>
 
   <!-- UKCA emission files -->
+     <file id="emiss_c2h6_ancil" name="emiss_c2h6_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_c2h6_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+      <field id="emiss_c2h6_data" name="emissions_C2H6" long_name="C2H6 surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_axis"/>
+      </file>
+
+     <file id="emiss_c3h8_ancil" name="emiss_c3h8_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_c3h8_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+      <field id="emiss_c3h8_data" name="emissions_C3H8" long_name="C3H8 surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_axis"/>
+      </file>
+
+     <file id="emiss_c5h8_ancil" name="emiss_c5h8_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_c5h8_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+      <field id="emiss_c5h8_data" name="emissions_C5H8" long_name="Biogenic surface C5H8 emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_axis"/>
+      </file>
+
+     <file id="emiss_ch4_ancil" name="emiss_ch4_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_ch4_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+      <field id="emiss_ch4_data" name="emissions_CH4" long_name="CH4 surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_axis"/>
+      </file>
+
+     <file id="emiss_co_ancil" name="emiss_co_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_co_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+      <field id="emiss_co_data" name="emissions_CO" long_name="CO surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_axis"/>
+      </file>
+
+     <file id="emiss_hcho_ancil" name="emiss_hcho_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_hcho_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+      <field id="emiss_hcho_data" name="emissions_HCHO" long_name="HCHO surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_axis"/>
+      </file>
+
+     <file id="emiss_me2co_ancil" name="emiss_me2co_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_me2co_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+      <field id="emiss_me2co_data" name="emissions_Me2CO" long_name="Me2CO surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_axis"/>
+      </file>
+
+     <file id="emiss_mecho_ancil" name="emiss_mecho_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_mecho_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+      <field id="emiss_mecho_data" name="emissions_MeCHO" long_name="MeCHO surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_axis"/>
+      </file>
+
+     <file id="emiss_nh3_ancil" name="emiss_nh3_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_nh3_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+      <field id="emiss_nh3_data" name="emissions_NH3" long_name="ammonia gas emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_axis"/>
+      </file>
+
+     <file id="emiss_no_ancil" name="emiss_no_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_no_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+      <field id="emiss_no_data" name="emissions_NO" long_name="NOx surface emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_axis"/>
+      </file>
+
+     <file id="emiss_meoh_ancil" name="emiss_meoh_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_meoh_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+      <field id="emiss_meoh_data" name="emissions_MeOH" long_name="Biogenic surface methanol (CH3OH) emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_axis"/>
+      </file>
+
+     <file id="emiss_no_aircrft_ancil" name="emiss_no_aircrft_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_no_aircrft_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
+      <field id="emiss_no_aircrft_data" name="emissions_NO_aircrft" long_name="NOx aircraft emissions" unit="kg m-2 s-1" operation="instant" grid_ref="3D_monthly_grid"/>
+      </file>
+
   <file id="emiss_bc_biofuel_ancil" name="emiss_bc_biofuel_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
     <field id="em_bc_bf_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
     <field id="emiss_bc_biofuel_data" name="emissions_BC_biofuel" long_name="BC biofuel surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_axis"/>

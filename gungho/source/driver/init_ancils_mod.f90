@@ -41,6 +41,9 @@ module init_ancils_mod
                                              topography_horizon, &
                                              n_horiz_ang, n_horiz_layer
   use derived_config_mod,             only : l_esm_couple
+  use chemistry_config_mod,           only : chem_scheme,                      &
+                                             chem_scheme_strattrop,            &
+                                             chem_scheme_strat_test
 
   implicit none
 
@@ -92,6 +95,18 @@ contains
     type(time_axis_type), save :: em_om_bb_time_axis
     type(time_axis_type), save :: em_so2_lo_time_axis
     type(time_axis_type), save :: em_so2_hi_time_axis
+    type(time_axis_type), save :: em_c2h6_time_axis
+    type(time_axis_type), save :: em_c3h8_time_axis
+    type(time_axis_type), save :: em_c5h8_time_axis
+    type(time_axis_type), save :: em_ch4_time_axis
+    type(time_axis_type), save :: em_co_time_axis
+    type(time_axis_type), save :: em_hcho_time_axis
+    type(time_axis_type), save :: em_me2co_time_axis
+    type(time_axis_type), save :: em_mecho_time_axis
+    type(time_axis_type), save :: em_nh3_time_axis
+    type(time_axis_type), save :: em_no_time_axis
+    type(time_axis_type), save :: em_meoh_time_axis
+    type(time_axis_type), save :: em_no_aircrft_time_axis
     type(time_axis_type), save :: h2o2_limit_time_axis
     type(time_axis_type), save :: ho2_time_axis
     type(time_axis_type), save :: no3_time_axis
@@ -460,6 +475,121 @@ contains
       call ancil_times_list%insert_item(oh_time_axis)
 
     endif  ! ancil_updating, glomap_ukca
+
+
+    ! === Chemistry Ancils ======
+    if ( (chem_scheme == chem_scheme_strattrop .or.                  &
+          chem_scheme == chem_scheme_strat_test)  .and.             &
+         ancil_option == ancil_option_updating) then
+
+      call em_c2h6_time_axis%initialise("em_c2h6_time",              &
+                                        file_id="emiss_c2h6_ancil",  &
+                                        interp_flag=interp_flag,     &
+                                        pop_freq="five_days")
+      call setup_ancil_field("emiss_c2h6", depository, ancil_fields, &
+                             mesh, twod_mesh, twod=.true.,           &
+                             time_axis=em_c2h6_time_axis)
+      call ancil_times_list%insert_item(em_c2h6_time_axis)
+
+      call em_c3h8_time_axis%initialise("em_c3h8_time",              &
+                                        file_id="emiss_c3h8_ancil",  &
+                                        interp_flag=interp_flag,     &
+                                        pop_freq="five_days")
+      call setup_ancil_field("emiss_c3h8", depository, ancil_fields, &
+                             mesh, twod_mesh, twod=.true.,           &
+                             time_axis=em_c3h8_time_axis)
+      call ancil_times_list%insert_item(em_c3h8_time_axis)
+
+      call em_c5h8_time_axis%initialise("em_c5h8_time",              &
+                                        file_id="emiss_c5h8_ancil",  &
+                                        interp_flag=interp_flag,     &
+                                        pop_freq="five_days")
+      call setup_ancil_field("emiss_c5h8", depository, ancil_fields, &
+                             mesh, twod_mesh, twod=.true.,           &
+                             time_axis=em_c5h8_time_axis)
+      call ancil_times_list%insert_item(em_c5h8_time_axis)
+
+      call em_ch4_time_axis%initialise("em_ch4_time",                &
+                                       file_id="emiss_ch4_ancil",    &
+                                       interp_flag=interp_flag,      &
+                                       pop_freq="five_days")
+      call setup_ancil_field("emiss_ch4", depository, ancil_fields,  &
+                             mesh, twod_mesh, twod=.true.,           &
+                             time_axis=em_ch4_time_axis)
+      call ancil_times_list%insert_item(em_ch4_time_axis)
+
+      call em_co_time_axis%initialise("em_co_time",                  &
+                                      file_id="emiss_co_ancil",      &
+                                      interp_flag=interp_flag,       &
+                                      pop_freq="five_days")
+      call setup_ancil_field("emiss_co", depository, ancil_fields,   &
+                             mesh, twod_mesh, twod=.true.,           &
+                            time_axis=em_co_time_axis)
+      call ancil_times_list%insert_item(em_co_time_axis)
+
+      call em_hcho_time_axis%initialise("em_hcho_time",              &
+                                       file_id="emiss_hcho_ancil",   &
+                                       interp_flag=interp_flag,      &
+                                       pop_freq="five_days")
+      call setup_ancil_field("emiss_hcho", depository, ancil_fields, &
+                             mesh, twod_mesh, twod=.true.,           &
+                             time_axis=em_hcho_time_axis)
+      call ancil_times_list%insert_item(em_hcho_time_axis)
+
+      call em_me2co_time_axis%initialise("em_me2co_time",            &
+                                        file_id="emiss_me2co_ancil", &
+                                        interp_flag=interp_flag,     &
+                                        pop_freq="five_days")
+      call setup_ancil_field("emiss_me2co", depository, ancil_fields, &
+                             mesh, twod_mesh, twod=.true.,            &
+                             time_axis=em_me2co_time_axis)
+      call ancil_times_list%insert_item(em_me2co_time_axis)
+
+      call em_mecho_time_axis%initialise("em_mecho_time",             &
+                                         file_id="emiss_mecho_ancil", &
+                                         interp_flag=interp_flag,     &
+                                         pop_freq="five_days")
+      call setup_ancil_field("emiss_mecho", depository, ancil_fields, &
+                             mesh, twod_mesh, twod=.true.,            &
+                             time_axis=em_mecho_time_axis)
+      call ancil_times_list%insert_item(em_mecho_time_axis)
+
+      call em_nh3_time_axis%initialise("em_nh3_time",                 &
+                                       file_id="emiss_nh3_ancil",     &
+                                       interp_flag=interp_flag,       &
+                                       pop_freq="five_days")
+      call setup_ancil_field("emiss_nh3", depository, ancil_fields,   &
+                             mesh, twod_mesh, twod=.true.,            &
+                             time_axis=em_nh3_time_axis)
+      call ancil_times_list%insert_item(em_nh3_time_axis)
+
+      call em_no_time_axis%initialise("em_no_time", file_id="emiss_no_ancil",  &
+                                     interp_flag=interp_flag,         &
+                                     pop_freq="five_days")
+      call setup_ancil_field("emiss_no", depository, ancil_fields,    &
+                             mesh, twod_mesh, twod=.true.,            &
+                             time_axis=em_no_time_axis)
+      call ancil_times_list%insert_item(em_no_time_axis)
+
+      call em_meoh_time_axis%initialise("em_meoh_time",               &
+                                       file_id="emiss_meoh_ancil",    &
+                                       interp_flag=interp_flag,       &
+                                       pop_freq="five_days")
+      call setup_ancil_field("emiss_meoh", depository, ancil_fields,  &
+                             mesh, twod_mesh, twod=.true.,            &
+                             time_axis=em_meoh_time_axis)
+      call ancil_times_list%insert_item(em_meoh_time_axis)
+
+      call em_no_aircrft_time_axis%initialise("em_no_aircrft_time",    &
+                                              file_id="emiss_no_aircrft_ancil",&
+                                              interp_flag=interp_flag, &
+                                              pop_freq="five_days")
+      call setup_ancil_field("emiss_no_aircrft", depository, ancil_fields, &
+                             mesh, twod_mesh,                              &
+                             time_axis=em_no_aircrft_time_axis)
+      call ancil_times_list%insert_item(em_no_aircrft_time_axis)
+
+    endif  ! if chem_scheme_strattrop/ strat_test
 
     ! Now the field collection is set up, the fields will be initialised in
     ! gungho_model_data_mod

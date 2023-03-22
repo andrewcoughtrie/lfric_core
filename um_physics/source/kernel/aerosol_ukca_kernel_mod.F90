@@ -30,7 +30,7 @@ implicit none
 
 type, public, extends(kernel_type) :: aerosol_ukca_kernel_type
   private
-  type(arg_type) :: meta_args(154) = (/            &
+  type(arg_type) :: meta_args(166) = (/            &
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! h2o2
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! dms
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! so2
@@ -184,7 +184,19 @@ type, public, extends(kernel_type) :: aerosol_ukca_kernel_type
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_om_biofuel
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_om_fossil
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_so2_low
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ) &  ! emiss_so2_high
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_so2_high
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_c2h6
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_c3h8
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_c5h8
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_ch4
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_co
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_hcho
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_me2co
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_mecho
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_nh3
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_no
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_meoh
+       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA )                     & !emiss_no_aircrft
        /)
   integer :: iterates_over = CELL_COLUMN
 contains
@@ -326,6 +338,18 @@ contains
 !> @param[in]     emiss_om_fossil     Organic matter fossil fuel emissions expressed as C (kg m-2 s-1)
 !> @param[in]     emiss_so2_low       Low-level SO2 emissions expressed as S (kg m-2 s-1)
 !> @param[in]     emiss_so2_high      High-level SO2 emissions expressed as S (kg m-2 s-1)
+!> @param[in]     emiss_c2h6          C2H6 emissions (kg m-2 s-1)
+!> @param[in]     emiss_c3h8          C3H8 emissions (kg m-2 s-1)
+!> @param[in]     emiss_c5h8          Biogenic C5H8 emissions (kg m-2 s-1)
+!> @param[in]     emiss_ch4           CH4 emissions (kg m-2 s-1)
+!> @param[in]     emiss_co            CO emissions (kg m-2 s-1)
+!> @param[in]     emiss_hcho          HCHO emissions (kg m-2 s-1)
+!> @param[in]     emiss_me2co         Me2CO emissions (kg m-2 s-1)
+!> @param[in]     emiss_mecho         MeCHO emissions (kg m-2 s-1)
+!> @param[in]     emiss_nh3           Ammonia gas emissions (kg m-2 s-1)
+!> @param[in]     emiss_no            NOx emissions (kg m-2 s-1)
+!> @param[in]     emiss_meoh          Biogenic methanol (CH3OH) emissions (kg m-2 s-1)
+!> @param[in]     emiss_no_aircrft    NOx aircraft emissions (kg m-2 s-1)
 !> @param[in]     ndf_wth             Number of DOFs per cell for potential temperature space
 !> @param[in]     undf_wth            Number of unique DOFs for potential temperature space
 !> @param[in]     map_wth             Dofmap for the cell at the base of the column for potential temperature space
@@ -506,6 +530,18 @@ subroutine aerosol_ukca_code( nlayers,                                         &
                               emiss_om_fossil,                                 &
                               emiss_so2_low,                                   &
                               emiss_so2_high,                                  &
+                              emiss_c2h6,                                      &
+                              emiss_c3h8,                                      &
+                              emiss_c5h8,                                      &
+                              emiss_ch4,                                       &
+                              emiss_co,                                        &
+                              emiss_hcho,                                      &
+                              emiss_me2co,                                     &
+                              emiss_mecho,                                     &
+                              emiss_nh3,                                       &
+                              emiss_no,                                        &
+                              emiss_meoh,                                      &
+                              emiss_no_aircrft,                                &
                               ndf_wth, undf_wth, map_wth,                      &
                               ndf_w3, undf_w3, map_w3,                         &
                               ndf_tile, undf_tile, map_tile,                   &
@@ -682,6 +718,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
                               nlev_ent_tr_mix
 
   use log_mod,          only: log_event, log_scratch_space, LOG_LEVEL_ERROR
+  use chemistry_config_mod, only: chem_scheme, chem_scheme_strattrop
 
   ! UM modules
   use nlsizes_namelist_mod, only: land_field, bl_levels
@@ -894,6 +931,18 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_om_fossil
   real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_so2_low
   real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_so2_high
+  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_c2h6
+  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_c3h8
+  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_c5h8
+  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_ch4
+  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_co
+  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_hcho
+  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_me2co
+  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_mecho
+  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_nh3
+  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_no
+  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_meoh
+  real(kind=r_def), intent(in), dimension(undf_wth) :: emiss_no_aircrft
 
   ! Local variables for the kernel
 
@@ -1884,6 +1933,28 @@ subroutine aerosol_ukca_code( nlayers,                                         &
       emissions_flat(i) = real( emiss_so2_low(map_2d(1)), r_um )
     case('SO2_high')
       emissions_flat(i) = real( emiss_so2_high(map_2d(1)), r_um )
+    case('C2H6')
+      emissions_flat(i) = real( emiss_c2h6(map_2d(1)), r_um )
+    case('C3H8')
+      emissions_flat(i) = real( emiss_c3h8(map_2d(1)), r_um )
+    case('C5H8')
+      emissions_flat(i) = real( emiss_c5h8(map_2d(1)), r_um )
+    case('CH4')
+      emissions_flat(i) = real( emiss_ch4(map_2d(1)), r_um )
+    case('CO')
+      emissions_flat(i) = real( emiss_co(map_2d(1)), r_um )
+    case('HCHO')
+      emissions_flat(i) = real( emiss_hcho(map_2d(1)), r_um )
+    case('Me2CO')
+      emissions_flat(i) = real( emiss_me2co(map_2d(1)), r_um )
+    case('MeCHO')
+      emissions_flat(i) = real( emiss_mecho(map_2d(1)), r_um )
+    case('NH3')
+      emissions_flat(i) = real( emiss_nh3(map_2d(1)), r_um )
+    case('NO')
+      emissions_flat(i) = real( emiss_no(map_2d(1)), r_um )
+    case('MeOH')
+      emissions_flat(i) = real( emiss_meoh(map_2d(1)), r_um )
     case default
       write( log_scratch_space, '(A,A)' )                                      &
         'Missing required UKCA emission field: ', emiss_names_flat(i)
@@ -1908,6 +1979,9 @@ subroutine aerosol_ukca_code( nlayers,                                         &
     case('SO2_nat')
       emissions_fullht( :, i ) =                                               &
         real( emiss_so2_nat( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case('NO_aircrft')
+      emissions_fullht( :, i ) =                                               &
+        real( emiss_no_aircrft( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
     case default
       write( log_scratch_space, '(A,A)' )                                      &
         'Missing required UKCA emission field: ', emiss_names_fullht(i)

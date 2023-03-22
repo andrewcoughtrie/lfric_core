@@ -81,6 +81,18 @@
         <field id="checkpoint_oh" name="oh" long_name="mass_fraction_of_hydroxyl_radical_in_air" unit="1" grid_ref="full_level_face_grid" />
         <field id="checkpoint_ho2" name="ho2" long_name="mass_fraction_of_hydroperoxyl_radical_in_air" unit="1" grid_ref="full_level_face_grid" />
         <field id="checkpoint_h2o2_limit" name="h2o2_limit" long_name="Upper_limit_for_mass_fraction_of_hydrogen_peroxide_in_air" unit="1" grid_ref="full_level_face_grid" />
+        <field id="checkpoint_emiss_c2h6" name="emissions_C2H6" long_name="C2H6 surf emissions" unit="kg m-2 s-1" domain_ref="face" /> 
+        <field id="checkpoint_emiss_c3h8" name="emissions_C3H8" long_name="C3H8 surf emissions" unit="kg m-2 s-1" domain_ref="face" /> 
+        <field id="checkpoint_emiss_c5h8" name="emissions_C5H8" long_name="Biogenic surface C5H8 emissions" unit="kg m-2 s-1" domain_ref="face" /> 
+        <field id="checkpoint_emiss_ch4" name="emissions_CH4" long_name="CH4 surf emissions" unit="kg m-2 s-1" domain_ref="face" /> 
+        <field id="checkpoint_emiss_co" name="emissions_CO" long_name="CO surf emissions" unit="kg m-2 s-1" domain_ref="face" /> 
+        <field id="checkpoint_emiss_hcho" name="emissions_HCHO" long_name="HCHO surf emissions" unit="kg m-2 s-1" domain_ref="face" /> 
+        <field id="checkpoint_emiss_me2co" name="emissions_Me2CO" long_name="Me2CO surf emissions" unit="kg m-2 s-1" domain_ref="face" /> 
+        <field id="checkpoint_emiss_mecho" name="emissions_MeCHO" long_name="MeCHO surf emissions" unit="kg m-2 s-1" domain_ref="face" /> 
+        <field id="checkpoint_emiss_nh3" name="emissions_NH3" long_name="ammonia gas emissions" unit="kg m-2 s-1" domain_ref="face" /> 
+        <field id="checkpoint_emiss_no" name="emissions_NO" long_name="NOx surface emissions" unit="kg m-2 s-1" domain_ref="face" /> 
+        <field id="checkpoint_emiss_meoh" name="emissions_MeOH" long_name="Biogenic surface methanol (CH3OH) emissions" unit="kg m-2 s-1" domain_ref="face" /> 
+        <field id="checkpoint_emiss_no_aircrft" name="emissions_NO_aircrft" long_name="NOx aircraft emissions" unit="kg m-2 s-1" grid_ref="full_level_face_grid" />
 	<!-- aerosol fields -->
         <field id="checkpoint_emiss_bc_biofuel" name="emiss_bc_biofuel" long_name="tendency_of_atmosphere_mass_content_of_black_carbon_dry_aerosol_due_to_emission_from_biofuel_burning" unit="kg m-2 s-1" domain_ref="face" />
         <field id="checkpoint_emiss_bc_fossil" name="emiss_bc_fossil" long_name="tendency_of_atmosphere_mass_content_of_black_carbon_dry_aerosol_due_to_emission_from_fossil_fuel_burning" unit="kg m-2 s-1" domain_ref="face" />
@@ -331,6 +343,18 @@
 	<field id="accumulated_fluxes" name="accumulated_fluxes" long_name="accumulated_energy_fluxes" unit="W m-2" domain_ref="face" />
 	<field id="ageofair" name="ageofair" long_name="ageofair" unit="s" grid_ref="half_level_face_grid" />
 	<!-- chemistry diagnostics -->
+        <field id="chemistry__emiss_c2h6" name="emissions_C2H6" long_name="C2H6 surf emissions" unit="kg m-2 s-1" domain_ref="face" /> 
+        <field id="chemistry__emiss_c3h8" name="emissions_C3H8" long_name="C3H8 surf emissions" unit="kg m-2 s-1" domain_ref="face" /> 
+        <field id="chemistry__emiss_c5h8" name="emissions_C5H8" long_name="Biogenic surface C5H8 emissions" unit="kg m-2 s-1" domain_ref="face" /> 
+        <field id="chemistry__emiss_ch4" name="emissions_CH4" long_name="CH4 surf emissions" unit="kg m-2 s-1" domain_ref="face" /> 
+        <field id="chemistry__emiss_co" name="emissions_CO" long_name="CO surf emissions" unit="kg m-2 s-1" domain_ref="face" /> 
+        <field id="chemistry__emiss_hcho" name="emissions_HCHO" long_name="HCHO surf emissions" unit="kg m-2 s-1" domain_ref="face" /> 
+        <field id="chemistry__emiss_me2co" name="emissions_Me2CO" long_name="Me2CO surf emissions" unit="kg m-2 s-1" domain_ref="face" /> 
+        <field id="chemistry__emiss_mecho" name="emissions_MeCHO" long_name="MeCHO surf emissions" unit="kg m-2 s-1" domain_ref="face" /> 
+        <field id="chemistry__emiss_nh3" name="emissions_NH3" long_name="ammonia gas emissions" unit="kg m-2 s-1" domain_ref="face" /> 
+        <field id="chemistry__emiss_no" name="emissions_NO" long_name="NOx surface emissions" unit="kg m-2 s-1" domain_ref="face" /> 
+        <field id="chemistry__emiss_meoh" name="emissions_MeOH" long_name="Biogenic surface methanol (CH3OH) emissions" unit="kg m-2 s-1" domain_ref="face" /> 
+        <field id="chemistry__emiss_no_aircrft" name="emissions_NO_aircrft" long_name="NOx aircraft emissions" unit="kg m-2 s-1" grid_ref="full_level_face_grid" /> 
 	<field id="chemistry__h2o2" name="h2o2" long_name="hydrogen_peroxide_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
 	<field id="chemistry__dms" name="dms" long_name="dimethyl_sulfide_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
 	<field id="chemistry__so2" name="so2" long_name="sulfur_dioxide_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
@@ -915,6 +939,18 @@
 	<field id="restart_ageofair" name="ageofair" long_name="ageofair" unit="s" operation="instant" domain_ref="checkpoint_W3" />
 	<!-- chemistry fields -->
 	<field id="restart_h2o2" name="h2o2" long_name="hydrogen_peroxide_mmr" unit="kg kg-1" operation="instant" grid_ref="full_level_face_grid" />
+        <field id="restart_emiss_c2h6" name="emissions_C2H6" long_name="C2H6 surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" /> 
+        <field id="restart_emiss_c3h8" name="emissions_C3H8" long_name="C3H8 surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" /> 
+        <field id="restart_emiss_c5h8" name="emissions_C5H8" long_name="Biogenic surface C5H8 emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" /> 
+        <field id="restart_emiss_ch4" name="emissions_CH4" long_name="CH4 surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" /> 
+        <field id="restart_emiss_co" name="emissions_CO" long_name="CO surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" /> 
+        <field id="restart_emiss_hcho" name="emissions_HCHO" long_name="HCHO surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" /> 
+        <field id="restart_emiss_me2co" name="emissions_Me2CO" long_name="Me2CO surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" /> 
+        <field id="restart_emiss_mecho" name="emissions_MeCHO" long_name="MeCHO surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" /> 
+        <field id="restart_emiss_nh3" name="emissions_NH3" long_name="ammonia gas emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" /> 
+        <field id="restart_emiss_no" name="emissions_NO" long_name="NOx surface emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" /> 
+        <field id="restart_emiss_meoh" name="emissions_MeOH" long_name="Biogenic surface methanol (CH3OH) emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" /> 
+        <field id="restart_emiss_no_aircrft" name="emissions_NO_aircrft" long_name="NOx aircraft emissions" unit="kg m-2 s-1" operation="instant" grid_ref="full_level_face_grid" />
 	<field id="restart_dms" name="dms" long_name="dimethyl_sulfide_mmr" unit="kg kg-1" operation="instant" grid_ref="full_level_face_grid" />
 	<field id="restart_so2" name="so2" long_name="sulfur_dioxide_mmr" unit="kg kg-1" operation="instant" grid_ref="full_level_face_grid" />
 	<field id="restart_h2so4" name="h2so4" long_name="sulfuric_acid_mmr" unit="kg kg-1" operation="instant" grid_ref="full_level_face_grid" />
@@ -1180,7 +1216,18 @@
         <field field_ref="processed__tot_col_encorr" />
 	<field field_ref="processed__trop_level" />
 	<field field_ref="processed__total_prec" />
-	<field field_ref="ageofair"/>
+        <field field_ref="chemistry__emiss_c2h6"/>
+        <field field_ref="chemistry__emiss_c3h8"/>
+        <field field_ref="chemistry__emiss_c5h8"/>
+        <field field_ref="chemistry__emiss_ch4"/>
+        <field field_ref="chemistry__emiss_co"/>
+        <field field_ref="chemistry__emiss_hcho"/>
+        <field field_ref="chemistry__emiss_me2co"/>
+        <field field_ref="chemistry__emiss_mecho"/>
+        <field field_ref="chemistry__emiss_nh3"/>
+        <field field_ref="chemistry__emiss_no"/>
+        <field field_ref="chemistry__emiss_meoh"/>
+        <field field_ref="chemistry__emiss_no_aircrft"/>
 	<field field_ref="chemistry__h2o2" />
 	<field field_ref="chemistry__dms" />
 	<field field_ref="chemistry__so2" />

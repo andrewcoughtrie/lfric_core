@@ -37,6 +37,18 @@ module gungho_setup_io_mod
                                        emiss_so2_low_ancil_path,  &
                                        emiss_so2_high_ancil_path, &
                                        emiss_so2_nat_ancil_path,  &
+                                       emiss_c2h6_ancil_path,     &
+                                       emiss_c3h8_ancil_path,     &
+                                       emiss_c5h8_ancil_path,     &
+                                       emiss_ch4_ancil_path,      &
+                                       emiss_co_ancil_path,       &
+                                       emiss_hcho_ancil_path,     &
+                                       emiss_me2co_ancil_path,    &
+                                       emiss_mecho_ancil_path,    &
+                                       emiss_nh3_ancil_path,      &
+                                       emiss_no_ancil_path,       &
+                                       emiss_meoh_ancil_path,     &
+                                       emiss_no_aircrft_ancil_path, &
                                        hydtop_ancil_path,         &
                                        h2o2_limit_ancil_path,     &
                                        ho2_ancil_path,            &
@@ -86,6 +98,8 @@ module gungho_setup_io_mod
   use surface_config_mod,        only: sea_alb_var_chl, albedo_obs
   use aerosol_config_mod,        only: glomap_mode, glomap_mode_ukca, &
                                        glomap_mode_climatology
+  use chemistry_config_mod,      only: chem_scheme, chem_scheme_strattrop, &
+                                       chem_scheme_strat_test
 #endif
 
   implicit none
@@ -274,6 +288,86 @@ module gungho_setup_io_mod
                                                          xios_id="aerosols_ancil", &
                                                          io_mode=FILE_MODE_READ ) )
     end if
+
+    ! Chemistry ancils
+    if ( (chem_scheme == chem_scheme_strattrop    .or.        &
+          chem_scheme == chem_scheme_strat_test)   .and.     &
+         ancil_option == ancil_option_updating ) then
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(emiss_c2h6_ancil_path)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,                &
+                                                         xios_id="emiss_c2h6_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(emiss_c3h8_ancil_path)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,                &
+                                                         xios_id="emiss_c3h8_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(emiss_c5h8_ancil_path)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,                &
+                                                         xios_id="emiss_c5h8_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(emiss_ch4_ancil_path)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,               &
+                                                         xios_id="emiss_ch4_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(emiss_co_ancil_path)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,              &
+                                                         xios_id="emiss_co_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(emiss_hcho_ancil_path)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,                &
+                                                         xios_id="emiss_hcho_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(emiss_me2co_ancil_path)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,                 &
+                                                         xios_id="emiss_me2co_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(emiss_mecho_ancil_path)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,                 &
+                                                         xios_id="emiss_mecho_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(emiss_nh3_ancil_path)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,               &
+                                                         xios_id="emiss_nh3_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(emiss_no_ancil_path)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,              &
+                                                         xios_id="emiss_no_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(emiss_meoh_ancil_path)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,                &
+                                                         xios_id="emiss_meoh_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
+
+      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                               trim(emiss_no_aircrft_ancil_path)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,                      &
+                                                         xios_id="emiss_no_aircrft_ancil", &
+                                                         io_mode=FILE_MODE_READ ) )
+
+
+    endif
 
     if ( glomap_mode == glomap_mode_ukca   .and.            &
          ancil_option == ancil_option_updating ) then
