@@ -73,7 +73,7 @@ CONTAINS
 SUBROUTINE lfricinp_initialise_lfric(program_name_arg,                         &
                                      lfric_nl_fname,                           &
                                      required_lfric_namelists,                 &
-                                     time_origin,                              &
+                                     start_date, time_origin,                  &
                                      first_step, last_step,                    &
                                      spinup_period, seconds_per_step)
 
@@ -85,7 +85,7 @@ IMPLICIT NONE
 CHARACTER(LEN=*),    INTENT(IN) :: program_name_arg
 CHARACTER(LEN=*),    INTENT(IN) :: lfric_nl_fname
 CHARACTER(LEN=*),    INTENT(IN) :: required_lfric_namelists(:)
-CHARACTER(LEN=*),    INTENT(IN) :: time_origin
+CHARACTER(LEN=*),    INTENT(IN) :: start_date, time_origin
 INTEGER(KIND=i_def), INTENT(IN) :: first_step, last_step
 REAL(r_second),      INTENT(IN) :: spinup_period
 REAL(r_second),      INTENT(IN) :: seconds_per_step
@@ -139,7 +139,7 @@ CALL log_event('Creating function spaces and chi', LOG_LEVEL_INFO)
 CALL init_fem(mesh, chi, panel_id)
 
 ! XIOS domain initialisation
-model_calendar = step_calendar_type(time_origin)
+model_calendar = step_calendar_type(time_origin, start_date)
 model_clock = model_clock_type( first_step, last_step, seconds_per_step, &
                                 spinup_period )
 

@@ -47,12 +47,7 @@ module transport_driver_mod
   use runtime_constants_mod,            only: create_runtime_constants
   use step_calendar_mod,                only: step_calendar_type
   use timer_mod,                        only: init_timer, timer, output_timer
-  use time_config_mod,                  only: timestep_start, &
-                                              timestep_end,   &
-                                              calendar_start, &
-                                              calendar_type,  &
-                                              key_from_calendar_type
-  use timestepping_config_mod,          only: dt, spinup_period
+  use timestepping_config_mod,          only: dt
   use transport_mod,                    only: transport_load_configuration, &
                                               program_name
   use transport_init_fields_alg_mod,    only: transport_init_fields_alg

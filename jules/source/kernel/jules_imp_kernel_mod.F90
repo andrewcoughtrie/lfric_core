@@ -1297,12 +1297,6 @@ contains
               end if
             end do
           end do
-          do i = 1, seg_len
-            if (tile_fraction(map_tile(1,i)+first_sea_tile-1) > 0.0_r_def) then
-              latent_heat(map_tile(1,i)+first_sea_tile-1) = lc *              &
-                   tile_moisture_flux(map_tile(1,i)+first_sea_tile-1)
-            end if
-          end do
         end if
 
         if (.not. associated(surf_sw_net, empty_real_data) ) then
@@ -1433,6 +1427,15 @@ contains
           snowice_melt(map_tile(1,i)+first_sea_tile-1) = 0.0_r_def
           canopy_evap(map_tile(1,i)+first_sea_tile-1) = 0.0_r_def
         end do
+
+        if (.not. associated(latent_heat, empty_real_data) ) then
+          do i = 1, seg_len
+            if (tile_fraction(map_tile(1,i)+first_sea_tile-1) > 0.0_r_def) then
+              latent_heat(map_tile(1,i)+first_sea_tile-1) = lc *              &
+                   tile_moisture_flux(map_tile(1,i)+first_sea_tile-1)
+            end if
+          end do
+        end if
 
       end if!loop=2
 

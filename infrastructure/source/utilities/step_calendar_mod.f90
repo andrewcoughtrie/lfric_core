@@ -21,8 +21,10 @@ module step_calendar_mod
   type, public, extends(calendar_type) :: step_calendar_type
     private
     character(str_def) :: origin
+    character(str_def) :: start
   contains
     procedure :: get_origin
+    procedure :: get_start
     procedure :: format_duration
     procedure :: format_instance
     procedure :: parse_duration
@@ -36,18 +38,25 @@ module step_calendar_mod
 contains
 
   !> Step calendar constructor
-  !> Ensures that the calendar origin is initialised
-  function step_calendar_constructor(calendar_origin) result(new_calendar)
+  !> Ensures that the calendar origin and start are initialised
+  function step_calendar_constructor(calendar_origin, calendar_start) result(new_calendar)
 
     implicit none
 
     character(len=*), optional, intent(in) :: calendar_origin
+    character(len=*), optional, intent(in) :: calendar_start
     type(step_calendar_type) :: new_calendar
 
     if (present(calendar_origin)) then
       new_calendar%origin = trim(calendar_origin)
     else
-      new_calendar%origin = "start of model run"
+      new_calendar%origin = "origin of model run"
+    end if
+
+    if (present(calendar_start)) then
+      new_calendar%start = trim(calendar_start)
+    else
+      new_calendar%start = "start of model run"
     end if
 
   end function step_calendar_constructor
@@ -68,6 +77,23 @@ contains
     calendar_origin = this%origin
 
   end function get_origin
+
+  !> Get the calendar's start.
+  !>
+  !> @param[in] this Object pointer.
+  !> @return calendar_start Outgoing calendar start
+  !>
+  function get_start( this ) result(calendar_start)
+
+    implicit none
+
+    class(step_calendar_type), intent(in) :: this
+
+    character(:), allocatable :: calendar_start
+
+    calendar_start = this%start
+
+  end function get_start
 
   !> Converts a number of timesteps to a string.
   !>

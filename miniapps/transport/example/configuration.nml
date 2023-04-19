@@ -68,6 +68,7 @@ timestep_start = '1'
 timestep_end = '5'
 calendar_type='gregorian'
 calendar_start='2016-01-01 15:00:00'
+calendar_origin='2016-01-01 15:00:00'
 /
 &subgrid
 dep_pt_stencil_extent=1,

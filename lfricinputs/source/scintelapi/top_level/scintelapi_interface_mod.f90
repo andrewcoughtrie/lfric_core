@@ -54,6 +54,7 @@ CALL datetime % initialise()
 CALL lfricinp_initialise_lfric(program_name_arg="scintelapi",                  &
      lfric_nl_fname=lfric_nl,                                                  &
      required_lfric_namelists = required_lfric_namelists,                      &
+     start_date = datetime % first_validity_time,                              &
      time_origin = datetime % first_validity_time,                             &
      first_step = datetime % first_step,                                       &
      last_step = datetime % last_step,                                         &

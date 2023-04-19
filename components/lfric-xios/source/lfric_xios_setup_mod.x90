@@ -34,7 +34,8 @@ module lfric_xios_setup_mod
                                            xyz_scaling_factor
   use lfric_xios_utils_mod,          only: set_prime_io_mesh, parse_date_as_xios
   use linked_list_mod,               only: linked_list_type, linked_list_item_type
-  use log_mod,                       only: log_event, log_level_error
+  use log_mod,                       only: log_event, log_level_error, &
+                                           log_level_warning
   use mesh_mod,                      only: mesh_type
   use mesh_collection_mod,           only: mesh_collection
   use model_clock_mod,               only: model_clock_type
@@ -71,11 +72,11 @@ module lfric_xios_setup_mod
                                            xios_is_valid_file,   &
                                            xios_field,           &
                                            xios_fieldgroup,      &
-                                           operator(+)
+                                           operator(+), operator(<)
 
   !>@todo This information should be obtained from the calendar in the future
   use time_config_mod, only: type_of_calendar => calendar_type, &
-                             key_from_calendar_type
+                             key_from_calendar_type, calendar_type_d360
 
   implicit none
 
@@ -106,21 +107,22 @@ contains
 
     ! Calendar start is adjusted when clock is initialised
     xios_origin_date = parse_date_as_xios(trim(adjustl(calendar%get_origin())))
+    xios_start_date = parse_date_as_xios(trim(adjustl(calendar%get_start())))
 
     ! Set up initial calendar with no progress
     call xios_define_calendar( type=key_from_calendar_type(type_of_calendar), &
                                time_origin=xios_origin_date,                  &
-                               start_date=xios_origin_date )
+                               start_date=xios_start_date )
 
     ! Use model calendar to initialise XIOS calendar
     select type (calendar)
     type is (step_calendar_type)
       ! Set the start date by adding the number of steps since timestep 0 (the
-      ! time origin for a step calendar) to the time origin
+      ! time start for a step calendar) to the time start
       step_offset = model_clock%get_step() - 1
       xios_since_timestep_zero%second &
           = model_clock%get_seconds_per_step() * step_offset
-      xios_start_date = xios_origin_date + xios_since_timestep_zero
+      xios_start_date = xios_start_date + xios_since_timestep_zero
 
     class default
       call log_event("Unsupported model calendar type", log_level_error)
@@ -129,6 +131,14 @@ contains
 
     ! Set new context start date
     call xios_set_start_date( xios_start_date )
+
+    if ( xios_start_date < xios_origin_date .and. &
+         type_of_calendar /= calendar_type_d360 ) &
+      then
+      call log_event("Having start_date < origin_date may lead to unexpected " // &
+                     "behaviour due to a bug in the xios intrinsic function " //  &
+                     "date_convert_to_seconds", log_level_warning)
+    end if
 
   end subroutine init_xios_calendar
 

@@ -140,9 +140,9 @@ monitor_convergence = .false.,
 /
 
 &time
-calendar       = 'timestep'
-timestep_start = '1'
-timestep_end   = '200'
+calendar        = 'timestep'
+timestep_start  = '1'
+timestep_end    = '200'
         ! Recommended timestep_end:
         !  288  for Galewsky                     (i.e. 6 days for dt = 1800)
         !  720  for Williamson test cases       (i.e. 15 days for dt = 1800)
@@ -151,8 +151,9 @@ timestep_end   = '200'
         !  100  for Geostrophic planar test cases
         !  360  for non-dim thermal double vortex test case (for dt = 0.1)
         !  500  for thermal double vortex test case         (for dt = 486 s)
-calendar_type  = 'gregorian'
-calendar_start = '2016-01-01 15:00:00'
+calendar_type   = 'gregorian'
+calendar_start  = '2016-01-01 15:00:00'
+calendar_origin = '2016-01-01 15:00:00'
 /
 
 &timestepping

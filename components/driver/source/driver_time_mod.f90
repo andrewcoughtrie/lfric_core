@@ -15,7 +15,7 @@ module driver_time_mod
   use model_clock_mod,         only: model_clock_type
   use step_calendar_mod,       only: step_calendar_type
   use time_config_mod,         only: timestep_end, timestep_start, &
-                                     calendar_start
+                                     calendar_origin, calendar_start
   use timestepping_config_mod, only: dt, spinup_period
 
   implicit none
@@ -41,7 +41,8 @@ contains
 
     ! Choice of calendar here
     if (.not. allocated(calendar)) then
-      allocate( calendar, source=step_calendar_type(calendar_start), stat=rc )
+      allocate( calendar, source=step_calendar_type(calendar_origin,           &
+                                                    calendar_start), stat=rc )
       if (rc /= 0) then
         call log_event( "Unable to allocate calendar", log_level_error )
       end if

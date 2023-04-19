@@ -20,6 +20,7 @@ module calendar_mod
   contains
     private
     procedure(get_origin_if),      public, deferred :: get_origin
+    procedure(get_start_if),       public, deferred :: get_start
     procedure(format_duration_if), public, deferred :: format_duration
     procedure(format_instance_if), public, deferred :: format_instance
     procedure(parse_duration_if),  public, deferred :: parse_duration
@@ -39,6 +40,18 @@ module calendar_mod
       class(calendar_type), intent(in) :: this
       character(:), allocatable :: calendar_origin
     end function get_origin_if
+
+    !> Get the calendar's start.
+    !>
+    !> @param[in] this Object pointer.
+    !> @return calendar_start Outgoing calendar start
+    !>
+    function get_start_if( this ) result(calendar_start)
+      import calendar_type
+      implicit none
+      class(calendar_type), intent(in) :: this
+      character(:), allocatable :: calendar_start
+    end function get_start_if
 
     !> Produces a human readable string from a calendar specific duration.
     !>
