@@ -9,7 +9,7 @@ module content_mod
 
   use constants_mod, only : i_native, l_def, str_def, str_max_filename
   use log_mod,       only : log_scratch_space, log_event, LOG_LEVEL_ERROR
-  use mpi_mod,       only : get_comm_rank, broadcast
+  use mpi_mod,       only : global_mpi
 
   use foo_config_mod, only : read_foo_namelist, &
                              postprocess_foo_namelist, &
@@ -45,7 +45,7 @@ contains
     character(str_def), allocatable :: namelists(:)
     integer(i_native) :: unit = -1
 
-    local_rank = get_comm_rank()
+    local_rank = global_mpi%get_comm_rank()
 
     if (local_rank == 0) unit = open_file( filename )
 
@@ -106,13 +106,13 @@ contains
       rewind(unit)
     end if
 
-    call broadcast( namecount, 1, 0 )
+    call global_mpi%broadcast( namecount, 1, 0 )
 
     if (local_rank /= 0) then
       allocate(names(namecount(1)))
     end if
 
-    call broadcast( names, namecount(1)*str_def, 0 )
+    call global_mpi%broadcast( names, namecount(1)*str_def, 0 )
 
   end subroutine get_namelist_names
 

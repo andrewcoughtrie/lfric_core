@@ -26,9 +26,8 @@ program algorithm_test
                                             LOG_LEVEL_ERROR,    &
                                             LOG_LEVEL_INFO
   use mesh_mod,                      only : mesh_type
-  use mpi_mod,                       only : initialise_comm, store_comm, &
-                                            finalise_comm,               &
-                                            get_comm_size, get_comm_rank
+  use mpi_mod,                       only : global_mpi, &
+                                            create_comm, destroy_comm
 
   implicit none
 
@@ -60,16 +59,16 @@ program algorithm_test
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Communicators and Logging Setup
   ! Initialise MPI communicatios and get a valid communicator
-  call initialise_comm(comm)
+  call create_comm(comm)
 
   ! Save the communicator for later use
-  call store_comm(comm)
+  call global_mpi%initialise(comm)
 
   ! Initialise halo functionality
   call initialise_halo_comms(comm)
 
-  total_ranks = get_comm_size()
-  local_rank  = get_comm_rank()
+  total_ranks = global_mpi%get_comm_size()
+  local_rank  = global_mpi%get_comm_rank()
 
   call initialise_logging( comm, 'da_dev_test_alg' )
 
@@ -134,7 +133,8 @@ program algorithm_test
   call finalise_halo_comms()
 
   ! Finalise MPI communications
-  call finalise_comm()
+  call global_mpi%finalise()
+  call destroy_comm()
 
   ! Finalise the logging system
   call finalise_logging()

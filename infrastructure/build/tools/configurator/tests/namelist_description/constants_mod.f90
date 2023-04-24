@@ -11,7 +11,7 @@ module cheese_config_mod
                            r_def
   use log_mod,       only: log_event, log_scratch_space &
                          , LOG_LEVEL_ERROR, LOG_LEVEL_WARNING, LOG_LEVEL_INFO
-  use mpi_mod,       only: broadcast
+  use mpi_mod,       only: global_mpi
 
   use constants_mod, only: cmdi, emdi, FUDGE, imdi, rmdi, unset_key
 
@@ -80,7 +80,7 @@ contains
 
     buffer_real_r_def(1) = fred
 
-    call broadcast( buffer_real_r_def, 1, 0 )
+    call global_mpi%broadcast( buffer_real_r_def, 1, 0 )
 
     fred = buffer_real_r_def(1)
 

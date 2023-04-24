@@ -12,7 +12,7 @@ module ugrid_mesh_data_mod_test
                                  str_def, str_longlong
   use ugrid_mesh_data_mod, only: ugrid_mesh_data_type
 
-  use mpi_mod, only: store_comm, clear_comm
+  use mpi_mod, only: global_mpi
   use pFUnit_Mod
 
   implicit none
@@ -42,7 +42,7 @@ contains
     class( ugrid_mesh_data_test_type ), intent( inout ) :: this
 
     !Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
+    call global_mpi%initialise(this%getMpiCommunicator())
 
   end subroutine setUp
 
@@ -57,7 +57,7 @@ contains
     call final_configuration()
 
     ! Clear the stored MPI communicator
-    call clear_comm()
+    call global_mpi%finalise()
 
   end subroutine tearDown
 

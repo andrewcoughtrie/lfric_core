@@ -41,7 +41,7 @@ contains
 !>             file
 subroutine initialise( self, program_name, filename )
 
-  use mpi_mod,           only : initialise_comm
+  use mpi_mod,           only : create_comm
   use da_dev_driver_mod, only : initialise_lfric, initialise_lfric_comm
 
   implicit none
@@ -57,7 +57,7 @@ subroutine initialise( self, program_name, filename )
 
   ! JEDI will initialise MPI so calling it here to enforce that behaviour.
   ! It will be called outside the scope of the model interface.
-  call initialise_comm(world_communicator)
+  call create_comm(world_communicator)
 
   ! MPI has already been initialised so pass in the world communicator.
   call initialise_lfric_comm( program_name, model_communicator, world_communicator )

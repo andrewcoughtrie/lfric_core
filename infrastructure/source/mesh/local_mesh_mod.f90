@@ -1379,7 +1379,7 @@ contains
   !>
   subroutine init_cell_owner(self)
     use fs_continuity_mod, only: W3
-    use mpi_mod,           only: get_mpi_datatype, get_comm_rank
+    use mpi_mod,           only: get_mpi_datatype, global_mpi
 
     implicit none
     class (local_mesh_type), intent(inout), target :: self
@@ -1442,7 +1442,7 @@ contains
 
     ! Set ownership of all inner and edge cells to the local rank id
     ! - halo cells are unset.
-    local_rank = get_comm_rank()
+    local_rank = global_mpi%get_comm_rank()
     do cell = 1,total_inners+self%num_edge
       self%cell_owner(cell)=local_rank
     end do

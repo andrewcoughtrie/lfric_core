@@ -13,7 +13,7 @@ module partition_mod_test
   use global_mesh_mod,            only: global_mesh_type
   use global_mesh_collection_mod, only: global_mesh_collection_type, &
                                         global_mesh_collection
-  use mpi_mod,                    only: store_comm, clear_comm, get_comm_size, get_comm_rank
+  use mpi_mod,                    only: global_mpi
   use partition_mod,              only: partition_type,                 &
                                         partitioner_planar,             &
                                         partitioner_cubedsphere_serial, &
@@ -64,10 +64,10 @@ contains
     global_mesh_collection = global_mesh_collection_type()
 
     !Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
+     call global_mpi%initialise(this%getMpiCommunicator())
 
-    this%total_ranks = get_comm_size()
-    this%local_rank  = get_comm_rank()
+    this%total_ranks = global_mpi%get_comm_size()
+    this%local_rank  = global_mpi%get_comm_rank()
 
   end subroutine setUp
 
@@ -82,7 +82,7 @@ contains
     call global_mesh_collection%clear()
 
     ! Clear the stored MPI communicator
-    call clear_comm()
+     call global_mpi%finalise()
 
   end subroutine teardown
 

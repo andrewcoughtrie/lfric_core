@@ -1007,13 +1007,14 @@ contains
   !!
   function get_sum(self) result (answer)
 
-    use mpi_mod, only: global_sum
+    use mpi_mod, only: mpi_type
     implicit none
 
     class(field_r64_proxy_type), intent(in) :: self
 
-    real(real64) :: l_sum
-    real(real64) :: answer
+    type(mpi_type) :: mpi
+    real(real64)   :: l_sum
+    real(real64)   :: answer
 
     integer(i_def) :: i
 
@@ -1023,20 +1024,22 @@ contains
       l_sum = l_sum + self%data(i)
     end do
 
-    call global_sum( l_sum, answer )
+    mpi = self%get_mpi()
+    call mpi%global_sum( l_sum, answer )
   end function get_sum
 
   !! Start the calculation of the global minimum of the field
   !!
   function get_min(self) result (answer)
 
-    use mpi_mod, only: global_min
+    use mpi_mod, only: mpi_type
     implicit none
 
     class(field_r64_proxy_type), intent(in) :: self
 
-    real(real64) :: l_min
-    real(real64) :: answer
+    type(mpi_type) :: mpi
+    real(real64)   :: l_min
+    real(real64)   :: answer
 
     integer(i_def) :: i
 
@@ -1046,7 +1049,8 @@ contains
       if( self%data(i) < l_min ) l_min = self%data(i)
     end do
 
-    call global_min( l_min, answer )
+    mpi = self%get_mpi()
+    call mpi%global_min( l_min, answer )
 
   end function get_min
 
@@ -1054,13 +1058,14 @@ contains
   !!
   function get_max(self) result (answer)
 
-    use mpi_mod, only: global_max
+    use mpi_mod, only: mpi_type
     implicit none
 
     class(field_r64_proxy_type), intent(in) :: self
 
-    real(real64) :: l_max
-    real(real64) :: answer
+    type(mpi_type) :: mpi
+    real(real64)   :: l_max
+    real(real64)   :: answer
 
     integer(i_def) :: i
 
@@ -1070,7 +1075,8 @@ contains
       if( self%data(i) > l_max ) l_max = self%data(i)
     end do
 
-    call global_max( l_max, answer )
+    mpi = self%get_mpi()
+    call mpi%global_max( l_max, answer )
 
   end function get_max
 

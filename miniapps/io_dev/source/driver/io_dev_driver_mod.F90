@@ -39,8 +39,7 @@ module io_dev_driver_mod
                                         mesh_collection_type
   use mesh_mod,                   only: mesh_type
   use model_clock_mod,            only: model_clock_type
-  use mpi_mod,                    only: get_comm_size, &
-                                        get_comm_rank
+  use mpi_mod,                    only: global_mpi
   use timer_mod,                  only: timer, output_timer, init_timer
   use io_dev_mod,                 only: load_configuration
   use io_dev_init_files_mod,      only: init_io_dev_files
@@ -94,7 +93,8 @@ module io_dev_driver_mod
 
     procedure(filelist_populator), pointer :: files_init_ptr => null()
 
-    call init_comm(program_name, communicator)
+    call init_comm(program_name)
+    communicator = global_mpi%get_comm()
 
     call get_initial_filename( filename )
     call load_configuration( filename )
@@ -121,7 +121,7 @@ module io_dev_driver_mod
 
     ! Create the meshes used to test multi-mesh output
     multires_mesh_tags = [alt_mesh_name]
-    call init_mesh( get_comm_rank(), get_comm_size(),                      &
+    call init_mesh( global_mpi%get_comm_rank(), global_mpi%get_comm_size(),&
                     mesh, twod_mesh = twod_mesh,                           &
                     use_multires_coupling = multi_mesh,                    &
                     multires_coupling_mesh_tags = multires_mesh_tags,      &

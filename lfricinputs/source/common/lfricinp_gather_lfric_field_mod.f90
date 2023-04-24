@@ -16,7 +16,7 @@ USE field_mod, ONLY: field_type, field_proxy_type
 USE constants_mod, ONLY: r_def, i_def
 USE mesh_mod, ONLY: mesh_type
 USE function_space_mod, ONLY: function_space_type
-USE mpi_mod, ONLY: get_comm_rank, get_comm_size
+USE mpi_mod, ONLY: global_mpi
 USE log_mod, ONLY: log_scratch_space, log_event, LOG_LEVEL_INFO, LOG_LEVEL_ERROR
 IMPLICIT NONE
 
@@ -69,8 +69,8 @@ field_proxy = lfric_field%get_proxy()
 ! Get number of layers from function space, as we have W3, Wtheta and W3 2d
 ! fields which have different number of layers
 !nlayers = fs%get_nlayers()
-local_rank = get_comm_rank()
-total_ranks = get_comm_size()
+local_rank = global_mpi%get_comm_rank()
+total_ranks = global_mpi%get_comm_size()
 
 ! The local size of single 2D level, just local domain, no haloes etc
 local_size_2d = twod_mesh%get_last_edge_cell()

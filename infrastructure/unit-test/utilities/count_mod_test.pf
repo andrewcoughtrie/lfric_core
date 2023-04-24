@@ -10,7 +10,7 @@
 module count_mod_test
 
   use pFUnit_Mod
-  use mpi_mod, only : store_comm
+  use mpi_mod, only : global_mpi
   use constants_mod, only: i_def
 
   implicit none
@@ -41,7 +41,7 @@ contains
     integer(i_def) :: condition
 
     !Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
+    call global_mpi%initialise(this%getMpiCommunicator())
 
     open( COUNTER_UNIT, status='scratch', action='readwrite', &
           iostat=condition )
@@ -60,6 +60,9 @@ contains
 
     close( COUNTER_UNIT, iostat=condition )
     @assertEqual( condition, 0 )
+
+    ! Clear the stored MPI communicator
+    call global_mpi%finalise()
 
   end subroutine tearDown
 

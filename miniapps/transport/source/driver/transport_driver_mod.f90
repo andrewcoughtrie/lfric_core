@@ -41,8 +41,7 @@ module transport_driver_mod
   use mass_conservation_alg_mod,        only: mass_conservation
   use mesh_mod,                         only: mesh_type
   use model_clock_mod,                  only: model_clock_type
-  use mpi_mod,                          only: get_comm_size, &
-                                              get_comm_rank
+  use mpi_mod,                          only: global_mpi
   use mr_indices_mod,                   only: nummr
   use runtime_constants_mod,            only: create_runtime_constants
   use step_calendar_mod,                only: step_calendar_type
@@ -113,7 +112,8 @@ contains
     integer(kind=i_def), allocatable :: local_mesh_ids(:)
     type(local_mesh_type),   pointer :: local_mesh => null()
 
-    call init_comm( program_name, model_communicator )
+    call init_comm( program_name )
+    model_communicator = global_mpi%get_comm()
 
     call get_initial_filename( filename )
     call transport_load_configuration( filename )
@@ -140,7 +140,7 @@ contains
     call init_time( model_clock )
 
     ! Create the mesh
-    call init_mesh( get_comm_rank(), get_comm_size(),                &
+    call init_mesh( global_mpi%get_comm_rank(), global_mpi%get_comm_size(), &
                     mesh,                                            &
                     twod_mesh=twod_mesh,                             &
                     shifted_mesh=shifted_mesh,                       &

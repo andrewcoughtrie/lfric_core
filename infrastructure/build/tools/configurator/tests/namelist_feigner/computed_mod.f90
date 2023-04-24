@@ -9,7 +9,7 @@ module computed_mod
 
   use constants_mod, only : i_def, i_native
   use log_mod,       only : log_scratch_space, log_event, LOG_LEVEL_ERROR
-  use mpi_mod,       only : get_comm_rank
+  use mpi_mod,       only : global_mpi
 
   implicit none
 
@@ -39,7 +39,7 @@ contains
     integer(i_native)  :: condition
 
     if (local_rank == -1) then
-      local_rank = get_comm_rank()
+      local_rank = global_mpi%get_comm_rank()
     end if
 
     open( temporary_unit, status='scratch', action='readwrite', &

@@ -9,7 +9,7 @@
 !>
 module io_mod_test
 
-  use mpi_mod, only : clear_comm, store_comm
+  use mpi_mod, only : global_mpi
   use pFUnit_mod
 
   implicit none
@@ -39,7 +39,7 @@ contains
 
     class(io_test_type), intent(inout) :: this
 
-    call store_comm( this%getMpiCommunicator() )
+    call global_mpi%initialise(this%getMpiCommunicator())
 
   end subroutine setUp
 
@@ -50,7 +50,7 @@ contains
 
     class(io_test_type), intent(inout) :: this
 
-    call clear_comm()
+    call global_mpi%finalise()
 
   end subroutine tearDown
 

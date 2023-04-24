@@ -24,8 +24,7 @@ program summarise_ugrid
   use log_mod,         only : initialise_logging, finalise_logging, &
                               log_event, log_scratch_space,         &
                               LOG_LEVEL_ERROR, LOG_LEVEL_INFO
-  use mpi_mod,         only : initialise_comm, store_comm, finalise_comm, &
-                              get_comm_size, get_comm_rank
+  use mpi_mod,         only : global_mpi, create_comm, destroy_comm
 
   implicit none
 
@@ -61,10 +60,10 @@ program summarise_ugrid
   integer(i_def) :: comm, total_ranks, local_rank, nmaps
 
   ! Start up
-  call initialise_comm(comm)
-  call store_comm(comm)
-  total_ranks = get_comm_size()
-  local_rank  = get_comm_rank()
+  call create_comm(comm)
+  call global_mpi%initialise(comm)
+  total_ranks = global_mpi%get_comm_size()
+  local_rank  = global_mpi%get_comm_rank()
   call initialise_logging( comm, "summarise" )
 
   ! Get filename from command line
@@ -228,5 +227,9 @@ program summarise_ugrid
 
   ! Finalise the logging system
   call finalise_logging()
+
+  ! Finalise mpi and release the communicator
+  call global_mpi%finalise()
+  call destroy_comm()
 
 end program summarise_ugrid

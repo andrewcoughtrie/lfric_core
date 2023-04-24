@@ -30,9 +30,8 @@ program jedi_interface_test
                                              finalise_logging,   &
                                              LOG_LEVEL_ERROR,    &
                                              LOG_LEVEL_INFO
-  use mpi_mod,                        only : initialise_comm, store_comm, &
-                                             finalise_comm,               &
-                                             get_comm_size, get_comm_rank
+  use mpi_mod,                        only : global_mpi, &
+                                             create_comm, destroy_comm
 
   implicit none
 
@@ -66,16 +65,16 @@ program jedi_interface_test
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Communicators and Logging Setup
   ! Initialise MPI communicatios and get a valid communicator
-  call initialise_comm(comm)
+  call create_comm(comm)
 
   ! Save the communicator for later use
-  call store_comm(comm)
+  call global_mpi%initialise(comm)
 
   ! Initialise halo functionality
   call initialise_halo_comms(comm)
 
-  total_ranks = get_comm_size()
-  local_rank  = get_comm_rank()
+  total_ranks = global_mpi%get_comm_size()
+  local_rank  = global_mpi%get_comm_rank()
 
   call initialise_logging( comm, 'jedi-interface_test' )
 
@@ -186,10 +185,8 @@ program jedi_interface_test
   ! Finalise halo functionality
   call finalise_halo_comms()
 
-  ! Finalise MPI communications
-  call finalise_comm()
-
   ! Finalise the logging system
-  call finalise_logging()
+  call global_mpi%finalise()
+  call destroy_comm()
 
 end program jedi_interface_test

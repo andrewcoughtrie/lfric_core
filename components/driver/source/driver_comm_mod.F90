@@ -9,10 +9,10 @@
 !>
 module driver_comm_mod
 
-  use constants_mod,         only: i_native
+  use constants_mod,         only: i_native, l_def
   use halo_comms_mod,        only: initialise_halo_comms, &
                                    finalise_halo_comms
-  use mpi_mod,               only: initialise_comm, finalise_comm, store_comm
+  use mpi_mod,               only: global_mpi, create_comm, destroy_comm
 
 ! MCT flag used for models coupled to OASIS-MCT ocean model
 #ifdef MCT
@@ -28,23 +28,27 @@ module driver_comm_mod
   public :: init_comm, final_comm
   private
 
+  ! Private module variable describes if this module created the MPI comm
+  logical(l_def) :: comm_created = .false.
+
 contains
 
   !> @brief  Initialises the model communicator
   !>
-  !> @param[in]  program_name       The model name
-  !> @param[out] model_communicator The ID for the model communicator
-  !> @param[in] world_communicator_input The ID for the world communicator that is optionally
-  !>                                     passed in if mpi has already been initialised.
-  subroutine init_comm( program_name, model_communicator, world_communicator_input )
+  !> @param[in]    program_name  The model name
+  !> @param[in]    input_comm    An optional argument that can be supplied if
+  !>                             mpi has been initialised outside the model.
+  !>                             In that case, this provides the communicator
+  !>                             that should be used
+  subroutine init_comm( program_name, input_comm )
 
     implicit none
 
     character(len=*),       intent(in)           :: program_name
-    integer(kind=i_native), intent(out)          :: model_communicator
-    integer(kind=i_native), optional, intent(in) :: world_communicator_input
+    integer(kind=i_native), optional, intent(in) :: input_comm
 
     integer(kind=i_native) :: world_communicator = -999
+    integer(kind=i_native) :: model_communicator = -999
 
     logical :: comm_is_split
 
@@ -52,12 +56,13 @@ contains
     comm_is_split = .false.
 
     ! Get the world communicator
-    if (present(world_communicator_input)) then
+    if (present(input_comm)) then
       ! set eqaul to world communicator
-      world_communicator = world_communicator_input
+      world_communicator = input_comm
     else
-      ! Initialse mpi and create the default communicator: mpi_comm_world
-      call initialise_comm( world_communicator )
+      ! Create a communicator by initialsing mpi and returning mpi_comm_world
+      call create_comm( world_communicator )
+      comm_created = .true.
     endif
 
 #ifdef MCT
@@ -68,6 +73,9 @@ contains
 
 #ifdef USE_XIOS
     ! Initialise XIOS and get back the split communicator (if not split already)
+    ! (This looks like the communicator from XIOS will just overwrite the one
+    ! from Oasis, above, but there's magic when XIOS and Oasis are built
+    ! together in a special way that means the correct communicator is returned)
     call lfric_xios_initialise( program_name, model_communicator, comm_is_split )
     comm_is_split = .true.
 #endif
@@ -76,7 +84,7 @@ contains
     if (.not. comm_is_split) model_communicator = world_communicator
 
     !Store the MPI communicator for later use
-    call store_comm( model_communicator )
+    call global_mpi%initialise( model_communicator )
 
     ! Initialise halo functionality
     call initialise_halo_comms( model_communicator )
@@ -101,8 +109,11 @@ contains
     ! Finalise halo exchange functionality
     call finalise_halo_comms()
 
-    ! Finalise mpi and release the communicator
-    call finalise_comm()
+    ! Finalise the mpi object
+    call global_mpi%finalise()
+    ! Release the communicator if it is ours to release. If a communicator has
+    ! been provided to LFRic, then that is someone else's responsibility
+    if(comm_created)call destroy_comm()
 
   end subroutine final_comm
 

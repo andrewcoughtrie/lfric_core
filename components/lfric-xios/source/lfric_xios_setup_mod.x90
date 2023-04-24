@@ -39,9 +39,7 @@ module lfric_xios_setup_mod
   use mesh_mod,                      only: mesh_type
   use mesh_collection_mod,           only: mesh_collection
   use model_clock_mod,               only: model_clock_type
-  use mpi_mod,                       only: get_comm_size, &
-                                           get_comm_rank, &
-                                           all_gather
+  use mpi_mod,                       only: global_mpi
   use nodal_xyz_coordinates_kernel_mod, &
                                      only: nodal_xyz_coordinates_kernel_type
   use nodal_coordinates_kernel_mod,  only: nodal_coordinates_kernel_type
@@ -721,7 +719,7 @@ contains
 
     ! Set up arrays to hold number of dofs for local and global domains
     allocate(local_undf(1))
-    allocate(all_undfs_checkpoint_domain(get_comm_size()))
+    allocate(all_undfs_checkpoint_domain(global_mpi%get_comm_size()))
 
     all_undfs_checkpoint_domain = 0
 
@@ -756,7 +754,7 @@ contains
 
     !!!!!!!!!!!!  Global domain calculation !!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    call all_gather ( local_undf, all_undfs_checkpoint_domain, 1 )
+    call global_mpi%all_gather ( local_undf, all_undfs_checkpoint_domain, 1 )
 
     ! Now get the global sum of undf across all ranks to set the global domain sizes
     ! for checkpoint domain
@@ -764,10 +762,10 @@ contains
 
     ! Calculate ibegin for each rank as we have the array of undfs in order
     ! we can just sum to get it.
-    if (get_comm_rank() == 0) then
+    if (global_mpi%get_comm_rank() == 0) then
       ibegin_checkpoint = 0
     else
-      ibegin_checkpoint = sum(all_undfs_checkpoint_domain(1:get_comm_rank()))
+      ibegin_checkpoint = sum(all_undfs_checkpoint_domain(1:global_mpi%get_comm_rank()))
     end if
 
     ! Allocate coordinate arrays to be the size required for checkpoint domain.
@@ -894,7 +892,7 @@ contains
 
     ! Set up arrays for AllGather
     allocate(local_undf(1))
-    allocate(all_undfs(get_comm_size()))
+    allocate(all_undfs(global_mpi%get_comm_size()))
 
     all_undfs = 0
 
@@ -939,7 +937,7 @@ contains
 
     !!!!!!!!!!!!  Global domain calculation !!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    call all_gather ( local_undf, all_undfs, 1 )
+    call global_mpi%all_gather ( local_undf, all_undfs, 1 )
 
     ! Adjust size of data taking into account how many levels we have (same for each
     ! partition as we only partition horizontally)
@@ -951,10 +949,10 @@ contains
 
     ! Calculate ibegin for each rank (as we have the array of undfs in order
     ! we can just sum to get it)
-    if (get_comm_rank() == 0) then
+    if (global_mpi%get_comm_rank() == 0) then
       ibegin = 0
     else
-      ibegin = sum(all_undfs(1:get_comm_rank()))
+      ibegin = sum(all_undfs(1:global_mpi%get_comm_rank()))
     end if
 
     ! Populate domain_index for this rank for relevant function space

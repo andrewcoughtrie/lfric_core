@@ -18,7 +18,7 @@ module io_mod
   use lfric_ncdf_dims_mod,  only: lfric_ncdf_dims_type
   use lfric_ncdf_field_mod, only: lfric_ncdf_field_type
   use lfric_ncdf_file_mod,  only: lfric_ncdf_file_type
-  use mpi_mod,              only: get_comm_size, get_comm_rank
+  use mpi_mod,              only: global_mpi
 
   implicit none
 
@@ -178,8 +178,8 @@ function ts_fname(stem_name, file_type, field_name, ts, ext)
   integer(kind=i_def)             :: total_ranks
   integer(kind=i_def)             :: local_rank
 
-  total_ranks = get_comm_size()
-  local_rank = get_comm_rank()
+  total_ranks = global_mpi%get_comm_size()
+  local_rank = global_mpi%get_comm_rank()
 
   if( total_ranks == 1 )then
       rank_name=ext

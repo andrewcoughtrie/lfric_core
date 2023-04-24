@@ -11,7 +11,7 @@ module twoenum_config_mod
                            str_def
   use log_mod,       only: log_event, log_scratch_space &
                          , LOG_LEVEL_ERROR, LOG_LEVEL_WARNING, LOG_LEVEL_INFO
-  use mpi_mod,       only: broadcast
+  use mpi_mod,       only: global_mpi
 
   use constants_mod, only: cmdi, emdi, imdi, rmdi, unset_key
 
@@ -269,7 +269,7 @@ contains
     buffer_integer_i_native(1) = dummy_first
     buffer_integer_i_native(2) = dummy_second
 
-    call broadcast( buffer_integer_i_native, 2, 0 )
+    call global_mpi%broadcast( buffer_integer_i_native, 2, 0 )
 
     dummy_first = buffer_integer_i_native(1)
     dummy_second = buffer_integer_i_native(2)

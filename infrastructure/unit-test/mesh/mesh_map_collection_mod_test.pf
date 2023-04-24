@@ -18,7 +18,7 @@ module mesh_map_collection_mod_test
   use mesh_map_collection_mod,    only: mesh_map_collection_type
   use mesh_map_mod,               only: mesh_map_type
   use mesh_mod,                   only: mesh_type
-  use mpi_mod,                    only: store_comm, clear_comm
+  use mpi_mod,                    only: global_mpi
   use partition_mod,              only: partition_type, partitioner_interface, &
                                         partitioner_cubedsphere_serial
   use ugrid_mesh_data_mod,        only: ugrid_mesh_data_type
@@ -82,7 +82,7 @@ contains
     procedure (partitioner_interface), pointer :: partitioner_ptr => null()
 
     !Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
+    call global_mpi%initialise(this%getMpiCommunicator())
     ! Initialise halo functionality
     call initialise_halo_comms( this%getMpiCommunicator() )
 
@@ -145,7 +145,7 @@ contains
     ! Finalise halo functionality
     call finalise_halo_comms()
     ! Clear the stored MPI communicator
-    call clear_comm()
+    call global_mpi%finalise()
 
   end subroutine tearDown
 

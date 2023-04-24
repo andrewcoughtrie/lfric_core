@@ -28,7 +28,7 @@ use global_mesh_collection_mod,    only: global_mesh_collection_type, &
 use local_mesh_mod,                only: local_mesh_type
 use local_mesh_collection_mod,     only: local_mesh_collection_type, &
                                          local_mesh_collection
-use mpi_mod,                       only: store_comm, clear_comm
+use mpi_mod,                       only: global_mpi
 use ugrid_mesh_data_mod,           only: ugrid_mesh_data_type
 use pFUnit_Mod
 
@@ -127,7 +127,7 @@ integer(i_def) :: i, j, n, x, y
 procedure (partitioner_interface), pointer :: partitioner_ptr => null()
 
 !Store the MPI communicator for later use
-call store_comm(this%getMpiCommunicator())
+call global_mpi%initialise(this%getMpiCommunicator())
 ! Initialise halo functionality
 call initialise_halo_comms( this%getMpiCommunicator() )
 
@@ -256,7 +256,7 @@ call final_configuration()
 ! Finalise halo functionality
 call finalise_halo_comms()
 ! Clear the stored MPI communicator
-call clear_comm()
+call global_mpi%finalise()
 
 end subroutine tearDown
 

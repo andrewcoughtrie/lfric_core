@@ -36,9 +36,7 @@ program cubedsphere_mesh_generator
                            log_event, log_set_level,             &
                            log_scratch_space, LOG_LEVEL_INFO,    &
                            LOG_LEVEL_ERROR, LOG_LEVEL_WARNING
-  use mpi_mod,       only: initialise_comm, store_comm,  &
-                           finalise_comm, get_comm_size, &
-                           get_comm_rank
+  use mpi_mod,       only: global_mpi, create_comm, destroy_comm
   use ncdf_quad_mod, only: ncdf_quad_type
   use partition_mod, only: partition_type, partitioner_interface
 
@@ -146,14 +144,14 @@ program cubedsphere_mesh_generator
   !===================================================================
   ! 2.0 Start up.
   !===================================================================
-  call initialise_comm(communicator)
-  call store_comm(communicator)
+  call create_comm(communicator)
+  call global_mpi%initialise(communicator)
 
   ! Initialise halo functionality.
   call initialise_halo_comms( communicator )
 
-  total_ranks = get_comm_size()
-  local_rank  = get_comm_rank()
+  total_ranks = global_mpi%get_comm_size()
+  local_rank  = global_mpi%get_comm_rank()
   call initialise_logging( communicator, "cubedsphere" )
 
   !===================================================================
@@ -737,7 +735,8 @@ program cubedsphere_mesh_generator
 
   call finalise_halo_comms()
 
-  call finalise_comm()
+  call global_mpi%finalise()
+  call destroy_comm()
 
   call finalise_logging()
 

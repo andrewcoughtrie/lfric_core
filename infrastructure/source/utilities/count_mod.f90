@@ -112,7 +112,7 @@ contains
   !> @param in opt_unit (optional) optional unit number to which the output
   !>                               should be written
   subroutine output_counters(self, opt_suffix, opt_unit)
-    use mpi_mod, only: get_comm_rank
+    use mpi_mod, only: global_mpi
     use log_mod,    only: log_event,         &
                           LOG_LEVEL_ERROR,   &
                           LOG_LEVEL_WARNING,    &
@@ -136,7 +136,7 @@ contains
       end if
     end do
 
-    if ( get_comm_rank() == 0 ) then
+    if ( global_mpi%get_comm_rank() == 0 ) then
       if(present(opt_unit)) then
         unit_no=opt_unit
       else

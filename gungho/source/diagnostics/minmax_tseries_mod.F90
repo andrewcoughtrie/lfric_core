@@ -13,7 +13,7 @@ module minmax_tseries_mod
                                                vector_nodal_diagnostic_alg
   use files_config_mod,                  only: diag_stem_name
   use mesh_mod,                          only: mesh_type
-  use mpi_mod,                           only: get_comm_rank
+  use mpi_mod,                           only: global_mpi
   use fs_continuity_mod,                 only: W1, W2
 
   implicit none
@@ -35,7 +35,7 @@ contains
     character(len=*),    intent(in)    :: field_name
     character(len=str_max_filename)    :: fname
 
-    if ( get_comm_rank() == 0 ) then
+    if ( global_mpi%get_comm_rank() == 0 ) then
 
       unitno = claim_io_unit()
       fname = trim(diag_stem_name) // "_" // &
@@ -98,7 +98,7 @@ contains
      n_p(i) = nodal_output(i)%get_proxy()
    end do
 
-   if ( get_comm_rank() == 0 ) then
+   if ( global_mpi%get_comm_rank() == 0 ) then
      do i=1,3
        write(unitno,'(2e16.8)') n_p(i)%get_max(), n_p(i)%get_min()
      enddo
@@ -112,7 +112,7 @@ contains
 
     implicit none
 
-    if ( get_comm_rank() == 0 ) then
+    if ( global_mpi%get_comm_rank() == 0 ) then
       close(unitno)
       call release_io_unit( unitno )
     end if

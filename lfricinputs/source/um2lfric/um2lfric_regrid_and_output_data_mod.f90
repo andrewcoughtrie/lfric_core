@@ -103,7 +103,7 @@ SUBROUTINE adjust_time_axis(time_axis_offset)
 USE netcdf,             ONLY: nf90_noerr, nf90_open, nf90_write, nf90_close,   &
                               nf90_inq_dimid, nf90_inquire_dimension,          &
                               nf90_inq_varid, nf90_get_var, nf90_put_var
-USE mpi_mod,            ONLY: get_comm_rank
+USE mpi_mod,            ONLY: global_mpi
 
 ! LFRic modules
 USE constants_mod,      ONLY: i_def, r_second
@@ -124,7 +124,7 @@ USE lfricinp_setup_io_mod, ONLY: checkpoint_write_file
   CHARACTER(LEN=:),       ALLOCATABLE :: file_path
   REAL(KIND=r_second),    ALLOCATABLE :: temp_time(:), temp_time_bounds(:,:)
 
-  local_rank = get_comm_rank()
+  local_rank = global_mpi%get_comm_rank()
 
   IF (local_rank == 0) THEN
 

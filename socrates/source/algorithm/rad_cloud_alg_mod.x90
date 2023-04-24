@@ -30,7 +30,6 @@ use radiation_config_mod, only: &
   cloud_representation_split
 use cloud_inputs_mod, only: allicetdegc, starticetkelvin
 use conversions_mod,   only: zerodegc
-use mpi_mod, only: get_comm_rank
 implicit none
 private
 public :: rad_cloud_alg

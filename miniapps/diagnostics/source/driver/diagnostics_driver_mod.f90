@@ -33,8 +33,7 @@ module diagnostics_driver_mod
                                             LOG_LEVEL_TRACE
   use mesh_mod,                      only : mesh_type
   use model_clock_mod,               only : model_clock_type
-  use mpi_mod,                       only : get_comm_size, &
-                                            get_comm_rank
+  use mpi_mod,                       only : global_mpi
 
   implicit none
 
@@ -83,7 +82,8 @@ contains
 
     integer(i_native) :: model_communicator
 
-    call init_comm( program_name, model_communicator )
+    call init_comm( program_name )
+    model_communicator = global_mpi%get_comm()
 
     call get_initial_filename( filename )
     call load_configuration(filename)
@@ -100,7 +100,8 @@ contains
     call init_time( model_clock )
 
     ! Create the mesh
-    call init_mesh( get_comm_rank(), get_comm_size(), mesh, twod_mesh=twod_mesh )
+    call init_mesh( global_mpi%get_comm_rank(), global_mpi%get_comm_size(), &
+                    mesh, twod_mesh=twod_mesh )
 
     ! Create FEM specifics (function spaces and chi field)
     call init_fem( mesh, chi, panel_id )

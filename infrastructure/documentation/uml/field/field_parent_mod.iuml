@@ -38,6 +38,7 @@ abstract class field_parent_mod::field_parent_proxy_type {
   +set_dirty()
   +set_clean( <<in>>depth: integer )
   +is_ndata_first() : logical
+  +get_mpi() : mpi_type
 }
 
 field_parent_mod::field_parent_type <- field_parent_mod::field_parent_proxy_type

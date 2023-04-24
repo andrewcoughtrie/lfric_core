@@ -28,8 +28,7 @@ module skeleton_driver_mod
                                          LOG_LEVEL_ALWAYS, LOG_LEVEL_INFO
   use mesh_mod,                   only : mesh_type
   use model_clock_mod,            only : model_clock_type
-  use mpi_mod,                    only : get_comm_size, &
-                                         get_comm_rank
+  use mpi_mod,                    only : global_mpi
   use skeleton_mod,               only : load_configuration
   use skeleton_alg_mod,           only : skeleton_alg
 
@@ -65,7 +64,8 @@ contains
 
     real(r_def) :: dt_model
 
-    call init_comm("skeleton", model_communicator)
+    call init_comm("skeleton")
+    model_communicator = global_mpi%get_comm()
 
     call get_initial_filename( filename )
     call load_configuration( filename, program_name )
@@ -87,7 +87,7 @@ contains
     dt_model = real(model_clock%get_seconds_per_step(), r_def)
 
     ! Create the mesh
-    call init_mesh( get_comm_rank(), get_comm_size(), &
+    call init_mesh( global_mpi%get_comm_rank(), global_mpi%get_comm_size(), &
                     mesh, twod_mesh=twod_mesh )
 
     ! Create FEM specifics (function spaces and chi field)

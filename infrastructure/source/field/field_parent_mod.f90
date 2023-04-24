@@ -19,6 +19,7 @@ module field_parent_mod
   use halo_comms_mod,              only: halo_routing_type
   use pure_abstract_field_mod,     only: pure_abstract_field_type
   use mesh_mod,                    only: mesh_type
+  use mpi_mod,                     only: global_mpi, mpi_type
 
   implicit none
 
@@ -117,6 +118,9 @@ module field_parent_mod
     procedure, public :: is_ndata_first
     !> Perform a blocking halo exchange operation on the field
     procedure(halo_exchange_interface), deferred :: halo_exchange
+    !> Returns the mpi object used for this field
+    !> @return mpi The MPI object
+    procedure, public :: get_mpi
   end type field_parent_proxy_type
 
 !______end of type declarations_______________________________________________
@@ -457,6 +461,27 @@ contains
     flag = self%ndata_first
 
   end function is_ndata_first
+
+  !> Returns the mpi object this field is built on
+  function get_mpi(self) result(mpi)
+
+    implicit none
+
+    class(field_parent_proxy_type), intent(in) :: self
+    type(mpi_type) :: mpi
+    logical        :: value_tmp
+
+    ! This is a placeholder for when fields can be built on different mpi
+    ! objects. To support future use, it currebtly just returns the global
+    ! mpi object.
+
+    ! In the future, "self" will be needed, but not at the moment. To stop
+    ! compilers complaining about unused variables, make some trivial use
+    value_tmp = self%ndata_first
+
+    mpi = global_mpi
+
+  end function get_mpi
 
   !> Function to get coupling id from the field.
   !>

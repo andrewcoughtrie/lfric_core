@@ -15,7 +15,7 @@ module mesh_colouring_mod_test
   use halo_comms_mod,             only : initialise_halo_comms, &
                                          finalise_halo_comms
   use local_mesh_mod,             only : local_mesh_type
-  use mpi_mod,                    only : store_comm, clear_comm
+  use mpi_mod,                    only : global_mpi
   use ugrid_mesh_data_mod,        only : ugrid_mesh_data_type
 
   use pFUnit_Mod
@@ -53,7 +53,7 @@ subroutine setUp(this)
   class(compute_colours_test_type), intent(inout)  :: this
 
   !Store the MPI communicator for later use
-  call store_comm(this%getMpiCommunicator())
+    call global_mpi%initialise(this%getMpiCommunicator())
   ! Initialise halo functionality
   call initialise_halo_comms( this%getMpiCommunicator() )
 
@@ -77,7 +77,7 @@ subroutine tearDown(this)
   ! Finalise halo functionality
   call finalise_halo_comms()
   ! Clear the stored MPI communicator
-  call clear_comm()
+    call global_mpi%finalise()
 
 end subroutine tearDown
 !-------------------------------------------------------------------------------

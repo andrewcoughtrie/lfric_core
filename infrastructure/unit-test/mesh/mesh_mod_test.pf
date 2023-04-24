@@ -34,7 +34,7 @@ module mesh_mod_test
   use partition_mod,        only: partition_type,                   &
                                   partitioner_interface,            &
                                   partitioner_cubedsphere_serial
-  use mpi_mod,              only: store_comm, clear_comm
+  use mpi_mod,              only: global_mpi
   use ugrid_mesh_data_mod,  only: ugrid_mesh_data_type
 
   implicit none
@@ -177,7 +177,7 @@ contains
     real(r_def)    :: scaled_radius
 
     !Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
+    call global_mpi%initialise(this%getMpiCommunicator())
     ! Initialise halo functionality
     call initialise_halo_comms( this%getMpiCommunicator() )
 
@@ -210,7 +210,7 @@ contains
     ! Finalise halo functionality
     call finalise_halo_comms()
     ! Clear the stored MPI communicator
-    call clear_comm()
+    call global_mpi%finalise()
 
   end subroutine tearDown
 

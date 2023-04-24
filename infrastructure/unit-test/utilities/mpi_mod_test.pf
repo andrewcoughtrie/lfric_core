@@ -13,12 +13,9 @@ module mpi_mod_test
   use, intrinsic   :: iso_fortran_env, only : int32, real32, real64
   use constants_mod, only: i_native, r_single, r_double, &
                            integer_type, real_type
-  use mpi, only    : MPI_DOUBLE_PRECISION, MPI_REAL4, MPI_INTEGER
-  use mpi_mod, only: store_comm, clear_comm, &
-                     global_sum, global_max, global_min, &
-                     all_gather, broadcast, &
-                     get_mpi_datatype, &
-                     get_comm_size, get_comm_rank
+  use mpi, only    : MPI_COMM_WORLD, &
+                     MPI_DOUBLE_PRECISION, MPI_REAL4, MPI_INTEGER
+  use mpi_mod, only: global_mpi, create_comm, get_mpi_datatype
 
   implicit none
 
@@ -45,7 +42,7 @@ contains
     class(mpi_mod_test_type), intent(inout) :: this
 
     !Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
+    call global_mpi%initialise(this%getMpiCommunicator())
 
   end subroutine setUp
 
@@ -57,7 +54,7 @@ contains
     class(mpi_mod_test_type), intent(inout) :: this
 
     ! Clear the stored MPI communicator
-    call clear_comm()
+    call global_mpi%finalise()
 
   end subroutine tearDown
 
@@ -91,7 +88,7 @@ contains
     do i = 1, size(l_local)
        l_sum = l_sum + l_local(i)
     end do
-    call global_sum( l_sum, g_sum )
+    call global_mpi%global_sum( l_sum, g_sum )
     ! Calculate weights
     s = 0.0_r_test
     do i = 1, num_processes
@@ -105,7 +102,7 @@ contains
     do i = 2, size(l_local)
        if(l_local(i) > l_max) l_max = l_local(i)
     end do
-    call global_max( l_max, g_max )
+    call global_mpi%global_max( l_max, g_max )
     answer = 3.0_r_test * num_processes
     @assertEqual(  answer, g_max, 1.0e-2_r_test )
 
@@ -114,13 +111,13 @@ contains
     do i = 2, size(l_local)
        if(l_local(i) < l_min) l_min = l_local(i)
     end do
-    call global_min( l_min, g_min )
+    call global_mpi%global_min( l_min, g_min )
     answer = 1.0_r_test
     @assertEqual( answer, g_min, 1.0e-2_r_test )
 
     ! Test real broadcast routine
     r_buffer(1) = 11.0_r_test*(proc_num+1)
-    call broadcast( r_buffer, 1, 0 )
+    call global_mpi%broadcast( r_buffer, 1, 0 )
     @assertEqual( 11.0_r_test, r_buffer(1) )
 
     ! Test the mpi data type routines - double and single
@@ -128,10 +125,10 @@ contains
     @assertEqual( MPI_DOUBLE_PRECISION, mpi_datatype )
 
     ! Test the routines for getting total number of ranks and local rank number
-    total_ranks = get_comm_size()
+    total_ranks = global_mpi%get_comm_size()
     @assertEqual( num_processes, total_ranks )
 
-    rank_number=get_comm_rank()
+    rank_number=global_mpi%get_comm_rank()
     @assertTrue( rank_number <= total_ranks)
 
   end subroutine test_real64
@@ -166,7 +163,7 @@ contains
     do i = 1, size(l_local)
        l_sum = l_sum + l_local(i)
     end do
-    call global_sum( l_sum, g_sum )
+    call global_mpi%global_sum( l_sum, g_sum )
     ! Calculate weights
     s = 0.0_r_test
     do i = 1, num_processes
@@ -180,7 +177,7 @@ contains
     do i = 2, size(l_local)
        if(l_local(i) > l_max) l_max = l_local(i)
     end do
-    call global_max( l_max, g_max )
+    call global_mpi%global_max( l_max, g_max )
     answer = 30.0_r_test * num_processes
     @assertEqual(  answer, g_max, 1.0e-2_r_test )
 
@@ -189,13 +186,13 @@ contains
     do i = 2, size(l_local)
        if(l_local(i) < l_min) l_min = l_local(i)
     end do
-    call global_min( l_min, g_min )
+    call global_mpi%global_min( l_min, g_min )
     answer = 10.0_r_test
     @assertEqual( answer, g_min, 1.0e-2_r_test )
 
     ! Test real broadcast routine
     r_buffer(1) = 13.0_r_test*(proc_num+1)
-    call broadcast( r_buffer, 1, 0 )
+    call global_mpi%broadcast( r_buffer, 1, 0 )
     @assertEqual( 13.0_r_test, r_buffer(1) )
 
     ! Test the mpi data type routines - double and single
@@ -203,10 +200,10 @@ contains
     @assertEqual( MPI_REAL4, mpi_datatype )
 
     ! Test the routines for getting total number of ranks and local rank number
-    total_ranks = get_comm_size()
+    total_ranks = global_mpi%get_comm_size()
     @assertEqual( num_processes, total_ranks )
 
-    rank_number = get_comm_rank()
+    rank_number = global_mpi%get_comm_rank()
     @assertTrue( rank_number <= total_ranks)
 
   end subroutine test_real32
@@ -246,7 +243,7 @@ contains
     do i = 1, size(l_local_i)
        l_sum_i = l_sum_i + l_local_i(i)
     end do
-    call global_sum( l_sum_i, g_sum_i )
+    call global_mpi%global_sum( l_sum_i, g_sum_i )
     ! Calculate weights
     w = 0_i_test
     do i = 1, num_processes
@@ -260,7 +257,7 @@ contains
     do i = 2, size(l_local_i)
        if(l_local_i(i) > l_max_i) l_max_i = l_local_i(i)
     end do
-    call global_max( l_max_i, g_max_i )
+    call global_mpi%global_max( l_max_i, g_max_i )
     answer = 300.0_i_test * num_processes
     @assertEqual(  answer, g_max_i )
 
@@ -269,25 +266,25 @@ contains
     do i = 2, size(l_local_i)
        if(l_local_i(i) < l_min_i) l_min_i = l_local_i(i)
     end do
-    call global_min( l_min_i, g_min_i )
+    call global_mpi%global_min( l_min_i, g_min_i )
     answer = 100_i_test
     @assertEqual( answer, g_min_i )
 
     ! Test integer gather routine
     i_buffer(1) = 700_i_test * (proc_num + 1_i_test)
-    call all_gather(i_buffer, i_buffer_ans, 1)
+    call global_mpi%all_gather(i_buffer, i_buffer_ans, 1)
     do i = 1,num_processes
       @assertEqual( i * 700_i_test, i_buffer_ans(i) )
     end do
 
     ! Test integer broadcast routine
     i_buffer(1) = 900_i_test*(proc_num+1)
-    call broadcast( i_buffer, 1, 0 )
+    call global_mpi%broadcast( i_buffer, 1, 0 )
     @assertEqual( 900_i_test, i_buffer(1) )
 
     ! Test character string broadcast routine
     str_buffer(1) = 'Hi'
-    call broadcast( str_buffer, len(str_buffer(1))*size(str_buffer), 0 )
+    call global_mpi%broadcast( str_buffer, len(str_buffer(1))*size(str_buffer), 0 )
     @assertEqual( 'Hi', str_buffer(1) )
 
     ! Test the mpi data type routines - integer
@@ -295,10 +292,10 @@ contains
     @assertEqual( MPI_INTEGER, mpi_datatype )
 
     ! Test the routines for getting total number of ranks and local rank number
-    total_ranks = get_comm_size()
+    total_ranks = global_mpi%get_comm_size()
     @assertEqual( num_processes, total_ranks )
 
-    rank_number=get_comm_rank()
+    rank_number=global_mpi%get_comm_rank()
     @assertTrue( rank_number <= total_ranks)
 
     deallocate(i_buffer_ans)

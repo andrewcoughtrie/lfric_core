@@ -18,8 +18,7 @@ module local_mesh_mod_test
                                         finalise_halo_comms
   use local_mesh_map_mod,         only: local_mesh_map_type
   use local_mesh_mod,             only: local_mesh_type
-  use mpi_mod,                    only: store_comm, clear_comm, &
-                                        get_comm_size, get_comm_rank
+  use mpi_mod,                    only: global_mpi
   use ncdf_quad_mod,              only: ncdf_quad_type
   use partition_mod,              only: partition_type,                 &
                                         partitioner_planar,             &
@@ -60,12 +59,12 @@ contains
     global_mesh_collection = global_mesh_collection_type()
 
     !Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
+    call global_mpi%initialise(this%getMpiCommunicator())
     ! Initialise halo functionality
     call initialise_halo_comms( this%getMpiCommunicator() )
 
-    this%total_ranks = get_comm_size()
-    this%local_rank  = get_comm_rank()
+    this%total_ranks = global_mpi%get_comm_size()
+    this%local_rank  = global_mpi%get_comm_rank()
 
   end subroutine setUp
 
@@ -80,7 +79,7 @@ contains
     ! Finalise halo functionality
     call finalise_halo_comms()
     ! Clear the stored MPI communicator
-    call clear_comm()
+    call global_mpi%finalise()
 
   end subroutine teardown
 

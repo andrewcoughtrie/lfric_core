@@ -23,7 +23,7 @@ module gravity_wave_infrastructure_mod
                                          LOG_LEVEL_INFO
   use mesh_mod,                   only : mesh_type
   use model_clock_mod,            only : model_clock_type
-  use mpi_mod,                    only : get_comm_size, get_comm_rank
+  use mpi_mod,                    only : global_mpi
   use field_mod,                  only : field_type
   use driver_comm_mod,            only : init_comm, final_comm
   use driver_fem_mod,             only : init_fem
@@ -77,7 +77,8 @@ contains
     character(:), allocatable :: filename
 
     ! Set up the communicator for later use
-    call init_comm(program_name, comm)
+    call init_comm(program_name)
+    comm = global_mpi%get_comm()
 
     call get_initial_filename( filename )
     call load_configuration( filename )
@@ -97,7 +98,8 @@ contains
     ! Initialise aspects of the grid
     !-------------------------------------------------------------------------
     ! Create the mesh
-    call init_mesh( get_comm_rank(), get_comm_size(), mesh,         &
+    call init_mesh( global_mpi%get_comm_rank(), global_mpi%get_comm_size(), &
+                    mesh,                                           &
                     twod_mesh              = twod_mesh,             &
                     multigrid_mesh_ids     = multigrid_mesh_ids,    &
                     multigrid_2D_mesh_ids  = multigrid_2D_mesh_ids, &

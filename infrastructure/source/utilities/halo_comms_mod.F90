@@ -16,7 +16,7 @@ module halo_comms_mod
   use constants_mod,         only: i_def, i_halo_index, i_native
   use linked_list_data_mod,  only: linked_list_data_type
   use log_mod,               only: log_event, LOG_LEVEL_ERROR
-  use mpi_mod,               only: is_comm_set, get_comm, get_mpi_datatype
+  use mpi_mod,               only: global_mpi, get_mpi_datatype
 #ifdef NO_MPI
   ! If this is a non-mpi build - Yaxt won't work - so don't "use" it
 #else
@@ -560,13 +560,13 @@ function generate_redistribution_map(src_indices, tgt_indices, datatype) &
   integer(i_def), allocatable :: tgt_offsets(:)
   integer(i_def) :: i
 
-  if( is_comm_set() )then
+  if( global_mpi%is_comm_set() )then
     ! create decomposition descriptors
     src_idxlist = xt_idxvec_new( src_indices, size(src_indices) )
     tgt_idxlist = xt_idxvec_new( tgt_indices, size(tgt_indices) )
 
     ! generate exchange map
-    xmap = xt_xmap_dist_dir_new( src_idxlist, tgt_idxlist, get_comm() )
+    xmap = xt_xmap_dist_dir_new( src_idxlist, tgt_idxlist, global_mpi%get_comm() )
 
     allocate(src_offsets( size(src_indices) ))
     allocate(tgt_offsets( size(tgt_indices) ))
@@ -588,7 +588,7 @@ function generate_redistribution_map(src_indices, tgt_indices, datatype) &
     deallocate(tgt_offsets)
   else
     call log_event( &
-    'Call to generate_redistribution_map failed. Must call store_comm first',&
+    'Call to generate_redistribution_map failed. Must initialise mpi first',&
     LOG_LEVEL_ERROR )
   end if
 #endif

@@ -10,7 +10,7 @@
 module timer_mod_test
 
   use pFUnit_Mod
-  use mpi_mod, only : store_comm
+  use mpi_mod, only : global_mpi
   use constants_mod, only: r_def, i_def, str_def, r_double, i_long
 
   implicit none
@@ -39,7 +39,7 @@ contains
     class(timer_test_type), intent(inout) :: this
 
     !Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
+    call global_mpi%initialise(this%getMpiCommunicator())
 
   end subroutine setUp
 
@@ -53,6 +53,9 @@ contains
     class(timer_test_type), intent(inout) :: this
 
     call reset_timer()
+
+    ! Clear the stored MPI communicator
+    call global_mpi%finalise()
 
   end subroutine tearDown
 

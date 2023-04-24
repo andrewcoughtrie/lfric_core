@@ -31,9 +31,7 @@ USE lfricinp_runtime_constants_mod, ONLY: lfricinp_create_runtime_constants
 USE step_calendar_mod,          ONLY: step_calendar_type
 
 ! Interface to mpi
-USE mpi_mod,                    ONLY: initialise_comm, store_comm,             &
-                                      get_comm_size, get_comm_rank,            &
-                                      finalise_comm
+USE mpi_mod,                    ONLY: global_mpi, create_comm, destroy_comm
 
 ! lfricinp modules
 USE lfricinp_um_parameters_mod, ONLY: fnamelen
@@ -99,7 +97,7 @@ program_name = program_name_arg
 xios_id = TRIM(program_name) // "_client"
 
 ! Initialise MPI and create the default communicator: mpi_comm_world
-CALL initialise_comm(comm)
+CALL create_comm(comm)
 
 ! Initialise xios
 call lfric_xios_initialise( program_name, comm, .false. )
@@ -107,9 +105,9 @@ call lfric_xios_initialise( program_name, comm, .false. )
 ! Save LFRic's part of the split communicator for later use, and
 ! set the total number of ranks and the local rank of the split
 ! communicator
-CALL store_comm(comm)
-total_ranks = get_comm_size()
-local_rank = get_comm_rank()
+CALL global_mpi%initialise(comm)
+total_ranks = global_mpi%get_comm_size()
+local_rank = global_mpi%get_comm_rank()
 
 !Initialise halo functionality
 CALL initialise_halo_comms( comm )
@@ -214,7 +212,6 @@ USE log_mod,                   ONLY: log_event, LOG_LEVEL_INFO
 
 ! External libraries
 USE xios,                      ONLY: xios_finalize
-USE mpi_mod,                   ONLY: finalise_comm
 
 
 IMPLICIT NONE
@@ -231,7 +228,8 @@ CALL lfric_xios_finalise()
 !
 CALL final_logger(program_name)
 
-CALL finalise_comm()
+CALL global_mpi%finalise()
+CALL destroy_comm()
 
 END SUBROUTINE lfricinp_finalise_lfric
 

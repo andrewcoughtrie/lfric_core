@@ -65,8 +65,7 @@ module multires_coupling_model_mod
                                          minmax_tseries_final
   use moisture_conservation_alg_mod, &
                                   only : moisture_conservation_alg
-  use mpi_mod,                    only : get_comm_size, &
-                                         get_comm_rank
+  use mpi_mod,                    only : global_mpi
   use rk_alg_timestep_mod,        only : rk_alg_init, &
                                          rk_alg_final
   use runtime_constants_mod,      only : create_runtime_constants, &
@@ -178,7 +177,8 @@ contains
     !-------------------------------------------------------------------------
 
     ! Set up the MPI communicator for later use
-    call init_comm( program_name, communicator )
+    call init_comm( program_name )
+    communicator = global_mpi%get_comm()
 
     call get_initial_filename( filename )
     call load_configuration( filename, program_name )
@@ -214,7 +214,8 @@ contains
     !-------------------------------------------------------------------------
 
     ! Create the mesh
-    call init_mesh( get_comm_rank(), get_comm_size(), mesh,                        &
+    call init_mesh( global_mpi%get_comm_rank(), global_mpi%get_comm_size(),        &
+                    mesh,                                                          &
                     twod_mesh                     = twod_mesh,                     &
                     shifted_mesh                  = shifted_mesh,                  &
                     double_level_mesh             = double_level_mesh,             &

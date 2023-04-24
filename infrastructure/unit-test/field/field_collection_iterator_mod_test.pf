@@ -29,7 +29,7 @@ module field_collection_iterator_mod_test
     use fs_continuity_mod,             only : W0, W2, W3
     use local_mesh_mod,                only : local_mesh_type
     use pure_abstract_field_mod,       only : pure_abstract_field_type
-    use mpi_mod,                       only : store_comm, clear_comm
+    use mpi_mod,                       only : global_mpi
     use pFUnit_Mod
 
   implicit none
@@ -71,7 +71,7 @@ contains
     type(mesh_type), pointer :: mesh => null()
 
     !Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
+    call global_mpi%initialise(this%getMpiCommunicator())
 
     ! Initialise halo functionality
     call initialise_halo_comms( this%getMpiCommunicator() )
@@ -119,7 +119,7 @@ contains
     ! Finalise halo functionality
     call finalise_halo_comms()
     ! Clear the stored MPI communicator
-    call clear_comm()
+    call global_mpi%finalise()
 
   end subroutine tearDown
 

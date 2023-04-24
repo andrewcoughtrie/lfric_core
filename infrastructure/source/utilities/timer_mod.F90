@@ -135,10 +135,7 @@ contains
 !=============================================================================!
 !> @brief Calculate statistics required for output
    subroutine calculate_timer_stats()
-     use mpi_mod, only: get_comm_size,     &
-                        global_sum,        &
-                        global_min,        &
-                        global_max
+     use mpi_mod, only: global_mpi
      use log_mod, only: log_event,         &
                         LOG_LEVEL_ERROR,   &
                         log_scratch_space
@@ -152,7 +149,7 @@ contains
      real(r_double)    :: time_real_tmp
      integer(i_def)    :: total_ranks
 
-     total_ranks = get_comm_size()
+     total_ranks = global_mpi%get_comm_size()
 
      ! check all timers are closed
      do k = 1, num_tim_in_use
@@ -166,10 +163,10 @@ contains
 
      do k = 1, num_tim_in_use
        time_real_tmp = real(isystem_clock_time(k)/clock_rate, r_double)
-       call global_sum(time_real_tmp, time_sum)
+       call global_mpi%global_sum(time_real_tmp, time_sum)
        mean_system_time(k) = time_sum/total_ranks
-       call global_min(time_real_tmp, min_system_time(k))
-       call global_max(time_real_tmp, max_system_time(k))
+       call global_mpi%global_min(time_real_tmp, min_system_time(k))
+       call global_mpi%global_max(time_real_tmp, max_system_time(k))
      end do
 
    end subroutine calculate_timer_stats
@@ -177,7 +174,7 @@ contains
 !=============================================================================!
    !> @brief write out timer information to file
    subroutine output_timer()
-     use mpi_mod,    only: get_comm_rank
+     use mpi_mod,    only: global_mpi
      use log_mod,    only: log_event,       &
                            LOG_LEVEL_ERROR, &
                            LOG_LEVEL_INFO,  &
@@ -215,7 +212,7 @@ contains
 
      call calculate_timer_stats()
 
-     if ( get_comm_rank() == 0 ) then
+     if ( global_mpi%get_comm_rank() == 0 ) then
        timer_file_unit = claim_io_unit()
        open( timer_file_unit, file=trim(timer_path), status="replace", iostat=stat)
        if (stat /= 0) then

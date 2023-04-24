@@ -25,7 +25,7 @@ contains
                                 only: field_collection_iterator_type
     use field_collection_mod,   only: field_collection_type
     use constants_mod,          only: i_def, r_def, str_max_filename
-    use mpi_mod,                only: get_comm_rank
+    use mpi_mod,                only: global_mpi
     use log_mod,                only: log_event,         &
                                       LOG_LEVEL_INFO,    &
                                       LOG_LEVEL_ERROR
@@ -64,7 +64,7 @@ contains
     file_unit = 9
 
     ! Open checksum output file
-    if ( get_comm_rank() == 0 ) then
+    if ( global_mpi%get_comm_rank() == 0 ) then
       write(fname,'(A,A)') 'io_dev-checksums.txt'
       open( file_unit, file=fname, status="replace", iostat=stat)
 

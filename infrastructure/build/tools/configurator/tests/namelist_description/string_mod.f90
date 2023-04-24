@@ -11,7 +11,7 @@ module mirth_config_mod
                            str_def
   use log_mod,       only: log_event, log_scratch_space &
                          , LOG_LEVEL_ERROR, LOG_LEVEL_WARNING, LOG_LEVEL_INFO
-  use mpi_mod,       only: broadcast
+  use mpi_mod,       only: global_mpi
 
   use constants_mod, only: cmdi, emdi, imdi, rmdi, unset_key
   use random_config_mod, only: biggles
@@ -103,14 +103,14 @@ contains
 
     buffer_character_str_def(1) = chuckle
 
-    call broadcast( buffer_character_str_def, 1*str_def, 0 )
+    call global_mpi%broadcast( buffer_character_str_def, 1*str_def, 0 )
 
     chuckle = buffer_character_str_def(1)
 
 
-    call broadcast( chortle, size(chortle, 1)*str_def, 0 )
-    call broadcast( guffaw, size(guffaw, 1)*str_def, 0 )
-    call broadcast( hysterics, size(hysterics, 1)*str_def, 0 )
+    call global_mpi%broadcast( chortle, size(chortle, 1)*str_def, 0 )
+    call global_mpi%broadcast( guffaw, size(guffaw, 1)*str_def, 0 )
+    call global_mpi%broadcast( hysterics, size(hysterics, 1)*str_def, 0 )
 
     namelist_loaded = .true.
 

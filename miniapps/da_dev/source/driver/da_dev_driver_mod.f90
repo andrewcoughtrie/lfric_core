@@ -34,8 +34,7 @@ module da_dev_driver_mod
   use mesh_mod,                 only: mesh_type
   use extrusion_mod,            only: extrusion_type
   use model_clock_mod,          only: model_clock_type
-  use mpi_mod,                  only: get_comm_size, &
-                                      get_comm_rank
+  use mpi_mod,                  only: global_mpi
   use da_dev_mod,               only: load_configuration
   use da_dev_increment_alg_mod, only: da_dev_increment_alg
   use da_dev_init_files_mod,    only: init_da_dev_files
@@ -80,10 +79,11 @@ contains
     call log_event( 'Initialising comms start', LOG_LEVEL_ALWAYS )
 
     if (present(world_communicator)) then
-      call init_comm( program_name, model_communicator, world_communicator )
+      call init_comm( program_name, world_communicator )
     else
-      call init_comm( program_name, model_communicator )
+      call init_comm( program_name )
     endif
+    model_communicator = global_mpi%get_comm()
 
     call log_event( 'Initialising comms done', LOG_LEVEL_ALWAYS )
 
@@ -130,8 +130,8 @@ contains
 
     ! Create the mesh
     allocate( extrusion, source=create_extrusion() )
-    call init_mesh( get_comm_rank(), get_comm_size(), mesh, &
-                    twod_mesh = twod_mesh, input_extrusion = extrusion )
+    call init_mesh( global_mpi%get_comm_rank(), global_mpi%get_comm_size(), &
+                    mesh, twod_mesh = twod_mesh, input_extrusion = extrusion )
 
     ! Create FEM specifics (function spaces and chi field)
     call init_fem( mesh, chi, panel_id )

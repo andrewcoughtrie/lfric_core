@@ -30,7 +30,7 @@ contains
                                       field_bundle, bundle_name)
     use field_mod,       only: field_type
     use constants_mod,   only: i_def, r_def, str_max_filename
-    use mpi_mod,         only: get_comm_rank
+    use mpi_mod,         only: global_mpi
     use log_mod,         only: log_event,         &
                                LOG_LEVEL_ERROR
     implicit none
@@ -63,7 +63,7 @@ contains
     end if
 
     ! Write checksums to file
-    if ( get_comm_rank() == 0 ) then
+    if ( global_mpi%get_comm_rank() == 0 ) then
       write(fname,'(A,A)') trim(model_name),'-checksums.txt'
       open( 9, file=fname, status="replace", iostat=stat)
       if (stat /= 0) then

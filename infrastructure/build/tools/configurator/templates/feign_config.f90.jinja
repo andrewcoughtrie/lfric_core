@@ -12,7 +12,7 @@ module {{modulename}}
 
   use constants_mod, only : {{kinds | sort | join( ', ' )}}
   use log_mod,       only : log_scratch_space, log_event, LOG_LEVEL_ERROR
-  use mpi_mod,       only : get_comm_rank
+  use mpi_mod,       only : global_mpi
 
   implicit none
 
@@ -80,7 +80,7 @@ contains
 {%- endif %}
 
     if (local_rank == -1) then
-      local_rank = get_comm_rank()
+      local_rank = global_mpi%get_comm_rank()
     end if
 
     open( temporary_unit, status='scratch', action='readwrite', &

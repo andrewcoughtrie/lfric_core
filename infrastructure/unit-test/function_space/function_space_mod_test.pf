@@ -74,7 +74,7 @@ module function_space_mod_test
                                     WB, SB, EB, NB,         &
                                     SW, SE, NE, NW,         &
                                     WT, ST, ET, NT
-  use mpi_mod,               only : store_comm, clear_comm
+  use mpi_mod,               only : global_mpi
 
   implicit none
 
@@ -209,7 +209,7 @@ contains
     type(mesh_type) :: unit_test_mesh
 
     !Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
+    call global_mpi%initialise(this%getMpiCommunicator())
 
     call this%unit_test_local_mesh%initialise()
     unit_test_local_mesh_ptr => this%get_local_mesh_ptr()
@@ -246,7 +246,7 @@ contains
     call final_configuration()
 
     ! Clear the stored MPI communicator
-    call clear_comm()
+    call global_mpi%finalise()
 
   end subroutine tearDown
 

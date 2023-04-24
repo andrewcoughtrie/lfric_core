@@ -1,0 +1,30 @@
+' (c) Crown copyright 2023 Met Office. All rights reserved.
+' The file LICENCE, distributed with this code, contains details of the terms
+' under which the code may be used.
+
+class mpi_type {
+  -comm: integer
+  -comm_set: Boolean
+
+  +initialise(in_comm: integer)
+  +finalise()
+  +get_comm(): integer
+  +is_comm_set(): Boolean
+  +global_sum(l_sum: double, g_sum:double)
+  +global_sum(l_sum: single, g_sum:real)
+  +global_sum(l_sum: integer, g_sum:integer)
+  +global_min(l_min: double, g_min:double)
+  +global_min(l_min: single, g_min:real)
+  +global_min(l_min: integer, g_min:integer)
+  +global_max(l_max: double, g_max:double)
+  +global_max(l_max: single, g_max:real)
+  +global_max(l_max: integer, g_max:integer)
+  +all_gather(send_buffer: integer, recv_buffer: integer, count: integer)
+  +broadcast(buffer: logical, count: integer, root: integer)
+  +broadcast(buffer: integer, count: integer, root: integer)
+  +broadcast(buffer: double, count: integer, root: integer)
+  +broadcast(buffer: single, count: integer, root: integer)
+  +broadcast(buffer: string, count: integer, root: integer)
+  +get_comm_size(): integer
+  +get_comm_rank(): integer
+}

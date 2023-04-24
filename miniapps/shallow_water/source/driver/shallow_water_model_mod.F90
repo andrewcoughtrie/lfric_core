@@ -51,8 +51,7 @@ module shallow_water_model_mod
                                             minmax_tseries_init, &
                                             minmax_tseries_final
   use model_clock_mod,                only: model_clock_type
-  use mpi_mod,                        only: get_comm_size, &
-                                            get_comm_rank
+  use mpi_mod,                        only: global_mpi
   use shallow_water_mod,              only: load_configuration
   use shallow_water_model_data_mod,   only: model_data_type
   use shallow_water_setup_io_mod,     only: init_shallow_water_files
@@ -104,7 +103,8 @@ module shallow_water_model_mod
     !-------------------------------------------------------------------------
 
     ! Set up the MPI communicator for later use
-    call init_comm( program_name, communicator )
+    call init_comm( program_name )
+    communicator = global_mpi%get_comm()
 
     call get_initial_filename( filename )
     call load_configuration( filename )
@@ -141,7 +141,8 @@ module shallow_water_model_mod
 
     ! TODO Stencil depth needs to be taken from configuration options
     ! Create the mesh
-    call init_mesh( get_comm_rank(),  get_comm_size(), mesh, twod_mesh, &
+    call init_mesh( global_mpi%get_comm_rank(),  global_mpi%get_comm_size(), &
+                    mesh, twod_mesh,                                         &
                     required_stencil_depth = get_required_stencil_depth() )
 
     ! Create FEM specifics (function spaces and chi field)

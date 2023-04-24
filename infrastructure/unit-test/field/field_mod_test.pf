@@ -23,7 +23,7 @@ module field_mod_test
   use mesh_mod,                       only : mesh_type, PLANE_BI_PERIODIC
   use function_space_mod,             only : function_space_type
   use fs_continuity_mod,              only : W2, W3
-  use mpi_mod,                        only : store_comm, clear_comm
+  use mpi_mod,                        only : mpi_type, global_mpi
   use pFUnit_Mod
 
   implicit none
@@ -64,7 +64,7 @@ contains
     integer(i_def)  :: mesh_id
 
     !Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
+    call global_mpi%initialise(this%getMpiCommunicator())
 
     ! Initialise halo functionality
     call initialise_halo_comms( this%getMpiCommunicator() )
@@ -106,7 +106,7 @@ contains
     ! Finalise halo functionality
     call finalise_halo_comms()
     ! Clear the stored MPI communicator
-    call clear_comm()
+    call global_mpi%finalise()
 
   end subroutine tearDown
 
@@ -247,6 +247,7 @@ contains
     real(r_def)            :: test_sum, test_min, test_max
     logical                :: dirty
     logical                :: multidata_order
+    type(mpi_type)         :: f1_mpi
 
     ! Make a field with a function space
     call f1%initialise( vector_space = this%w2_fs, name='f1' )
@@ -322,6 +323,10 @@ contains
     ! check that the multi-data field is ordered multi-data-first
     multidata_order=f3_p%is_ndata_first()
     @assertTrue ( multidata_order )
+
+    ! check that the mpi object associated with f1 is valid
+    f1_mpi = f1_p%get_mpi()
+    @assertTrue(f1_mpi%is_comm_set())
 
   end subroutine test_field_proxy
 

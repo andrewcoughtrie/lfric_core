@@ -10,7 +10,7 @@
 module scalar_mod_test
 
   use constants_mod, only : r_def
-  use mpi_mod, only : store_comm
+  use mpi_mod, only : global_mpi
   use pFUnit_Mod
 
   implicit none
@@ -37,7 +37,7 @@ contains
     class(scalar_test_type), intent(inout) :: this
 
     !Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
+    call global_mpi%initialise(this%getMpiCommunicator())
 
   end subroutine setUp
 
@@ -47,6 +47,9 @@ contains
     implicit none
 
     class(scalar_test_type), intent(inout) :: this
+
+    ! Clear the stored MPI communicator
+    call global_mpi%finalise()
 
   end subroutine tearDown
 
@@ -60,9 +63,9 @@ contains
 
     class(scalar_test_type), intent(inout) :: this
 
-    type(scalar_type)          :: s1
+    type(scalar_type)          :: s1, s2
 
-    real(r_def) :: s1_val
+    real(r_def) :: s1_val, s2_val
     real(r_def) :: sum, min, max
 
     s1_val = 23.0_r_def
@@ -84,6 +87,12 @@ contains
     max = s1%get_max()
     @assertEqual( s1_val, max, 1.0e-2_r_def )
 
+    ! Test alternative way to create a scalar - by calling the initialiser
+    s2_val = 47
+    call s2%initialise(s2_val, global_mpi)
+    ! Make sure we can call one of the reductions on this scalar
+    sum = s2%get_sum()
+    @assertEqual( s2_val, sum, 1.0e-2_r_def )
 
   end subroutine test_all
 

@@ -21,7 +21,7 @@ module mesh_collection_mod_test
     use mesh_collection_mod,  only : mesh_collection_type,                  &
                                      mesh_collection
     use mesh_mod,             only : mesh_type, PLANE_BI_PERIODIC, PLANE
-    use mpi_mod,    only: store_comm, clear_comm
+    use mpi_mod,              only : global_mpi
     use pFUnit_Mod
 
   implicit none
@@ -59,7 +59,7 @@ contains
     integer(i_def) :: global_test_mesh_id
 
     !Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
+    call global_mpi%initialise(this%getMpiCommunicator())
     ! Initialise halo functionality
     call initialise_halo_comms( this%getMpiCommunicator() )
 
@@ -93,7 +93,7 @@ contains
     ! Finalise halo functionality
     call finalise_halo_comms()
     ! Clear the stored MPI communicator
-    call clear_comm()
+    call global_mpi%finalise()
 
   end subroutine tearDown
 

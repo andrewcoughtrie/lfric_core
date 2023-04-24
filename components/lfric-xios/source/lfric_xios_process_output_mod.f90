@@ -22,7 +22,7 @@ module lfric_xios_process_output_mod
   use lfric_xios_constants_mod,   only: dp_xios
   use lfric_xios_utils_mod,       only: parse_date_as_xios, seconds_from_date
   use log_mod,                    only: log_event, log_level_trace
-  use mpi_mod,                    only: get_comm_rank
+  use mpi_mod,                    only: global_mpi
   use xios,                       only: xios_date, xios_get_start_date
 
   implicit none
@@ -51,7 +51,7 @@ subroutine process_output_file(file_path)
   logical                    :: file_exists
 
   ! Output processing must be done in serial
-  if (get_comm_rank() /= 0) return
+  if (global_mpi%get_comm_rank() /= 0) return
 
   call log_event("Processing output file: "//trim(file_path), log_level_trace)
 

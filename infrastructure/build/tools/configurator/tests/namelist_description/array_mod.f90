@@ -13,7 +13,7 @@ module aerial_config_mod
                            str_def
   use log_mod,       only: log_event, log_scratch_space &
                          , LOG_LEVEL_ERROR, LOG_LEVEL_WARNING, LOG_LEVEL_INFO
-  use mpi_mod,       only: broadcast
+  use mpi_mod,       only: global_mpi
 
   use constants_mod, only: cmdi, emdi, imdi, rmdi, unset_key
   use wibble_mod, only: esize
@@ -114,15 +114,15 @@ contains
 
     buffer_integer_i_native(1) = lsize
 
-    call broadcast( buffer_integer_i_native, 1, 0 )
+    call global_mpi%broadcast( buffer_integer_i_native, 1, 0 )
 
     lsize = buffer_integer_i_native(1)
 
 
-    call broadcast( absolute, size(absolute, 1)*str_def, 0 )
-    call broadcast( inlist, size(inlist, 1), 0 )
-    call broadcast( outlist, size(outlist, 1), 0 )
-    call broadcast( unknown, size(unknown, 1), 0 )
+    call global_mpi%broadcast( absolute, size(absolute, 1)*str_def, 0 )
+    call global_mpi%broadcast( inlist, size(inlist, 1), 0 )
+    call global_mpi%broadcast( outlist, size(outlist, 1), 0 )
+    call global_mpi%broadcast( unknown, size(unknown, 1), 0 )
 
     namelist_loaded = .true.
 

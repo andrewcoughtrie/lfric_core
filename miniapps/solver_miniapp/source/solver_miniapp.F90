@@ -20,9 +20,8 @@ program solver_miniapp
   use halo_comms_mod,                   only : initialise_halo_comms, &
                                                finalise_halo_comms
   use init_solver_miniapp_mod,          only : init_solver_miniapp
-  use mpi_mod,                          only : initialise_comm, store_comm, &
-                                               finalise_comm,               &
-                                               get_comm_size, get_comm_rank
+  use mpi_mod,                          only : global_mpi, &
+                                               create_comm, destroy_comm
   use field_mod,                        only : field_type
   use field_vector_mod,                 only : field_vector_type
   use solver_miniapp_alg_mod,           only : solver_miniapp_alg
@@ -56,16 +55,16 @@ program solver_miniapp
   !-----------------------------------------------------------------------------
 
   ! Initialise MPI communicatios and get a valid communicator
-  call initialise_comm(comm)
+  call create_comm(comm)
 
   ! Initialise halo functionality
   call initialise_halo_comms( comm )
 
   ! Save the commmunicator for later use
-  call store_comm(comm)
+  call global_mpi%initialise(comm)
 
-  total_ranks = get_comm_size()
-  local_rank  = get_comm_rank()
+  total_ranks = global_mpi%get_comm_size()
+  local_rank  = global_mpi%get_comm_rank()
 
   call get_initial_filename( filename )
   call load_configuration( filename )
@@ -121,7 +120,8 @@ program solver_miniapp
   call finalise_halo_comms()
 
   ! Finalise MPI communications
-  call finalise_comm()
+  call global_mpi%finalise()
+  call destroy_comm()
 
   ! Finalise the logging system
   call final_logger(program_name)

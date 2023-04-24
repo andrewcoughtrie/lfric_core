@@ -17,7 +17,7 @@ module operator_r32_mod_test
                                             mesh_collection
   use mesh_mod,                      only : mesh_type
 
-  use mpi_mod,                       only : store_comm, clear_comm
+  use mpi_mod,                       only : global_mpi
   use pFUnit_Mod
 
   implicit none
@@ -45,7 +45,7 @@ contains
     class(operator_r32_test_type), intent(inout) :: this
 
     !Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
+    call global_mpi%initialise(this%getMpiCommunicator())
 
     ! Create top level mesh collection
     mesh_collection = mesh_collection_type()
@@ -65,7 +65,7 @@ contains
     call mesh_collection%clear()
 
     ! Clear the stored MPI communicator
-    call clear_comm()
+    call global_mpi%finalise()
 
   end subroutine tearDown
 

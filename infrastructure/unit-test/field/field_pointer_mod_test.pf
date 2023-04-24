@@ -22,7 +22,7 @@ module field_pointer_mod_test
   use mesh_mod,                       only : mesh_type, PLANE_BI_PERIODIC
   use function_space_mod,             only : function_space_type
   use fs_continuity_mod,              only : W2
-  use mpi_mod,                        only : store_comm, clear_comm
+  use mpi_mod,                        only : global_mpi
   use pFUnit_Mod
 
   implicit none
@@ -59,7 +59,7 @@ contains
     integer(i_def)  :: mesh_id
 
     !Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
+    call global_mpi%initialise(this%getMpiCommunicator())
 
     ! Initialise halo functionality
     call initialise_halo_comms( this%getMpiCommunicator() )
@@ -100,7 +100,7 @@ contains
     ! Finalise halo functionality
     call finalise_halo_comms()
     ! Clear the stored MPI communicator
-    call clear_comm()
+    call global_mpi%finalise()
 
   end subroutine tearDown
 

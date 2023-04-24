@@ -13,7 +13,7 @@ module {{listname}}_config_mod
   use constants_mod, only: {{all_kinds | sort | join( ', &\n' + ' '*27 )}}
   use log_mod,       only: log_event, log_scratch_space &
                          , LOG_LEVEL_ERROR, LOG_LEVEL_WARNING, LOG_LEVEL_INFO
-  use mpi_mod,       only: broadcast
+  use mpi_mod,       only: global_mpi
 {%- for module, symbols in use_from | dictsort %}
 {%-   if loop.first %}{{'\n'}}{% endif %}
   use {{module}}, only: {{symbols | sort | join(', ')}}
@@ -301,7 +301,7 @@ contains
 
 {%- for ftype, count in lonekindtally|dictsort %}
 {%-   if loop.first %}{{'\n'}}{%- endif %}
-    call broadcast(
+    call global_mpi%broadcast(
 {{-   ' buffer_' + ftype.intrinsic_type + '_' + ftype.kind }}
 {{-   ', '}}{{count}}
 {%-   if ftype.intrinsic_type == 'character' %}
@@ -348,7 +348,7 @@ contains
 
 {%- for name in arrays|sort %}
 {%-   if loop.first %}{{'\n'}}{% endif %}
-    call broadcast( {{name}}, size({{name}}, 1)
+    call global_mpi%broadcast( {{name}}, size({{name}}, 1)
 {%-   if parameters[name].fortran_type.intrinsic_type == 'character' %}
 {{-   '*' + parameters[name].fortran_type.kind }}
 {%-  endif %}

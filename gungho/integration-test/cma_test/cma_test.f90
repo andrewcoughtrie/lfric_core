@@ -33,10 +33,8 @@ program cma_test
                                              test_cma_diag_DhMDhT
   use constants_mod,                  only : i_def, r_def, r_solver, pi
   use derived_config_mod,             only : set_derived_config
-  use mpi_mod,                        only : initialise_comm, store_comm, &
-                                             finalise_comm, &
-                                             get_comm_size, get_comm_rank, &
-                                             global_sum
+  use mpi_mod,                        only : global_mpi, &
+                                             create_comm, destroy_comm
   use field_mod,                      only : field_type
   use finite_element_config_mod,      only : element_order
   use fs_continuity_mod,              only : W0,W1,W2,W3
@@ -116,16 +114,16 @@ program cma_test
   tolerance = 1.0E-12_r_solver
 
   ! Initialise MPI communicatios and get a valid communicator
-  call initialise_comm(comm)
+  call create_comm(comm)
 
   ! Save the communicator for later use
-  call store_comm(comm)
+  call global_mpi%initialise(comm)
 
   ! Initialise halo functionality
   call initialise_halo_comms( comm )
 
-  total_ranks = get_comm_size()
-  local_rank  = get_comm_rank()
+  total_ranks = global_mpi%get_comm_size()
+  local_rank  = global_mpi%get_comm_rank()
 
   call initialise_logging( comm, 'cma_test' )
 
@@ -244,7 +242,7 @@ program cma_test
   end if
 
   ! Work out total number of cells
-  call global_sum(ncells_2d_local, ncells_2d)
+  call global_mpi%global_sum(ncells_2d_local, ncells_2d)
 
   ! Check that the grid spacings are of order 1 (between 0.1 and 10).
   ! Otherwise the derivative and mass terms in the
@@ -290,7 +288,8 @@ program cma_test
   call finalise_halo_comms()
 
   ! Finalise MPI communications
-  call finalise_comm()
+  call global_mpi%finalise()
+  call destroy_comm()
 
   ! Finalise the logging system
   call finalise_logging()

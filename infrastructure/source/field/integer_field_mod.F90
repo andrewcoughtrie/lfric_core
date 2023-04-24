@@ -688,7 +688,7 @@ contains
 
     use log_mod,    only : log_event, log_scratch_space,     &
                            application_log_level => log_level
-    use mpi_mod,    only : global_max, global_min
+    use mpi_mod,    only : global_mpi
     implicit none
 
     class( integer_field_type ), target, intent(in) :: self
@@ -712,8 +712,8 @@ contains
       if( self%data(i) > l_max ) l_max = self%data(i)
       if( self%data(i) < l_min ) l_min = self%data(i)
     end do
-    call global_max( l_max, answer_max )
-    call global_min( l_min, answer_min )
+    call global_mpi%global_max( l_max, answer_max )
+    call global_mpi%global_min( l_min, answer_min )
 
     write( log_scratch_space, '( A, A, A, 2I16 )' ) &
          "Min/max ", trim( label ),                   &
@@ -731,7 +731,7 @@ contains
 
     use log_mod,    only : log_event, log_scratch_space,     &
                            application_log_level => log_level
-    use mpi_mod,    only : global_max
+    use mpi_mod,    only : global_mpi
     implicit none
 
     class( integer_field_type ), target, intent(in) :: self
@@ -752,7 +752,7 @@ contains
     do i = 2, function_space%get_last_dof_owned()
       if( abs(self%data(i)) > l_max ) l_max = abs(self%data(i))
     end do
-    call global_max( l_max, answer )
+    call global_mpi%global_max( l_max, answer )
 
     write( log_scratch_space, '( A, A, E16.8 )' ) &
          trim( label ), " = ", answer
@@ -988,7 +988,7 @@ contains
   !!
   function get_sum(self) result (answer)
 
-    use mpi_mod, only: global_sum
+    use mpi_mod, only: global_mpi
     implicit none
 
     class(integer_field_proxy_type), intent(in) :: self
@@ -1004,14 +1004,14 @@ contains
       l_sum = l_sum + self%data(i)
     end do
 
-    call global_sum( l_sum, answer )
+    call global_mpi%global_sum( l_sum, answer )
   end function get_sum
 
   !! Start the calculation of the global minimum of the field
   !!
   function get_min(self) result (answer)
 
-    use mpi_mod, only: global_min
+    use mpi_mod, only: global_mpi
     implicit none
 
     class(integer_field_proxy_type), intent(in) :: self
@@ -1027,7 +1027,7 @@ contains
       if( self%data(i) < l_min ) l_min = self%data(i)
     end do
 
-    call global_min( l_min, answer )
+    call global_mpi%global_min( l_min, answer )
 
   end function get_min
 
@@ -1035,7 +1035,7 @@ contains
   !!
   function get_max(self) result (answer)
 
-    use mpi_mod, only: global_max
+    use mpi_mod, only: global_mpi
     implicit none
 
     class(integer_field_proxy_type), intent(in) :: self
@@ -1051,7 +1051,7 @@ contains
       if( self%data(i) > l_max ) l_max = self%data(i)
     end do
 
-    call global_max( l_max, answer )
+    call global_mpi%global_max( l_max, answer )
 
   end function get_max
 

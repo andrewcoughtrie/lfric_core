@@ -14,7 +14,8 @@ module scalar_r32_mod
 
   use, intrinsic :: iso_fortran_env, only : real32
 
-  use constants_mod,      only: i_def
+  use constants_mod,      only: i_def, l_def
+  use mpi_mod,            only: mpi_type, global_mpi
   implicit none
   private
 
@@ -28,7 +29,13 @@ module scalar_r32_mod
     private
     !> The value of the scalar
     real(kind=real32), public :: value
+    !> Object that describes what processes the scalar is represented over
+    type(mpi_type)            :: mpi
+    !> Logical for whether the initialiser has been called
+    logical(l_def)            :: mpi_initialised = .false.
   contains
+    !> initialiser to set up the scaler object
+    procedure, public :: initialise
     !> Perform a global sum operation on the scalar
     !> @return The global sum of the scalar values over all ranks
     procedure, public :: get_sum
@@ -52,34 +59,67 @@ contains
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
 
+  !> Initialise the scalar object with a value and an mpi object
+  !> @param [in] value The value to be held
+  !> @param [in] mpi The optional mpi object that represents the processes
+  !>                 over which this scalar is held
+  subroutine initialise(self, value, mpi)
+    implicit none
+    class(scalar_r32_type), intent(inout) :: self
+    real(kind=real32), intent(in)         :: value
+    type(mpi_type), intent(in), optional  :: mpi
+
+    self%value = value
+    if(present(mpi))then
+      self%mpi_initialised = .true.
+      self%mpi = mpi
+    end if
+
+  end subroutine initialise
+
   !! Start performing a global sum operation on a scalar
   !!
   function get_sum(self) result (g_sum)
-    use mpi_mod, only: global_sum
+    use mpi_mod, only: global_mpi
     implicit none
-    class(scalar_r32_type), intent(in) :: self
+    class(scalar_r32_type), intent(inout) :: self
     real(real32) :: g_sum
-    call global_sum( self%value, g_sum )
+    ! If an mpi object has been specified, use that, otherwise use global_mpi
+    if(self%mpi_initialised)then
+      call self%mpi%global_sum( self%value, g_sum )
+    else
+      call global_mpi%global_sum( self%value, g_sum )
+    end if
   end function get_sum
 
   !! Start the calculation of the global minimum of a scalar
   !!
   function get_min(self) result (g_min)
-    use mpi_mod, only: global_min
+    use mpi_mod, only: global_mpi
     implicit none
-    class(scalar_r32_type), intent(in) :: self
+    class(scalar_r32_type), intent(inout) :: self
     real(real32) :: g_min
-    call global_min( self%value, g_min )
+    ! If an mpi object has been specified, use that, otherwise use global_mpi
+    if(self%mpi_initialised)then
+      call self%mpi%global_min( self%value, g_min )
+    else
+      call global_mpi%global_min( self%value, g_min )
+    end if
   end function get_min
 
   !! Start the calculation of the global maximum of a scalar
   !!
   function get_max(self) result (g_max)
-    use mpi_mod, only: global_max
+    use mpi_mod, only: global_mpi
     implicit none
-    class(scalar_r32_type), intent(in) :: self
+    class(scalar_r32_type), intent(inout) :: self
     real(real32) :: g_max
-    call global_max( self%value, g_max )
+    ! If an mpi object has been specified, use that, otherwise use global_mpi
+    if(self%mpi_initialised)then
+      call self%mpi%global_max( self%value, g_max )
+    else
+      call global_mpi%global_max( self%value, g_max )
+    end if
   end function get_max
 
   !! Wait for any current (non-blocking) reductions (sum, max, min) to complete

@@ -19,7 +19,7 @@ module function_space_collection_mod_test
   use function_space_mod,            only : function_space_type
   use pFUnit_Mod
 
-  use mpi_mod, only: store_comm, clear_comm
+  use mpi_mod,                       only : global_mpi
 
   implicit none
 
@@ -64,7 +64,7 @@ contains
 
 
     ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
+    call global_mpi%initialise(this%getMpiCommunicator())
 
     ! Create top level mesh collection
     mesh_collection = mesh_collection_type()
@@ -98,7 +98,7 @@ contains
     call mesh_collection%clear()
 
     ! Clear the stored MPI communicator
-    call clear_comm()
+    call global_mpi%finalise()
 
   end subroutine tearDown
 

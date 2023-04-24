@@ -20,7 +20,7 @@ module test_config_mod
                            str_max_filename
   use log_mod,       only: log_event, log_scratch_space &
                          , LOG_LEVEL_ERROR, LOG_LEVEL_WARNING, LOG_LEVEL_INFO
-  use mpi_mod,       only: broadcast
+  use mpi_mod,       only: global_mpi
 
   use constants_mod, only: cmdi, emdi, imdi, rmdi, unset_key
 
@@ -245,17 +245,17 @@ contains
     buffer_real_r_def(1) = vreal
     buffer_character_str_def(1) = vstr
 
-    call broadcast( buffer_character_str_def, 2*str_def, 0 )
-    call broadcast( buffer_character_str_max_filename, 1*str_max_filename, 0 )
-    call broadcast( buffer_integer_i_def, 2, 0 )
-    call broadcast( buffer_integer_i_long, 1, 0 )
-    call broadcast( buffer_integer_i_native, 1, 0 )
-    call broadcast( buffer_integer_i_short, 1, 0 )
-    call broadcast( buffer_logical_l_def, 1, 0 )
-    call broadcast( buffer_real_r_def, 2, 0 )
-    call broadcast( buffer_real_r_double, 1, 0 )
-    call broadcast( buffer_real_r_second, 1, 0 )
-    call broadcast( buffer_real_r_single, 1, 0 )
+    call global_mpi%broadcast( buffer_character_str_def, 2*str_def, 0 )
+    call global_mpi%broadcast( buffer_character_str_max_filename, 1*str_max_filename, 0 )
+    call global_mpi%broadcast( buffer_integer_i_def, 2, 0 )
+    call global_mpi%broadcast( buffer_integer_i_long, 1, 0 )
+    call global_mpi%broadcast( buffer_integer_i_native, 1, 0 )
+    call global_mpi%broadcast( buffer_integer_i_short, 1, 0 )
+    call global_mpi%broadcast( buffer_logical_l_def, 1, 0 )
+    call global_mpi%broadcast( buffer_real_r_def, 2, 0 )
+    call global_mpi%broadcast( buffer_real_r_double, 1, 0 )
+    call global_mpi%broadcast( buffer_real_r_second, 1, 0 )
+    call global_mpi%broadcast( buffer_real_r_single, 1, 0 )
 
     dint = buffer_integer_i_def(2)
     dlog = buffer_logical_l_def(1) /= 0

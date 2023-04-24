@@ -7,9 +7,7 @@
 program configuration_test
 
   use, intrinsic :: iso_fortran_env, only : error_unit
-  use mpi_mod,                     only : initialise_comm, store_comm,       &
-                                          finalise_comm,                     &
-                                          get_comm_rank
+  use mpi_mod,                     only : global_mpi, create_comm, destroy_comm
   use one_of_each_test_config_mod, only : key_from_an_enum,                  &
                                       postprocess_one_of_each_test_namelist, &
                                           read_one_of_each_test_namelist,    &
@@ -43,12 +41,12 @@ program configuration_test
   character(40) :: format_string
 
   ! Initialse mpi and create the default communicator: mpi_comm_world
-  call initialise_comm(comm)
+  call create_comm(comm)
 
   ! Save lfric's part of the split communicator for later use
-  call store_comm(comm)
+  call global_mpi%initialise(comm)
 
-  rank = get_comm_rank()
+  rank = global_mpi%get_comm_rank()
 
   open( file_unit, file=filename, iostat=condition )
   if (condition /= 0) then
@@ -106,6 +104,7 @@ program configuration_test
     stop 6
   end if
 
-  call finalise_comm()
+  call global_mpi%finalise()
+  call destroy_comm()
 
 end program configuration_test

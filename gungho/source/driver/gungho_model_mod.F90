@@ -66,8 +66,7 @@ module gungho_model_mod
   use mesh_mod,                   only : mesh_type
   use moisture_conservation_alg_mod, &
                                   only : moisture_conservation_alg
-  use mpi_mod,                    only : get_comm_size, &
-                                         get_comm_rank
+  use mpi_mod,                    only : global_mpi
   use mr_indices_mod,             only : nummr
   use rk_alg_timestep_mod,        only : rk_alg_init, &
                                          rk_alg_final
@@ -190,7 +189,8 @@ contains
     ! Initialise aspects of the infrastructure
     !-------------------------------------------------------------------------
 
-    call init_comm(program_name, communicator)
+    call init_comm(program_name)
+    communicator = global_mpi%get_comm()
 
     call load_configuration( filename, program_name )
 
@@ -228,14 +228,15 @@ contains
     allocate( extrusion, source=create_extrusion() )
 
     ! Create the mesh
-    call init_mesh( get_comm_rank(), get_comm_size(), mesh,                &
-                    twod_mesh              = twod_mesh,                    &
-                    shifted_mesh           = shifted_mesh,                 &
-                    double_level_mesh      = double_level_mesh,            &
-                    multigrid_mesh_ids     = multigrid_mesh_ids,           &
-                    multigrid_2D_mesh_ids  = multigrid_2D_mesh_ids,        &
-                    use_multigrid          = l_multigrid,                  &
-                    required_stencil_depth = get_required_stencil_depth(), &
+    call init_mesh( global_mpi%get_comm_rank(), global_mpi%get_comm_size(), &
+                    mesh,                                                   &
+                    twod_mesh              = twod_mesh,                     &
+                    shifted_mesh           = shifted_mesh,                  &
+                    double_level_mesh      = double_level_mesh,             &
+                    multigrid_mesh_ids     = multigrid_mesh_ids,            &
+                    multigrid_2D_mesh_ids  = multigrid_2D_mesh_ids,         &
+                    use_multigrid          = l_multigrid,                   &
+                    required_stencil_depth = get_required_stencil_depth(),  &
                     input_extrusion        = extrusion )
 
     call init_fem( mesh, chi, panel_id,                           &

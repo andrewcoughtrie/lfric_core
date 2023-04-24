@@ -11,20 +11,18 @@ program log_mod_error_test
   use, intrinsic :: iso_fortran_env, only : error_unit
   use log_mod, only : initialise_logging, finalise_logging, log_event, &
                       LOG_LEVEL_ERROR
-  use mpi_mod, only : initialise_comm, store_comm, &
-                      finalise_comm, &
-                      get_comm_size, get_comm_rank
+  use mpi_mod, only : global_mpi, create_comm, destroy_comm
 
   implicit none
 
   integer :: total_ranks, local_rank, comm
 
   ! Initialse mpi and create the default communicator: mpi_comm_world
-  call initialise_comm(comm)
+  call create_comm(comm)
   ! Store the communicator for later use
-  call store_comm(comm)
-  total_ranks = get_comm_size()
-  local_rank  = get_comm_rank()
+  call global_mpi%initialise(comm)
+  total_ranks = global_mpi%get_comm_size()
+  local_rank  = global_mpi%get_comm_rank()
   call initialise_logging( comm, 'log_mod_error_test' )
 
   ! Testing an error occurring on rank 0 of a parallel
@@ -43,10 +41,11 @@ program log_mod_error_test
     call log_event( 'An error was logged.', LOG_LEVEL_ERROR )
   end if
 
-  ! Finalise mpi and release the communicator
-  call finalise_comm()
-
   ! Finalise the logging system
   call finalise_logging()
+
+  ! Finalise mpi and release the communicator
+  call global_mpi%finalise()
+  call destroy_comm()
 
 end program log_mod_error_test

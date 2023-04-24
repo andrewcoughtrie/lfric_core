@@ -33,7 +33,7 @@ module mesh_mod
                                     set_dz
   use mesh_map_mod,          only : mesh_map_type
   use mesh_map_collection_mod, only : mesh_map_collection_type
-  use mpi_mod,               only : get_comm_rank, get_comm_size
+  use mpi_mod,               only : global_mpi
   use partition_mod,         only : partition_type
   use reference_element_mod, only : reference_element_type, &
                                     reference_prism_type, &
@@ -554,7 +554,7 @@ contains
           self%vertex_ownership(j,i) = local_mesh%get_cell_owner( &
                                                      self%vert_cell_owner(j,i) )
         else
-          self%vertex_ownership(j,i) = get_comm_size() + 1
+          self%vertex_ownership(j,i) = global_mpi%get_comm_size() + 1
         end if
       end do
       ! Edge ownership
@@ -565,7 +565,7 @@ contains
           self%edge_ownership(j,i) = local_mesh%get_cell_owner( &
                                                      self%edge_cell_owner(j,i) )
         else
-          self%edge_ownership(j,i) = get_comm_size() + 1
+          self%edge_ownership(j,i) = global_mpi%get_comm_size() + 1
         end if
       end do
     end do
@@ -1261,7 +1261,7 @@ contains
 
     owned = .false.
     if ( self%vertex_ownership( vertex_index, cell_lid ) == &
-         get_comm_rank() ) owned = .true.
+         global_mpi%get_comm_rank() ) owned = .true.
 
   end function is_vertex_owned
 
@@ -1286,7 +1286,7 @@ contains
 
     owned = .false.
     if ( self%edge_ownership( edge_index, cell_lid ) == &
-         get_comm_rank() ) owned = .true.
+         global_mpi%get_comm_rank() ) owned = .true.
 
   end function is_edge_owned
 
@@ -1307,7 +1307,7 @@ contains
 
     owned = .false.
     if ( self%local_mesh%get_cell_owner(cell_lid) == &
-         get_comm_rank())    owned = .true.
+         global_mpi%get_comm_rank())    owned = .true.
 
   end function is_cell_owned
 
