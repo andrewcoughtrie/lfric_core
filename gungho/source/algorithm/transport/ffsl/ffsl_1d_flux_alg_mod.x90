@@ -86,8 +86,7 @@ contains
   !> @param[in]     order             Order of the reconstruction
   !> @param[in]     dt                The model timestep length
   !> @param[in]     monotone          Horizontal monotone option for FFSL
-  !> @param[in,out] mass_flux         Horizontal mass flux. Included here to be
-  !!                                  ready for #2997
+  !> @param[in,out] mass_flux         Horizontal mass flux
   !> @param[in,out] increment         Conservative transport increment
   subroutine ffsl_1d_flux_first( direction,  &
                                  field,      &
@@ -186,8 +185,7 @@ contains
   !> @param[in]     dt                The model timestep length
   !> @param[in]     panel_id          Panel ID of the cells
   !> @param[in]     monotone          Horizontal monotone option for FFSL
-  !> @param[in,out] mass_flux         Horizontal mass flux. Included here to be
-  !!                                  ready for #2997
+  !> @param[in,out] mass_flux         Horizontal mass flux
   !> @param[in,out] increment         Conservative transport increment
   subroutine ffsl_1d_flux_final( direction,  &
                                  field_x,    &
@@ -291,16 +289,18 @@ contains
   !> @param[in]     detj_at_w2        Det(J) at W2 dofs
   !> @param[in]     order             Order of the reconstruction
   !> @param[in]     dt                The model timestep length
+  !> @param[in]     log_space         Switch to use natural logarithmic space
+  !!                                  for edge interpolation
   !> @param[in]     monotone          Vertical monotone option for FFSL
   !> @param[in]     reversible        Reversibility option for FFSL
-  !> @param[in,out] mass_flux         Vertical mass flux. Included here to be
-  !!                                  ready for #2997
+  !> @param[in,out] mass_flux         Vertical mass flux
   !> @param[in,out] increment         Conservative transport increment
   subroutine ffsl_1d_flux_vert( field,      &
                                 dep_pts,    &
                                 detj_at_w2, &
                                 order,      &
                                 dt,         &
+                                log_space,  &
                                 monotone,   &
                                 reversible, &
                                 mass_flux,  &
@@ -314,7 +314,8 @@ contains
     type(r_tran_field_type), intent(in)    :: detj_at_w2
     integer(i_def),          intent(in)    :: order
     real(r_tran),            intent(in)    :: dt
-    integer(kind=i_def),     intent(in)    :: monotone
+    logical(l_def),          intent(in)    :: log_space
+    integer(i_def),          intent(in)    :: monotone
     logical(kind=l_def),     intent(in)    :: reversible
     type(r_tran_field_type), intent(inout) :: mass_flux
     type(r_tran_field_type), intent(inout) :: increment
@@ -354,26 +355,37 @@ contains
     else if (order == 1) then
       if (reversible) then
         ! Reversible Nirvana reconstruction
-        call invoke( vert_nirvana_reversible_kernel_type(a0, a1, a2, field, dz_w3, monotone), &
-                     ffsl_vertical_flux_kernel_type(flux, dep_pts, field, a0, a1, a2, dt) )
+        call invoke( vert_nirvana_reversible_kernel_type( a0, a1, a2, field, &
+                                                          dz_w3, monotone,   &
+                                                          log_space ),       &
+                     ffsl_vertical_flux_kernel_type( flux, dep_pts, field,   &
+                                                     a0, a1, a2, dt ) )
       else
         ! Standard Nirvana reconstruction
-        call invoke( vert_nirvana_kernel_type(a0, a1, a2, field, dz_w3, monotone), &
-                     ffsl_vertical_flux_kernel_type(flux, dep_pts, field, a0, a1, a2, dt) )
+        call invoke( vert_nirvana_kernel_type( a0, a1, a2, field, dz_w3,   &
+                                               monotone, log_space),       &
+                     ffsl_vertical_flux_kernel_type( flux, dep_pts, field, &
+                                                     a0, a1, a2, dt) )
       end if
     else
       if ( monotone == vertical_monotone_none) then
         ! Compute unlimited PPM coefficients for reconstruction and compute flux
-        call invoke( vert_ppm_no_limiter_kernel_type(a0, a1, a2, field, dz_w3), &
-                     ffsl_vertical_flux_kernel_type(flux, dep_pts, field, a0, a1, a2, dt) )
+        call invoke( vert_ppm_no_limiter_kernel_type(a0, a1, a2, field,   &
+                                                     dz_w3, log_space),   &
+                     ffsl_vertical_flux_kernel_type(flux, dep_pts, field, &
+                                                    a0, a1, a2, dt) )
       else if ( monotone == vertical_monotone_strict ) then
         ! Compute strict monotonic PPM coefficients for reconstruction and compute flux
-        call invoke( vert_ppm_strict_limiter_kernel_type(a0, a1, a2, field, dz_w3), &
-                     ffsl_vertical_flux_kernel_type(flux, dep_pts, field, a0, a1, a2, dt) )
+        call invoke( vert_ppm_strict_limiter_kernel_type(a0, a1, a2, field, &
+                                                         dz_w3, log_space), &
+                     ffsl_vertical_flux_kernel_type(flux, dep_pts, field,   &
+                                                    a0, a1, a2, dt) )
       else
         ! Compute relaxed monotonic PPM coefficients for reconstruction and compute flux
-        call invoke( vert_ppm_limiter_kernel_type(a0, a1, a2, field, dz_w3), &
-                     ffsl_vertical_flux_kernel_type(flux, dep_pts, field, a0, a1, a2, dt) )
+        call invoke( vert_ppm_limiter_kernel_type(a0, a1, a2, field,      &
+                                                  dz_w3, log_space),      &
+                     ffsl_vertical_flux_kernel_type(flux, dep_pts, field, &
+                                                    a0, a1, a2, dt) )
       end if
     end if
     ! Multiply by Det(J) to get mass flux, take difference and multiply by inverse

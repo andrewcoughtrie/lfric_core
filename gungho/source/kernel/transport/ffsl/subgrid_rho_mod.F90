@@ -10,7 +10,7 @@
 !------------------------------------------------------------------------------
 module subgrid_rho_mod
 
-use constants_mod,                  only: i_def, r_tran, EPS
+use constants_mod,                  only: i_def, r_tran, l_def, EPS, EPS_R_TRAN
 use transport_enumerated_types_mod, only: horizontal_monotone_none,    &
                                           horizontal_monotone_strict,  &
                                           horizontal_monotone_relaxed, &
@@ -226,22 +226,36 @@ contains
   !> @param[in]   edge_to_do Tells routine which edge to do based on
   !!                         cells       | 1 | 2 | 3 | 4 |
   !!                         with edges  0   1   2   3   4
+  !> @param[in]   log_space  Switch to use natural logarithmic space
+  !!                         for edge interpolation
   !> @param[out]  edge_below The edge value located below layer k
   !!                         (layer k corresponds to cell 3 index above)
   !----------------------------------------------------------------------------
-  subroutine fourth_order_vertical_edge_strict(rho, dz, edge_to_do, edge_below)
+  subroutine fourth_order_vertical_edge_strict(rho,        &
+                                               dz,         &
+                                               edge_to_do, &
+                                               log_space,  &
+                                               edge_below)
 
     implicit none
 
     real(kind=r_tran),    intent(in)    :: rho(1:4)
     real(kind=r_tran),    intent(in)    :: dz(1:4)
     integer(kind=i_def),  intent(in)    :: edge_to_do
+    logical(kind=l_def),  intent(in)    :: log_space
     real(kind=r_tran),    intent(out)   :: edge_below
 
     real(kind=r_tran) :: t1, tmin, tmax
+    real(kind=r_tran) :: log_rho(1:4)
 
     ! Get initial unlimited edge value
-    call fourth_order_vertical_edge(rho, dz, edge_to_do, edge_below)
+    if (log_space) then
+      log_rho = log( max( EPS_R_TRAN, rho) )
+      call fourth_order_vertical_edge(log_rho, dz, edge_to_do, edge_below)
+      edge_below = exp(edge_below)
+    else
+      call fourth_order_vertical_edge(rho, dz, edge_to_do, edge_below)
+    end if
 
     ! Strict Monotonicity
     if ( edge_to_do>0_i_def .AND. edge_to_do<4_i_def) then
@@ -276,22 +290,36 @@ contains
   !> @param[in]   edge_to_do Tells routine which edge to do based on
   !!                         cells       | 1 | 2 | 3 | 4 |
   !!                         with edges  0   1   2   3   4
+  !> @param[in]   log_space  Switch to use natural logarithmic space
+  !!                         for edge interpolation
   !> @param[out]  edge_below The edge value located below layer k
   !!                         (layer k corresponds to cell 3 index above)
   !----------------------------------------------------------------------------
-  subroutine fourth_order_vertical_edge_relaxed(rho, dz, edge_to_do, edge_below)
+  subroutine fourth_order_vertical_edge_relaxed(rho,        &
+                                                dz,         &
+                                                edge_to_do, &
+                                                log_space,  &
+                                                edge_below)
 
     implicit none
 
     real(kind=r_tran),    intent(in)    :: rho(1:4)
     real(kind=r_tran),    intent(in)    :: dz(1:4)
     integer(kind=i_def),  intent(in)    :: edge_to_do
+    logical(kind=l_def),  intent(in)    :: log_space
     real(kind=r_tran),    intent(out)   :: edge_below
 
     real(kind=r_tran) :: t1, t2, t3, tmin, tmax
+    real(kind=r_tran) :: log_rho(1:4)
 
     ! Get initial unlimited edge value
-    call fourth_order_vertical_edge(rho, dz, edge_to_do, edge_below)
+    if (log_space) then
+      log_rho = log( max( EPS_R_TRAN, rho) )
+      call fourth_order_vertical_edge(log_rho, dz, edge_to_do, edge_below)
+      edge_below = exp(edge_below)
+    else
+      call fourth_order_vertical_edge(rho, dz, edge_to_do, edge_below)
+    end if
 
     ! Relaxed Monotonicity
     if ( edge_to_do>0_i_def .AND. edge_to_do<4_i_def) then

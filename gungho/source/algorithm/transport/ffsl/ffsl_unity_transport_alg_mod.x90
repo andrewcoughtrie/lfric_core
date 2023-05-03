@@ -88,6 +88,9 @@ contains
     type(field_type), intent(inout) :: np1_half_y
     type(field_type), intent(inout) :: np1_half_z
 
+    ! Parameters, set log_space to be false for unity transport
+    logical(l_def), parameter :: log_space =.false.
+
     ! Unity fields, increments, and fluxes
     type(field_type) :: inc_one_x
     type(field_type) :: inc_one_y
@@ -162,6 +165,7 @@ contains
                               detj_at_w2,    &
                               outer_order,   &
                               dt,            &
+                              log_space,     &
                               vert_monotone, &
                               reversibility, &
                               flux_z,        &

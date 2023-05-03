@@ -108,6 +108,7 @@ contains
     type(r_tran_field_type)          :: mass_flux
     type(r_tran_field_type)          :: spare_flux
     logical(kind=l_def)              :: hori_half_flag
+    logical(kind=l_def)              :: log_space
     logical(kind=l_def)              :: reversibility
     type(mesh_type),         pointer :: mesh => null()
     type(field_type),        pointer :: panel_id => null()
@@ -124,6 +125,7 @@ contains
     ! Get transport_runtime and reversible option
     mesh => field_n%get_mesh()
     transport_runtime => get_transport_runtime(mesh)
+    log_space = transport_metadata%get_log_space()
     reversibility = transport_metadata%get_reversible()
 
     ! Get Det(J) and departure points
@@ -182,17 +184,18 @@ contains
         if (transport_runtime%get_tracer_step_ctr() /=  &
             transport_runtime%get_num_dry_steps()) then
           ! Not the last split step so do both advective and flux form
-          call ffsl_1d_advect_then_flux_vert( field_n, dep_pts_z, detj_at_w2,      &
-                                              outer_order, step_dt, vert_monotone, &
-                                              hori_half_flag, reversibility,       &
-                                              flux_3d, increment_con, increment_adv )
+          call ffsl_1d_advect_then_flux_vert( field_n, dep_pts_z, detj_at_w2,  &
+                                              outer_order, step_dt, log_space, &
+                                              vert_monotone, hori_half_flag,   &
+                                              reversibility, flux_3d,          &
+                                              increment_con, increment_adv )
           ! Save advective as field_np1 for use in next split step
           call invoke( X_minus_bY( field_np1, field_n, step_dt, increment_adv) )
         else
           ! If not advective_then_flux just need flux increment
           call ffsl_1d_flux_vert( field_n, dep_pts_z, detj_at_w2, outer_order, &
-                                  step_dt, vert_monotone, reversibility,       &
-                                  flux_3d, increment_con )
+                                  step_dt, log_space, vert_monotone,           &
+                                  reversibility, flux_3d, increment_con )
         end if
 
       case (direction_h)
@@ -232,7 +235,7 @@ contains
         w2_idx = W2
         call ffsl_conservative_transport_alg( field_n, dep_pts_x, dep_pts_y, &
                                               dep_pts_z, detj_at_w2,         &
-                                              panel_id, step_dt,             &
+                                              panel_id, step_dt, log_space,  &
                                               hori_monotone, vert_monotone,  &
                                               reversibility, flux_3d,        &
                                               increment_con )
@@ -311,6 +314,7 @@ contains
     integer(kind=i_def)       :: hori_monotone, vert_monotone
     logical(kind=l_def)       :: vert_half_flag
     logical(kind=l_def)       :: hori_half_flag
+    logical(kind=l_def)       :: log_space
     logical(kind=l_def)       :: reversibility
     type(mesh_type),  pointer :: mesh => null()
     type(field_type), pointer :: panel_id => null()
@@ -348,6 +352,7 @@ contains
     ! Get transport_runtime and reversible option
     mesh => field_n%get_mesh()
     transport_runtime => get_transport_runtime(mesh)
+    log_space = transport_metadata%get_log_space()
     reversibility = transport_metadata%get_reversible()
 
     ! Get Det(J) and departure points
@@ -396,8 +401,8 @@ contains
           vert_half_flag = .false.
         end if
         ! Vertical PPM scheme
-        call ffsl_1d_advect_vert( field_to_adv, dep_pts_z, detj_at_w2, outer_order, &
-                                  step_dt, vert_monotone, vert_half_flag,           &
+        call ffsl_1d_advect_vert( field_to_adv, dep_pts_z, detj_at_w2, outer_order,  &
+                                  step_dt, log_space, vert_monotone, vert_half_flag, &
                                   reversibility, increment )
 
       case (direction_h)
@@ -418,7 +423,7 @@ contains
         ! 3D FFSL
         call ffsl_advective_transport_alg( field_to_adv, dep_pts_x, dep_pts_y, &
                                            dep_pts_z, detj_at_w2, panel_id,    &
-                                           step_dt, hori_monotone,             &
+                                           step_dt, log_space, hori_monotone,  &
                                            vert_monotone, reversibility, increment )
 
       case default

@@ -18,7 +18,7 @@ use argument_mod,          only : arg_type,              &
                                   GH_READWRITE, GH_READ, &
                                   CELL_COLUMN, GH_LOGICAL
 use fs_continuity_mod,     only : W2, W3, Wtheta
-use constants_mod,         only : r_tran, i_def, l_def
+use constants_mod,         only : r_tran, i_def, l_def, EPS_R_TRAN
 use kernel_mod,            only : kernel_type
 ! TODO #3011: these config options should be passed through as arguments
 use transport_config_mod,  only : vertical_sl_order_cubic,   &
@@ -46,13 +46,14 @@ private
 !>                                      by the PSy layer.
 type, public, extends(kernel_type) :: vertical_sl_rho_kernel_type
   private
-  type(arg_type) :: meta_args(6) = (/                     &
+  type(arg_type) :: meta_args(7) = (/                     &
        arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W2), & ! departure points
        arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3), & ! rho
        arg_type(GH_FIELD,  GH_REAL,    GH_READ,  Wtheta), & ! theta-height
        arg_type(GH_SCALAR, GH_INTEGER, GH_READ),          & ! sl-order
        arg_type(GH_SCALAR, GH_INTEGER, GH_READ),          & ! monotone scheme
-       arg_type(GH_SCALAR, GH_INTEGER, GH_READ)           & ! monotone order
+       arg_type(GH_SCALAR, GH_INTEGER, GH_READ),          & ! monotone order
+       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ)           & ! log_space
        /)
   integer :: operates_on = CELL_COLUMN
 contains
@@ -75,7 +76,10 @@ contains
 !> @param[in,out] rho          The rho field at time level n --> rho after SL-advection
 !> @param[in]     theta_height            The height of theta-points
 !> @param[in]     sl_order                Order of the SL scheme
+!> @param[in]     vertical_monotone       The monotone scheme
 !> @param[in]     vertical_monotone_order Order of the monotone scheme
+!> @param[in]     log_space    Switch to use natural logarithmic space
+!!                             for the SL interpolation
 !> @param[in]     ndf_w2       The number of degrees of freedom per cell
 !!                             on W2 space
 !> @param[in]     undf_w2      The number of unique degrees of freedom
@@ -97,6 +101,7 @@ subroutine vertical_sl_rho_code( nlayers,                            &
                                  sl_order,                           &
                                  vertical_monotone,                  &
                                  vertical_monotone_order,            &
+                                 log_space,                          &
                                  ndf_w2, undf_w2, map_w2,            &
                                  ndf_w3, undf_w3, map_w3,            &
                                  ndf_wtheta, undf_wtheta, map_wtheta )
@@ -119,6 +124,7 @@ subroutine vertical_sl_rho_code( nlayers,                            &
   real(kind=r_tran), dimension(undf_wtheta),   intent(in) :: theta_height
   integer(kind=i_def), intent(in)  :: sl_order, vertical_monotone,  &
                                       vertical_monotone_order
+  logical(kind=l_def), intent(in)  :: log_space
   !
   ! locals
   !
@@ -136,9 +142,9 @@ subroutine vertical_sl_rho_code( nlayers,                            &
   nz  = nlayers
   nzl = nz + 1_i_def
 
-  !Extract and fill local column from global data
-  !Map departure points into 1d-array dist
-  !Map theta-height to 1d-zl (zl is cell-edges in the vertical)
+  ! Extract and fill local column from global data
+  ! Map departure points into 1d-array dist
+  ! Map theta-height to 1d-zl (zl is cell-edges in the vertical)
   !
   do k = 0, nlayers
     dist(k+1) = dep_pts_z(map_w2(5)+k)
@@ -149,7 +155,15 @@ subroutine vertical_sl_rho_code( nlayers,                            &
     f0(k+1) = rho(map_w3(1)+k)
   end do
 
-  !Recover the physical departure points of cell edges zld
+  ! Apply log to f0 if required
+  ! If using the log_space option, f0 is forced to be positive
+  if (log_space) then
+    do k = 1, nlayers
+      f0(k) = log(max(EPS_R_TRAN,abs(f0(k))))
+    end do
+  end if
+
+  ! Recover the physical departure points of cell edges zld
   do k = 1, nzl
      d     = abs(dist(k))
      sr    = sign(1.0_r_tran,dist(k))
@@ -184,41 +198,60 @@ subroutine vertical_sl_rho_code( nlayers,                            &
   select case( sl_order )
   case ( vertical_sl_order_cubic_hermite )
 
-    !Compute the cubic-hermite interpolation coefficients
+    ! Compute the cubic-hermite interpolation coefficients
 
-     call compute_cubic_hermite_coeffs(zmd,zm,dz,sc,cc,cl,nz,nz)
+    call compute_cubic_hermite_coeffs(zmd,zm,dz,sc,cc,cl,nz,nz)
 
-    !Do field-interpolation
+    ! Do field-interpolation
 
     do k = 1, nz
       fd(k) = cc(k,1)*f0(sc(k,1)) + cc(k,2)*f0(sc(k,2)) + &
               cc(k,3)*f0(sc(k,3)) + cc(k,4)*f0(sc(k,4))
     end do
+
+    ! If using log_space then convert back
+    if (log_space) then
+      do k = 1, nz
+        fd(k) = exp(fd(k))
+        f0(k) = exp(f0(k))
+      end do
+    end if
+
     !
-    !Enforce monotonicity if required
+    ! Enforce monotonicity if required
     !
     if ( vertical_monotone /= vertical_monotone_none ) then
+      ! Apply monotonicity
       call monotone_cubic_sl(fd,f0,sc,cl,vertical_monotone, &
                               vertical_monotone_order,1,nz  )
     end if
 
   case ( vertical_sl_order_cubic )
 
-    !Compute the cubic-interpolation coefficients
+    ! Compute the cubic-interpolation coefficients
 
-     call compute_cubic_coeffs(zmd,zm,dz,sc,cc,cl,nz,nz)
+    call compute_cubic_coeffs(zmd,zm,dz,sc,cc,cl,nz,nz)
 
-    !Do field-interpolation
+    ! Do field-interpolation
 
     do k = 1, nz
       fd(k) = cc(k,1)*f0(sc(k,1)) + cc(k,2)*f0(sc(k,2)) + &
               cc(k,3)*f0(sc(k,3)) + cc(k,4)*f0(sc(k,4))
     end do
 
+    ! If using log_space then convert back
+    if (log_space) then
+      do k = 1, nz
+        fd(k) = exp(fd(k))
+        f0(k) = exp(f0(k))
+      end do
+    end if
+
     !
-    !Enforce monotonicity if required
+    ! Enforce monotonicity if required
     !
     if ( vertical_monotone /= vertical_monotone_none ) then
+      ! Apply monotonicity
       call monotone_cubic_sl(fd,f0,sc,cl,vertical_monotone, &
                               vertical_monotone_order,1,nz  )
     end if
@@ -237,15 +270,24 @@ subroutine vertical_sl_rho_code( nlayers,                            &
               cq(k,5)*f0(sq(k,5)) + cq(k,6)*f0(sq(k,6))
     end do
 
-    !Enforce monotonicity if required
+    ! If using log_space then convert back
+    if (log_space) then
+      do k = 1, nz
+        fd(k) = exp(fd(k))
+        f0(k) = exp(f0(k))
+      end do
+    end if
+
+    ! Enforce monotonicity if required
 
     if ( vertical_monotone /= vertical_monotone_none ) then
+      ! Apply monotonicity
       call monotone_quintic_sl(fd,f0,sq,cl,vertical_monotone, &
                                vertical_monotone_order,1,nz   )
     end if
   end select
 
-  !Remap the column answer back to the global data
+  ! Remap the column answer back to the global data
 
   do k=0,nlayers - 1
     rho(map_w3(1)+k) = fd(k+1)

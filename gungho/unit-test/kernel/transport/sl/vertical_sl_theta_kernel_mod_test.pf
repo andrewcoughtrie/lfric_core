@@ -132,6 +132,7 @@ contains
     real(r_tran), dimension(4) :: cubic_param, cubic_coeff
     real(r_tran)     :: x
     integer(i_def)  :: i, im1, ip1, ip2, df, sl_order
+    logical(l_def)  :: log_space
     integer(i_def)  :: monotone, monotone_order
     ! Create the dof map for any number of layers
     ! Dofs are contiguous in the vertical and so each entry is
@@ -180,6 +181,7 @@ contains
     ! Theta_in gets overwitten by the new values on exit
     monotone = vertical_monotone_none
     monotone_order = vertical_monotone_order_high
+    log_space = .false.
     theta_in2(:)=theta_in(:)
 
     call vertical_sl_theta_code( nlayers,                             &
@@ -189,6 +191,7 @@ contains
                                  sl_order,                            &
                                  monotone,                            &
                                  monotone_order,                      &
+                                 log_space,                           &
                                  ndf_w2, undf_w2, map_w2,             &
                                  ndf_wtheta, undf_wtheta, map_wtheta  )
 
@@ -213,6 +216,7 @@ contains
                                  sl_order,                            &
                                  monotone,                            &
                                  monotone_order,                      &
+                                 log_space,                           &
                                  ndf_w2, undf_w2, map_w2,             &
                                  ndf_wtheta, undf_wtheta, map_wtheta  )
 

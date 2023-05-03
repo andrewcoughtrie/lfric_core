@@ -302,6 +302,8 @@ contains
   !> @param[in]     detj_at_w2        Det(J) at W2 dofs
   !> @param[in]     order             Order of the reconstruction
   !> @param[in]     dt                The model timestep length
+  !> @param[in]     log_space         Switch to use natural logarithmic space
+  !!                                  for edge interpolation
   !> @param[in]     monotone          Vertical monotone option for FFSL
   !> @param[in]     strang            Logical flag to do half step in unity transport
   !> @param[in]     reversible        Reversibility option for FFSL
@@ -311,6 +313,7 @@ contains
                                   detj_at_w2, &
                                   order,      &
                                   dt,         &
+                                  log_space,  &
                                   monotone,   &
                                   strang,     &
                                   reversible, &
@@ -324,7 +327,8 @@ contains
     type(r_tran_field_type), intent(in)    :: detj_at_w2
     integer(i_def),          intent(in)    :: order
     real(r_tran),            intent(in)    :: dt
-    integer(kind=i_def),     intent(in)    :: monotone
+    logical(l_def),          intent(in)    :: log_space
+    integer(i_def),          intent(in)    :: monotone
     logical(l_def),          intent(in)    :: strang
     logical(kind=l_def),     intent(in)    :: reversible
     type(r_tran_field_type), intent(inout) :: increment
@@ -364,8 +368,9 @@ contains
     one_over_dt = 1.0_r_tran / dt
 
     ! Compute the increment of the field, F(q)
-    call ffsl_1d_flux_vert( field, dep_pts, detj_at_w2, order, &
-                            dt, monotone, reversible, flux, inc_rho )
+    call ffsl_1d_flux_vert( field, dep_pts, detj_at_w2, order,   &
+                            dt, log_space, monotone, reversible, &
+                            flux, inc_rho )
     call invoke( X_minus_bY( adv_rho, field, dt, inc_rho ) )
 
     ! Get unity transport

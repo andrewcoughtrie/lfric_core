@@ -70,6 +70,7 @@ contains
     type(transport_runtime_type), pointer :: transport_runtime => null()
     integer(kind=i_def)  :: monotone, monotone_order, sl_order
     logical(l_def)       :: reversibility
+    logical(kind=l_def)  :: log_space
 
     if ( subroutine_timers ) call timer( 'vertical_sl_advective_alg' )
 
@@ -85,6 +86,7 @@ contains
     monotone = transport_metadata%get_vertical_monotone()
     monotone_order = transport_metadata%get_vertical_monotone_order()
     reversibility = transport_metadata%get_reversible()
+    log_space  = transport_metadata%get_log_space()
     height_rdef => get_height( Wtheta, mesh%get_id() )
     call height%initialise( vector_space = height_rdef%get_function_space() )
     call invoke_copy_to_rtran( height, height_rdef )
@@ -121,11 +123,13 @@ contains
 
     select case ( field_n%which_function_space() )
       case ( W3 )
-        call invoke( vertical_sl_rho_kernel_type( dep_pts_z, field_np1, height,        &
-                                                  sl_order, monotone, monotone_order ) )
+        call invoke( vertical_sl_rho_kernel_type( dep_pts_z, field_np1, height,       &
+                                                  sl_order, monotone, monotone_order, &
+                                                  log_space ) )
       case ( Wtheta )
         call invoke( vertical_sl_theta_kernel_type( dep_pts_z, field_np1, height,       &
-                                                    sl_order, monotone, monotone_order ) )
+                                                    sl_order, monotone, monotone_order, &
+                                                    log_space) )
       case default
         call log_event( "Vertical_sl_advective_alg only valid for W3 & Wtheta spaces", LOG_LEVEL_ERROR )
     end select

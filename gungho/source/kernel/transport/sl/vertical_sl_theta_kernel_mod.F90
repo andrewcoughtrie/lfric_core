@@ -18,7 +18,7 @@ use argument_mod,          only : arg_type,              &
                                   GH_REAL, GH_INTEGER,   &
                                   CELL_COLUMN, GH_LOGICAL
 use fs_continuity_mod,     only : W2, Wtheta
-use constants_mod,         only : r_tran, i_def, l_def, eps
+use constants_mod,         only : r_tran, i_def, l_def, eps, EPS_R_TRAN
 use kernel_mod,            only : kernel_type
 ! TODO #3011: these config options should be passed through as arguments
 use transport_config_mod,  only : vertical_sl_order_cubic,   &
@@ -43,13 +43,14 @@ private
 !>                                      by the PSy layer.
 type, public, extends(kernel_type) :: vertical_sl_theta_kernel_type
   private
-  type(arg_type) :: meta_args(6) = (/                      &
+  type(arg_type) :: meta_args(7) = (/                      &
        arg_type(GH_FIELD,  GH_REAL, GH_READ,      W2    ), & ! departure points
        arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, Wtheta), & ! theta
        arg_type(GH_FIELD,  GH_REAL, GH_READ,      Wtheta), & ! theta-height
        arg_type(GH_SCALAR, GH_INTEGER, GH_READ),           & ! sl-order
        arg_type(GH_SCALAR, GH_INTEGER, GH_READ),           & ! monotone scheme
-       arg_type(GH_SCALAR, GH_INTEGER, GH_READ)            & ! monotone order
+       arg_type(GH_SCALAR, GH_INTEGER, GH_READ),           & ! monotone order
+       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ)            & ! log_space
        /)
   integer :: operates_on = CELL_COLUMN
 contains
@@ -78,6 +79,8 @@ contains
 !> @param[in]     theta_height            The height of theta-points
 !> @param[in]     vertical_monotone       The monotone scheme
 !> @param[in]     vertical_monotone_order Order of the monotone scheme
+!> @param[in]     log_space    Switch to use natural logarithmic space
+!!                             for the SL interpolation
 !> @param[in]     ndf_w2       The number of degrees of freedom per cell
 !!                             on W2 space
 !> @param[in]     undf_w2      The number of unique degrees of freedom
@@ -99,25 +102,27 @@ subroutine vertical_sl_theta_code( nlayers,                             &
                                    sl_order,                            &
                                    vertical_monotone,                   &
                                    vertical_monotone_order,             &
+                                   log_space,                           &
                                    ndf_w2, undf_w2, map_w2,             &
                                    ndf_wtheta, undf_wtheta, map_wtheta  )
 
   implicit none
 
   ! Arguments
-  integer(kind=i_def), intent(in)                         :: nlayers
-  integer(kind=i_def), intent(in)                         :: ndf_w2
-  integer(kind=i_def), intent(in)                         :: undf_w2
-  integer(kind=i_def), dimension(ndf_w2), intent(in)      :: map_w2
-  integer(kind=i_def), intent(in)                         :: ndf_wtheta
-  integer(kind=i_def), intent(in)                         :: undf_wtheta
-  integer(kind=i_def), dimension(ndf_wtheta), intent(in)  :: map_wtheta
+  integer(kind=i_def), intent(in)                        :: nlayers
+  integer(kind=i_def), intent(in)                        :: ndf_w2
+  integer(kind=i_def), intent(in)                        :: undf_w2
+  integer(kind=i_def), dimension(ndf_w2), intent(in)     :: map_w2
+  integer(kind=i_def), intent(in)                        :: ndf_wtheta
+  integer(kind=i_def), intent(in)                        :: undf_wtheta
+  integer(kind=i_def), dimension(ndf_wtheta), intent(in) :: map_wtheta
 
   real(kind=r_tran), dimension(undf_w2), intent(in)        :: dep_pts_z
   real(kind=r_tran), dimension(undf_wtheta), intent(inout) :: theta
   real(kind=r_tran), dimension(undf_wtheta), intent(in)    :: theta_height
   integer(kind=i_def), intent(in)  :: sl_order, vertical_monotone,  &
                                       vertical_monotone_order
+  logical(kind=l_def), intent(in)  :: log_space
 
   real(kind=r_tran)                       :: d, r, sr
   real(kind=r_tran), dimension(nlayers+1) :: zl, zld
@@ -132,7 +137,7 @@ subroutine vertical_sl_theta_code( nlayers,                             &
   real(kind=r_tran),   dimension(nlayers+1,6) :: cq
   integer(kind=i_def), dimension(nlayers+1,6) :: sq
 
-  !Extract and fill local column from global variables
+  ! Extract and fill local column from global variables
   nzl = nlayers + 1_i_def
   do k=0,nlayers
        dist(k+1)        = dep_pts_z(map_w2(5)+k)
@@ -140,7 +145,15 @@ subroutine vertical_sl_theta_code( nlayers,                             &
        zl(k+1)          = theta_height(map_wtheta(1)+k)
   end do
 
-  !Extract physical departure of cell edges
+  ! Apply log to theta_local if required
+  ! If using the log_space option, theta_local is forced to be positive
+  if (log_space) then
+    do k = 1, nlayers+1
+      theta_local(k) = log(max(EPS_R_TRAN,abs(theta_local(k))))
+    end do
+  end if
+
+  ! Extract physical departure of cell edges
   do k = 1, nzl
     d     = abs(dist(k))
     sr    = sign(1.0_r_tran,dist(k))
@@ -154,7 +167,7 @@ subroutine vertical_sl_theta_code( nlayers,                             &
     zld(k) = zl(km1) - sr*r*abs(zl(km2)-zl(km1))
     zld(k) = min(zl(nzl),max(zl(1),zld(k)))
   end do
-  !Define the spacing dz between zl-points
+  ! Define the spacing dz between zl-points
   do k = 1, nzl - 1
     dz(k) = zl(k+1) - zl(k)
   end do
@@ -163,11 +176,11 @@ subroutine vertical_sl_theta_code( nlayers,                             &
   select case( sl_order )
   case ( vertical_sl_order_cubic_hermite )
 
-    !Compute the cubic-hermite-interpolation coefficients
+    ! Compute the cubic-hermite-interpolation coefficients
 
     call compute_cubic_hermite_coeffs(zld,zl,dz,sc,cc,cl,nzl,nzl)
 
-    !Do field-interpolation
+    ! Do field-interpolation
 
     do k = 1, nzl
       theta_d_local(k) = cc(k,1)*theta_local(sc(k,1)) + &
@@ -176,20 +189,29 @@ subroutine vertical_sl_theta_code( nlayers,                             &
                          cc(k,4)*theta_local(sc(k,4))
     end do
 
-    !Enforce monotonicity if required
+    ! If using log_space then convert back
+    if (log_space) then
+      do k = 1, nzl
+        theta_d_local(k) = exp(theta_d_local(k))
+        theta_local(k)   = exp(theta_local(k))
+      end do
+    end if
+
+    ! Enforce monotonicity if required
 
     if ( vertical_monotone /= vertical_monotone_none )  then
+      ! Apply monotonicity
       call monotone_cubic_sl(theta_d_local,theta_local,sc,cl,            &
                               vertical_monotone,vertical_monotone_order, &
                               1,nzl                                      )
     end if
   case ( vertical_sl_order_cubic )
 
-    !Compute the cubic-interpolation coefficients
+    ! Compute the cubic-interpolation coefficients
 
     call compute_cubic_coeffs(zld,zl,dz,sc,cc,cl,nzl,nzl)
 
-    !Do field-interpolation
+    ! Do field-interpolation
 
     do k = 1, nzl
       theta_d_local(k) = cc(k,1)*theta_local(sc(k,1)) + &
@@ -198,9 +220,18 @@ subroutine vertical_sl_theta_code( nlayers,                             &
                          cc(k,4)*theta_local(sc(k,4))
     end do
 
-    !Enforce monotonicity if required
+    ! If using log_space then convert back
+    if (log_space) then
+      do k = 1, nzl
+        theta_d_local(k) = exp(theta_d_local(k))
+        theta_local(k)   = exp(theta_local(k))
+      end do
+    end if
+
+    ! Enforce monotonicity if required
 
     if ( vertical_monotone /= vertical_monotone_none )  then
+      ! Apply monotonicity
       call monotone_cubic_sl(theta_d_local,theta_local,sc,cl,            &
                               vertical_monotone,vertical_monotone_order, &
                               1,nzl                               )
@@ -208,11 +239,11 @@ subroutine vertical_sl_theta_code( nlayers,                             &
 
   case ( vertical_sl_order_quintic )
 
-   !Compute the quintic-interpolation coefficients
+   ! Compute the quintic-interpolation coefficients
 
     call compute_quintic_coeffs(zld,zl,dz,sq,cq,cl,nzl,nzl)
 
-   !Do field-interpolation
+   ! Do field-interpolation
 
     do k = 1, nzl
       theta_d_local(k) = cq(k,1)*theta_local(sq(k,1)) + &
@@ -223,15 +254,24 @@ subroutine vertical_sl_theta_code( nlayers,                             &
                          cq(k,6)*theta_local(sq(k,6))
     end do
 
-    !Enforce monotonicity if required
+    ! If using log_space then convert back
+    if (log_space) then
+      do k = 1, nzl
+        theta_d_local(k) = exp(theta_d_local(k))
+        theta_local(k)   = exp(theta_local(k))
+      end do
+    end if
+
+    ! Enforce monotonicity if required
 
     if ( vertical_monotone /= vertical_monotone_none )  then
+      ! Apply monotonicity
       call monotone_quintic_sl(theta_d_local,theta_local,sq,cl,    &
                                vertical_monotone,vertical_monotone_order,1,nzl )
     end if
   end select
 
-  !Remap the column answer back to the global data
+  ! Remap the column answer back to the global data
 
   do k=0, nlayers
     theta(map_wtheta(1)+k) = theta_d_local(k+1)

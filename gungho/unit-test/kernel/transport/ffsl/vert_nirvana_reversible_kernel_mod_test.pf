@@ -8,7 +8,7 @@
 
 module vert_nirvana_reversible_kernel_mod_test
 
-  use constants_mod, only : i_def, str_long, r_tran
+  use constants_mod, only : i_def, l_def, str_long, r_tran
   use pFUnit_Mod
 
   implicit none
@@ -43,6 +43,7 @@ contains
     integer(i_def), parameter :: undf_w3   = 5
     integer(i_def), parameter :: ndf_w3    = 1
     integer(i_def), parameter :: map_w3(1) = 1
+    logical(l_def), parameter :: log_space = .false.
 
     real(r_tran) :: rho(5)
     real(r_tran) :: dz(5)
@@ -73,16 +74,17 @@ contains
     answer_level3 = (/ 3.5_r_tran, 1.0_r_tran, 0.0_r_tran /)
     answer_level4 = (/ 4.5_r_tran, 1.0_r_tran, 0.0_r_tran /)
 
-    call vert_nirvana_reversible_code( nlayers,  &
-                            a0,       &
-                            a1,       &
-                            a2,       &
-                            rho,      &
-                            dz,       &
-                            monotone, &
-                            ndf_w3,   &
-                            undf_w3,  &
-                            map_w3 )
+    call vert_nirvana_reversible_code( nlayers,   &
+                                       a0,        &
+                                       a1,        &
+                                       a2,        &
+                                       rho,       &
+                                       dz,        &
+                                       monotone,  &
+                                       log_space, &
+                                       ndf_w3,    &
+                                       undf_w3,   &
+                                       map_w3 )
 
     if ( r_tran == real64 ) then
       use_tol = tol
@@ -119,16 +121,17 @@ contains
     answer_level3 = (/ 6.5_r_tran, -7.0_r_tran,   3.0_r_tran  /)
     answer_level4 = (/ 2.5_r_tran, -3.0_r_tran,   0.0_r_tran  /)
 
-    call vert_nirvana_reversible_code( nlayers,  &
-                            a0,       &
-                            a1,       &
-                            a2,       &
-                            rho,      &
-                            dz,       &
-                            monotone, &
-                            ndf_w3,   &
-                            undf_w3,  &
-                            map_w3 )
+    call vert_nirvana_reversible_code( nlayers,   &
+                                       a0,        &
+                                       a1,        &
+                                       a2,        &
+                                       rho,       &
+                                       dz,        &
+                                       monotone,  &
+                                       log_space, &
+                                       ndf_w3,    &
+                                       undf_w3,   &
+                                       map_w3 )
 
     if ( r_tran == real64 ) then
       use_tol = tol
@@ -166,16 +169,17 @@ contains
     answer_level3 = (/ 6.5_r_tran, -7.0_r_tran, 3.0_r_tran /)
     answer_level4 = (/ 2.5_r_tran, -3.0_r_tran, 0.0_r_tran /)
 
-    call vert_nirvana_reversible_code( nlayers,  &
-                            a0,       &
-                            a1,       &
-                            a2,       &
-                            rho,      &
-                            dz,       &
-                            monotone, &
-                            ndf_w3,   &
-                            undf_w3,  &
-                            map_w3 )
+    call vert_nirvana_reversible_code( nlayers,   &
+                                       a0,        &
+                                       a1,        &
+                                       a2,        &
+                                       rho,       &
+                                       dz,        &
+                                       monotone,  &
+                                       log_space, &
+                                       ndf_w3,    &
+                                       undf_w3,   &
+                                       map_w3 )
 
     if ( r_tran == real64 ) then
       use_tol = tol
@@ -216,16 +220,17 @@ contains
     answer_level3 = (/  9.0_r_tran, 7.0_r_tran, 0.0_r_tran /)
     answer_level4 = (/ 16.0_r_tran, 9.0_r_tran, 0.0_r_tran /)
 
-    call vert_nirvana_reversible_code( nlayers,  &
-                            a0,       &
-                            a1,       &
-                            a2,       &
-                            rho,      &
-                            dz,       &
-                            monotone, &
-                            ndf_w3,   &
-                            undf_w3,  &
-                            map_w3 )
+    call vert_nirvana_reversible_code( nlayers,   &
+                                       a0,        &
+                                       a1,        &
+                                       a2,        &
+                                       rho,       &
+                                       dz,        &
+                                       monotone,  &
+                                       log_space, &
+                                       ndf_w3,    &
+                                       undf_w3,   &
+                                       map_w3 )
 
     if ( r_tran == real64 ) then
       use_tol = tol

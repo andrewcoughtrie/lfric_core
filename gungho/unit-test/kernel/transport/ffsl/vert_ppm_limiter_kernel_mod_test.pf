@@ -8,7 +8,7 @@
 
 module vert_ppm_limiter_kernel_mod_test
 
-  use constants_mod, only : i_def, r_tran, str_long
+  use constants_mod, only : i_def, r_tran, str_long, l_def
   use pFUnit_Mod
 
   implicit none
@@ -42,6 +42,7 @@ contains
     integer(i_def), parameter :: undf_w3   = 5
     integer(i_def), parameter :: ndf_w3    = 1
     integer(i_def), parameter :: map_w3(1) = 1
+    logical(l_def), parameter :: log_space = .false.
 
     real(r_tran) :: rho(5)
     real(r_tran) :: dz(5)
@@ -67,14 +68,15 @@ contains
     answer_level3 = (/ 3.5_r_tran, 1.0_r_tran, 0.0_r_tran /)
     answer_level4 = (/ 5.0_r_tran, 0.0_r_tran, 0.0_r_tran /)
 
-    call vert_ppm_strict_limiter_code( nlayers,  &
-                                       a0,       &
-                                       a1,       &
-                                       a2,       &
-                                       rho,      &
-                                       dz,       &
-                                       ndf_w3,   &
-                                       undf_w3,  &
+    call vert_ppm_strict_limiter_code( nlayers,   &
+                                       a0,        &
+                                       a1,        &
+                                       a2,        &
+                                       rho,       &
+                                       dz,        &
+                                       log_space, &
+                                       ndf_w3,    &
+                                       undf_w3,   &
                                        map_w3 )
 
     if ( r_tran == real64 ) then
@@ -114,14 +116,15 @@ contains
     answer_level3 = (/ 12.0_r_tran,  8.0_r_tran, 0.0_r_tran /)
     answer_level4 = (/ 25.0_r_tran,  0.0_r_tran, 0.0_r_tran /)
 
-    call vert_ppm_limiter_code( nlayers,  &
-                                a0,       &
-                                a1,       &
-                                a2,       &
-                                rho,      &
-                                dz,       &
-                                ndf_w3,   &
-                                undf_w3,  &
+    call vert_ppm_limiter_code( nlayers,   &
+                                a0,        &
+                                a1,        &
+                                a2,        &
+                                rho,       &
+                                dz,        &
+                                log_space, &
+                                ndf_w3,    &
+                                undf_w3,   &
                                 map_w3 )
 
     if ( r_tran == real64 ) then

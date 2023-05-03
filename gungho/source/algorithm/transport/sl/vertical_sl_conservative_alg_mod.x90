@@ -71,6 +71,9 @@ contains
     real(kind=r_tran),             intent(in)    :: dt
     type(transport_metadata_type), intent(in)    :: transport_metadata
 
+    ! Parameters, set log_space to be false for conservative SL transport
+    logical(kind=l_def), parameter :: log_space =.false.
+
     integer(kind=i_def)                 :: mesh_id
     type(r_tran_field_type)             :: mass
     type(r_tran_field_type)             :: dep_pts_z
@@ -150,7 +153,7 @@ contains
       call invoke( setval_X(field_np1, field_n),                                   &
                    vertical_sl_rho_kernel_type( dep_pts_z, field_np1, height,      &
                                                 vertical_sl_order, monotone,       &
-                                                monotone_order ) )
+                                                monotone_order, log_space ) )
     end if
 
     ! If this is the final step, field_np1 will be computed here from the fluxes

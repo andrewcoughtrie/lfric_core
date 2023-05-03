@@ -8,7 +8,7 @@
 
 module subgrid_rho_mod_test
 
-  use constants_mod,                  only: i_def, r_tran
+  use constants_mod,                  only: i_def, l_def, r_tran
   use transport_enumerated_types_mod, only: horizontal_monotone_none,    &
                                             horizontal_monotone_strict,  &
                                             horizontal_monotone_relaxed, &
@@ -264,6 +264,7 @@ contains
     real(kind=r_tran)   :: rho(1:4), dz(1:4), edge_value, tol
     real(kind=r_tran)   :: answer(1:5)
     integer(kind=i_def) :: edge_to_do
+    logical(kind=l_def) :: log_space
 
     ! Set tolerance
     if ( r_tran == real64 ) then
@@ -282,6 +283,7 @@ contains
     rho(2) = 12.0_r_tran
     rho(3) = 7.0_r_tran
     rho(4) = 4.0_r_tran
+    log_space = .false.
 
     answer(1) = 0.0_r_tran
     answer(2) = 125.0_r_tran/12.0_r_tran
@@ -296,6 +298,7 @@ contains
       call fourth_order_vertical_edge_strict(rho,        &
                                              dz,         &
                                              edge_to_do, &
+                                             log_space,  &
                                              edge_value)
 
       @assertEqual(answer(edge_to_do+1), edge_value, tol)
@@ -317,6 +320,7 @@ contains
     real(kind=r_tran)   :: rho(1:4), dz(1:4), edge_value, tol
     real(kind=r_tran)   :: answer(1:5)
     integer(kind=i_def) :: edge_to_do
+    logical(kind=l_def) :: log_space
 
     ! Set tolerance
     if ( r_tran == real64 ) then
@@ -335,6 +339,7 @@ contains
     rho(2) = 10.0_r_tran
     rho(3) = 8.0_r_tran
     rho(4) = 2.0_r_tran
+    log_space = .false.
 
     answer(1) = 0.0_r_tran
     answer(2) = 23.0_r_tran/3.0_r_tran
@@ -349,6 +354,7 @@ contains
       call fourth_order_vertical_edge_relaxed(rho,        &
                                               dz,         &
                                               edge_to_do, &
+                                              log_space,  &
                                               edge_value)
 
       @assertEqual(answer(edge_to_do+1), edge_value, tol)
