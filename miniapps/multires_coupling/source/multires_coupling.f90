@@ -13,6 +13,9 @@
 program multires_coupling
 
   use cli_mod,                      only : get_initial_filename
+  use driver_comm_mod,              only : init_comm, final_comm
+  use mpi_mod,                      only : global_mpi
+  use multires_coupling_mod,        only : program_name
   use multires_coupling_driver_mod, only : initialise, run, finalise
 
   implicit none
@@ -20,11 +23,13 @@ program multires_coupling
   character(:), allocatable :: filename
 
   call get_initial_filename( filename )
+  call init_comm( program_name )
 
-  call initialise( filename )
+  call initialise( filename, global_mpi )
 
   call run()
 
   call finalise()
+  call final_comm()
 
 end program multires_coupling

@@ -10,7 +10,6 @@ module multires_coupling_model_mod
 
   use assign_orography_field_mod, only : assign_orography_field
   use checksum_alg_mod,           only : checksum_alg
-  use driver_comm_mod,            only : init_comm, final_comm
   use driver_fem_mod,             only : init_fem, final_fem
   use driver_mesh_mod,            only : init_mesh, final_mesh
   use driver_log_mod,             only : init_logger, final_logger
@@ -64,7 +63,7 @@ module multires_coupling_model_mod
                                          minmax_tseries_final
   use moisture_conservation_alg_mod, &
                                   only : moisture_conservation_alg
-  use mpi_mod,                    only : global_mpi
+  use mpi_mod,                    only : mpi_type
   use rk_alg_timestep_mod,        only : rk_alg_init, &
                                          rk_alg_final
   use runtime_constants_mod,      only : create_runtime_constants, &
@@ -112,7 +111,8 @@ contains
   !> @param [in,out] twod_mesh    The current 2d mesh
   !> @param [in,out] shifted_mesh The vertically shifted 3d mesh
   !> @param [in,out] double_level_mesh The double-level 3d mesh
-  !> @param [out]    model_clock  Time within the model.
+  !> @param [out]    model_clock  Time within the model
+  !> @param[in,out]  mpi          Communication object
   !>
   subroutine initialise_infrastructure( program_name,      &
                                         filename,          &
@@ -120,7 +120,8 @@ contains
                                         twod_mesh,         &
                                         shifted_mesh,      &
                                         double_level_mesh, &
-                                        model_clock )
+                                        model_clock,       &
+                                        mpi )
 
     use check_configuration_mod, only: get_required_stencil_depth
 
@@ -133,12 +134,11 @@ contains
     type(mesh_type),        intent(inout), pointer   :: double_level_mesh
     type(mesh_type),        intent(inout), pointer   :: shifted_mesh
     type(model_clock_type), intent(out), allocatable :: model_clock
+    class(mpi_type),        intent(inout)            :: mpi
 
     procedure(filelist_populator), pointer :: files_init_ptr
 
     integer(i_def) :: i
-
-    integer(i_native) :: communicator
 
     type(field_type) :: surface_altitude
 
@@ -177,13 +177,9 @@ contains
     ! Initialise aspects of the infrastructure
     !-------------------------------------------------------------------------
 
-    ! Set up the MPI communicator for later use
-    call init_comm( program_name )
-    communicator = global_mpi%get_comm()
-
     call load_configuration( filename, program_name )
 
-    call init_logger( communicator, program_name )
+    call init_logger( mpi%get_comm(), program_name )
 
     write(log_scratch_space,'(A)')                        &
         'Application built with '//trim(PRECISION_REAL)// &
@@ -214,7 +210,7 @@ contains
     !-------------------------------------------------------------------------
 
     ! Create the mesh
-    call init_mesh( global_mpi%get_comm_rank(), global_mpi%get_comm_size(),        &
+    call init_mesh( mpi%get_comm_rank(), mpi%get_comm_size(),                      &
                     mesh,                                                          &
                     twod_mesh                     = twod_mesh,                     &
                     shifted_mesh                  = shifted_mesh,                  &
@@ -274,7 +270,7 @@ contains
 
     files_init_ptr => init_gungho_files
     call init_io( program_name,                    &
-                  communicator,                    &
+                  mpi%get_comm(),                  &
                   dynamics_chi,                    &
                   dynamics_panel_id,               &
                   model_clock, get_calendar(),     &
@@ -494,9 +490,6 @@ contains
 
     ! Finalise namelist configurations
     call final_configuration()
-
-    ! Finalise communication interface
-    call final_comm()
 
   end subroutine finalise_infrastructure
 

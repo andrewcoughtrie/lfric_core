@@ -108,6 +108,7 @@ build: export BIN_DIR     ?= $(PROJECT_DIR)/bin
 build: export CXX_LINK     = TRUE
 build: export PROGRAMS    := $(basename $(notdir $(shell find source -maxdepth 1 -name '*.[Ff]90' -print)))
 build: export PROJECT      = $(PROJECT_NAME)
+build: export WORKING_DIR := $(WORKING_DIR)/diagnostics
 ifeq "$(PROFILE)" "full-debug"
 build: export FFLAG_GROUPS = DEBUG WARNINGS INIT RUNTIME NO_OPTIMISATION FORTRAN_STANDARD
 else ifeq "$(PROFILE)" "fast-debug"

@@ -14,7 +14,6 @@ module skeleton_driver_mod
   use constants_mod,              only : i_def, i_native, &
                                          PRECISION_REAL, r_def, r_second
   use convert_to_upper_mod,       only : convert_to_upper
-  use driver_comm_mod,            only : init_comm, final_comm
   use driver_log_mod,             only : init_logger, final_logger
   use driver_time_mod,            only : init_time, get_calendar
   use driver_mesh_mod,            only : init_mesh, final_mesh
@@ -27,7 +26,7 @@ module skeleton_driver_mod
                                          LOG_LEVEL_ALWAYS, LOG_LEVEL_INFO
   use mesh_mod,                   only : mesh_type
   use model_clock_mod,            only : model_clock_type
-  use mpi_mod,                    only : global_mpi
+  use mpi_mod,                    only : mpi_type
   use skeleton_mod,               only : load_configuration
   use skeleton_alg_mod,           only : skeleton_alg
 
@@ -54,22 +53,18 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Sets up required state in preparation for run.
   !>
-  subroutine initialise( filename )
+  subroutine initialise( filename, mpi )
 
     implicit none
 
-    character(*), intent(in) :: filename
-
-    integer(i_native) :: model_communicator
+    character(*),    intent(in) :: filename
+    class(mpi_type), intent(inout) :: mpi
 
     real(r_def) :: dt_model
 
-    call init_comm("skeleton")
-    model_communicator = global_mpi%get_comm()
-
     call load_configuration( filename, program_name )
 
-    call init_logger( model_communicator, program_name )
+    call init_logger( mpi%get_comm(), program_name )
 
     write(log_scratch_space,'(A)')                        &
         'Application built with '//trim(PRECISION_REAL)// &
@@ -86,14 +81,14 @@ contains
     dt_model = real(model_clock%get_seconds_per_step(), r_def)
 
     ! Create the mesh
-    call init_mesh( global_mpi%get_comm_rank(), global_mpi%get_comm_size(), &
+    call init_mesh( mpi%get_comm_rank(), mpi%get_comm_size(), &
                     mesh, twod_mesh=twod_mesh )
 
     ! Create FEM specifics (function spaces and chi field)
     call init_fem( mesh, chi, panel_id )
 
     ! Initialise I/O context
-    call init_io( program_name, model_communicator, chi, panel_id, &
+    call init_io( program_name, mpi%get_comm(), chi, panel_id, &
                   model_clock, get_calendar() )
 
     ! Create and initialise prognostic fields
@@ -156,8 +151,6 @@ contains
     call final_configuration()
 
     call final_logger( program_name )
-
-    call final_comm()
 
   end subroutine finalise
 

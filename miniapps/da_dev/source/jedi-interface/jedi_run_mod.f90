@@ -10,7 +10,8 @@
 !
 module jedi_run_mod
 
-  use constants_mod,                 only : i_native, str_def
+  use constants_mod, only : i_native, str_def
+  use mpi_mod,       only : mpi_type
 
   implicit none
 
@@ -39,31 +40,22 @@ contains
 !>
 !> @param [in] filename a character that contains the location of the namelist
 !>             file
-subroutine initialise( self, program_name, filename )
+subroutine initialise( self, program_name, filename, mpi )
 
   use mpi_mod,           only : create_comm
-  use da_dev_driver_mod, only : initialise_lfric, initialise_lfric_comm
+  use da_dev_driver_mod, only : initialise_lfric
 
   implicit none
 
   class( jedi_run_type ), intent(inout) :: self
   character(len=*), intent(in)          :: program_name
   character(len=*), intent(in)          :: filename
-
-  integer(i_native) :: model_communicator
-  integer(i_native) :: world_communicator
+  class(mpi_type),  intent(inout)       :: mpi
 
   self%jedi_run_name = program_name
 
-  ! JEDI will initialise MPI so calling it here to enforce that behaviour.
-  ! It will be called outside the scope of the model interface.
-  call create_comm(world_communicator)
-
-  ! MPI has already been initialised so pass in the world communicator.
-  call initialise_lfric_comm( program_name, model_communicator, world_communicator )
-
   ! initialise infrastructure
-  call initialise_lfric( program_name, model_communicator, filename )
+  call initialise_lfric( program_name, mpi, filename )
 
 end subroutine initialise
 

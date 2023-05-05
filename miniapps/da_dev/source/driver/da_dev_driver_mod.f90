@@ -14,7 +14,6 @@ module da_dev_driver_mod
   use constants_mod,            only: i_def, i_native, &
                                       PRECISION_REAL, r_def
   use clock_mod,                only: clock_type
-  use driver_comm_mod,          only: init_comm, final_comm
   use driver_model_data_mod,    only: model_data_type
   use driver_log_mod,           only: init_logger, final_logger
   use driver_time_mod,          only: init_time, get_calendar
@@ -33,7 +32,7 @@ module da_dev_driver_mod
   use mesh_mod,                 only: mesh_type
   use extrusion_mod,            only: extrusion_type
   use model_clock_mod,          only: model_clock_type
-  use mpi_mod,                  only: global_mpi
+  use mpi_mod,                  only: mpi_type
   use da_dev_mod,               only: load_configuration
   use da_dev_increment_alg_mod, only: da_dev_increment_alg
   use da_dev_init_files_mod,    only: init_da_dev_files
@@ -49,7 +48,7 @@ module da_dev_driver_mod
 
   private
   ! LFRic-API
-  public initialise_lfric_comm, initialise_lfric, finalise_lfric, step_lfric
+  public initialise_lfric, finalise_lfric, step_lfric
   ! To run local LFRic mini-app
   public run, initialise_model, finalise_model
 
@@ -65,40 +64,15 @@ contains
 
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !> Sets up communicators before LFRic is initialised.
-  !>
-  subroutine initialise_lfric_comm( program_name, model_communicator, world_communicator )
-
-    implicit none
-
-    character(len=*), intent(in)            :: program_name
-    integer(i_native), intent(out)          :: model_communicator
-    integer(i_native), optional, intent(in) :: world_communicator
-
-    call log_event( 'Initialising comms start', LOG_LEVEL_ALWAYS )
-
-    if (present(world_communicator)) then
-      call init_comm( program_name, world_communicator )
-    else
-      call init_comm( program_name )
-    endif
-    model_communicator = global_mpi%get_comm()
-
-    call log_event( 'Initialising comms done', LOG_LEVEL_ALWAYS )
-
-  end subroutine initialise_lfric_comm
-
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Sets up required state in preparation for run.
   !>
-  subroutine initialise_lfric( program_name, model_communicator, filename )
+  subroutine initialise_lfric( program_name, mpi, filename )
 
     implicit none
 
-    character(len=*),  intent(in) :: program_name
-    integer(i_native), intent(in) :: model_communicator
-    character(len=*),  intent(in) :: filename
+    character(len=*),  intent(in)    :: program_name
+    class(mpi_type),   intent(inout) :: mpi
+    character(len=*),  intent(in)    :: filename
 
     procedure(filelist_populator), pointer :: fl_populator => null()
     class(io_context_type),        pointer :: model_io_context => null()
@@ -106,7 +80,7 @@ contains
 
     call load_configuration( filename, program_name )
 
-    call init_logger( model_communicator, program_name )
+    call init_logger( mpi%get_comm(), program_name )
 
     write(log_scratch_space,'(A)')                        &
         'Application built with '//trim(PRECISION_REAL)// &
@@ -123,7 +97,7 @@ contains
 
     ! Create the mesh
     allocate( extrusion, source=create_extrusion() )
-    call init_mesh( global_mpi%get_comm_rank(), global_mpi%get_comm_size(), &
+    call init_mesh( mpi%get_comm_rank(), mpi%get_comm_size(), &
                     mesh, twod_mesh = twod_mesh, input_extrusion = extrusion )
 
     ! Create FEM specifics (function spaces and chi field)
@@ -131,7 +105,7 @@ contains
 
     ! Initialise I/O context
     fl_populator => init_da_dev_files
-    call init_io( program_name, model_communicator, chi, panel_id, &
+    call init_io( program_name, mpi%get_comm(), chi, panel_id, &
                   model_clock, get_calendar(), populate_filelist=fl_populator )
 
     ! Do initial step
@@ -147,19 +121,18 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> initialise the model data (create and read/initialise).
   !>
-  subroutine initialise_model( program_name, model_communicator, model_data )
+  subroutine initialise_model( mpi, model_data )
 
     implicit none
 
-    character(len=*), intent(in)         :: program_name
-    integer(i_native),     intent(in)    :: model_communicator
+    class(mpi_type),       intent(inout) :: mpi
     type(model_data_type), intent(inout) :: model_data
 
     ! Create prognostic fields in model_data
     call create_da_model_data( mesh, twod_mesh, model_data )
 
     ! Initialise DA interface
-    call init_da( model_communicator, chi, panel_id, model_clock, get_calendar() )
+    call init_da( mpi%get_comm(), chi, panel_id, model_clock, get_calendar() )
 
     ! Initialise prognostic fields in model_data
     call initialise_da_model_data( model_data )
@@ -257,8 +230,6 @@ contains
     call final_configuration()
 
     call final_logger( program_name )
-
-    call final_comm()
 
   end subroutine finalise_lfric
 

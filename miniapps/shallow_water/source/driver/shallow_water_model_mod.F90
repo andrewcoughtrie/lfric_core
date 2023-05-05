@@ -18,7 +18,6 @@ module shallow_water_model_mod
   use count_mod,                      only: count_type, halo_calls
   use derived_config_mod,             only: set_derived_config
   use driver_log_mod,                 only: init_logger, final_logger
-  use driver_comm_mod,                only: init_comm, final_comm
   use driver_fem_mod,                 only: init_fem, final_fem
   use driver_io_mod,                  only: init_io, final_io, &
                                             filelist_populator
@@ -50,7 +49,7 @@ module shallow_water_model_mod
                                             minmax_tseries_init, &
                                             minmax_tseries_final
   use model_clock_mod,                only: model_clock_type
-  use mpi_mod,                        only: global_mpi
+  use mpi_mod,                        only: mpi_type
   use shallow_water_mod,              only: load_configuration
   use shallow_water_model_data_mod,   only: model_data_type
   use shallow_water_setup_io_mod,     only: init_shallow_water_files
@@ -81,7 +80,8 @@ module shallow_water_model_mod
                                        twod_mesh,    &
                                        chi,          &
                                        panel_id,     &
-                                       model_clock )
+                                       model_clock,  &
+                                       mpi )
 
     implicit none
 
@@ -92,24 +92,19 @@ module shallow_water_model_mod
     type(field_type),       intent(inout)          :: chi(3)
     type(field_type),       intent(out),   target  :: panel_id
     type(model_clock_type), intent(out), allocatable :: model_clock
+    class(mpi_type),        intent(inout)          :: mpi
 
     procedure(filelist_populator), pointer :: files_init_ptr => null()
 
     character(len=*), parameter :: io_context_name = "shallow_water"
 
-    integer(i_native) :: communicator
-
     !-------------------------------------------------------------------------
     ! Initialise aspects of the infrastructure
     !-------------------------------------------------------------------------
 
-    ! Set up the MPI communicator for later use
-    call init_comm( program_name )
-    communicator = global_mpi%get_comm()
-
     call load_configuration( filename )
 
-    call init_logger( communicator, program_name )
+    call init_logger( mpi%get_comm(), program_name )
 
     write(log_scratch_space,'(A)')                        &
         'Application built with '//trim(PRECISION_REAL)// &
@@ -141,8 +136,8 @@ module shallow_water_model_mod
 
     ! TODO Stencil depth needs to be taken from configuration options
     ! Create the mesh
-    call init_mesh( global_mpi%get_comm_rank(),  global_mpi%get_comm_size(), &
-                    mesh, twod_mesh,                                         &
+    call init_mesh( mpi%get_comm_rank(),  mpi%get_comm_size(), &
+                    mesh, twod_mesh,                           &
                     required_stencil_depth = get_required_stencil_depth() )
 
     ! Create FEM specifics (function spaces and chi field)
@@ -156,9 +151,9 @@ module shallow_water_model_mod
     ! domain and context
 
     files_init_ptr => init_shallow_water_files
-    call init_io( io_context_name, communicator, &
-                  chi, panel_id,                 &
-                  model_clock, get_calendar(),   &
+    call init_io( io_context_name, mpi%get_comm(), &
+                  chi, panel_id,                   &
+                  model_clock, get_calendar(),     &
                   populate_filelist=files_init_ptr )
 
   end subroutine initialise_infrastructure
@@ -245,8 +240,6 @@ module shallow_water_model_mod
 
     ! Finalise namelist configurations
     call final_configuration()
-
-    call final_comm()
 
   end subroutine finalise_infrastructure
 

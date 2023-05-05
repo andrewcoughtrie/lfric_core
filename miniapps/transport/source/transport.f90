@@ -9,6 +9,9 @@
 program transport
 
   use cli_mod,              only: get_initial_filename
+  use driver_comm_mod,      only: init_comm, final_comm
+  use mpi_mod,              only: global_mpi
+  use transport_mod,        only: program_name
   use transport_driver_mod, only: initialise_transport, &
                                   run_transport,        &
                                   finalise_transport
@@ -18,11 +21,13 @@ program transport
   character(:), allocatable :: filename
 
   call get_initial_filename( filename )
+  call init_comm( program_name )
 
-  call initialise_transport( filename )
+  call initialise_transport( filename, global_mpi )
 
   call run_transport()
 
   call finalise_transport()
+  call final_comm()
 
 end program transport

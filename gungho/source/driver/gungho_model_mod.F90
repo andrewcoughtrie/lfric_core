@@ -12,7 +12,6 @@ module gungho_model_mod
   use base_mesh_config_mod,       only : prime_mesh_name
   use checksum_alg_mod,           only : checksum_alg
   use clock_mod,                  only : clock_type
-  use driver_comm_mod,            only : init_comm, final_comm
   use driver_fem_mod,             only : init_fem, final_fem
   use driver_io_mod,              only : init_io, final_io,  &
                                          filelist_populator
@@ -73,7 +72,7 @@ module gungho_model_mod
                                          mesh_collection_type
   use moisture_conservation_alg_mod, &
                                   only : moisture_conservation_alg
-  use mpi_mod,                    only : global_mpi
+  use mpi_mod,                    only : mpi_type
   use mr_indices_mod,             only : nummr
   use rk_alg_timestep_mod,        only : rk_alg_init, &
                                          rk_alg_final
@@ -137,7 +136,8 @@ contains
   !> @param [in,out] shifted_mesh The vertically shifted 3d mesh
   !> @param [in,out] double_level_mesh The double-level 3d mesh
   !> @param [in,out] model_data   The working data set for the model run
-  !> @param [out]    model_clock  Time within the model.
+  !> @param [out]    model_clock  Time within the model
+  !> @param [in]     mpi          Communication object
   !>
   subroutine initialise_infrastructure( filename,             &
                                         program_name,         &
@@ -147,7 +147,8 @@ contains
                                         double_level_mesh,    &
                                         aerosol_mesh,         &
                                         aerosol_twod_mesh,    &
-                                        model_data, model_clock )
+                                        model_data, model_clock, &
+                                        mpi )
 
     use logging_config_mod, only: key_from_run_log_level, &
                                   RUN_LOG_LEVEL_ERROR,    &
@@ -160,6 +161,12 @@ contains
 
     character(*), intent(in) :: filename
     character(*), intent(in) :: program_name
+
+    ! @todo I think the communication object aught to work as intent(in) but
+    !       there seems to be an issue with Intel 19 which means (inout) is
+    !       needed.
+    !
+    class(mpi_type), intent(inout) :: mpi
 
     type(mesh_type), intent(inout), pointer :: mesh
     type(mesh_type), intent(inout), pointer :: shifted_mesh
@@ -174,9 +181,6 @@ contains
     character(len=*), parameter :: io_context_name = "gungho_atm"
 
     procedure(filelist_populator), pointer :: files_init_ptr => null()
-
-    integer(i_native) :: communicator
-
 
     type(field_type) :: surface_altitude
 
@@ -209,12 +213,9 @@ contains
     ! Initialise aspects of the infrastructure
     !-------------------------------------------------------------------------
 
-    call init_comm(program_name)
-    communicator = global_mpi%get_comm()
-
     call load_configuration( filename, program_name )
 
-    call init_logger( communicator, program_name )
+    call init_logger( mpi%get_comm(), program_name )
 
     write(log_scratch_space,'(A)')                        &
         'Application built with '//trim(PRECISION_REAL)// &
@@ -248,7 +249,7 @@ contains
     allocate( extrusion, source=create_extrusion() )
 
     ! Create the mesh
-    call init_mesh( global_mpi%get_comm_rank(), global_mpi%get_comm_size(), &
+    call init_mesh( mpi%get_comm_rank(), mpi%get_comm_size(),               &
                     mesh,                                                   &
                     twod_mesh              = twod_mesh,                     &
                     shifted_mesh           = shifted_mesh,                  &
@@ -306,7 +307,7 @@ contains
 
     call log_event("Initialising I/O context", LOG_LEVEL_INFO)
 
-    if (size(multires_coupling_mesh_ids) > 1) then
+    if (use_multires_coupling) then
       allocate(chi_xios(SIZE(multires_coupling_mesh_ids)-1,3))
       allocate(panel_id_xios(SIZE(multires_coupling_mesh_ids)-1))
       mesh_counter = 1
@@ -318,7 +319,7 @@ contains
         mesh_counter = mesh_counter + 1
       end do
       files_init_ptr => init_gungho_files
-      call init_io( io_context_name, communicator,    &
+      call init_io( io_context_name, mpi%get_comm(),  &
                     chi, panel_id,                    &
                     model_clock, get_calendar(),      &
                     populate_filelist=files_init_ptr, &
@@ -327,7 +328,7 @@ contains
 
     else
       files_init_ptr => init_gungho_files
-      call init_io( io_context_name, communicator,    &
+      call init_io( io_context_name, mpi%get_comm(),  &
                     chi, panel_id,                    &
                     model_clock, get_calendar(),      &
                     populate_filelist=files_init_ptr )
@@ -560,9 +561,6 @@ contains
 
     ! Finalise namelist configurations
     call final_configuration()
-
-    ! Finalise communicator
-    call final_comm()
 
   end subroutine finalise_infrastructure
 

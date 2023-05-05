@@ -32,6 +32,7 @@ module multires_coupling_driver_mod
                                                        LOG_LEVEL_INFO
   use mesh_mod,                                 only : mesh_type
   use model_clock_mod,                          only : model_clock_type
+  use mpi_mod,                                  only : mpi_type
   use multires_coupling_mod,                    only : program_name
   use coupling_test_alg_mod,                    only : coupling_test_alg
   use xios,                                     only : xios_context_finalize
@@ -84,11 +85,12 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Sets up required state in preparation for run.
   !>
-  subroutine initialise( filename )
+  subroutine initialise( filename, mpi )
 
     implicit none
 
-    character(*), intent(in) :: filename
+    character(*),    intent(in)    :: filename
+    class(mpi_type), intent(inout) :: mpi
 
     !-------------------------------------------------------------------------
     ! Model init
@@ -107,7 +109,8 @@ contains
                                     prime_2D_mesh,           &
                                     prime_shifted_mesh,      &
                                     prime_double_level_mesh, &
-                                    model_clock )
+                                    model_clock,             &
+                                    mpi )
 
     dynamics_2D_mesh_name = trim(dynamics_mesh_name)//'_2d'
 

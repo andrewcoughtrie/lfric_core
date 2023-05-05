@@ -41,6 +41,7 @@ module gungho_driver_mod
                                          log_scratch_space
   use mesh_mod,                   only : mesh_type
   use model_clock_mod,            only : model_clock_type
+  use mpi_mod,                    only : mpi_type
 #ifdef UM_PHYSICS
   use variable_fields_mod,        only : update_variable_fields
   use update_ancils_alg_mod,      only : update_ancils_alg
@@ -72,7 +73,7 @@ contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Sets up required state in preparation for run.
-  subroutine initialise( program_name, filename )
+  subroutine initialise( program_name, filename, mpi )
 
     use io_context_mod,         only : io_context_type
     use lfric_xios_context_mod, only : lfric_xios_context_type
@@ -81,6 +82,11 @@ contains
 
     character(*), intent(in) :: program_name
     character(*), intent(in) :: filename
+    !
+    ! @todo There seems to be an Intel 19 bug which requires this to be
+    !       intent(inout)
+    !
+    class(mpi_type), intent(inout) :: mpi
 
     class(io_context_type), pointer :: io_context => null()
 
@@ -94,7 +100,8 @@ contains
                                     aerosol_mesh,         &
                                     aerosol_twod_mesh,    &
                                     model_data,           &
-                                    model_clock )
+                                    model_clock,          &
+                                    mpi )
 
     ! Instantiate the fields stored in model_data
     call create_model_data( model_data, mesh, twod_mesh, aerosol_mesh, aerosol_twod_mesh, model_clock )

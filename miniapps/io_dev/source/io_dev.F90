@@ -12,7 +12,9 @@
 program io_dev
 
   use cli_mod,           only: get_initial_filename
+  use driver_comm_mod,   only: init_comm, final_comm
   use io_dev_driver_mod, only: initialise, run, finalise
+  use mpi_mod,           only: global_mpi
 
   implicit none
 
@@ -20,10 +22,12 @@ program io_dev
 
   call get_initial_filename( filename )
 
-  call initialise( filename )
+  call init_comm( "io_dev" )
+  call initialise( filename, global_mpi )
 
   call run()
 
   call finalise()
+  call final_comm()
 
 end program io_dev

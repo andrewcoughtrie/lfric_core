@@ -15,16 +15,15 @@ module gravity_wave_infrastructure_mod
                                          r_def, r_second
   use convert_to_upper_mod,       only : convert_to_upper
   use derived_config_mod,         only : set_derived_config
-  use gravity_wave_mod,           only : load_configuration, program_name
+  use gravity_wave_mod,           only : load_configuration
   use log_mod,                    only : log_event,          &
                                          log_scratch_space,  &
                                          LOG_LEVEL_ALWAYS,   &
                                          LOG_LEVEL_INFO
   use mesh_mod,                   only : mesh_type
   use model_clock_mod,            only : model_clock_type
-  use mpi_mod,                    only : global_mpi
+  use mpi_mod,                    only : mpi_type
   use field_mod,                  only : field_type
-  use driver_comm_mod,            only : init_comm, final_comm
   use driver_fem_mod,             only : init_fem
   use driver_io_mod,              only : init_io, final_io
   use driver_mesh_mod,            only : init_mesh
@@ -51,12 +50,11 @@ contains
                                         filename,     &
                                         mesh,         &
                                         twod_mesh,    &
-                                        model_clock )
+                                        model_clock,  &
+                                        mpi )
 
     use log_mod,                 only : log_level_error
     use step_calendar_mod,       only : step_calendar_type
-    use time_config_mod,         only : timestep_start, timestep_end
-    use timestepping_config_mod, only : dt, spinup_period
 
     implicit none
 
@@ -65,6 +63,7 @@ contains
     type(mesh_type),        intent(inout), pointer :: mesh
     type(mesh_type),        intent(inout), pointer :: twod_mesh
     type(model_clock_type), intent(out), allocatable :: model_clock
+    class(mpi_type),        intent(inout)            :: mpi
 
     type(field_type), target :: chi(3)
     type(field_type), target :: panel_id
@@ -74,15 +73,9 @@ contains
     type(field_type), allocatable :: chi_mg(:,:)
     type(field_type), allocatable :: panel_id_mg(:)
 
-    integer(i_native)          :: comm
-
-    ! Set up the communicator for later use
-    call init_comm(program_name)
-    comm = global_mpi%get_comm()
-
     call load_configuration( filename )
 
-    call init_logger( comm, program_name )
+    call init_logger( mpi%get_comm(), program_name )
 
     write(log_scratch_space,'(A)')                        &
         'Application built with '//trim(PRECISION_REAL)// &
@@ -97,7 +90,7 @@ contains
     ! Initialise aspects of the grid
     !-------------------------------------------------------------------------
     ! Create the mesh
-    call init_mesh( global_mpi%get_comm_rank(), global_mpi%get_comm_size(), &
+    call init_mesh( mpi%get_comm_rank(), mpi%get_comm_size(),       &
                     mesh,                                           &
                     twod_mesh              = twod_mesh,             &
                     multigrid_mesh_ids     = multigrid_mesh_ids,    &
@@ -116,7 +109,9 @@ contains
     !-------------------------------------------------------------------------
     ! Initialise aspects of output
     !-------------------------------------------------------------------------
-    call init_io( xios_ctx, comm, chi, panel_id, model_clock, get_calendar() )
+    call init_io( xios_ctx, mpi%get_comm(), &
+                  chi, panel_id,            &
+                  model_clock, get_calendar() )
 
     !-------------------------------------------------------------------------
     ! Setup constants
@@ -137,9 +132,11 @@ contains
 
 
   !> @brief Finalises infrastructure used by the model
-  subroutine finalise_infrastructure()
+  subroutine finalise_infrastructure( program_name )
 
     implicit none
+
+    character(*), intent(in) :: program_name
 
     ! Finalise I/O
     call final_io()
@@ -149,9 +146,6 @@ contains
 
     ! Finalise the logging system
     call final_logger( program_name )
-
-    ! Finalise communicator
-    call final_comm()
 
   end subroutine finalise_infrastructure
 

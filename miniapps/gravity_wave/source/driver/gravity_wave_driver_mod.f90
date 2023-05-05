@@ -48,6 +48,7 @@ module gravity_wave_driver_mod
                                             log_scratch_space
   use mesh_mod,                       only: mesh_type
   use model_clock_mod,                only: model_clock_type
+  use mpi_mod,                        only: mpi_type
   use io_mod,                         only: ts_fname
   use files_config_mod,               only: checkpoint_stem_name
   use timer_mod,                      only: init_timer, timer, output_timer
@@ -73,18 +74,20 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Sets up required state in preparation for run.
   !>
-  subroutine initialise( filename )
+  subroutine initialise( filename, mpi )
 
   implicit none
 
-  character(*), intent(in) :: filename
+  character(*),    intent(in)    :: filename
+  class(mpi_type), intent(inout) :: mpi
 
   ! Initialise aspects of the infrastructure
   call initialise_infrastructure( program_name, &
                                   filename,     &
                                   mesh,         &
                                   twod_mesh,    &
-                                  model_clock )
+                                  model_clock,  &
+                                  mpi )
 
   call log_event( 'Initialising '//program_name//' ...', LOG_LEVEL_ALWAYS )
 
@@ -249,7 +252,7 @@ contains
 
   call log_event( program_name//' completed.', LOG_LEVEL_ALWAYS )
 
-  call finalise_infrastructure()
+  call finalise_infrastructure( program_name )
 
   end subroutine finalise
 

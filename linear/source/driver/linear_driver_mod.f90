@@ -45,6 +45,7 @@ module linear_driver_mod
   use linear_data_algorithm_mod,  only : update_ls_file_alg
   use mesh_mod,                   only : mesh_type
   use model_clock_mod,            only : model_clock_type
+  use mpi_mod,                    only : mpi_type
   use create_tl_prognostics_mod,  only : create_tl_prognostics
 
   implicit none
@@ -67,12 +68,13 @@ contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !>@brief Sets up required state in preparation for run.
-  subroutine initialise( program_name, filename )
+  subroutine initialise( program_name, filename, mpi )
 
     implicit none
 
-    character(*), intent(in) :: program_name
-    character(*), intent(in) :: filename
+    character(*),    intent(in) :: program_name
+    character(*),    intent(in) :: filename
+    class(mpi_type), intent(inout) :: mpi
 
     class(io_context_type), pointer :: io_context => null()
 
@@ -86,7 +88,8 @@ contains
                                     aerosol_mesh,      &
                                     aerosol_twod_mesh, &
                                     model_data,        &
-                                    model_clock )
+                                    model_clock,       &
+                                    mpi )
 
     ! Instantiate the fields stored in model_data
     call create_model_data( model_data,        &

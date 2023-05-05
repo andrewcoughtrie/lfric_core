@@ -22,6 +22,7 @@ module shallow_water_driver_mod
                                            mesh_collection_type
   use mesh_mod,                      only: mesh_type
   use model_clock_mod,               only: model_clock_type
+  use mpi_mod,                       only: mpi_type
   use runtime_constants_mod,         only: create_runtime_constants, &
                                            final_runtime_constants
   use shallow_water_mod,             only: program_name
@@ -64,11 +65,12 @@ contains
   !!          model_data, then sets the initial conditions for the run.
   !> @param[in] filename Configuration namelist file
   !!
-  subroutine initialise( filename )
+  subroutine initialise( filename, mpi )
 
     implicit none
 
-    character(*), intent(in) :: filename
+    character(*),    intent(in)    :: filename
+    class(mpi_type), intent(inout) :: mpi
 
     type(mesh_type),   pointer :: twod_mesh => null()
     type(field_type)           :: panel_id
@@ -81,7 +83,8 @@ contains
                                     twod_mesh,    &
                                     chi,          &
                                     panel_id,     &
-                                    model_clock )
+                                    model_clock,  &
+                                    mpi )
 
     !-------------------------------------------------------------------------
     ! Setup constants

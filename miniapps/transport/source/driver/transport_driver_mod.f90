@@ -12,7 +12,6 @@ module transport_driver_mod
   use check_configuration_mod,          only: get_required_stencil_depth
   use configuration_mod,                only: final_configuration
   use constants_mod,                    only: i_def, i_native, r_def, r_second
-  use driver_comm_mod,                  only: init_comm, final_comm
   use driver_fem_mod,                   only: init_fem
   use driver_io_mod,                    only: init_io, final_io
   use driver_mesh_mod,                  only: init_mesh
@@ -40,7 +39,7 @@ module transport_driver_mod
   use mass_conservation_alg_mod,        only: mass_conservation
   use mesh_mod,                         only: mesh_type
   use model_clock_mod,                  only: model_clock_type
-  use mpi_mod,                          only: global_mpi
+  use mpi_mod,                          only: mpi_type
   use mr_indices_mod,                   only: nummr
   use runtime_constants_mod,            only: create_runtime_constants
   use step_calendar_mod,                only: step_calendar_type
@@ -97,27 +96,23 @@ contains
   !> @brief Sets up required state in preparation for run.
   !! @param[out] model_clock Time within the model.
   !!
-  subroutine initialise_transport( filename )
+  subroutine initialise_transport( filename, mpi )
 
     implicit none
 
-    character(*), intent(in) :: filename
+    character(*),    intent(in) :: filename
+    class(mpi_type), intent(inout) :: mpi
 
     character(len=*), parameter :: xios_ctx  = "transport"
-
-    integer(i_native) :: model_communicator
 
     integer(kind=i_def), allocatable :: multigrid_mesh_ids(:)
     integer(kind=i_def), allocatable :: multigrid_2d_mesh_ids(:)
     integer(kind=i_def), allocatable :: local_mesh_ids(:)
     type(local_mesh_type),   pointer :: local_mesh => null()
 
-    call init_comm( program_name )
-    model_communicator = global_mpi%get_comm()
-
     call transport_load_configuration( filename )
 
-    call init_logger( model_communicator, program_name )
+    call init_logger( mpi%get_comm(), program_name )
 
     call log_event( program_name//': Runtime default precision set as:', LOG_LEVEL_ALWAYS )
     write(log_scratch_space, '(I1)') kind(1.0_r_def)
@@ -139,14 +134,14 @@ contains
     call init_time( model_clock )
 
     ! Create the mesh
-    call init_mesh( global_mpi%get_comm_rank(), global_mpi%get_comm_size(), &
-                    mesh,                                            &
-                    twod_mesh=twod_mesh,                             &
-                    shifted_mesh=shifted_mesh,                       &
-                    double_level_mesh=double_level_mesh,             &
-                    multigrid_mesh_ids=multigrid_mesh_ids,           &
-                    multigrid_2d_mesh_ids=multigrid_2d_mesh_ids,     &
-                    use_multigrid=l_multigrid,                       &
+    call init_mesh( mpi%get_comm_rank(), mpi%get_comm_size(),    &
+                    mesh,                                        &
+                    twod_mesh=twod_mesh,                         &
+                    shifted_mesh=shifted_mesh,                   &
+                    double_level_mesh=double_level_mesh,         &
+                    multigrid_mesh_ids=multigrid_mesh_ids,       &
+                    multigrid_2d_mesh_ids=multigrid_2d_mesh_ids, &
+                    use_multigrid=l_multigrid,                   &
                     required_stencil_depth=get_required_stencil_depth() )
 
     ! FEM initialisation
@@ -187,9 +182,9 @@ contains
     nummr_to_transport = 1_i_def
 
     ! I/O initialisation
-    call init_io( xios_ctx,           &
-                  model_communicator, &
-                  chi, panel_id,      &
+    call init_io( xios_ctx,       &
+                  mpi%get_comm(), &
+                  chi, panel_id,  &
                   model_clock, get_calendar() )
 
     ! Output initial conditions
@@ -344,8 +339,6 @@ contains
     ! logging is an MPI process.
     !
     call final_logger(program_name)
-
-    call final_comm()
 
   end subroutine finalise_transport
 

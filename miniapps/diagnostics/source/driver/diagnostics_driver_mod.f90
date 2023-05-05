@@ -12,7 +12,6 @@ module diagnostics_driver_mod
   use clock_mod,                     only : clock_type
   use constants_mod,                 only : i_def, i_native, str_def, r_def
   use diagnostics_configuration_mod, only : load_configuration, program_name
-  use driver_comm_mod,               only : init_comm, final_comm
   use driver_fem_mod,                only : init_fem
   use driver_io_mod,                 only : init_io, final_io
   use driver_mesh_mod,               only : init_mesh
@@ -32,7 +31,7 @@ module diagnostics_driver_mod
                                             LOG_LEVEL_TRACE
   use mesh_mod,                      only : mesh_type
   use model_clock_mod,               only : model_clock_type
-  use mpi_mod,                       only : global_mpi
+  use mpi_mod,                       only : mpi_type
 
   implicit none
 
@@ -61,7 +60,7 @@ contains
   !> mostly boiler plate - note the init and seeding of the fields at the end
   !> of the function.
   !>
-  subroutine initialise( filename )
+  subroutine initialise( filename, mpi )
 
     use convert_to_upper_mod,       only : convert_to_upper
     use driver_fem_mod,             only : init_fem
@@ -71,23 +70,16 @@ contains
     use init_diagnostics_mod,       only : init_diagnostics
     use mod_wait,                   only : init_wait
     use seed_diagnostics_mod,       only : seed_diagnostics
-    use timestepping_config_mod,    only : spinup_period
     use diagnostics_miniapp_config_mod, only : iodef_path
 
     implicit none
 
-    character(*), intent(in) :: filename
-
-    character(len = *), parameter :: program_name = "diagnostics"
-
-    integer(i_native) :: model_communicator
-
-    call init_comm( program_name )
-    model_communicator = global_mpi%get_comm()
+    character(*),    intent(in)    :: filename
+    class(mpi_type), intent(inout) :: mpi
 
     call load_configuration(filename)
 
-    call init_logger( model_communicator, program_name )
+    call init_logger( mpi%get_comm(), program_name )
 
     !----------------------------------------------------------------------
     ! Model init
@@ -99,7 +91,7 @@ contains
     call init_time( model_clock )
 
     ! Create the mesh
-    call init_mesh( global_mpi%get_comm_rank(), global_mpi%get_comm_size(), &
+    call init_mesh( mpi%get_comm_rank(), mpi%get_comm_size(), &
                     mesh, twod_mesh=twod_mesh )
 
     ! Create FEM specifics (function spaces and chi field)
@@ -112,11 +104,11 @@ contains
     call log_event("Populating fieldspec collection", LOG_LEVEL_INFO)
     call populate_fieldspec_collection(iodef_path)
 
-    call init_io( xios_ctx,           &
-                  model_communicator, &
-                  chi,                &
-                  panel_id,           &
-                  model_clock,        &
+    call init_io( xios_ctx,       &
+                  mpi%get_comm(), &
+                  chi,            &
+                  panel_id,       &
+                  model_clock,    &
                   get_calendar() )
 
     ! Create and initialise prognostic fields
@@ -213,8 +205,6 @@ contains
     ! Logging is an MPI process.
     !
     call final_logger(program_name)
-
-    call final_comm()
 
   end subroutine finalise
 

@@ -10,9 +10,11 @@
 !!         corresponding nonlinear code.
 program runge_kutta
 
+  use halo_comms_mod,     only : initialise_halo_comms, finalise_halo_comms
   use log_mod,            only : log_event,       &
                                  LOG_LEVEL_ERROR, &
                                  LOG_LEVEL_INFO
+  use mpi_mod,            only : create_comm, destroy_comm, global_mpi
   use tl_test_driver_mod, only : initialise,                  &
                                  finalise,                    &
                                  run_timesteps,               &
@@ -35,6 +37,8 @@ program runge_kutta
   character(len=0) :: dummy
   character(len=:), allocatable :: program_name, test_flag
 
+  integer :: communicator
+
   ! Flags which determine the tests that will be carried out
   logical :: do_test_timesteps = .false.
   logical :: do_test_kinetic_energy_gradient = .false.
@@ -48,6 +52,10 @@ program runge_kutta
 
   ! Usage message to print
   character(len=256) :: usage_message
+
+  call create_comm( communicator )
+  call global_mpi%initialise( communicator )
+  call initialise_halo_comms( communicator )
 
   call log_event( 'TL testing running ...', LOG_LEVEL_INFO )
 
@@ -108,7 +116,7 @@ program runge_kutta
      call log_event( "Unknown test", LOG_LEVEL_ERROR )
   end select
 
-  call initialise( filename, application_name )
+  call initialise( filename, application_name, global_mpi )
   deallocate( filename )
 
   if (do_test_timesteps) then
@@ -140,5 +148,7 @@ program runge_kutta
   endif
 
   call finalise( application_name )
+  call finalise_halo_comms()
+  call destroy_comm()
 
 end program runge_kutta

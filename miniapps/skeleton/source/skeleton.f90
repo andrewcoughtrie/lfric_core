@@ -13,6 +13,8 @@
 program skeleton
 
   use cli_mod,             only : get_initial_filename
+  use driver_comm_mod,            only : init_comm, final_comm
+  use mpi_mod,             only : global_mpi
   use skeleton_driver_mod, only : initialise, run, finalise
 
   implicit none
@@ -20,11 +22,13 @@ program skeleton
   character(:), allocatable :: filename
 
   call get_initial_filename( filename )
+  call init_comm("skeleton")
 
-  call initialise( filename )
+  call initialise( filename, global_mpi )
 
   call run()
 
   call finalise()
+  call final_comm()
 
 end program skeleton

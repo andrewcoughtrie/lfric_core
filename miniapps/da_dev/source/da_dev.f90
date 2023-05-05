@@ -14,15 +14,15 @@ program da_dev
 
   use cli_mod,                   only : get_initial_filename
   use da_dev_driver_mod,         only : initialise_lfric, run, finalise_lfric, &
-                                        initialise_model, finalise_model,      &
-                                        initialise_lfric_comm
+                                        initialise_model, finalise_model
+  use driver_comm_mod,           only : init_comm, final_comm
   use driver_model_data_mod,     only : model_data_type
   use constants_mod,             only : i_native
+  use mpi_mod,                   only : global_mpi
 
   implicit none
 
   type(model_data_type) :: model_data
-  integer(i_native)     :: model_communicator
 
   character(*), parameter :: program_name = "da_dev"
 
@@ -30,16 +30,16 @@ program da_dev
 
   call get_initial_filename( filename )
 
-  call initialise_lfric_comm(program_name, model_communicator)
+  call init_comm( program_name )
+  call initialise_lfric( program_name, global_mpi, filename )
 
-  call initialise_lfric( program_name, model_communicator, filename )
-
-  call initialise_model(program_name, model_communicator, model_data)
+  call initialise_model(global_mpi, model_data)
 
   call run(program_name, model_data)
 
   call finalise_model(program_name, model_data%depository)
 
   call finalise_lfric(program_name)
+  call final_comm()
 
 end program da_dev

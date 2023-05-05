@@ -36,7 +36,7 @@ module mpi_mod
     private
 
     !> The mpi communicator
-    integer(i_def) :: comm=-999, comm_size=-999, comm_rank=-999
+    integer(i_native) :: comm=-999, comm_size=-999, comm_rank=-999
     !> Flag marks whether an MPI communicator has been stored
     logical(l_def) :: comm_set = .false.
 
@@ -190,8 +190,8 @@ contains
   subroutine initialise(self, in_comm)
     implicit none
     class(mpi_type), intent(inout) :: self
-    integer(i_def), intent(in)     :: in_comm
-    integer(i_def) :: ierr
+    integer(i_native), intent(in)     :: in_comm
+    integer(i_native) :: ierr
 
     self%comm = in_comm
 #ifdef NO_MPI
@@ -222,8 +222,8 @@ contains
   !>
   function get_comm(self) result(communicator)
     implicit none
-    class(mpi_type), intent(inout) :: self
-    integer(i_def) :: communicator
+    class(mpi_type), intent(in) :: self
+    integer(i_native) :: communicator
     communicator = self%comm
   end function get_comm
 

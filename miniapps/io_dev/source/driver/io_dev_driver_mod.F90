@@ -16,7 +16,6 @@ module io_dev_driver_mod
   use constants_mod,              only: i_def, i_native, str_def, &
                                         PRECISION_REAL, r_def, r_second
   use convert_to_upper_mod,       only: convert_to_upper
-  use driver_comm_mod,            only: init_comm, final_comm
   use driver_log_mod,             only: init_logger, final_logger
   use driver_time_mod,            only: init_time, get_calendar
   use driver_mesh_mod,            only: init_mesh, final_mesh
@@ -38,7 +37,7 @@ module io_dev_driver_mod
                                         mesh_collection_type
   use mesh_mod,                   only: mesh_type
   use model_clock_mod,            only: model_clock_type
-  use mpi_mod,                    only: global_mpi
+  use mpi_mod,                    only: mpi_type
   use timer_mod,                  only: timer, output_timer, init_timer
   use io_dev_mod,                 only: load_configuration
   use io_dev_init_files_mod,      only: init_io_dev_files
@@ -70,13 +69,12 @@ module io_dev_driver_mod
   contains
 
   !> @brief Sets up required state in preparation for run.
-  subroutine initialise( filename )
+  subroutine initialise( filename, mpi )
 
     implicit none
 
-    character(*) :: filename
-
-    integer(i_native) :: communicator
+    character(*),    intent(in)    :: filename
+    class(mpi_type), intent(inout) :: mpi
 
     character(str_def), allocatable :: multires_mesh_tags(:)
     integer(i_def),     allocatable :: multires_mesh_ids(:), multires_twod_mesh_ids(:)
@@ -92,12 +90,9 @@ module io_dev_driver_mod
 
     procedure(filelist_populator), pointer :: files_init_ptr => null()
 
-    call init_comm(program_name)
-    communicator = global_mpi%get_comm()
-
     call load_configuration( filename )
 
-    call init_logger( communicator, program_name )
+    call init_logger( mpi%get_comm(), program_name )
 
     write(log_scratch_space,'(A)')                        &
         'Application built with '//trim(PRECISION_REAL)// &
@@ -119,11 +114,11 @@ module io_dev_driver_mod
 
     ! Create the meshes used to test multi-mesh output
     multires_mesh_tags = [alt_mesh_name]
-    call init_mesh( global_mpi%get_comm_rank(), global_mpi%get_comm_size(),&
-                    mesh, twod_mesh = twod_mesh,                           &
-                    use_multires_coupling = multi_mesh,                    &
-                    multires_coupling_mesh_tags = multires_mesh_tags,      &
-                    multires_coupling_mesh_ids = multires_mesh_ids ,       &
+    call init_mesh( mpi%get_comm_rank(), mpi%get_comm_size(),         &
+                    mesh, twod_mesh = twod_mesh,                      &
+                    use_multires_coupling = multi_mesh,               &
+                    multires_coupling_mesh_tags = multires_mesh_tags, &
+                    multires_coupling_mesh_ids = multires_mesh_ids ,  &
                     multires_coupling_2D_mesh_ids = multires_twod_mesh_ids )
 
     ! Create FEM specifics (function spaces and chi fields)
@@ -142,19 +137,21 @@ module io_dev_driver_mod
       alt_mesh => mesh_collection%get_mesh(multires_mesh_ids(1))
       call create_model_data( model_data, chi, panel_id, &
                               mesh, twod_mesh, alt_mesh )
-      call init_io( program_name, communicator, chi, panel_id, &
-                    model_clock, get_calendar(),               &
-                    populate_filelist = files_init_ptr,        &
-                    model_data = model_data,                   &
-                    alt_coords = alt_io_coords,                &
+      call init_io( program_name, mpi%get_comm(),       &
+                    chi, panel_id,                      &
+                    model_clock, get_calendar(),        &
+                    populate_filelist = files_init_ptr, &
+                    model_data = model_data,            &
+                    alt_coords = alt_io_coords,         &
                     alt_panel_ids = alt_io_panel_ids )
 
     else
       call create_model_data( model_data, chi, panel_id, &
                               mesh, twod_mesh )
-      call init_io( program_name, communicator, chi, panel_id, &
-                    model_clock, get_calendar(),               &
-                    populate_filelist = files_init_ptr,        &
+      call init_io( program_name, mpi%get_comm(),       &
+                    chi, panel_id,                      &
+                    model_clock, get_calendar(),        &
+                    populate_filelist = files_init_ptr, &
                     model_data = model_data )
     end if
 
@@ -227,9 +224,6 @@ module io_dev_driver_mod
 
     ! Finalise namelist configurations
     call final_configuration()
-
-    ! Finalise communication interface
-    call final_comm()
 
   end subroutine finalise
 

@@ -23,6 +23,7 @@ module tl_test_driver_mod
                                          LOG_LEVEL_ALWAYS
   use mesh_mod,                   only : mesh_type
   use model_clock_mod,            only : model_clock_type
+  use mpi_mod,                    only : mpi_type
   use linear_model_data_mod,      only : linear_create_ls,  &
                                          linear_init_ls
   use tl_test_kinetic_energy_gradient_mod, only : test_kinetic_energy_gradient
@@ -78,14 +79,16 @@ contains
   !>@brief     Sets up the required state in preparation for run.
   !>@param[in] filename            Name of the file containing the desired
   !!                               configuration
-  subroutine initialise( filename, program_name )
+  subroutine initialise( filename, program_name, mpi )
 
     implicit none
 
-    character(*), intent(in) :: filename
-    character(*), intent(in) :: program_name
+    character(*),    intent(in)    :: filename
+    character(*),    intent(in)    :: program_name
+    class(mpi_type), intent(inout) :: mpi
 
     ! Initialise infrastructure and setup constants
+    !
     call initialise_infrastructure( filename,          &
                                     program_name,      &
                                     mesh,              &
@@ -95,7 +98,8 @@ contains
                                     aerosol_mesh,      &
                                     aerosol_twod_mesh, &
                                     model_data,        &
-                                    model_clock )
+                                    model_clock,       &
+                                    mpi )
 
     ! Instantiate the fields stored in model_data
     call create_model_data( model_data,        &
