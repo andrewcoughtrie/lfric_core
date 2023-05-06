@@ -50,19 +50,19 @@ program cubedsphere_mesh_generator
   ! Configuration modules.
   use cubedsphere_mesh_config_mod, only: edge_cells, smooth_passes,  &
                                          stretch_factor
-  use mesh_config_mod,             only: mesh_filename, rotate_mesh, &
-                                         n_meshes, mesh_names,       &
-                                         mesh_maps, partition_mesh,  &
-                                         coord_sys, coord_sys_ll,    &
-                                         coord_sys_xyz,              &
-                                         key_from_coord_sys,         &
-                                         topology,                   &
-                                         topology_periodic,          &
-                                         topology_non_periodic,      &
-                                         topology_channel,           &
-                                         key_from_topology,          &
-                                         geometry, geometry_planar,  &
-                                         geometry_spherical,         &
+  use mesh_config_mod,             only: mesh_file_prefix, rotate_mesh, &
+                                         n_meshes, mesh_names,          &
+                                         mesh_maps, partition_mesh,     &
+                                         coord_sys, coord_sys_ll,       &
+                                         coord_sys_xyz,                 &
+                                         key_from_coord_sys,            &
+                                         topology,                      &
+                                         topology_periodic,             &
+                                         topology_non_periodic,         &
+                                         topology_channel,              &
+                                         key_from_topology,             &
+                                         geometry, geometry_planar,     &
+                                         geometry_spherical,            &
                                          key_from_geometry
   use partitions_config_mod,       only: max_stencil_depth, &
                                          n_partitions,      &
@@ -652,7 +652,7 @@ program cubedsphere_mesh_generator
       '===================================================================='
   call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
-  output_basename = mesh_filename( 1:index(mesh_filename,'.nc',back=.true.)-1 )
+  output_basename = trim(mesh_file_prefix)
 
   if (partition_mesh) then
     !===============================================================

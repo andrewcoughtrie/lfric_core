@@ -879,7 +879,7 @@ mv $CYLC_TASK_WORK_DIR/lfric_averages.nc \
             BIN_DIR               = $OUTPUT_ROOT/{{mesh_label}}/bin
             DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{mesh_label}}
             MESH_DIR              = $OUTPUT_ROOT/{{mesh_label}}/meshes
-            OUTPUT_FILE           = $MESH_DIR/mesh_{{mesh_name}}.nc
+            OUTPUT_FILE_PREFIX    = $MESH_DIR/mesh_{{mesh_name}}
             SOURCE_DIRECTORY      = $SOURCE_ROOT/mesh_tools
 
 {{      directives( PRIMARY_TARGET, 'tech' ) }}

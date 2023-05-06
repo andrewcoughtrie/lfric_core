@@ -212,7 +212,7 @@ subroutine write_local_meshes( global_mesh_bank, &
       !     for this partition.
       !---------------------------------------------
       write(output_file,'(2(A,I0),A)') &
-          trim(output_basename)//'_',j,'-',n_partitions-1,'.nc'
+          trim(output_basename)//'_',j,'-',n_partitions,'.nc'
 
       if (i==1) then
         call ugrid_2d%write_to_file( trim(output_file) )

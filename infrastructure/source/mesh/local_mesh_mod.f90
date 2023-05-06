@@ -777,6 +777,7 @@ contains
 
   self%last_edge_cell     = local_lbc_id
   self%num_cells_in_layer = self%last_edge_cell
+  self%last_ghost_cell    = self%last_edge_cell
 
   if ( self%last_edge_cell > 0_i_def ) then
 
@@ -978,9 +979,9 @@ contains
                                           self%vert_coords(:,local_lbc_vert_id) )
   end do
 
-  allocate( self%cell_coords(3,self%last_ghost_cell) )
+  allocate( self%cell_coords(3, self%last_ghost_cell) )
   self%cell_coords = 0.0_r_def
-  do local_lbc_id = 1, self%last_ghost_cell
+  do local_lbc_id=1, self%last_ghost_cell
     global_lbc_id = self%get_gid_from_lid(local_lbc_id)
     call global_lbc_mesh%get_cell_coords( global_lbc_id, &
                                           self%cell_coords(:,local_lbc_id) )

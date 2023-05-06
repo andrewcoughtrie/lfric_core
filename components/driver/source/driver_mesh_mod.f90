@@ -238,7 +238,7 @@ subroutine init_mesh( local_rank, total_ranks,        &
     !
     ! Where 1 rank is assigned to each mesh partition.
     write(input_mesh_file,'(A,2(I0,A))') &
-        trim(file_prefix) // '_', local_rank, '-', total_ranks-1, '.nc'
+        trim(file_prefix) // '_', local_rank, '-', total_ranks, '.nc'
 
     call log_event( 'Using pre-partitioned mesh file:', LOG_LEVEL_INFO )
     call log_event( '   '//trim(input_mesh_file), LOG_LEVEL_INFO )

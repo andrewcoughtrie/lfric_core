@@ -1,0 +1,51 @@
+"SQ20":
+  Geometry:            spherical
+  Topology:            non_periodic
+  Co-ordinate system:  ll
+  Periodic X:          F
+  Periodic Y:          F
+  Constructor inputs:  geometry=spherical;topology=non_periodic;coord_sys=ll;edge_cells_x=20;edge_cells_y=20;periodic_x=F;periodic_y=F;domain_x=20.00;domain_y=20.00;rotate_mesh=F;target_mesh_names=['SQ10'];target_edge_cells_x=[10];target_edge_cells_y=[10]
+  Nodes:               64
+  Edges:               112
+  Faces:               49
+  Nodes per face:      4
+  Edges per face:      4
+  Nodes per edge:      2
+  Max. faces per node: 4
+  Maps to:             "SQ10"
+  North pole [lon,lat]: [      0.00,     90.00]
+  Null Island [lon,lat]: [      0.00,      0.00]
+"SQ20-lbc":
+  Geometry:            spherical
+  Topology:            non_periodic
+  Co-ordinate system:  ll
+  Periodic X:          F
+  Periodic Y:          F
+  Constructor inputs:  geometry=spherical;topology=non_periodic;coord_sys=ll;edge_cells_x=20;edge_cells_y=20;periodic_x=F;periodic_y=F;domain_x=20.00;domain_y=20.00;rotate_mesh=F;target_mesh_names=['SQ10'];target_edge_cells_x=[10];target_edge_cells_y=[10]
+  Nodes:               25
+  Edges:               40
+  Faces:               16
+  Nodes per face:      4
+  Edges per face:      4
+  Nodes per edge:      2
+  Max. faces per node: 4
+  Maps to:             "SQ20"
+  North pole [lon,lat]: [      0.00,     90.00]
+  Null Island [lon,lat]: [      0.00,      0.00]
+"SQ10":
+  Geometry:            spherical
+  Topology:            non_periodic
+  Co-ordinate system:  ll
+  Periodic X:          F
+  Periodic Y:          F
+  Constructor inputs:  geometry=spherical;topology=non_periodic;coord_sys=ll;edge_cells_x=10;edge_cells_y=10;periodic_x=F;periodic_y=F;domain_x=20.00;domain_y=20.00;rotate_mesh=F;target_mesh_names=['SQ20'];target_edge_cells_x=[20];target_edge_cells_y=[20]
+  Nodes:               36
+  Edges:               60
+  Faces:               25
+  Nodes per face:      4
+  Edges per face:      4
+  Nodes per edge:      2
+  Max. faces per node: 4
+  Maps to:             "SQ20"
+  North pole [lon,lat]: [      0.00,     90.00]
+  Null Island [lon,lat]: [      0.00,      0.00]

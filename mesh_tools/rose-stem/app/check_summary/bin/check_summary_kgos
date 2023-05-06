@@ -1,0 +1,49 @@
+#!/bin/sh
+#-----------------------------------------------------------------------------
+# (c) Crown copyright 2023 Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+
+
+file_list=$(ls ${MESH_DIR}/summary_${MESH_FILE_PREFIX}*)
+
+err_code=0
+suffix=_ugrid.txt
+
+for test_file in $file_list ; do
+
+  partition=${test_file%${suffix}}
+  partition=${partition#${MESH_DIR}/summary_${MESH_FILE_PREFIX}}
+
+  sed -e "s/.*INFO : //"                    \
+      -e "s/===*//"                         \
+      -e "/File.*contains ugrid mesh(es)/d" \
+      -e "/^\s*Application.*resources/d"    \
+      -e "/^\s*$/d"                         \
+      <${test_file} >${test_file}.stripped
+
+  summary_kgo_file=summary_${MESH_FILE_PREFIX}${partition}_ugrid.kgo.txt
+
+  echo ===============================
+  echo Comparing result against KGO
+  echo Result : ${test_file}.stripped
+  echo KGO    : ${summary_kgo_file}
+
+  if [ ! -f ${summary_kgo_file} ] ; then
+    err_code=1
+    echo KGO file not found: ${summary_kgo_file} >&2
+  else
+    echo diff -s ${test_file}.stripped ${summary_kgo_file}
+    diff -s ${test_file}.stripped ${summary_kgo_file}
+    if [ $? != 0 ] ; then
+      err_code=2
+      echo error_code is ${err_code}
+    fi
+  fi
+done
+
+if [ ${err_code} != 0 ] ; then
+  exit ${err_code}
+else
+  exit 0
+fi

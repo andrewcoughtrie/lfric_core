@@ -930,7 +930,7 @@ mv $CYLC_TASK_WORK_DIR/timer.txt $DESTINATION_DIRECTORY/"+pathFragment+"/results
             DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{mesh_label}}
             MESH_DIR              = $OUTPUT_ROOT/{{mesh_label}}/meshes
             BIN_DIR               = $OUTPUT_ROOT/{{mesh_label}}/bin
-            OUTPUT_FILE           = $MESH_DIR/mesh_{{mesh_name}}.nc
+            OUTPUT_FILE_PREFIX    = $MESH_DIR/mesh_{{mesh_name}}
 
 {{      directives( PRIMARY_TARGET, 'tech' ) }}
 {%-   endif %}

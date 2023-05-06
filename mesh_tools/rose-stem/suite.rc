@@ -320,12 +320,12 @@ echo $CYLC_TASK_LOG_ROOT > $DESTINATION_DIRECTORY/lfric.mesher."+compiler+".log
           PRIMARY_TARGET,
           ['base', 'compiler.'+compiler, 'tech'],
           ['base'],
-          prescript='mkdir -p $DESTINATION_DIRECTORY/meshes',
+          prescript='mkdir -p $DESTINATION_DIRECTORY/meshes/'+mesh,
           script='rose task-run --app-key=mesh --opt-conf-key='+mesh
       )}}
 
     [[[environment]]]
-      OUTPUT_FILE = $DESTINATION_DIRECTORY/meshes/{{mesh}}.nc
+      OUTPUT_FILE_PREFIX = $DESTINATION_DIRECTORY/meshes/{{mesh}}/{{mesh}}
 
 {{            directives(PRIMARY_TARGET, 'tech') }}
 {%-         endif %} {#- 'generate_' + mesh + '_' + label in scheduledTasks #}
@@ -339,13 +339,17 @@ echo $CYLC_TASK_LOG_ROOT > $DESTINATION_DIRECTORY/lfric.mesher."+compiler+".log
           PRIMARY_TARGET,
           ['base', 'compiler.'+compiler, 'tech'],
           ['base'],
-          script='rose task-run --app-key=summarise_ugrid  --command-key='+get_target_property( PRIMARY_TARGET, 'queue.tech.launcher' ),
-          postscript='cat $SUMMARY_FILE'
+           script='rose task-run --app-key=summarise_ugrid'
+
       )}}
 
     [[[environment]]]
-      MESH_FILE    = $DESTINATION_DIRECTORY/meshes/{{mesh}}.nc
-      SUMMARY_FILE = $DESTINATION_DIRECTORY/summary_{{mesh}}_ugrid.txt
+      MESH_FILE        = $DESTINATION_DIRECTORY/meshes/{{mesh}}/{{mesh}}.nc
+      MESH_DIR         = $DESTINATION_DIRECTORY/meshes/{{mesh}}
+      MESH_FILE_PREFIX = {{mesh}}
+      SUMMARY_FILE     = $MESH_DIR/summary_{{mesh}}_ugrid.txt
+      TARGET_PLATFORM  = {{PRIMARY_TARGET['platform']}}
+      RUN_METHOD       = {{get_target_property(PRIMARY_TARGET, 'queue.tech.launcher')}}
 
 {{            directives(PRIMARY_TARGET, 'tech') }}
 {%-         endif %}
@@ -359,17 +363,14 @@ echo $CYLC_TASK_LOG_ROOT > $DESTINATION_DIRECTORY/lfric.mesher."+compiler+".log
           PRIMARY_TARGET,
           ['base', 'compiler.'+compiler],
           ['base'],
-          script="""sed -e \"s/.*INFO : //\" -e \"s/===*//\" \
-    -e \"/File.*contains ugrid mesh(es)/d\" \
-    -e \"/^\s*Application.*resources/d\"    \
-    -e \"/^\s*$/d\"                         \
-    <$SUMMARY_FILE >${SUMMARY_FILE}.stripped
-rose task-run --app-key=check_summary"""
+          script='rose task-run --app-key=check_summary'
       )}}
 
     [[[environment]]]
-      SUMMARY_KGO  = summary_{{mesh}}_ugrid.kgo.txt
-      SUMMARY_FILE = $DESTINATION_DIRECTORY/summary_{{mesh}}_ugrid.txt
+      MESH_DIR         = $DESTINATION_DIRECTORY/meshes/{{mesh}}
+      MESH_FILE_PREFIX = {{mesh}}
+      SUMMARY_KGO      = summary_{{mesh}}_ugrid.kgo.txt
+      SUMMARY_FILE    = ${MESH_DIR}/summary_{{mesh}}_ugrid.txt
 
 {{            directives( PRIMARY_TARGET, 'tech') }}
 {%-         endif %} {#- 'summarise_' + mesh + '_' + label in scheduledTasks #}
@@ -391,8 +392,10 @@ rose task-run --app-key=check_summary"""
       KGO_DIR    = $SOURCE_ROOT/{{projectName}}/kgos
       TARGET_OPT = {{PRIMARY_TARGET['platform']}}
       CONFIG     = {{mesh}}
-      MESH_DIR   = $DESTINATION_DIRECTORY/meshes
+      MESH_DIR   = $DESTINATION_DIRECTORY/meshes/{{mesh}}
       MESH_FILE  = {{mesh}}.nc
+      MESH_FILE_PREFIX = {{mesh}}
+      TOLERANCE  = 1.0E-30
 
 {{            directives(PRIMARY_TARGET, 'tech') }}
 {%-         endif %} {#- f'check_mesh_{mesh}_{label}' in scheduledTasks #}

@@ -1,0 +1,36 @@
+#!/bin/sh
+#-----------------------------------------------------------------------------
+# (c) Crown copyright 2023 Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+
+array=($(ls ${MESH_DIR}/${MESH_FILE_PREFIX}*))
+
+err_code=0
+suffix=.nc
+for test_file in ${array[@]} ; do
+  partition=${test_file%${suffix}}
+  partition=${partition#${MESH_DIR}/${MESH_FILE_PREFIX}}
+  kgo_file=${KGO_DIR}/${APP_NAME}/${TARGET_OPT}/${APP_NAME}_${CONFIG}${partition}.${COMPILER}.kgo${suffix}
+  echo ===============================
+  echo Comparing result against KGO, Tolerance=${TOLERANCE}
+  echo Result : ${test_file}
+  echo KGO    : ${kgo_file}
+
+  if [ ! -f ${kgo_file} ] ; then
+    err_code=1
+    echo KGO file not found: ${kgo_file} >&2
+  else
+    nccmp -sdfgm --Tolerance=${TOLERANCE} ${test_file} ${kgo_file}
+    if [ $? != 0 ] ; then
+      err_code=2
+      echo error_code is ${err_code}
+    fi
+  fi
+done
+
+if [ ${err_code} != 0 ] ; then
+  exit ${err_code}
+else
+  exit 0
+fi

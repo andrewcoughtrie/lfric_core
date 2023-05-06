@@ -1,0 +1,71 @@
+#!/bin/sh
+#-----------------------------------------------------------------------------
+# (c) Crown copyright 2023 Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+
+EXEC_PATH="${BIN_DIR}/${EXEC_NAME}"
+
+# Ensure Total ranks requested is at least 1
+#===========================================
+if [ "${TOTAL_RANKS}" = "" ] ; then
+  TOTAL_RANKS=1
+fi
+
+# Set the launcher method
+#===========================================
+if [ "${RUN_METHOD}" = "executable" ] ; then
+  LAUNCHER=""
+else
+  LAUNCHER=${RUN_METHOD}
+fi
+
+
+# Construct launcher options
+#===========================================
+LAUNCHER_OPTS=""
+if [ "${RUN_METHOD}" = "aprun" ] ; then
+  if [ "${TARGET_PLATFORM}" = "meto-spice" ] ; then
+    echo Launcher \"aprun\" is specific to Cray platforms.
+    exit 1
+  else
+    CORES_PER_NUMA_REGION="$(( CORES_PER_NODE / NUMA_REGIONS_PER_NODE ))"
+    POTENTIAL_MPI_TASKS_PER_NUMA_REGION="$(( ( CORES_PER_NUMA_REGION * HYPERTHREADS ) / OMP_NUM_THREADS ))"
+    MPI_TASKS_PER_NUMA_REGION="$(( POTENTIAL_MPI_TASKS_PER_NUMA_REGION > TOTAL_RANKS?TOTAL_RANKS:POTENTIAL_MPI_TASKS_PER_NUMA_REGION ))"
+    LAUNCHER_OPTS="-cc depth -n ${TOTAL_RANKS} -S ${MPI_TASKS_PER_NUMA_REGION} -d ${OMP_NUM_THREADS} -j ${HYPERTHREADS}"
+  fi
+elif [ "${RUN_METHOD}" = "mpiexec" ] ; then
+  if [ "${SITE_MPI_LAUNCHER_OPTS}" != "" ] ; then
+    LAUNCHER_OPTS=${SITE_MPI_LAUNCHER_OPTS}
+  else
+    LAUNCHER_OPTS="-n ${TOTAL_RANKS}"
+  fi
+elif [ "${RUN_METHOD}" = "executable" ] ; then
+  LAUNCHER_OPTS=""
+fi
+
+# Launch the script
+#===========================================
+file_list=$(ls ${MESH_DIR}/${MESH_FILE_PREFIX}*)
+err_code=0
+suffix=.nc
+
+for TEST_FILE in $file_list ; do
+  partition=${TEST_FILE%${suffix}}
+  partition=${partition#${MESH_DIR}/${MESH_FILE_PREFIX}}
+  SUMMARY_FILE=${MESH_DIR}/summary_${MESH_FILE_PREFIX}${partition}_ugrid.txt
+
+  EXEC_COMMAND="${LAUNCHER} ${LAUNCHER_OPTS} ${EXEC_PATH}  ${TEST_FILE}"
+
+  echo Summarising: $(basename ${TEST_FILE})
+  echo ${EXEC_COMMAND}
+  echo ""
+  ${EXEC_COMMAND} >${SUMMARY_FILE}
+  error=$?
+  if [ ${error} != 0 ] ; then
+    echo "Execution failed, Error return code ${error}."
+  fi
+
+  cat ${SUMMARY_FILE}
+done
+exit ${error}

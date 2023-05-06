@@ -2344,6 +2344,16 @@ subroutine read_mesh( self,                                              &
     if (ierr == NF90_NOERR) max_stencil_depth = self%max_stencil_depth
 
     ! Allocate arrays to read into
+    if ( allocated(self%node_cell_owner) )  deallocate( self%node_cell_owner )
+    if ( allocated(self%edge_cell_owner) )  deallocate( self%edge_cell_owner )
+    if ( allocated(self%num_inner) )        deallocate( self%num_inner )
+    if ( allocated(self%num_halo) )         deallocate( self%num_halo )
+    if ( allocated(self%last_inner_cell) )  deallocate( self%last_inner_cell )
+    if ( allocated(self%last_halo_cell) )   deallocate( self%last_halo_cell )
+    if ( allocated(self%cell_gid) )         deallocate( self%cell_gid )
+    if ( allocated(self%node_on_cell_gid) ) deallocate( self%node_on_cell_gid )
+    if ( allocated(self%edge_on_cell_gid) ) deallocate( self%edge_on_cell_gid )
+
     allocate( self%node_cell_owner  (self%nmesh_nodes)   )
     allocate( self%edge_cell_owner  (self%nmesh_edges)   )
     allocate( self%num_inner        (self%inner_depth)   )
