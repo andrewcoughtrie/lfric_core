@@ -102,6 +102,25 @@ class TestFortranAnalyser():
         assert [('widgit', test_filename,
                  u'beef', Path('cow.f90'))] == dependencies
 
+    def test_exclamation_in_string(self, database, tmp_path: Path):
+        """
+        Ensure an exclamation mark inside a string doesn't end the line.
+        """
+        test_filename = tmp_path / 'cont.f90'
+        test_filename.write_text(dedent('''
+            call log_event("Gungho: " // "stopping program! ", &
+            &LOG_LEVEL_ERROR)
+            '''))
+
+        uut = FortranAnalyser([], database)
+        uut.analyse(test_filename)
+
+        programs = list(database.getPrograms())
+        assert [] == programs
+
+        dependencies = list(database.getCompileDependencies())
+        assert [] == dependencies
+
     def testProcedure(self, database, tmp_path: Path):
         """
         Procedure as program unit.
