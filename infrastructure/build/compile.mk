@@ -74,6 +74,20 @@ BIN_DIR ?= $(ROOT)/bin
 LIB_DIR ?= lib
 MOD_DIR ?= mod
 
+# Determine what performance tool to use.
+#
+# Technically the "time" tool we want to use is part of the operating system
+# and not the kernel. It's not clear what "Linux" means in the context of the
+# result from "uname" but it should be good enough for the moment.
+#
+ifeq ($(shell uname),Linux)
+  $(warning linux)
+  TIME_TOOL = /usr/bin/time -f "Compiled $<: Wallclock=%E, Highwater=%MKiB"
+else
+  $(warning not linux)
+  TIME_TOOL = time
+endif
+
 # If the compiler produces module files, tell it where to put them
 #
 ifdef F_MOD_DESTINATION_ARG
@@ -123,17 +137,19 @@ $(LIB_DIR)/lib%.a: $$($$(shell basename $$* | tr a-z A-Z)_OBJS) | $(LIB_DIR)
 .PRECIOUS: %.o
 %.o: %.f90 | $(MOD_DIR)
 	$(call MESSAGE,Compile,$<)
-	$(Q)$(FC) $(FFLAGS_BASE) $(FFLAGS_EXTRA)\
+	$(Q)$(TIME_TOOL) $(FC) $(FFLAGS_BASE) $(FFLAGS_EXTRA)\
 	          $(MODULE_DESTINATION_ARGUMENT) \
 	          $(MODULE_SOURCE_ARGUMENT) \
 	          $(INCLUDE_ARGS) -c -o $(basename $@).o $<
+	$(call MESSAGE,Compiled,$<)
 
 %.o: %.F90 | $(MOD_DIR)
 	$(call MESSAGE,Pre-process and compile,$<)
-	$(Q)$(FC) $(FFLAGS_BASE) $(FFLAGS_EXTRA) \
+	$(Q)$(TIME_TOOL) $(FC) $(FFLAGS_BASE) $(FFLAGS_EXTRA) \
 	          $(MODULE_DESTINATION_ARGUMENT) \
 	          $(MODULE_SOURCE_ARGUMENT) \
 	          $(INCLUDE_ARGS) $(MACRO_ARGS) -c -o $(basename $@).o $<
+	$(call MESSAGE,Compiled,$<)
 
 
 #############################################################################

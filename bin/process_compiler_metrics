@@ -1,0 +1,14 @@
+#!/bin/sh
+###############################################################################
+# (c) Crown copyright 2023 Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+###############################################################################
+# Process a log file containing compile metrics into a CVS file.
+#
+# Usage:
+#   process_compiler_metrics <logfile> <outfile>
+#
+###############################################################################
+
+cat $1 | sed -n 's/Compiled \(.*\): Wallclock=\(.*\), Highwater=\(.*\)/\1, \2, \3/p' > $2

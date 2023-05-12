@@ -71,6 +71,7 @@ export LFRIC_BUILD := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 #
 export LFRIC_INFRASTRUCTURE := $(realpath $(LFRIC_BUILD)/..)
 
+
 # Attempt to identify Cray systems...
 #
 ifdef PE_ENV
