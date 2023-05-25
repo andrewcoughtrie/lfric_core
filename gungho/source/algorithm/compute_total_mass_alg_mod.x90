@@ -27,15 +27,15 @@ contains
 
     use compute_column_integral_kernel_mod, &
                                         only: compute_column_integral_kernel_type
-    use compute_total_mass_kernel_mod,  only: compute_total_mass_kernel_type
+    use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
     use energy_correction_config_mod,   only: integral_method,    &
                                               integral_method_fd, &
                                               integral_method_fe
     use extrusion_mod,                  only: TWOD
+    use fem_constants_mod,              only: get_mass_matrix
     use fs_continuity_mod,              only: W3, Wtheta
     use field_mod,                      only: field_type
-    use finite_element_config_mod,      only: element_order, &
-                                              nqp_exact
+    use finite_element_config_mod,      only: element_order
     use function_space_mod,             only: function_space_type
     use function_space_collection_mod,  only: function_space_collection
     use geometric_constants_mod,        only: get_coordinates, &
@@ -46,10 +46,9 @@ contains
                                               LOG_LEVEL_ERROR
     use mesh_mod,                       only: mesh_type
     use mesh_collection_mod,            only: mesh_collection
+    use operator_mod,                   only: operator_type
     use physical_op_constants_mod,      only: get_da_msl_proj
     use planet_config_mod,              only: radius
-    use quadrature_xyoz_mod,            only: quadrature_xyoz_type
-    use quadrature_rule_gaussian_mod,   only: quadrature_rule_gaussian_type
 
     implicit none
 
@@ -65,10 +64,7 @@ contains
     type( mesh_type ),  pointer :: twod_mesh => null()
 
     ! For finite element calculations
-    type( quadrature_xyoz_type )          :: qr
-    type( quadrature_rule_gaussian_type ) :: quadrature_rule
-    type( field_type ),           pointer :: chi(:) => null()
-    type( field_type ),           pointer :: panel_id => null()
+    type( operator_type ),        pointer :: mm_w3 => null()
     type( function_space_type ),  pointer :: w3_fs => null()
     type( field_type )                    :: mass
 
@@ -95,23 +91,17 @@ contains
 
       nullify( height_w3, height_wth, twod_mesh, dA )
     case( integral_method_fe )
-      ! Get a quadrature rule
-      qr = quadrature_xyoz_type( nqp_exact, quadrature_rule )
-      w3_fs    => function_space_collection%get_fs( mesh, element_order, W3 )
-      chi      => get_coordinates( mesh_id )
-      panel_id => get_panel_id( mesh_id )
+      w3_fs => function_space_collection%get_fs( mesh, element_order, W3 )
+      mm_w3 => get_mass_matrix( W3, mesh_id )
 
       ! Initialise Mass
       call mass%initialise( vector_space = w3_fs )
 
       ! Compute conserved quantities
-      call invoke( name = "Compute conserved quantities",          &
-      ! Compute Total Mass
-                   compute_total_mass_kernel_type( mass, rho, chi, &
-                                                   panel_id, qr),  &
+      call invoke( dg_matrix_vector_kernel_type( mass, rho, mm_w3 ),  &
                    sum_X( total_mass, mass ) )
 
-      nullify( chi, panel_id, w3_fs )
+      nullify( mm_w3, w3_fs )
     case default
       write( log_scratch_space, '(''Unknown integral_method = '', i0, &
                                  ''in compute_total_mass.'')' ) integral_method

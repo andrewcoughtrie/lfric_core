@@ -9,9 +9,7 @@
 !>         cell by the volume of the cell and summing all cells.
 module mass_conservation_alg_mod
 
-  use check_configuration_mod,         only: check_any_eqn_consistent
-  use compute_moist_mass_kernel_mod,   only: compute_moist_mass_kernel_type
-  use compute_total_mass_kernel_mod,   only: compute_total_mass_kernel_type
+  use compute_total_mass_alg_mod,      only: compute_total_mass_alg
   use constants_mod,                   only: r_def, i_def, l_def
   use extrusion_mod,                   only: SHIFTED
   use fem_constants_mod,               only: get_qr
@@ -28,9 +26,6 @@ module mass_conservation_alg_mod
   use mesh_collection_mod,             only: mesh_collection
   use mesh_mod,                        only: mesh_type
   use mr_indices_mod,                  only: nummr
-  use quadrature_xyoz_mod,             only: quadrature_xyoz_type
-  use quadrature_rule_gaussian_mod,    only: quadrature_rule_gaussian_type
-  use geometric_constants_mod,         only: get_coordinates, get_panel_id
   use io_config_mod,                   only: subroutine_timers
   use timer_mod,                       only: timer
 
@@ -53,73 +48,31 @@ contains
     type(field_type),        intent(in) :: rho_d
     type(field_type),        intent(in) :: mr(nummr)
 
-    type(field_type),           pointer :: chi(:) => null()
-    type(field_type),           pointer :: chi_shifted(:) => null()
-    type(field_type),           pointer :: panel_id => null()
-    type(function_space_type),  pointer :: w3_fs => null()
     type(function_space_type),  pointer :: w3_sh_fs => null()
-    type(quadrature_xyoz_type), pointer :: qr => null()
+    type(mesh_type),            pointer :: mesh => null()
+    type(mesh_type),            pointer :: shifted_mesh => null()
 
-    type(field_type)      :: dry_mass_field, water_mass_field
-    type(field_type)      :: mr_shifted, rho_X_shifted, rho_d_shifted
-    real(kind=r_def)      :: total_dry_mass, total_water_mass
-    integer(kind=i_def)   :: shifted_mesh_id
-    logical(kind=l_def)   :: any_eqn_consistent
+    type(field_type) :: mr_shifted, rho_X_shifted, rho_d_shifted
+    real(kind=r_def) :: total_dry_mass, total_water_mass
 
-    type(mesh_type), pointer   :: mesh => null()
-    type(mesh_type), pointer   :: shifted_mesh => null()
 
     if ( subroutine_timers ) call timer( 'mass_conservation' )
 
     mesh => rho_d%get_mesh()
 
-    chi => get_coordinates(mesh%get_id())
-    panel_id => get_panel_id(mesh%get_id())
-
-    ! Get a quadrature rule
-    qr => get_qr()
-
-    ! Create mass fields
-    w3_fs => function_space_collection%get_fs( mesh, element_order, W3 )
-    call dry_mass_field%initialise( vector_space = w3_fs )
-
     ! Compute dry mass
-    call invoke( compute_total_mass_kernel_type( dry_mass_field, rho_d,        &
-                                                 chi, panel_id, qr ),          &
-                 sum_X( total_dry_mass, dry_mass_field ) )
+    call compute_total_mass_alg( total_dry_mass, rho_d, mesh )
 
-    ! TODO: what should be the appropriate moist mass calculation? We could:
-    ! (a) choose the calculation based on transport scheme (as below)
-    ! (b) enforce F.E. calculation and accept that consistent scheme does not
-    !     conserve this mass
-    ! (c) use calculation for consistent scheme. The non-consistent conservative
-    !     scheme could be changed to preserve the same mass
-    any_eqn_consistent = check_any_eqn_consistent()
+    ! Compute moist mass by converting into moisture density on shifted mesh
+    shifted_mesh => mesh_collection%get_mesh(mesh, SHIFTED)
+    w3_sh_fs => function_space_collection%get_fs( shifted_mesh, 0, W3 )
+    call mr_shifted%initialise( vector_space = w3_sh_fs )
+    call rho_X_shifted%initialise( vector_space = w3_sh_fs )
 
-    if (any_eqn_consistent) then
-      shifted_mesh => mesh_collection%get_mesh(mesh, SHIFTED)
-      shifted_mesh_id = shifted_mesh%get_id()
-      chi_shifted => get_coordinates(shifted_mesh_id)
-      w3_sh_fs => function_space_collection%get_fs( shifted_mesh, 0, W3 )
-      call mr_shifted%initialise( vector_space = w3_sh_fs )
-      call rho_X_shifted%initialise( vector_space = w3_sh_fs )
-      call water_mass_field%initialise( vector_space = w3_sh_fs )
-
-      call obtain_shifted_rho(rho_d_shifted, rho_d)
-      call invoke( inject_wt_to_sh_w3_kernel_type( mr_shifted, mr(1) ),        &
-                   X_times_Y( rho_X_shifted, mr_shifted, rho_d_shifted ),      &
-                   compute_total_mass_kernel_type( water_mass_field,           &
-                                                   rho_X_shifted, chi_shifted, &
-                                                   panel_id, qr ),             &
-                   sum_X( total_water_mass, water_mass_field ) )
-
-    else
-      call water_mass_field%initialise( vector_space = w3_fs )
-      call invoke( compute_moist_mass_kernel_type( water_mass_field, mr(1),    &
-                                                   rho_d, chi,                 &
-                                                   panel_id, qr ),             &
-                   sum_X( total_water_mass, water_mass_field ) )
-    end if
+    call obtain_shifted_rho(rho_d_shifted, rho_d)
+    call invoke( inject_wt_to_sh_w3_kernel_type( mr_shifted, mr(1) ),        &
+                  X_times_Y( rho_X_shifted, mr_shifted, rho_d_shifted ) )
+    call compute_total_mass_alg( total_water_mass, rho_X_shifted, shifted_mesh )
 
     ! Write out masses
     write( log_scratch_space, '(A,I4,1E32.24)')  &
@@ -129,8 +82,7 @@ contains
                   'Total water mass  = ', tstep, total_water_mass
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
-    nullify( chi, panel_id, w3_fs, qr, mesh, &
-             chi_shifted, w3_sh_fs, shifted_mesh )
+    nullify( mesh, w3_sh_fs, shifted_mesh )
 
     if ( subroutine_timers ) call timer( 'mass_conservation' )
 

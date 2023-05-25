@@ -10,7 +10,7 @@
 module conservation_algorithm_mod
 
   use compute_total_aam_kernel_mod,    only: compute_total_aam_kernel_type
-  use compute_total_mass_kernel_mod,   only: compute_total_mass_kernel_type
+  use compute_total_mass_alg_mod,      only: compute_total_mass_alg
   use compute_energetics_kernel_mod,   only: compute_energetics_kernel_type
 
   use constants_mod,                   only: r_def, i_def, i_timestep
@@ -71,7 +71,7 @@ contains
 
     type(function_space_type), pointer :: w3_fs => null()
 
-    type( field_type ) :: mass, aam, kinetic_uv, kinetic_w, &
+    type( field_type ) :: aam, kinetic_uv, kinetic_w, &
                           potential, internal, moist_int
 
     real(kind=r_def) :: total_mass, total_aam, total_energy, &
@@ -92,7 +92,6 @@ contains
     panel_id     => get_panel_id(mesh%get_id())
 
     ! Initialise Mass, Energy and Axial Angular Momentum fields
-    call mass%initialise( vector_space = w3_fs )
     call kinetic_uv%initialise( vector_space = w3_fs )
     call kinetic_w%initialise( vector_space = w3_fs )
     call potential%initialise( vector_space = w3_fs )
@@ -101,11 +100,8 @@ contains
     call aam%initialise( vector_space = w3_fs )
 
     ! Compute conserved quantities
+    call compute_total_mass_alg(total_mass, rho, mesh)
     call invoke( name = "Compute conserved quantities",                   &
-    ! Compute Total Mass
-                 compute_total_mass_kernel_type(mass, rho, chi,           &
-                                                panel_id, qr),            &
-                 sum_X(total_mass, mass),                                 &
     ! Compute Energy components
                  compute_energetics_kernel_type(kinetic_uv, kinetic_w,    &
                                                 potential, internal,      &

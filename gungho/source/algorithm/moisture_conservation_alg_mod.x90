@@ -8,7 +8,6 @@
 module moisture_conservation_alg_mod
 
   use compute_total_mass_alg_mod,      only: compute_total_mass_alg
-  use compute_total_mass_kernel_mod,   only: compute_total_mass_kernel_type
   use constants_mod,                   only: r_def, i_def, l_def
   use extrusion_mod,                   only: SHIFTED
   use function_space_collection_mod,   only: function_space_collection
@@ -69,7 +68,6 @@ contains
     type(function_space_type),  pointer :: w3_sh_fs => null()
 
     ! Fields and values
-    type(field_type)                    :: water_mass
     type(field_type)                    :: mr_shifted, rho_X_shifted
     type(field_type)                    :: rho_d_shifted
     real(kind=r_def)                    :: total_dry
@@ -100,17 +98,12 @@ contains
     w3_sh_fs => function_space_collection%get_fs( shifted_mesh, 0, W3 )
     call mr_shifted%initialise( vector_space = w3_sh_fs )
     call rho_X_shifted%initialise( vector_space = w3_sh_fs )
-    call water_mass%initialise( vector_space = w3_sh_fs )
 
     call obtain_shifted_rho(rho_d_shifted, rho_d)
     do i_mr = 1, nummr
-      call invoke( inject_wt_to_sh_w3_kernel_type( mr_shifted, mr(i_mr) ),   &
-                  X_times_Y( rho_X_shifted, mr_shifted, rho_d_shifted ),     &
-                  compute_total_mass_kernel_type( water_mass,                &
-                                                  rho_X_shifted,             &
-                                                  chi_shifted, panel_id,     &
-                                                  qr ),                      &
-                  sum_X( total_water_all(i_mr), water_mass ) )
+      call invoke( inject_wt_to_sh_w3_kernel_type(mr_shifted, mr(i_mr)),   &
+                   X_times_Y(rho_X_shifted, mr_shifted, rho_d_shifted) )
+      call compute_total_mass_alg(total_water_all(i_mr), rho_X_shifted, shifted_mesh)
     end do
 
     ! Output diagnostic values to log

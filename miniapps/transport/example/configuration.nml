@@ -10,6 +10,11 @@ topology='fully_periodic',
 &boundaries
 limited_area=.false.,
 /
+&energy_correction
+encorr_usage='none',
+integral_method='fe',
+reset_hours=24,
+/
 &extrusion
 domain_top=10.0,
 method='uniform',
