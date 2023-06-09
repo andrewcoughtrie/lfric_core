@@ -29,8 +29,8 @@ module process_ssi_kernel_mod
   type, public, extends(kernel_type) :: process_ssi_kernel_type
     private
     type(arg_type) :: meta_args(2) = (/                                        &
-         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_2)  &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2)  &
          /)
     integer :: operates_on = CELL_COLUMN
   contains
