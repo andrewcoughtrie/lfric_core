@@ -10,22 +10,27 @@
 !!         corresponding nonlinear code.
 program semi_implicit
 
-  use configuration_mod,  only : read_configuration, final_configuration
-  use halo_comms_mod,     only : initialise_halo_comms, finalise_halo_comms
-  use log_mod,            only : log_event,       &
-                                 LOG_LEVEL_ERROR, &
-                                 LOG_LEVEL_INFO
-  use mpi_mod,            only : mpi_type, create_comm, destroy_comm, global_mpi
-  use tl_test_driver_mod, only : initialise,                  &
-                                 finalise,                    &
-                                 run_timesteps,               &
-                                 run_transport_control,       &
-                                 run_semi_imp_alg,            &
-                                 run_rhs_sample_eos,          &
-                                 run_rhs_project_eos,         &
-                                 run_rhs_alg
+  use configuration_mod,     only : read_configuration, final_configuration
+  use gungho_model_data_mod, only : model_data_type
+  use halo_comms_mod,        only : initialise_halo_comms, finalise_halo_comms
+  use log_mod,               only : log_event,       &
+                                    LOG_LEVEL_ERROR, &
+                                    LOG_LEVEL_INFO
+  use mpi_mod,               only : mpi_type, global_mpi, &
+                                    create_comm, destroy_comm
+  use tl_test_driver_mod,    only : initialise,                  &
+                                    finalise,                    &
+                                    run_timesteps,               &
+                                    run_transport_control,       &
+                                    run_semi_imp_alg,            &
+                                    run_rhs_sample_eos,          &
+                                    run_rhs_project_eos,         &
+                                    run_rhs_alg
 
   implicit none
+
+  ! Model run working data set
+  type(model_data_type) :: model_data
 
   character(*), parameter :: application_name = 'semi_implicit'
 
@@ -55,6 +60,11 @@ program semi_implicit
 
   call log_event( 'TL testing running ...', LOG_LEVEL_INFO )
 
+  ! Create the depository, prognostics and diagnostics field collections
+  call model_data%depository%initialise(name='depository', table_len=100)
+  call model_data%prognostic_fields%initialise(name="prognostics", table_len=100)
+  call model_data%diagnostic_fields%initialise(name="diagnostics", table_len=100)
+
   ! Parse command line parameters
   call get_command_argument( 0, dummy, length, status )
   allocate(character(length)::program_name)
@@ -71,7 +81,7 @@ program semi_implicit
           " semi_imp_alg, "            // &
           " rhs_alg, "                 // &
           " rhs_project_eos, "         // &
-          " rhs_sample_eos, "         // &
+          " rhs_sample_eos, "          // &
           " } "
      call log_event( trim(usage_message), LOG_LEVEL_ERROR )
   end if
@@ -106,28 +116,28 @@ program semi_implicit
   call read_configuration( filename )
   deallocate( filename )
 
-  call initialise( application_name, global_mpi )
+  call initialise( application_name, model_data, global_mpi )
 
   if (do_test_timesteps) then
-    call run_timesteps()
+    call run_timesteps(model_data)
   endif
   if (do_test_transport_control) then
-    call run_transport_control()
+    call run_transport_control(model_data)
   endif
   if (do_test_rhs_alg) then
-    call run_rhs_alg()
+    call run_rhs_alg(model_data)
   endif
   if (do_test_rhs_project_eos) then
-    call run_rhs_project_eos()
+    call run_rhs_project_eos(model_data)
   endif
   if (do_test_rhs_sample_eos) then
-    call run_rhs_sample_eos()
+    call run_rhs_sample_eos(model_data)
   endif
   if (do_test_semi_imp_alg) then
-    call run_semi_imp_alg()
+    call run_semi_imp_alg(model_data)
   endif
 
-  call finalise( application_name )
+  call finalise( application_name, model_data )
   call final_configuration()
   call finalise_halo_comms()
   call destroy_comm()

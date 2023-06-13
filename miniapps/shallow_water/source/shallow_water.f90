@@ -43,6 +43,10 @@ program shallow_water
   deallocate( filename )
   call init_logger( global_mpi%get_comm(), program_name )
 
+  ! Create the depository and prognostics field collections
+  call model_data%depository%initialise(name='depository', table_len=100)
+  call model_data%prognostic_fields%initialise(name="prognostics", table_len=100)
+
   call log_event( 'Initialising Infrastructure ...', log_level_trace )
   call initialise( model_data, global_mpi, program_name )
   write(log_scratch_space,'("Running ", A, "...")') program_name

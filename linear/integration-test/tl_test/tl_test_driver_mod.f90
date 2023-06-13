@@ -66,25 +66,28 @@ module tl_test_driver_mod
          run_semi_imp_alg,            &
          run_transport_control
 
-  type( mesh_type ),          pointer :: mesh      => null()
-  type( mesh_type ),          pointer :: twod_mesh => null()
-  type(model_data_type)               :: model_data
   type(model_clock_type), allocatable :: model_clock
+
+  type(mesh_type), pointer :: mesh              => null()
+  type(mesh_type), pointer :: twod_mesh         => null()
+  type(mesh_type), pointer :: aerosol_mesh      => null()
+  type(mesh_type), pointer :: aerosol_twod_mesh => null()
 
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !>@brief     Sets up the required state in preparation for run.
+  !>@brief Sets up the required state in preparation for run.
+  !>@param [in]     program_name An identifier given to the model being run
+  !>@param [in,out] model_data   The structure that holds model state
+  !>@param [in,out] mpi          The structure that holds comms details
   !>
-  subroutine initialise( program_name, mpi )
+  subroutine initialise( program_name, model_data, mpi )
 
     implicit none
 
-    character(*),    intent(in)    :: program_name
-    class(mpi_type), intent(inout) :: mpi
-
-    type( mesh_type ), pointer :: aerosol_mesh      => null()
-    type( mesh_type ), pointer :: aerosol_twod_mesh => null()
+    character(*),          intent(in)    :: program_name
+    type(model_data_type), intent(inout) :: model_data
+    class(mpi_type),       intent(inout) :: mpi
 
 
     ! Initialise infrastructure and setup constants
@@ -132,10 +135,13 @@ contains
   end subroutine initialise
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !>@brief Tests the tangent linear kinetic energy gradient kernel.
-  subroutine run_timesteps()
+  !>@brief Tests the tangent linear model for multiple timesteps
+  !>@param [in,out] model_data   The structure that holds model state
+  subroutine run_timesteps(model_data)
 
     implicit none
+
+    type(model_data_type), intent(inout) :: model_data
 
     call test_timesteps( model_data, &
                          mesh,       &
@@ -144,9 +150,14 @@ contains
 
   end subroutine run_timesteps
 
-  subroutine run_kinetic_energy_gradient()
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !>@brief Tests the tangent linear model kinetic energy gradient kernel
+  !>@param [in,out] model_data   The structure that holds model state
+  subroutine run_kinetic_energy_gradient(model_data)
 
     implicit none
+
+    type(model_data_type), intent(inout) :: model_data
 
     call test_kinetic_energy_gradient( model_data, &
                                        mesh,       &
@@ -154,9 +165,14 @@ contains
 
   end subroutine run_kinetic_energy_gradient
 
-  subroutine run_advect_density_field()
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !>@brief Tests the tangent linear model for density advection kernel
+  !>@param [in,out] model_data   The structure that holds model state
+  subroutine run_advect_density_field(model_data)
 
     implicit none
+
+    type(model_data_type), intent(inout) :: model_data
 
     call test_advect_density_field( model_data,  &
                                     model_clock, &
@@ -165,9 +181,14 @@ contains
 
   end subroutine run_advect_density_field
 
-  subroutine run_advect_theta_field()
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !>@brief Tests the tangent linear model theta advection kernel
+  !>@param [in,out] model_data   The structure that holds model state
+  subroutine run_advect_theta_field(model_data)
 
     implicit none
+
+    type(model_data_type), intent(inout) :: model_data
 
     call test_advect_theta_field( model_data,  &
                                   model_clock, &
@@ -176,9 +197,14 @@ contains
 
   end subroutine run_advect_theta_field
 
-  subroutine run_vorticity_advection()
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !>@brief Tests the tangent linear model vorticity advection kernel
+  !>@param [in,out] model_data   The structure that holds model state
+  subroutine run_vorticity_advection(model_data)
 
     implicit none
+
+    type(model_data_type), intent(inout) :: model_data
 
     call test_vorticity_advection( model_data, &
                                    mesh,       &
@@ -186,9 +212,14 @@ contains
 
   end subroutine run_vorticity_advection
 
-  subroutine run_project_eos_pressure()
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !>@brief Tests the tangent linear model project pressure kernel
+  !>@param [in,out] model_data   The structure that holds model state
+  subroutine run_project_eos_pressure(model_data)
 
     implicit none
+
+    type(model_data_type), intent(inout) :: model_data
 
     call test_project_eos_pressure( model_data, &
                                     mesh,       &
@@ -196,9 +227,14 @@ contains
 
   end subroutine run_project_eos_pressure
 
-  subroutine run_sample_eos_pressure()
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !>@brief Tests the tangent linear model sample pressure kernel
+  !>@param [in,out] model_data   The structure that holds model state
+  subroutine run_sample_eos_pressure(model_data)
 
     implicit none
+
+    type(model_data_type), intent(inout) :: model_data
 
     call test_sample_eos_pressure( model_data,  &
                                    mesh,        &
@@ -206,9 +242,14 @@ contains
 
   end subroutine run_sample_eos_pressure
 
-  subroutine run_hydrostatic()
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !>@brief Tests the tangent linear model hydrostatic kernel
+  !>@param [in,out] model_data   The structure that holds model state
+  subroutine run_hydrostatic(model_data)
 
     implicit none
+
+    type(model_data_type), intent(inout) :: model_data
 
     call test_hydrostatic( model_data, &
                            mesh,       &
@@ -216,9 +257,14 @@ contains
 
   end subroutine run_hydrostatic
 
-  subroutine run_pressure_gradient_bd()
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !>@brief Tests the tangent linear model pressure gradient bd kernel
+  !>@param [in,out] model_data   The structure that holds model state
+  subroutine run_pressure_gradient_bd(model_data)
 
     implicit none
+
+    type(model_data_type), intent(inout) :: model_data
 
     call test_pressure_gradient_bd( model_data, &
                                     mesh,       &
@@ -226,9 +272,14 @@ contains
 
   end subroutine run_pressure_gradient_bd
 
-  subroutine run_rk_alg()
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !>@brief Tests the tangent linear model for runge kutta timestepping
+  !>@param [in,out] model_data   The structure that holds model state
+  subroutine run_rk_alg(model_data)
 
     implicit none
+
+    type(model_data_type), intent(inout) :: model_data
 
     call test_rk_alg( model_data, &
                       mesh,       &
@@ -237,9 +288,14 @@ contains
 
   end subroutine run_rk_alg
 
-  subroutine run_transport_control()
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !>@brief Tests the tangent linear model transport control routine
+  !>@param [in,out] model_data   The structure that holds model state
+  subroutine run_transport_control(model_data)
 
     implicit none
+
+    type(model_data_type), intent(inout) :: model_data
 
     call test_transport_control( model_data,  &
                                  model_clock, &
@@ -248,9 +304,14 @@ contains
 
   end subroutine run_transport_control
 
-  subroutine run_semi_imp_alg()
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !>@brief Tests the tangent linear model for semi-implicit timestepping
+  !>@param [in,out] model_data   The structure that holds model state
+  subroutine run_semi_imp_alg(model_data)
 
     implicit none
+
+    type(model_data_type), intent(inout) :: model_data
 
     call test_semi_imp_alg( model_data, &
                             mesh,       &
@@ -259,9 +320,14 @@ contains
 
   end subroutine run_semi_imp_alg
 
-  subroutine run_rhs_alg()
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !>@brief Tests the tangent linear model right-hand side
+  !>@param [in,out] model_data   The structure that holds model state
+  subroutine run_rhs_alg(model_data)
 
     implicit none
+
+    type(model_data_type), intent(inout) :: model_data
 
     call test_rhs_alg( model_data, &
                        mesh,       &
@@ -269,9 +335,14 @@ contains
 
   end subroutine run_rhs_alg
 
-  subroutine run_rhs_project_eos()
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !>@brief Tests the tangent linear model for the project RHS EoS
+  !>@param [in,out] model_data   The structure that holds model state
+  subroutine run_rhs_project_eos(model_data)
 
     implicit none
+
+    type(model_data_type), intent(inout) :: model_data
 
     call test_rhs_project_eos( model_data,  &
                                mesh,        &
@@ -279,9 +350,14 @@ contains
 
   end subroutine run_rhs_project_eos
 
-  subroutine run_rhs_sample_eos()
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !>@brief Tests the tangent linear model for the sample RHS EoS
+  !>@param [in,out] model_data   The structure that holds model state
+  subroutine run_rhs_sample_eos(model_data)
 
     implicit none
+
+    type(model_data_type), intent(inout) :: model_data
 
     call test_rhs_sample_eos( model_data,  &
                               mesh,        &
@@ -291,11 +367,14 @@ contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !>@brief Tidies up after a run.
-  subroutine finalise( program_name )
+  !>@param [in]     program_name An identifier given to the model being run
+  !>@param [in,out] model_data   The structure that holds model state
+  subroutine finalise( program_name, model_data )
 
     implicit none
 
-    character(*), intent(in) :: program_name
+    character(*),          intent(in)    :: program_name
+    type(model_data_type), intent(inout) :: model_data
 
     call log_event( 'Finalising '//program_name//' ...', LOG_LEVEL_ALWAYS )
 

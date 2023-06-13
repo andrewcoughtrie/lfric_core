@@ -93,28 +93,8 @@ contains
     type( field_type )                         :: u, rho, theta, exner
     type( field_type )                         :: ageofair
 
-    logical                                    :: create_depository
-
     call log_event( 'GungHo: Creating prognostics...', LOG_LEVEL_INFO )
 
-    ! Create the depository, prognostics and diagnostics field collections.
-    ! if coupled configuration depository and prognostics created in cpl_fields
-!> @todo this is a temporary solution related to the limitation of the XIOS
-!>       currently used. This routine should return to original version
-!>       when cpl_define can be called in any place in the code.
-!>       See #2710 test branch for details.
-
-    if(l_esm_couple) then
-      create_depository = .false.
-    else
-      create_depository = .true.
-    endif
-
-    if (create_depository) then
-       call depository%initialise(name='depository', table_len=100)
-       call prognostic_fields%initialise(name="prognostics", table_len=100)
-    endif
-    call diagnostic_fields%initialise(name="diagnostics", table_len=100)
     ! Create collection of fields to be advected
     call adv_fields_last_outer%initialise(name='adv_fields_last_outer', table_len=100)
     call adv_fields_all_outer%initialise(name='adv_fields_all_outer', table_len=100)

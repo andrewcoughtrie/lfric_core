@@ -38,6 +38,16 @@ program multires_coupling
   deallocate( filename )
   call init_logger( global_mpi%get_comm(), program_name )
 
+  ! Create the dynamics depository, prognostics and diagnostics field collections
+  call dynamics_mesh_model_data%depository%initialise(name='depository', table_len=100)
+  call dynamics_mesh_model_data%prognostic_fields%initialise(name="prognostics", table_len=100)
+  call dynamics_mesh_model_data%diagnostic_fields%initialise(name="diagnostics", table_len=100)
+
+  ! Create the physics depository, prognostics and diagnostics field collections
+  call physics_mesh_model_data%depository%initialise(name='depository', table_len=100)
+  call physics_mesh_model_data%prognostic_fields%initialise(name="prognostics", table_len=100)
+  call physics_mesh_model_data%diagnostic_fields%initialise(name="diagnostics", table_len=100)
+
   call log_event( 'Initialising' // program_name // ' ...', log_level_trace )
   call initialise( dynamics_mesh_model_data, &
                    physics_mesh_model_data,  &

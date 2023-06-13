@@ -154,8 +154,8 @@ contains
     !
     class(mpi_type), intent(inout) :: mpi
 
-    type(model_data_type),               intent(out) :: model_data
-    type(model_clock_type), allocatable, intent(out) :: model_clock
+    type(model_data_type),               intent(inout) :: model_data
+    type(model_clock_type), allocatable, intent(out)   :: model_clock
 
     character(len=*), parameter :: io_context_name = "gungho_atm"
 

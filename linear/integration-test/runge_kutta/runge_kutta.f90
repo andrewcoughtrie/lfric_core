@@ -10,24 +10,28 @@
 !!         corresponding nonlinear code.
 program runge_kutta
 
-  use configuration_mod,  only : read_configuration, final_configuration
-  use halo_comms_mod,     only : initialise_halo_comms, finalise_halo_comms
-  use log_mod,            only : log_event,       &
-                                 LOG_LEVEL_ERROR, &
-                                 LOG_LEVEL_INFO
-  use mpi_mod,            only : create_comm, destroy_comm, global_mpi
-  use tl_test_driver_mod, only : initialise,                  &
-                                 finalise,                    &
-                                 run_timesteps,               &
-                                 run_kinetic_energy_gradient, &
-                                 run_advect_density_field,    &
-                                 run_advect_theta_field,      &
-                                 run_vorticity_advection,     &
-                                 run_project_eos_pressure,    &
-                                 run_hydrostatic,             &
-                                 run_pressure_gradient_bd,    &
-                                 run_rk_alg
+  use configuration_mod,     only : read_configuration, final_configuration
+  use gungho_model_data_mod, only : model_data_type
+  use halo_comms_mod,        only : initialise_halo_comms, finalise_halo_comms
+  use log_mod,               only : log_event,       &
+                                    LOG_LEVEL_ERROR, &
+                                    LOG_LEVEL_INFO
+  use mpi_mod,               only : create_comm, destroy_comm, global_mpi
+  use tl_test_driver_mod,    only : initialise,                  &
+                                    finalise,                    &
+                                    run_timesteps,               &
+                                    run_kinetic_energy_gradient, &
+                                    run_advect_density_field,    &
+                                    run_advect_theta_field,      &
+                                    run_vorticity_advection,     &
+                                    run_project_eos_pressure,    &
+                                    run_hydrostatic,             &
+                                    run_pressure_gradient_bd,    &
+                                    run_rk_alg
   implicit none
+
+  ! Model run working data set
+  type(model_data_type) :: model_data
 
   character(*), parameter :: application_name = "runge_kutta"
 
@@ -59,6 +63,11 @@ program runge_kutta
   call initialise_halo_comms( communicator )
 
   call log_event( 'TL testing running ...', LOG_LEVEL_INFO )
+
+  ! Create the depository, prognostics and diagnostics field collections
+  call model_data%depository%initialise(name='depository', table_len=100)
+  call model_data%prognostic_fields%initialise(name="prognostics", table_len=100)
+  call model_data%diagnostic_fields%initialise(name="diagnostics", table_len=100)
 
   ! Parse command line parameters
   call get_command_argument( 0, dummy, length, status )
@@ -120,37 +129,37 @@ program runge_kutta
   call read_configuration( filename )
   deallocate( filename )
 
-  call initialise( application_name, global_mpi )
+  call initialise( application_name, model_data, global_mpi )
 
   if (do_test_timesteps) then
-    call run_timesteps()
+    call run_timesteps(model_data)
   endif
   if (do_test_kinetic_energy_gradient) then
-    call run_kinetic_energy_gradient()
+    call run_kinetic_energy_gradient(model_data)
   endif
   if (do_test_advect_density_field) then
-    call run_advect_density_field()
+    call run_advect_density_field(model_data)
   endif
   if (do_test_advect_theta_field) then
-    call run_advect_theta_field()
+    call run_advect_theta_field(model_data)
   endif
   if (do_test_vorticity_advection) then
-    call run_vorticity_advection()
+    call run_vorticity_advection(model_data)
   endif
   if (do_test_project_eos_pressure) then
-    call run_project_eos_pressure()
+    call run_project_eos_pressure(model_data)
   endif
   if (do_test_pressure_gradient_bd) then
-    call run_pressure_gradient_bd()
+    call run_pressure_gradient_bd(model_data)
   endif
   if (do_test_hydrostatic) then
-    call run_hydrostatic()
+    call run_hydrostatic(model_data)
   endif
   if (do_test_rk_alg) then
-    call run_rk_alg()
+    call run_rk_alg(model_data)
   endif
 
-  call finalise( application_name )
+  call finalise( application_name, model_data )
   call final_configuration()
   call finalise_halo_comms()
   call destroy_comm()

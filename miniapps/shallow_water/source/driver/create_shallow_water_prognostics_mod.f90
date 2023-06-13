@@ -80,11 +80,6 @@ module create_shallow_water_prognostics_mod
     procedure(checkpoint_write_interface), pointer :: tmp_checkpoint_write_ptr => null()
     procedure(checkpoint_read_interface),  pointer :: tmp_checkpoint_read_ptr => null()
 
-
-
-    call depository%initialise(name='depository', table_len=100)
-    call prognostics%initialise(name="prognostics", table_len=100)
-
     ! Create prognostic fields
     buoyancy_space = W3
     call log_event( 'shallow_water: Using V2 for buoyancy', LOG_LEVEL_INFO )

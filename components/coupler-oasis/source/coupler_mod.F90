@@ -490,17 +490,17 @@ module coupler_mod
 
   !>@brief Adds coupling fields used in the model to depository and
   !> prognosic_fields collections
-  !> @param [in]  twod_mesh    mesh on which coupling fields are defined (W3)
-  !> @param [out] depository   field collection - all fields
-  !> @param [out] prognostic_fields field collection - prognostic fields
+  !> @param [in]     twod_mesh    mesh on which coupling fields are defined (W3)
+  !> @param [in,out] depository   field collection - all fields
+  !> @param [in,out] prognostic_fields field collection - prognostic fields
   !
   subroutine cpl_fields( mesh, twod_mesh, depository, prognostic_fields )
    implicit none
 
    type( mesh_type ),             intent(in), pointer :: mesh
    type( mesh_type ),             intent(in), pointer :: twod_mesh
-   type( field_collection_type ), intent(out)   :: depository
-   type( field_collection_type ), intent(out)   :: prognostic_fields
+   type( field_collection_type ), intent(inout)       :: depository
+   type( field_collection_type ), intent(inout)       :: prognostic_fields
    !
    !vactor space for coupling field
    type(function_space_type), pointer :: vector_space => null()
@@ -512,9 +512,6 @@ module coupler_mod
 
    write(log_scratch_space, * ) "cpl_fields: add coupling fields to repository"
    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
-
-   call depository%initialise(name='depository', table_len=100)
-   call prognostic_fields%initialise(name="prognostics", table_len=100)
 
    vector_space=> function_space_collection%get_fs( twod_mesh, 0, W3 )
    sice_space  => function_space_collection%get_fs( twod_mesh, 0, W3,          &

@@ -40,6 +40,11 @@ program lfric_coupled
   deallocate( filename )
   call init_logger( global_mpi%get_comm(), application_name )
 
+  ! Create the depository, prognostics and diagnostics field collections
+  call model_data%depository%initialise(name='depository', table_len=100)
+  call model_data%prognostic_fields%initialise(name="prognostics", table_len=100)
+  call model_data%diagnostic_fields%initialise(name="diagnostics", table_len=100)
+
   call initialise( application_name, model_data, global_mpi )
   call run( application_name, model_data )
   call finalise( application_name, model_data )
