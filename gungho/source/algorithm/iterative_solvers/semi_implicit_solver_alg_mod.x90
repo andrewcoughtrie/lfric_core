@@ -279,10 +279,6 @@ contains
        call log_event("Unknown mixed preconditioner specified",LOG_LEVEL_ERROR)
     end select
 
-    call log_event( "semi_implicit_solver_alg_init: Setting up mixed operator", LOG_LEVEL_INFO )
-    ! Set up mixed operator
-    mixed_operator = mixed_operator_type()
-
     call log_event( "semi_implicit_solver_alg_init: allocate and construct mixed solver", &
                        LOG_LEVEL_INFO)
     ! Allocate mixed solver of correct type

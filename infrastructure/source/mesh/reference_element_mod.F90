@@ -110,21 +110,21 @@ module reference_element_mod
     procedure, public :: get_face_entity
     procedure, public :: get_edge_entity
     procedure, public :: get_vertex_entity
-    procedure(entities_iface),          deferred :: populate_entity_labels
-    procedure(vertices_iface),          deferred :: populate_vertices
-    procedure(entity_centre_iface),     deferred :: populate_entity_centres
-    procedure(vertices_on_faces_iface), deferred :: populate_vertices_on_faces
-    procedure(vertices_on_edges_iface), deferred :: populate_vertices_on_edges
-    procedure(edge_on_face_iface),      deferred :: populate_edge_on_face
-    procedure(edge_on_vertex_iface),    deferred :: populate_edge_on_vertex
-    procedure(face_on_edge_iface),      deferred :: populate_face_on_edge
-    procedure(normals_to_faces_iface),  deferred :: populate_normals_to_faces
-    procedure(normals_to_faces_iface),  deferred :: populate_normals_to_horizontal_faces
-    procedure(normals_to_faces_iface),  deferred :: populate_normals_to_vertical_faces
-    procedure(tangent_to_edge_iface),   deferred :: populate_tangent_to_edge
-    procedure(normals_to_faces_iface),  deferred :: populate_outward_normals_to_faces
-    procedure(normals_to_faces_iface),  deferred :: populate_outward_normals_to_horizontal_faces
-    procedure(normals_to_faces_iface),  deferred :: populate_outward_normals_to_vertical_faces
+    procedure(entities_iface), private,          deferred :: populate_entity_labels
+    procedure(vertices_iface), private,          deferred :: populate_vertices
+    procedure(entity_centre_iface), private,     deferred :: populate_entity_centres
+    procedure(vertices_on_faces_iface), private, deferred :: populate_vertices_on_faces
+    procedure(vertices_on_edges_iface), private, deferred :: populate_vertices_on_edges
+    procedure(edge_on_face_iface), private,      deferred :: populate_edge_on_face
+    procedure(edge_on_vertex_iface), private,    deferred :: populate_edge_on_vertex
+    procedure(face_on_edge_iface), private,      deferred :: populate_face_on_edge
+    procedure(normals_to_faces_iface), private,  deferred :: populate_normals_to_faces
+    procedure(normals_to_faces_iface), private,  deferred :: populate_normals_to_horizontal_faces
+    procedure(normals_to_faces_iface), private,  deferred :: populate_normals_to_vertical_faces
+    procedure(tangent_to_edge_iface), private,   deferred :: populate_tangent_to_edge
+    procedure(normals_to_faces_iface), private,  deferred :: populate_outward_normals_to_faces
+    procedure(normals_to_faces_iface), private,  deferred :: populate_outward_normals_to_horizontal_faces
+    procedure(normals_to_faces_iface), private,  deferred :: populate_outward_normals_to_vertical_faces
   end type reference_element_type
 
   abstract interface
