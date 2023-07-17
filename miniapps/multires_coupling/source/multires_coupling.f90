@@ -17,6 +17,7 @@ program multires_coupling
   use driver_collections_mod,       only : init_collections, final_collections
   use driver_comm_mod,              only : init_comm, final_comm
   use driver_config_mod,            only : init_config, final_config
+  use driver_counter_mod,           only : init_counters, final_counters
   use driver_log_mod,               only : init_logger, final_logger
   use driver_time_mod,              only : init_time, get_calendar
   use driver_timer_mod,             only : init_timers, final_timers
@@ -51,6 +52,7 @@ program multires_coupling
   deallocate( filename )
   call init_logger( dynamics_mesh_modeldb%mpi%get_comm(), program_name )
   call init_timers( program_name )
+  call init_counters( program_name )
   call init_collections()
   !
   ! Running two clocks like this is fairely unpleasent but until we have
@@ -100,6 +102,7 @@ program multires_coupling
                  program_name )
 
   call final_collections()
+  call final_counters( program_name )
   call final_timers( program_name )
   call final_logger( program_name )
   call final_config()

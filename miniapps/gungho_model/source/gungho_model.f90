@@ -20,6 +20,7 @@ program gungho_model
   use driver_collections_mod, only : init_collections, final_collections
   use driver_comm_mod,        only : init_comm, final_comm
   use driver_config_mod,      only : init_config, final_config
+  use driver_counter_mod,     only : init_counters, final_counters
   use driver_log_mod,         only : init_logger, final_logger
   use driver_time_mod,        only : init_time, get_calendar
   use driver_timer_mod,       only : init_timers, final_timers
@@ -51,6 +52,7 @@ program gungho_model
   call init_timers( application_name )
   call init_collections()
   call init_time( modeldb%clock )
+  call init_counters( application_name )
 
   ! Create the depository, prognostics and diagnostics field collections
   call modeldb%model_data%depository%initialise(name='depository', table_len=100)
@@ -77,6 +79,7 @@ program gungho_model
   call log_event( 'Finalising '//application_name//' ...', log_level_trace )
   call finalise( application_name, modeldb )
 
+  call final_counters( application_name )
   call final_collections()
   call final_timers( application_name )
   call final_logger( application_name )

@@ -154,7 +154,7 @@ contains
     call final_runtime_constants()
 
     ! Finalise infrastructure and constants
-    call finalise_infrastructure( program_name )
+    call finalise_infrastructure()
 
   end subroutine finalise
 

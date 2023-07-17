@@ -67,13 +67,14 @@ contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Sets up required state in preparation for run.
-  !> @param [in]     program_name An identifier given to the model being run
-  !> @param [in,out] modeldb      The structure that holds model state
-  subroutine initialise( program_name, modeldb, calendar )
+  !>
+  !> @param [in,out] modeldb   The structure that holds model state
+  !> @param [in]     calendar  Interprets dates.
+  !>
+  subroutine initialise( modeldb, calendar )
 
     implicit none
 
-    character(*),         intent(in)    :: program_name
     type(modeldb_type),   intent(inout) :: modeldb
     class(calendar_type), intent(in)    :: calendar
 
@@ -83,8 +84,7 @@ contains
 
 
     ! Initialise infrastructure and setup constants
-    call initialise_infrastructure( program_name,       &
-                                    modeldb%model_data, &
+    call initialise_infrastructure( modeldb%model_data, &
                                     modeldb%clock,      &
                                     calendar,           &
                                     modeldb%mpi )
@@ -224,7 +224,7 @@ contains
     call finalise_model_data( modeldb%model_data )
 
     ! Finalise infrastructure and constants
-    call finalise_infrastructure( program_name )
+    call finalise_infrastructure()
 
   end subroutine finalise
 

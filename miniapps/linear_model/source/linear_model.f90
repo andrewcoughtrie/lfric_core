@@ -52,7 +52,7 @@ program linear_model
   call modeldb%model_data%prognostic_fields%initialise(name="prognostics", table_len=100)
   call modeldb%model_data%diagnostic_fields%initialise(name="diagnostics", table_len=100)
 
-  call initialise( application_name, modeldb, get_calendar() )
+  call initialise( modeldb, get_calendar() )
 
   write( log_scratch_space,'("Running ", A, " ...")' ) application_name
   call log_event( log_scratch_space, log_level_trace )

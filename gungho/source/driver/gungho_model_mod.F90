@@ -23,7 +23,6 @@ module gungho_model_mod
   use constants_mod,              only : i_def, i_native, r_def, l_def, &
                                          PRECISION_REAL, r_second, str_def
   use convert_to_upper_mod,       only : convert_to_upper
-  use count_mod,                  only : count_type, halo_calls
   use derived_config_mod,         only : set_derived_config
   use extrusion_mod,              only : extrusion_type, TWOD, &
                                          SHIFTED, DOUBLE_LEVEL
@@ -46,12 +45,10 @@ module gungho_model_mod
                                   only : gungho_transport_control_alg_final
   use init_altitude_mod,          only : init_altitude
   use inventory_by_mesh_mod,      only : inventory_by_mesh_type
-  use io_config_mod,              only : subroutine_counters,     &
-                                         use_xios_io,             &
+  use io_config_mod,              only : use_xios_io,             &
                                          write_conservation_diag, &
                                          write_dump,              &
-                                         write_minmax_tseries,    &
-                                         counter_output_suffix
+                                         write_minmax_tseries
   use lfric_xios_context_mod,     only : lfric_xios_context_type
   use linked_list_mod,            only : linked_list_type
   use log_mod,                    only : log_event,          &
@@ -125,12 +122,11 @@ contains
   !> @brief Initialises the infrastructure and sets up constants used by the
   !>        model.
   !>
-  !> @param [in]     program_name An identifier given to the model begin run
   !> @param [in,out] model_data   The working data set for the model run
   !> @param [out]    model_clock  Time within the model
   !> @param [in]     mpi          Communication object
   !>
-  subroutine initialise_infrastructure( program_name, model_data, &
+  subroutine initialise_infrastructure( model_data, &
                                         model_clock, calendar, mpi )
 
     use logging_config_mod, only: key_from_run_log_level, &
@@ -141,8 +137,6 @@ contains
                                   RUN_LOG_LEVEL_WARNING
 
     implicit none
-
-    character(*), intent(in) :: program_name
 
     ! @todo I think the communication object aught to work as intent(in) but
     !       there seems to be an issue with Intel 19 which means (inout) is
@@ -194,15 +188,6 @@ contains
     call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
 
     call set_derived_config( .true. )
-
-    !-------------------------------------------------------------------------
-    ! Initialise timers and counters
-    !-------------------------------------------------------------------------
-
-    if ( subroutine_counters ) then
-      allocate(halo_calls, source=count_type('halo_calls'))
-      call halo_calls%counter(program_name)
-    end if
 
     !-------------------------------------------------------------------------
     ! Work out which meshes are required
@@ -574,11 +559,9 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Finalises infrastructure and constants used by the model.
   !>
-  subroutine finalise_infrastructure(program_name)
+  subroutine finalise_infrastructure()
 
     implicit none
-
-    character(*), intent(in) :: program_name
 
     !-------------------------------------------------------------------------
     ! Finalise I/O
@@ -591,15 +574,6 @@ contains
     !-------------------------------------------------------------------------
 
     call final_runtime_constants()
-
-    !-------------------------------------------------------------------------
-    ! Finalise timers and counters
-    !-------------------------------------------------------------------------
-
-    if ( subroutine_counters ) then
-      call halo_calls%counter(program_name)
-      call halo_calls%output_counters(counter_output_suffix)
-    end if
 
     !-------------------------------------------------------------------------
     ! Finalise aspects of the grid

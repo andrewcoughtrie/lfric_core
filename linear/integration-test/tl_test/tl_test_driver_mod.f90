@@ -88,8 +88,7 @@ contains
 
     ! Initialise infrastructure and setup constants
     !
-    call initialise_infrastructure( program_name,       &
-                                    modeldb%model_data, &
+    call initialise_infrastructure( modeldb%model_data, &
                                     modeldb%clock,      &
                                     calendar,           &
                                     modeldb%mpi )
@@ -384,7 +383,7 @@ contains
     call finalise_model_data( modeldb%model_data )
 
     ! Finalise infrastructure and constants
-    call finalise_infrastructure( program_name )
+    call finalise_infrastructure()
 
   end subroutine finalise
 

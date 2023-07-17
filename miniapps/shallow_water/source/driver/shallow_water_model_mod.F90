@@ -16,7 +16,6 @@ module shallow_water_model_mod
   use constants_mod,                  only: i_def, i_native, str_def, &
                                             PRECISION_REAL
   use convert_to_upper_mod,           only: convert_to_upper
-  use count_mod,                      only: count_type, halo_calls
   use derived_config_mod,             only: set_derived_config
   use driver_fem_mod,                 only: init_fem, final_fem
   use driver_io_mod,                  only: init_io, final_io, &
@@ -28,8 +27,7 @@ module shallow_water_model_mod
   use geometric_constants_mod,        only: get_chi_inventory, &
                                             get_panel_id_inventory
   use inventory_by_mesh_mod,          only: inventory_by_mesh_type
-  use io_config_mod,                  only: subroutine_counters,     &
-                                            use_xios_io,             &
+  use io_config_mod,                  only: use_xios_io,             &
                                             write_conservation_diag, &
                                             write_dump,              &
                                             write_minmax_tseries
@@ -98,13 +96,6 @@ module shallow_water_model_mod
 
     call set_derived_config( .true. )
 
-    !-------------------------------------------------------------------------
-    ! Initialise timers and counters
-    !-------------------------------------------------------------------------
-    if ( subroutine_counters ) then
-      allocate(halo_calls, source=count_type('halo_calls'))
-      call halo_calls%counter(program_name)
-    end if
 
     !-------------------------------------------------------------------------
     ! Work out which meshes are required
@@ -200,21 +191,9 @@ module shallow_water_model_mod
 
   !=============================================================================
   !> @brief Finalises infrastructure and constants used by the model.
-  !> @param[in] program_name      The program name
-  subroutine finalise_infrastructure(program_name)
+  subroutine finalise_infrastructure()
 
     implicit none
-
-    character(*), intent(in) :: program_name
-
-    !-------------------------------------------------------------------------
-    ! Finalise timers and counters
-    !-------------------------------------------------------------------------
-
-    if ( subroutine_counters ) then
-      call halo_calls%counter(program_name)
-      call halo_calls%output_counters()
-    end if
 
     !-------------------------------------------------------------------------
     ! Finalise aspects of the grid

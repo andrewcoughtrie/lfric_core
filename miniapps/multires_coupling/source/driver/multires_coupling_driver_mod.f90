@@ -242,7 +242,7 @@ contains
     call finalise_model_data( dynamics_mesh_modeldb%model_data )
     call finalise_model_data( physics_mesh_modeldb%model_data )
 
-    call finalise_infrastructure( program_name )
+    call finalise_infrastructure()
 
     call log_event( 'Miniapp completed', LOG_LEVEL_INFO )
 

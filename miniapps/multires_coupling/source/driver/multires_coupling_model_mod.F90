@@ -24,7 +24,6 @@ module multires_coupling_model_mod
                                          PRECISION_REAL, r_second, &
                                          str_def, r_def, l_def
   use convert_to_upper_mod,       only : convert_to_upper
-  use count_mod,                  only : count_type, halo_calls
   use derived_config_mod,         only : set_derived_config
   use extrusion_mod,              only : extrusion_type, TWOD, &
                                          SHIFTED, DOUBLE_LEVEL
@@ -48,10 +47,8 @@ module multires_coupling_model_mod
   use gungho_model_data_mod,      only : model_data_type
   use gungho_setup_io_mod,        only : init_gungho_files
   use init_altitude_mod,          only : init_altitude
-  use io_config_mod,              only : subroutine_counters,     &
-                                         write_conservation_diag, &
-                                         write_minmax_tseries,    &
-                                         counter_output_suffix
+  use io_config_mod,              only : write_conservation_diag, &
+                                         write_minmax_tseries
   use linked_list_mod,            only : linked_list_type
   use log_mod,                    only : log_event,          &
                                          log_scratch_space,  &
@@ -159,16 +156,6 @@ contains
     call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
 
     call set_derived_config( .true. )
-
-    !-------------------------------------------------------------------------
-    ! Initialise timers and counters
-    !-------------------------------------------------------------------------
-    call log_event( 'Initialising '//program_name//' ...', LOG_LEVEL_ALWAYS )
-
-    if ( subroutine_counters ) then
-      allocate(halo_calls, source=count_type('halo_calls'))
-      call halo_calls%counter(program_name)
-    end if
 
     !-------------------------------------------------------------------------
     ! Work out which meshes are required
@@ -416,7 +403,6 @@ contains
   !---------------------------------------------------------------------------
   !> @brief Initialises the multires_coupling application
   !>
-  !> @param[in] clock Model time
   !> @param[in] dynamics_mesh           The dynamics mesh
   !> @param[in,out] dynamics_model_data The dynamics data set
   !> @param[in] physics_mesh            The physics mesh
@@ -508,25 +494,15 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Finalises infrastructure and constants used by the model.
   !>
-  subroutine finalise_infrastructure(program_name)
+  subroutine finalise_infrastructure()
 
     implicit none
-
-    character(*), intent(in) :: program_name
 
     !-------------------------------------------------------------------------
     ! Finalise constants
     !-------------------------------------------------------------------------
 
     call final_runtime_constants()
-
-    !-------------------------------------------------------------------------
-    ! Finalise timers and counters
-    !-------------------------------------------------------------------------
-    if ( subroutine_counters ) then
-      call halo_calls%counter(program_name)
-      call halo_calls%output_counters(counter_output_suffix)
-    end if
 
     !-------------------------------------------------------------------------
     ! Finalise I/O
