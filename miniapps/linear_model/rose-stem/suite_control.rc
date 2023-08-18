@@ -74,6 +74,7 @@
     'validate_rose_meta_graph("linear_model")',
     'check_config_dump_graph()',
     'check_style_graph()',
+    'check_globals_graph()',
     'api_documentation_graph(publish=True)',
     'check_compilers("fast-debug", publish=True)',
     'canned_test("linear_model")',

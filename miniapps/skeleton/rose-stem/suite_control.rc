@@ -77,6 +77,7 @@
     'validate_rose_meta_graph("skeleton",appName="skeleton")',
     'check_config_dump_graph()',
     'check_style_graph()',
+    'check_globals_graph()',
     'api_documentation_graph(publish=True)',
     'run_application("skeleton", "default", resolutions=[("C24",)])',
     'check_compilers("skeleton", "default", "fast-debug", resolution=("C24",))',

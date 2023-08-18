@@ -22,6 +22,7 @@
                                 'design_documentation_graph(publish=True)',
                                 'check_config_dump_graph()',
                                 'check_style_graph()',
+                                'check_globals_graph()',
                                 'build_system'],
                   'nightly':   ['check_compilers("full-debug", publish=True)',
                                 'build_system',

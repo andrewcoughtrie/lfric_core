@@ -243,6 +243,8 @@
 
 {{ check_style_task('TECHNICAL', SECONDARY_TARGET) }}
 
+{{ check_globals_task('TECHNICAL', SECONDARY_TARGET) }}
+
 {%- if 'unit_test_build_tools' in scheduledTasks %}
     # The build tools have to be unit tested on the build target. Not much
     # point proving they work on some other machine.

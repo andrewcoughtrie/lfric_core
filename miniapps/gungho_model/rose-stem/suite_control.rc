@@ -100,6 +100,7 @@
     'validate_rose_meta_graph("gungho_model",appName="mesh")',
     'check_config_dump_graph()',
     'check_style_graph()',
+    'check_globals_graph()',
     'api_documentation_graph(publish=True)',
     'run_application("gungho_model", "baroclinic-alt1",
                      resolutions=[("C24_MG_op",3600.0)],

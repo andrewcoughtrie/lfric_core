@@ -1,0 +1,242 @@
+#!/usr/bin/env python3
+##############################################################################
+# (c) Crown copyright 2023 Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+##############################################################################
+"""
+Crufty tool to detect global variables in Fortran source. This is a stop-gap
+to aid the eradication of globals until Stylist can do it properly.
+"""
+import logging
+from argparse import ArgumentParser
+from logging import getLogger
+from pathlib import Path
+from re import compile as re_compile
+from sys import exit as sys_exit
+from typing import List, Optional, Tuple
+
+from fparser.common.readfortran import FortranFileReader  # type: ignore
+from fparser.two.Fortran2003 import (Attr_Spec,  # type: ignore
+                                     Declaration_Type_Spec,
+                                     Entity_Decl,
+                                     Intrinsic_Type_Spec,
+                                     Module,
+                                     Name,
+                                     Specification_Part,
+                                     Type_Declaration_Stmt,
+                                     Type_Name)
+from fparser.two.parser import ParserFactory  # type: ignore
+from fparser.two.utils import get_child, walk  # type: ignore
+
+
+# pylint: disable=too-few-public-methods
+class Dirt:
+    """
+    Describes a dirty file.
+    """
+    def __init__(self, line_number, fortran_type, variable_name):
+        self.line_number = line_number
+        self.fortran_type = fortran_type.lower()
+        self.variable_name = variable_name
+
+
+# pylint: disable=too-few-public-methods
+class DirtyFile:
+    """
+    List of dirty files.
+    """
+# pylint: disable = redefined-outer-name
+    def __init__(self, filename: Path) -> None:
+        self.filename = filename
+        self.dirt: List[Dirt] = []
+
+    def add_dirt(self, line_number: int, fortran_type: str,
+                 variable_name: str):
+        """
+        Extends the list of dirty files.
+        """
+        self.dirt.append(Dirt(line_number, fortran_type, variable_name))
+
+
+# pylint: disable = too-many-locals
+def __process_fortran(filename: Path) -> Optional[DirtyFile]:
+    file_tally = DirtyFile(filename)
+
+    reader = FortranFileReader(str(filename))
+    # pylint: disable = redefined-outer-name
+    parser = ParserFactory().create(std='f2008')
+    tree = parser(reader)
+    module = get_child(tree, Module)
+    if module is None:
+        return None
+
+    specification = get_child(module, Specification_Part)
+    for declaration in [child for child in specification.children
+                        if isinstance(child, Type_Declaration_Stmt)]:
+        line_number = declaration.item.span[0]
+
+        intrinsic_type = get_child(declaration, Intrinsic_Type_Spec)
+        if intrinsic_type is not None:
+            is_parameter = False
+            for attribute in walk(declaration, Attr_Spec):
+                if str(attribute).lower() == 'parameter':
+                    is_parameter = True
+                    break
+
+            if is_parameter:
+                continue
+
+            fortran_type = intrinsic_type.items[0]
+
+            for entity in walk(declaration, Entity_Decl):
+                entity_name = get_child(entity, Name)
+                file_tally.add_dirt(line_number,
+                                    str(fortran_type),
+                                    str(entity_name))
+
+            continue
+
+        user_type = get_child(declaration, Declaration_Type_Spec)
+        if user_type is not None:
+            type_name = get_child(user_type, Type_Name)
+
+            for entity in walk(declaration, Entity_Decl):
+                entity_name = get_child(entity, Name)
+                file_tally.add_dirt(line_number,
+                                    str(type_name),
+                                    str(entity_name))
+            continue
+
+        raise Exception(f"Unrecognised declaration: {declaration}")
+
+    # pylint: disable = no-else-return
+    if len(file_tally.dirt) == 0:
+        return None
+    else:
+        return file_tally
+
+
+__LOG_MESSAGE = "{filename}: {fortran_type}: {names}"
+__FORTRAN_EXTENSION_PATTERN = re_compile(r'\.[FfXx]90')
+
+
+# pylint: disable=redefined-outer-name
+def entry(file_objects: List[Path]) -> Tuple[List[DirtyFile],
+                                             List[Path],
+                                             List[Path]]:
+    """
+    Descend file tree processing files.
+    """
+    dirty_list: List[DirtyFile] = []  # pylint: disable=redefined-outer-name
+    clean_list: List[Path] = []  # pylint: disable=redefined-outer-name
+    not_considered: List[Path] = []  # pylint: disable=redefined-outer-name
+
+    while len(file_objects) > 0:
+        file_object = file_objects.pop()
+        if not file_object.exists():
+            raise FileExistsError(file_object)
+        if file_object.is_dir():
+            getLogger('occupyfortran').debug("Descending into %s", file_object)
+            file_objects.extend(file_object.iterdir())
+        else:  # Object is a file
+            if __FORTRAN_EXTENSION_PATTERN.match(file_object.suffix):
+                getLogger('occupyfortran').debug("Processing %s", file_object)
+                # pylint: disable=redefined-outer-name
+                report = __process_fortran(file_object)
+                if report is None:
+                    clean_list.append(file_object)
+                else:  # File has dirt
+                    dirty_list.append(report)
+            else:
+                getLogger('occupyfortran').debug("Ignoring %s", file_object)
+                not_considered.append(file_object)
+
+    return dirty_list, clean_list, not_considered
+
+
+if __name__ == '__main__':
+    TEXT = "Searches Fortran source for global variables."
+    parser = ArgumentParser(description=TEXT, add_help=False)
+    parser.add_argument('-help', '-h', '--help', action='help',
+                        help="Print this message and exit.")
+    parser.add_argument('-version', action='version',
+                        version='%(prog)s 0.1.0',
+                        help="Print version information and exit.")
+    parser.add_argument('-debug', action='store_true',
+                        help="Log more information.")
+    subparsers = parser.add_subparsers(dest='operation', help="Operations")
+
+    file_operation = subparsers.add_parser(
+        "file", add_help=False,
+        help="Filename specifies a file object."
+    )
+    file_operation.add_argument('-help', '-h', '--help', action='help',
+                                help="Print this message and exit.")
+    file_operation.add_argument('-cleanlist',
+                                help="Generate a list of passing files")
+
+    list_operation = subparsers.add_parser(
+        "list", add_help=False,
+        help="Filename specifies a list file."
+    )
+    list_operation.add_argument('-help', '-h', '--help', action='help',
+                                help="Print this message and exit.")
+
+    parser.add_argument('-directory', type=Path, default=Path(),
+                        help="Scan relative to this directory.")
+    parser.add_argument('filename', type=Path, default=Path())
+    arguments = parser.parse_args()
+
+    logger = getLogger('occupyfortran')
+    logger.addHandler(logging.StreamHandler())
+    if arguments.debug:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
+
+    file_objects: List[Path] = []
+    if arguments.operation == 'list':
+        for line in arguments.filename.read_text().splitlines():
+            if line.strip():
+                file_objects.append(arguments.directory / Path(line))
+    elif arguments.operation == 'file':
+        file_objects.append(arguments.directory / arguments.filename)
+    else:
+        raise Exception(f"Unrecognised operation: {arguments.operation}")
+
+    dirty_list, clean_list, not_considered = entry(file_objects)
+
+    globals_found = 0  # pylint: disable=invalid-name
+    for report in dirty_list:
+        for problem in report.dirt:
+            globals_found += 1
+            MESSAGE = ' : '.join([str(report.filename),
+                                  str(problem.line_number),
+                                  problem.fortran_type,
+                                  problem.variable_name])
+            getLogger('occupyfortran').error(MESSAGE)
+
+    if 'cleanlist' in arguments:
+        clean_list_filename = Path() / 'cleanlist.txt'
+        if clean_list_filename.exists():
+            clean_list_filename.unlink()
+        if len(clean_list) > 0:
+            with clean_list_filename.open('w', encoding='utf8') as fhandle:
+                for clean_filename in clean_list:
+                    print(str(clean_filename), file=fhandle)
+
+    # pylint: disable=invalid-name
+    total_scanned = len(dirty_list) + len(clean_list) + len(not_considered)
+    message = f"Found {globals_found} global variables " \
+              f"in {len(dirty_list)} files."
+    getLogger('occupyfortran').info(message)
+    message = f"Meanwhile no problems found in {len(clean_list)} files."
+    getLogger('occupyfortran').info(message)
+    message = f"Overall {total_scanned} scanned."
+    getLogger('occupyfortran').info(message)
+
+    if len(dirty_list) > 0:
+        sys_exit(1)
+    else:
+        sys_exit(0)

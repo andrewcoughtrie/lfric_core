@@ -173,6 +173,31 @@ err-script = """
 {%- endmacro %}
 
 
+{# CHECK FOR GLOBAL VARIABLES MACROS #}
+{#---------------------------------------------------------------------------#}
+{%- macro check_globals_graph() %}
+{%-   if 'check_globals' in RUN_TECHNICAL %}
+    [[[R1]]]
+    export_source => check_globals
+{%-   endif %}
+{%- endmacro %}
+
+{%- macro check_globals_task( family, target ) %}
+{%-   if 'check_globals' in scheduledTasks %}
+  [[check_globals]]
+    inherit = {{family}}
+
+    {{scripting(
+          target,
+          ['base', 'tech'],
+          ['base'],
+          script="rose task-run --app-key=check_globals"
+      )}}
+{%-   endif %}
+{%- endmacro %}
+
+
+
 {# CHECK EXTRACT LIST MACROS #}
 {#---------------------------------------------------------------------------#}
 

@@ -16,7 +16,8 @@
                                 'check_compilers("fast-debug", publish=True)',
                                 'api_documentation_graph(publish=True)',
                                 'uml_documentation_graph(publish=True)',
-                                'check_style_graph()'],
+                                'check_style_graph()',
+                                'check_globals_graph()'],
                   'nightly'  : ['null_task_graph()']
                                 } %}
 

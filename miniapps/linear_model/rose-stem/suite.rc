@@ -170,7 +170,7 @@
             batch system = {{ get_target_property(SECONDARY_TARGET,
                                                   'batcher') }}
         [[[environment]]]
-            SOURCE_DIRECTORY      = $SOURCE_ROOT/linear
+            SOURCE_DIRECTORY      = $SOURCE_ROOT/{{appPathFragment}}/{{projectName}}
             DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{ SECONDARY_TARGET['compiler'] }}_fast-debug
             WORKING_DIR           = {{ get_target_property(SECONDARY_TARGET,  'build_root') }}/{{ SECONDARY_TARGET['compiler'] }}_fast-debug
 {{ directives(SECONDARY_TARGET, 'tech') }}
@@ -287,6 +287,8 @@
 {{ check_config_dump_task('TECHNICAL', SECONDARY_TARGET) }}
 
 {{check_style_task( 'TECHNICAL', SECONDARY_TARGET )}}
+
+{{check_globals_task( 'TECHNICAL', SECONDARY_TARGET )}}
 
 {{api_documentation_task('DOCUMENTATION', SECONDARY_TARGET, 'PUBLISH', SECONDARY_TARGET)}}
 {{uml_documentation_task('DOCUMENTATION', SECONDARY_TARGET, 'PUBLISH', SECONDARY_TARGET)}}
