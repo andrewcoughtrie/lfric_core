@@ -10,7 +10,7 @@
 !!          LFRic-JEDI interface
 module lfric_da_datetime_mod
 
-  use constants_mod,                   only : i_def, r_def, str_def, l_def
+  use constants_mod,                   only : i_timestep, r_def, str_def, l_def
   use lfric_da_datetime_functions_mod, only : YYYYMMDD_to_JDN,   &
                                               JDN_to_YYYYMMDD,   &
                                               hhmmss_to_seconds, &
@@ -26,15 +26,15 @@ module lfric_da_datetime_mod
   implicit none
   private
 
-  integer(i_def), parameter  :: seconds_in_day = 86400
+  integer(i_timestep), parameter  :: seconds_in_day = 86400
 
   !> @brief This type stores the JEDI date and time
   type, public :: jedi_datetime_type
     private
 
-    integer(i_def) :: date    !< Julian day number
-    integer(i_def) :: time    !< seconds since start of day
-    logical(l_def) :: initialised = .false.
+    integer(i_timestep) :: date    !< Julian day number
+    integer(i_timestep) :: time    !< seconds since start of day
+    logical(l_def)      :: initialised = .false.
 
   contains
 
@@ -122,15 +122,15 @@ contains
     class( jedi_datetime_type ), intent(inout) :: self
     character(*),                intent(in)    :: iso_datetime
 
-    integer(i_def) :: year
-    integer(i_def) :: month
-    integer(i_def) :: day
+    integer(i_timestep) :: year
+    integer(i_timestep) :: month
+    integer(i_timestep) :: day
 
-    integer(i_def) :: hour
-    integer(i_def) :: minute
-    integer(i_def) :: second
+    integer(i_timestep) :: hour
+    integer(i_timestep) :: minute
+    integer(i_timestep) :: second
 
-    integer(i_def) :: err
+    integer(i_timestep) :: err
 
     read ( iso_datetime(1:4), '(I4)', iostat=err ) year
     read ( iso_datetime(6:7), '(I2)', iostat=err ) month
@@ -164,26 +164,26 @@ contains
     implicit none
 
     class( jedi_datetime_type ), intent(inout) :: self
-    integer(i_def), intent(in) :: YYYYMMDD !< year, month, and day eg 20230405
-    integer(i_def), intent(in) :: hhmmss   !< hour, minute, second eg 130210
+    integer(i_timestep), intent(in) :: YYYYMMDD !< year, month, and day eg 20230405
+    integer(i_timestep), intent(in) :: hhmmss   !< hour, minute, second eg 130210
 
-    integer(i_def) :: year
-    integer(i_def) :: month
-    integer(i_def) :: day
+    integer(i_timestep) :: year
+    integer(i_timestep) :: month
+    integer(i_timestep) :: day
 
-    integer(i_def) :: hour
-    integer(i_def) :: minute
-    integer(i_def) :: second
+    integer(i_timestep) :: hour
+    integer(i_timestep) :: minute
+    integer(i_timestep) :: second
 
-    integer(i_def) :: temp_int
+    integer(i_timestep) :: temp_int
 
     year     = YYYYMMDD / 10000        ! remove lower 4 digits, yields YYYY
     temp_int = mod( YYYYMMDD, 10000 )  ! keep lower 4 digits, yields MMDD
     month    = temp_int / 100          ! remove lower 2 digits, yields MM
     day      = mod( temp_int, 100 )    ! keep lower 2 digits, yields DD
 
-    hour     = int(hhmmss, i_def) / 10000        ! remove lower 4 digits, yields hh
-    temp_int = mod( int(hhmmss, i_def), 10000 )  ! keep lower 4 digits, yields mmss
+    hour     = int(hhmmss, i_timestep) / 10000        ! remove lower 4 digits, yields hh
+    temp_int = mod( int(hhmmss, i_timestep), 10000 )  ! keep lower 4 digits, yields mmss
     minute   = temp_int / 100                    ! remove lower 2 digits, yields mm
     second   = mod( temp_int, 100 )              ! keep lower 2 digits, yeilds ss
 
@@ -205,13 +205,13 @@ contains
     implicit none
 
     class( jedi_datetime_type ), intent(inout) :: self
-    integer(i_def), intent(in) :: year    !< in YYYY format, eg 2020
-    integer(i_def), intent(in) :: month   !< in MM format, 01 (Jan) through 12 (Dec)
-    integer(i_def), intent(in) :: day     !< in DD format, 01 through 28, 29, 30, or 31
+    integer(i_timestep), intent(in) :: year    !< in YYYY format, eg 2020
+    integer(i_timestep), intent(in) :: month   !< in MM format, 01 (Jan) through 12 (Dec)
+    integer(i_timestep), intent(in) :: day     !< in DD format, 01 through 28, 29, 30, or 31
 
-    integer(i_def), intent(in) :: hour    !< in hh format, 00 through 23
-    integer(i_def), intent(in) :: minute  !< in mm format, 00 through 59
-    integer(i_def), intent(in) :: second  !< in ss format, 00 through 59
+    integer(i_timestep), intent(in) :: hour    !< in hh format, 00 through 23
+    integer(i_timestep), intent(in) :: minute  !< in mm format, 00 through 59
+    integer(i_timestep), intent(in) :: second  !< in ss format, 00 through 59
 
     call log_event( 'Initialising JEDI datetime', LOG_LEVEL_INFO )
 
@@ -236,7 +236,7 @@ contains
     implicit none
 
     class( jedi_datetime_type ), intent(in)  :: self
-    integer(i_def),              intent(out) :: date
+    integer(i_timestep),         intent(out) :: date
 
     date = self%date
 
@@ -250,7 +250,7 @@ contains
     implicit none
 
     class( jedi_datetime_type ), intent(in)  :: self
-    integer(i_def),              intent(out) :: time
+    integer(i_timestep),         intent(out) :: time
 
     time = self%time
 
@@ -264,10 +264,10 @@ contains
     implicit none
 
     class( jedi_datetime_type ), intent(inout) :: self
-    integer(i_def),              intent(in)    :: seconds
+    integer(i_timestep),         intent(in)    :: seconds
 
-    integer(i_def) :: days
-    integer(i_def) :: new_time
+    integer(i_timestep) :: days
+    integer(i_timestep) :: new_time
 
     new_time = seconds
     days = new_time / seconds_in_day
@@ -319,13 +319,13 @@ contains
     class( jedi_datetime_type ), intent(inout) :: self
     character(str_def),          intent(inout) :: iso_datetime
 
-    integer(i_def) :: year
-    integer(i_def) :: month
-    integer(i_def) :: day
+    integer(i_timestep) :: year
+    integer(i_timestep) :: month
+    integer(i_timestep) :: day
 
-    integer(i_def) :: hour
-    integer(i_def) :: minute
-    integer(i_def) :: second
+    integer(i_timestep) :: hour
+    integer(i_timestep) :: minute
+    integer(i_timestep) :: second
 
     character(len=4) :: temp_str_4
     character(len=2) :: temp_str_2
@@ -389,9 +389,9 @@ contains
 
     type( jedi_datetime_type ) :: new_datetime
 
-    integer(i_def) :: date
-    integer(i_def) :: time
-    integer(i_def) :: seconds
+    integer(i_timestep) :: date
+    integer(i_timestep) :: time
+    integer(i_timestep) :: seconds
 
     new_datetime%date = self%date
     new_datetime%time = self%time
@@ -416,9 +416,9 @@ contains
 
     type( jedi_duration_type ) :: duration
 
-    integer(i_def)            :: diff_date
-    integer(i_def)            :: diff_time
-    integer(i_def)            :: diff_seconds
+    integer(i_timestep)        :: diff_date
+    integer(i_timestep)        :: diff_time
+    integer(i_timestep)        :: diff_seconds
 
     diff_date = self%date - datetime%date
     diff_time = self%time - datetime%time

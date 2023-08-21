@@ -15,7 +15,7 @@ module lfric_da_datetime_mod_test
 
   ! Global use statements go here
 
-  use constants_mod, only : i_def, str_def, l_def
+  use constants_mod, only : i_timestep, str_def, l_def
 
   use pFUnit_Mod
 
@@ -84,22 +84,22 @@ contains
     type(jedi_datetime_type) :: jedi_datetime_2
     type(jedi_datetime_type) :: jedi_datetime_3
 
-    integer(i_def)           :: YYYYMMDD, hhmmss
-    integer(i_def)           :: year, month, day
-    integer(i_def)           :: hour, minute, second
+    integer(i_timestep)      :: YYYYMMDD, hhmmss
+    integer(i_timestep)      :: year, month, day
+    integer(i_timestep)      :: hour, minute, second
 
     character(str_def)       :: iso_datetime, returned_iso_datetime
 
-    integer(i_def) :: date, returned_date
-    integer(i_def) :: time, returned_time
-    logical(l_def) :: ahead
+    integer(i_timestep) :: date, returned_date
+    integer(i_timestep) :: time, returned_time
+    logical(l_def)      :: ahead
 
-    date = 2460040_i_def
-    time = 58770_i_def
+    date = 2460040
+    time = 58770
 
     ! Test init with YYYYMMDD and hhmmss
-    YYYYMMDD = 20230405_i_def
-    hhmmss   = 161930_i_def
+    YYYYMMDD = 20230405
+    hhmmss   = 161930
 
     call jedi_datetime%init( YYYYMMDD, hhmmss )
     call jedi_datetime%get_date( returned_date )
@@ -108,12 +108,12 @@ contains
     @assertEqual( time, returned_time )
 
     ! Test init with year, month, day, hour, minute, second
-    year   = 2023_i_def
-    month  = 04_i_def
-    day    = 05_i_def
-    hour   = 16_i_def
-    minute = 19_i_def
-    second = 30_i_def
+    year   = 2023
+    month  = 04
+    day    = 05
+    hour   = 16
+    minute = 19
+    second = 30
 
     call jedi_datetime%init( year, month, day, hour, minute, second )
     call jedi_datetime%get_date( returned_date )
@@ -137,26 +137,26 @@ contains
     @assertEqual( time, returned_time )
 
     ! Test adding negative amount of seconds
-    call jedi_datetime_2%add_seconds( -1_i_def )
+    call jedi_datetime_2%add_seconds( -1 )
     call jedi_datetime_2%get_time( returned_time )
-    @assertEqual( time - 1_i_def, returned_time )
+    @assertEqual( time - 1, returned_time )
 
     ! Test adding seconds
-    call jedi_datetime_2%add_seconds( 2_i_def )
+    call jedi_datetime_2%add_seconds( 2 )
     call jedi_datetime_2%get_time( returned_time )
-    @assertEqual( time + 1_i_def, returned_time )
+    @assertEqual( time + 1, returned_time )
 
     ! Test adding seconds (over a day)
-    call jedi_datetime_3%add_seconds( 86401_i_def )
+    call jedi_datetime_3%add_seconds( 86401 )
     call jedi_datetime_3%get_date( returned_date )
-    @assertEqual( date + 1_i_def, returned_date )
+    @assertEqual( date + 1, returned_date )
     call jedi_datetime_3%get_time( returned_time )
-    @assertEqual( time + 1_i_def, returned_time )
+    @assertEqual( time + 1, returned_time )
 
     ! Test removing seconds (over a day)
-    call jedi_datetime_3%add_seconds( -172801_i_def )
+    call jedi_datetime_3%add_seconds( -172801 )
     call jedi_datetime_3%get_date( returned_date )
-    @assertEqual( date - 1_i_def, returned_date )
+    @assertEqual( date - 1, returned_date )
     call jedi_datetime_3%get_time( returned_time )
     @assertEqual( time, returned_time )
 

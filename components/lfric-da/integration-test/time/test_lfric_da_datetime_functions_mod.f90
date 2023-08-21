@@ -7,7 +7,7 @@
 !>@brief Tests the jedi_datetime_functions_mod routines that log an ERROR
 module test_lfric_da_datetime_functions_mod
 
-  use constants_mod,                 only : i_def
+  use constants_mod,                 only : i_timestep
 
   implicit none
 
@@ -27,11 +27,11 @@ contains
 
     implicit none
 
-    integer(i_def) :: year  = -3000_i_def
-    integer(i_def) :: month = 12_i_def
-    integer(i_def) :: day   = 30_i_def
+    integer(i_timestep) :: year  = -3000
+    integer(i_timestep) :: month = 12
+    integer(i_timestep) :: day   = 30
 
-    integer(i_def) :: julian_day_number
+    integer(i_timestep) :: julian_day_number
 
     call YYYYMMDD_to_JDN( year, month, day, julian_day_number )
 
@@ -44,11 +44,11 @@ contains
 
     implicit none
 
-    integer(i_def) :: julian_day_number = -20000_i_def
+    integer(i_timestep) :: julian_day_number = -20000
 
-    integer(i_def) :: year
-    integer(i_def) :: month
-    integer(i_def) :: day
+    integer(i_timestep) :: year
+    integer(i_timestep) :: month
+    integer(i_timestep) :: day
 
     call JDN_to_YYYYMMDD( julian_day_number, year, month, day )
 
@@ -61,11 +61,11 @@ contains
 
     implicit none
 
-    integer(i_def) :: hour   = 34_i_def
-    integer(i_def) :: minute = 12_i_def
-    integer(i_def) :: second = 36_i_def
+    integer(i_timestep) :: hour   = 34
+    integer(i_timestep) :: minute = 12
+    integer(i_timestep) :: second = 36
 
-    integer(i_def) :: time_seconds
+    integer(i_timestep) :: time_seconds
 
     call hhmmss_to_seconds( hour, minute, second, time_seconds )
 
@@ -79,11 +79,11 @@ contains
 
     implicit none
 
-    integer(i_def) :: time_seconds = 86400_i_def
+    integer(i_timestep) :: time_seconds = 86400
 
-    integer(i_def) :: hour
-    integer(i_def) :: minute
-    integer(i_def) :: second
+    integer(i_timestep) :: hour
+    integer(i_timestep) :: minute
+    integer(i_timestep) :: second
 
     call seconds_to_hhmmss( time_seconds, hour, minute, second )
 
@@ -97,11 +97,11 @@ contains
 
     implicit none
 
-    integer(i_def) :: time_seconds = -1_i_def
+    integer(i_timestep) :: time_seconds = -1
 
-    integer(i_def) :: hour
-    integer(i_def) :: minute
-    integer(i_def) :: second
+    integer(i_timestep) :: hour
+    integer(i_timestep) :: minute
+    integer(i_timestep) :: second
 
     call seconds_to_hhmmss( time_seconds, hour, minute, second )
 

@@ -15,7 +15,7 @@
 !>
 program jedi_forecast_pseudo
 
-  use constants_mod,           only : PRECISION_REAL, i_def, i_native
+  use constants_mod,           only : PRECISION_REAL, i_native
   use log_mod,                 only : log_event, log_scratch_space, &
                                       LOG_LEVEL_ALWAYS
 
@@ -77,7 +77,7 @@ program jedi_forecast_pseudo
   call jedi_pseudo_model_config%initialise()
 
   ! Forecast config - duration of forecast / seconds
-  call datetime_duration%init( 5_i_def )
+  call datetime_duration%init( 5 )
 
   ! Geometry
   call jedi_geometry%initialise()

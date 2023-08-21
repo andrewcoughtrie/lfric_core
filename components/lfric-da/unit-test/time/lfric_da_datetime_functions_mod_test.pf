@@ -15,7 +15,7 @@ module lfric_da_datetime_functions_mod_test
 
   ! Global use statements go here
 
-  use constants_mod, only : i_def, l_def
+  use constants_mod, only : i_timestep, l_def
 
   use pFUnit_Mod
 
@@ -88,26 +88,26 @@ contains
 
     class(lfric_da_datetime_functions_test_type), intent(inout) :: this
 
-    integer(i_def) :: year, returned_year
-    integer(i_def) :: month, returned_month
-    integer(i_def) :: day, returned_day
+    integer(i_timestep) :: year, returned_year
+    integer(i_timestep) :: month, returned_month
+    integer(i_timestep) :: day, returned_day
 
-    integer(i_def) :: julian_day_number, returned_julian_day_number
+    integer(i_timestep) :: julian_day_number, returned_julian_day_number
 
-    integer(i_def) :: hour, returned_hour
-    integer(i_def) :: minute, returned_minute
-    integer(i_def) :: second, returned_second
+    integer(i_timestep) :: hour, returned_hour
+    integer(i_timestep) :: minute, returned_minute
+    integer(i_timestep) :: second, returned_second
 
-    integer(i_def) :: time_seconds, returned_time_seconds
+    integer(i_timestep) :: time_seconds, returned_time_seconds
 
     logical(l_def) :: valid
 
     ! Test YYYYMMDD_to_JDN conversion to Julian Day Number
-    year  = 2023_i_def
-    month = 04_i_def
-    day   = 05_i_def
+    year  = 2023
+    month = 04
+    day   = 05
 
-    julian_day_number = 2460040_i_def
+    julian_day_number = 2460040
 
     call YYYYMMDD_to_JDN( year, month, day, returned_julian_day_number )
     @assertEqual( julian_day_number, returned_julian_day_number )
@@ -120,11 +120,11 @@ contains
     @assertEqual( day, returned_day )
 
     ! Test hhmmss_to_seconds
-    hour   = 16_i_def
-    minute = 19_i_def
-    second = 30_i_def
+    hour   = 16
+    minute = 19
+    second = 30
 
-    time_seconds = 58770_i_def
+    time_seconds = 58770
 
     call hhmmss_to_seconds( hour, minute, second, returned_time_seconds )
     @assertEqual( time_seconds, returned_time_seconds )
@@ -141,55 +141,55 @@ contains
     valid = is_valid_YYYYMMDD( year, month, day )        ! good date
     @assertEqual( .true., valid )
 
-    valid = is_valid_YYYYMMDD( -5000_i_def, month, day ) ! bad year
+    valid = is_valid_YYYYMMDD( -5000, month, day ) ! bad year
     @assertEqual( .false., valid )
 
-    valid = is_valid_YYYYMMDD( year, 13_i_def, day )     ! bad month
+    valid = is_valid_YYYYMMDD( year, 13, day )     ! bad month
     @assertEqual( .false., valid )
-    valid = is_valid_YYYYMMDD( year, 00_i_def, day )     ! bad month
-    @assertEqual( .false., valid )
-
-    valid = is_valid_YYYYMMDD( year, month, 32_i_def )   ! bad day
-    @assertEqual( .false., valid )
-    valid = is_valid_YYYYMMDD( year, month, 00_i_def )   ! bad day
+    valid = is_valid_YYYYMMDD( year, 00, day )     ! bad month
     @assertEqual( .false., valid )
 
-    valid = is_valid_YYYYMMDD( 2023_i_def, 02_i_def, 29_i_def ) ! Feb non leap
+    valid = is_valid_YYYYMMDD( year, month, 32 )   ! bad day
     @assertEqual( .false., valid )
-    valid = is_valid_YYYYMMDD( 2024_i_def, 02_i_def, 29_i_def ) ! Feb leap
+    valid = is_valid_YYYYMMDD( year, month, 00 )   ! bad day
+    @assertEqual( .false., valid )
+
+    valid = is_valid_YYYYMMDD( 2023, 02, 29 ) ! Feb non leap
+    @assertEqual( .false., valid )
+    valid = is_valid_YYYYMMDD( 2024, 02, 29 ) ! Feb leap
     @assertEqual( .true., valid )
 
     ! leap year tests
-    valid = is_leap_year( 2021_i_def )
+    valid = is_leap_year( 2021 )
     @assertEqual( .false., valid )
 
-    valid = is_leap_year( 2000_i_def )
+    valid = is_leap_year( 2000 )
     @assertEqual( .true., valid )
 
-    valid = is_leap_year( 2024_i_def )
+    valid = is_leap_year( 2024 )
     @assertEqual( .true., valid )
 
     ! hour, minute, day tests
     valid = is_valid_hhmmss( hour, minute, second )      ! good time
     @assertEqual( .true., valid )
 
-    valid = is_valid_hhmmss( -01_i_def, minute, second ) ! bad hour
+    valid = is_valid_hhmmss( -01, minute, second ) ! bad hour
     @assertEqual( .false., valid )
-    valid = is_valid_hhmmss( 24_i_def, minute, second )  ! bad hour
-    @assertEqual( .false., valid )
-
-    valid = is_valid_hhmmss( hour, -01_i_def, second ) ! bad minute
-    @assertEqual( .false., valid )
-    valid = is_valid_hhmmss( hour, 60_i_def, second )  ! bad minute
+    valid = is_valid_hhmmss( 24, minute, second )  ! bad hour
     @assertEqual( .false., valid )
 
-    valid = is_valid_hhmmss( hour, minute, -01_i_def ) ! bad second
+    valid = is_valid_hhmmss( hour, -01, second ) ! bad minute
     @assertEqual( .false., valid )
-    valid = is_valid_hhmmss( hour, minute, 60_i_def )  ! bad second
+    valid = is_valid_hhmmss( hour, 60, second )  ! bad minute
+    @assertEqual( .false., valid )
+
+    valid = is_valid_hhmmss( hour, minute, -01 ) ! bad second
+    @assertEqual( .false., valid )
+    valid = is_valid_hhmmss( hour, minute, 60 )  ! bad second
     @assertEqual( .false., valid )
 
     ! date time test
-    valid = is_valid_datetime( 2460040_i_def, 58770_i_def )
+    valid = is_valid_datetime( 2460040, 58770 )
     @assertEqual( .true., valid )
 
   end subroutine lfric_da_datetime_functions_test

@@ -29,7 +29,7 @@ module jedi_state_mod
                                             LOG_LEVEL_INFO,     &
                                             LOG_LEVEL_ERROR
   use lfric_da_fake_nl_driver_mod,   only : mesh, twod_mesh
-  use constants_mod,                 only : i_def, l_def
+  use constants_mod,                 only : i_def, i_timestep, l_def
 
   implicit none
 
@@ -426,7 +426,7 @@ subroutine update_time( self, seconds )
   implicit none
 
   class( jedi_state_type ), intent(inout) :: self
-  integer(i_def),           intent(in)    :: seconds
+  integer(i_timestep),      intent(in)    :: seconds
 
   call self%datetime%add_seconds( seconds )
 
@@ -446,19 +446,19 @@ subroutine set_clock( self, new_datetime )
   type( jedi_datetime_type ), intent(in)    :: new_datetime
 
   type( jedi_duration_type ) :: duration
-  integer(i_def)             :: timestep
+  integer(i_timestep)        :: timestep
 
   logical(l_def) :: clock_stopped
 
-  timestep = int( dt, kind=i_def )
+  timestep = int( dt, kind=i_timestep )
 
   duration = new_datetime - self%datetime
 
-  if ( duration == 0_i_def ) then
+  if ( duration == 0 ) then
     write ( log_scratch_space, '(A)' ) &
       "New datetime is the same as the current datetime"
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
-  else if ( duration < 0_i_def ) then
+  else if ( duration < 0 ) then
     write ( log_scratch_space, '(A)' ) &
       "The xios clock can not go backwards."
     call log_event( log_scratch_space, LOG_LEVEL_ERROR )

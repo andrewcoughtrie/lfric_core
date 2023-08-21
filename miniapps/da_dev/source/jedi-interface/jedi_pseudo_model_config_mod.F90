@@ -58,13 +58,13 @@ subroutine initialise( self )
 
   call next_datetime%init_lfric_calendar_start()
 
-  datetime_entries = 9_i_def
+  datetime_entries = 9
   allocate(self%datetime_states(datetime_entries))
 
   ! initialise datetime states 1-9 seconds after
   ! lfric calendar_start namelist variable time
   do i = 1, datetime_entries
-    call next_datetime%add_seconds( 1_i_def )
+    call next_datetime%add_seconds( 1 )
     self%datetime_states(i) = next_datetime
   end do
 

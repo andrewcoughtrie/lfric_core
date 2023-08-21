@@ -12,7 +12,7 @@
 !>
 module jedi_model_mod
 
-  use constants_mod,                 only : i_def
+  use constants_mod,                 only : i_timestep
   use lfric_da_datetime_mod,         only : jedi_datetime_type
   use lfric_da_duration_mod,         only : jedi_duration_type
   use jedi_state_mod,                only : jedi_state_type
@@ -28,7 +28,7 @@ type, public :: jedi_model_type
   private
 
   !> The data map between external field data and LFRic fields
-  integer( kind = i_def ) :: datetime_duration_dt
+  integer( kind=i_timestep ) :: datetime_duration_dt
 
 contains
 
@@ -60,8 +60,8 @@ subroutine initialise( self, datetime_duration_dt )
 
   implicit none
 
-  class( jedi_model_type ), intent(inout)   :: self
-  integer( kind=i_def ), intent(in)         :: datetime_duration_dt
+  class( jedi_model_type ),   intent(inout) :: self
+  integer( kind=i_timestep ), intent(in)    :: datetime_duration_dt
 
   self%datetime_duration_dt = datetime_duration_dt
 

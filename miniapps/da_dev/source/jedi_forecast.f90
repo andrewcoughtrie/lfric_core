@@ -15,7 +15,7 @@
 !>
 program jedi_forecast
 
-  use constants_mod,           only : PRECISION_REAL, i_def, i_native
+  use constants_mod,           only : PRECISION_REAL, i_native, i_timestep
   use log_mod,                 only : log_event, log_scratch_space, &
                                       LOG_LEVEL_ALWAYS
 
@@ -41,7 +41,7 @@ program jedi_forecast
   ! Emulator configs
   type( jedi_state_config_type ) :: jedi_state_config
   type(jedi_duration_type)       :: datetime_duration
-  integer( kind=i_def )          :: datetime_duration_dt
+  integer( kind=i_timestep )     :: datetime_duration_dt
 
   ! Local
   character(:), allocatable      :: filename
@@ -75,7 +75,7 @@ program jedi_forecast
   datetime_duration_dt = 1
 
   ! Forecast config
-  call datetime_duration%init( 5_i_def )
+  call datetime_duration%init( 5 )
 
   ! Geometry
   call jedi_geometry%initialise()

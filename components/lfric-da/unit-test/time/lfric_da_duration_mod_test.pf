@@ -15,7 +15,7 @@ module lfric_da_duration_mod_test
 
   ! Global use statements go here
 
-  use constants_mod,         only : i_def, str_def, l_def
+  use constants_mod,         only : i_timestep, str_def, l_def
   use lfric_da_duration_mod, only : jedi_duration_type
 
   use pFUnit_Mod
@@ -85,21 +85,21 @@ contains
 
     type(jedi_duration_type) :: jedi_duration
 
-    character(str_def) :: iso_string, returned_string
-    integer(i_def)     :: second, returned_second
+    character(str_def)  :: iso_string, returned_string
+    integer(i_timestep) :: second, returned_second
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Test empty initialise
     call jedi_duration%init()
     call jedi_duration%get_duration( returned_second )
-    @assertEqual( 0_i_def, returned_second )
+    @assertEqual( 0, returned_second )
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Test initialise with ISO String and getting it back
     iso_string = 'P1DT12H5M3S'
     call jedi_duration%init( iso_string )
     call jedi_duration%get_duration( returned_second )
-    @assertEqual( 129903_i_def, returned_second )
+    @assertEqual( 129903, returned_second )
 
     call jedi_duration%to_string( returned_string )
     @assertEqual( 'P1DT12H5M3S', returned_string )
@@ -108,7 +108,7 @@ contains
     iso_string = '-P1DT12H5M3S'
     call jedi_duration%init( iso_string )
     call jedi_duration%get_duration( returned_second )
-    @assertEqual( -129903_i_def, returned_second )
+    @assertEqual( -129903, returned_second )
 
     call jedi_duration%to_string( returned_string )
     @assertEqual( '-P1DT12H5M3S', returned_string )
@@ -117,7 +117,7 @@ contains
     iso_string = 'PT12H5M3S'
     call jedi_duration%init( iso_string )
     call jedi_duration%get_duration( returned_second )
-    @assertEqual( 43503_i_def, returned_second )
+    @assertEqual( 43503, returned_second )
 
     call jedi_duration%to_string( returned_string )
     @assertEqual( 'PT12H5M3S', returned_string )
@@ -126,7 +126,7 @@ contains
     iso_string = 'P12DT12H5M3S'
     call jedi_duration%init( iso_string )
     call jedi_duration%get_duration( returned_second )
-    @assertEqual( 1080303_i_def, returned_second )
+    @assertEqual( 1080303, returned_second )
 
     call jedi_duration%to_string( returned_string )
     @assertEqual( 'P12DT12H5M3S', returned_string )
@@ -135,7 +135,7 @@ contains
     iso_string = 'P1DT12H5M300S'
     call jedi_duration%init( iso_string )
     call jedi_duration%get_duration( returned_second )
-    @assertEqual( 130200_i_def, returned_second )
+    @assertEqual( 130200, returned_second )
 
     call jedi_duration%to_string( returned_string )
     @assertEqual( 'P1DT12H10M', returned_string )
@@ -144,30 +144,30 @@ contains
     iso_string = 'P1D'
     call jedi_duration%init( iso_string )
     call jedi_duration%get_duration( returned_second )
-    @assertEqual( 86400_i_def, returned_second )
+    @assertEqual( 86400, returned_second )
 
     call jedi_duration%to_string( returned_string )
     @assertEqual( 'P1D', returned_string )
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Test initialise with seconds
-    second = 0_i_def
+    second = 0
     call jedi_duration%init( second )
     call jedi_duration%get_duration( returned_second )
-    @assertEqual( 0_i_def, returned_second )
+    @assertEqual( 0, returned_second )
 
     call jedi_duration%to_string( returned_string )
     @assertEqual( 'PT0S', returned_string )
 
-    second = 50_i_def
+    second = 50
     call jedi_duration%init( second )
     call jedi_duration%get_duration( returned_second )
-    @assertEqual( 50_i_def, returned_second )
+    @assertEqual( 50, returned_second )
 
-    second = -50_i_def
+    second = -50
     call jedi_duration%init( second )
     call jedi_duration%get_duration( returned_second )
-    @assertEqual( -50_i_def, returned_second )
+    @assertEqual( -50, returned_second )
 
   end subroutine lfric_da_duration_init_test
 
@@ -187,17 +187,17 @@ contains
 
     type(jedi_duration_type) :: test_duration
 
-    integer(i_def)     :: second, returned_second
+    integer(i_timestep)      :: second, returned_second
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Initialise durations
     ! 0 seconds
     call jedi_duration%init()
 
-    second = 10_i_def
+    second = 10
     call jedi_duration_2%init( second )
 
-    second = -2_i_def
+    second = -2
     call jedi_duration_3%init( second )
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -205,54 +205,54 @@ contains
     ! test +
     test_duration = jedi_duration + jedi_duration_2
     call test_duration%get_duration( returned_second )
-    @assertEqual( 10_i_def, returned_second )
+    @assertEqual( 10, returned_second )
 
     ! test -
     test_duration = jedi_duration - jedi_duration_2
     call test_duration%get_duration( returned_second )
-    @assertEqual( -10_i_def, returned_second )
+    @assertEqual( -10, returned_second )
 
     ! test * by 0
     test_duration = jedi_duration * jedi_duration_2
     call test_duration%get_duration( returned_second )
-    @assertEqual( 0_i_def, returned_second )
+    @assertEqual( 0, returned_second )
 
     ! test *
     test_duration = jedi_duration_3 * jedi_duration_2
     call test_duration%get_duration( returned_second )
-    @assertEqual( -20_i_def, returned_second )
+    @assertEqual( -20, returned_second )
 
     ! test /
     test_duration = jedi_duration_2 / jedi_duration_3
     call test_duration%get_duration( returned_second )
-    @assertEqual( -5_i_def, returned_second )
+    @assertEqual( -5, returned_second )
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Tests adding etc an integer
     ! test +
-    test_duration = jedi_duration + 10_i_def
+    test_duration = jedi_duration + 10
     call test_duration%get_duration( returned_second )
-    @assertEqual( 10_i_def, returned_second )
+    @assertEqual( 10, returned_second )
 
     ! test -
-    test_duration = jedi_duration - 10_i_def
+    test_duration = jedi_duration - 10
     call test_duration%get_duration( returned_second )
-    @assertEqual( -10_i_def, returned_second )
+    @assertEqual( -10, returned_second )
 
     ! test * by 0
-    test_duration = jedi_duration * 10_i_def
+    test_duration = jedi_duration * 10
     call test_duration%get_duration( returned_second )
-    @assertEqual( 0_i_def, returned_second )
+    @assertEqual( 0, returned_second )
 
     ! test *
-    test_duration = jedi_duration_3 * 10_i_def
+    test_duration = jedi_duration_3 * 10
     call test_duration%get_duration( returned_second )
-    @assertEqual( -20_i_def, returned_second )
+    @assertEqual( -20, returned_second )
 
     ! test /
-    test_duration = jedi_duration_2 / (-2_i_def)
+    test_duration = jedi_duration_2 / (-2)
     call test_duration%get_duration( returned_second )
-    @assertEqual( -5_i_def, returned_second )
+    @assertEqual( -5, returned_second )
 
   end subroutine lfric_da_duration_operators_test
 
@@ -271,18 +271,18 @@ contains
     type(jedi_duration_type) :: jedi_duration_3
     type(jedi_duration_type) :: jedi_duration_4
 
-    integer(i_def) :: second
-    logical(l_def) :: test
+    integer(i_timestep) :: second
+    logical(l_def)      :: test
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Set values
     ! 0 seconds
     call jedi_duration%init()
 
-    second = 10_i_def
+    second = 10
     call jedi_duration_2%init( second )
 
-    second = -2_i_def
+    second = -2
     call jedi_duration_3%init( second )
     call jedi_duration_4%init( second )
 

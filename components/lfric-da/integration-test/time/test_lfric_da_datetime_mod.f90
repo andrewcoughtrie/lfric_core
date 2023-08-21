@@ -7,7 +7,7 @@
 !>@brief Tests the jedi_datetime type init_lfric_calendar_start routine
 module test_lfric_da_datetime_mod
 
-  use constants_mod,                 only : i_def, l_def
+  use constants_mod,                 only : i_timestep, l_def
   use lfric_da_datetime_mod,         only : jedi_datetime_type
   use log_mod,                       only : log_event, &
                                             LOG_LEVEL_INFO
@@ -33,11 +33,11 @@ contains
     implicit none
 
     type(jedi_datetime_type) :: jedi_datetime
-    integer(i_def)           :: date, returned_date
-    integer(i_def)           :: time, returned_time
+    integer(i_timestep)      :: date, returned_date
+    integer(i_timestep)      :: time, returned_time
 
-    date = 2457389_i_def
-    time = 54000_i_def
+    date = 2457389
+    time = 54000
 
     call jedi_datetime%init_lfric_calendar_start()
     call jedi_datetime%get_date(returned_date)
@@ -106,12 +106,12 @@ contains
     type(jedi_datetime_type) :: jedi_datetime
     type(jedi_duration_type) :: jedi_duration
 
-    integer(i_def) :: time, returned_time
+    integer(i_timestep) :: time, returned_time
 
-    call jedi_datetime%init( 20230405_i_def, 161930_i_def )
-    time = 58772_i_def
+    call jedi_datetime%init( 20230405, 161930 )
+    time = 58772
 
-    call jedi_duration%init( 2_i_def )
+    call jedi_duration%init(2)
 
     jedi_datetime = jedi_datetime + jedi_duration
     call jedi_datetime%get_time( returned_time )
@@ -137,29 +137,29 @@ contains
     type(jedi_datetime_type) :: jedi_datetime_2
     type(jedi_duration_type) :: jedi_duration
 
-    integer(i_def) :: seconds
+    integer(i_timestep) :: seconds
 
     logical(l_def) :: pass
     pass = .true.
 
-    call jedi_datetime%init(   20230405_i_def, 161930_i_def )
-    call jedi_datetime_2%init( 20230405_i_def, 161931_i_def )
+    call jedi_datetime%init(   20230405, 161930 )
+    call jedi_datetime_2%init( 20230405, 161931 )
 
     ! Test getting difference between 2 datetimes
     jedi_duration = jedi_datetime_2 - jedi_datetime
     call jedi_duration%get_duration( seconds )
-    if ( 1_i_def /= seconds ) pass = .false.
+    if ( 1 /= seconds ) pass = .false.
 
     ! Test getting difference between 2 datetimes
     jedi_duration = jedi_datetime - jedi_datetime_2
     call jedi_duration%get_duration( seconds )
-    if ( -1_i_def /= seconds ) pass = .false.
+    if ( -1 /= seconds ) pass = .false.
 
     ! Test case if over a days difference
-    call jedi_datetime_2%init( 20230406_i_def, 161931_i_def )
+    call jedi_datetime_2%init( 20230406, 161931 )
     jedi_duration = jedi_datetime_2 - jedi_datetime
     call jedi_duration%get_duration( seconds )
-    if ( 86401_i_def /= seconds ) pass = .false.
+    if ( 86401 /= seconds ) pass = .false.
 
     if ( pass ) then
       call log_event( 'test PASS', LOG_LEVEL_INFO )

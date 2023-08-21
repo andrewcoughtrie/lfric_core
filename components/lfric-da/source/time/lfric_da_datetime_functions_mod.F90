@@ -10,7 +10,7 @@
 !!          LFRic-JEDI interface and JEDI's OOPS
 module lfric_da_datetime_functions_mod
 
-  use constants_mod,           only : i_def, r_def, str_def, l_def
+  use constants_mod,           only : i_timestep, r_def, str_def, l_def
   use log_mod,                 only : log_event,         &
                                       log_scratch_space, &
                                       LOG_LEVEL_ERROR
@@ -58,12 +58,12 @@ contains
 
     implicit none
 
-    integer(i_def), intent(in)    :: year    !< in YYYY format, eg 2020
-    integer(i_def), intent(in)    :: month   !< in MM format, 01 (Jan) through 12 (Dec)
-    integer(i_def), intent(in)    :: day     !< in DD format, 01 through 28, 29, 30, or 31
-    integer(i_def), intent(inout) :: julian_day_number
+    integer(i_timestep), intent(in)    :: year    !< in YYYY format, eg 2020
+    integer(i_timestep), intent(in)    :: month   !< in MM format, 01 (Jan) through 12 (Dec)
+    integer(i_timestep), intent(in)    :: day     !< in DD format, 01 through 28, 29, 30, or 31
+    integer(i_timestep), intent(inout) :: julian_day_number
 
-    integer(i_def) :: l
+    integer(i_timestep) :: l
 
     if ( .not. is_valid_YYYYMMDD( year, month, day ) ) then
       write ( log_scratch_space, '(A, I4, 2(A, I2))' ) &
@@ -71,12 +71,12 @@ contains
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end if
 
-    l = ( month - 14_i_def ) / 12_i_def
+    l = ( month - 14 ) / 12
 
-    julian_day_number = 1461_i_def * ( year + 4800_i_def + l ) / 4_i_def              &
-                        + 367_i_def * ( month - 2_i_def - 12_i_def * l ) / 12_i_def   &
-                        - 3_i_def * (( year + 4900_i_def + l ) / 100_i_def) / 4_i_def &
-                        + day - 32075_i_def
+    julian_day_number = 1461 * ( year + 4800 + l ) / 4        &
+                        + 367 * ( month - 2 - 12 * l ) / 12   &
+                        - 3 * (( year + 4900 + l ) / 100) / 4 &
+                        + day - 32075
 
   end subroutine YYYYMMDD_to_JDN
 
@@ -93,29 +93,29 @@ contains
 
     implicit none
 
-    integer(i_def), intent(in)    :: julian_day_number
-    integer(i_def), intent(inout) :: year    !< in YYYY format, eg 2020
-    integer(i_def), intent(inout) :: month   !< in MM format, 01 (Jan) through 12 (Dec)
-    integer(i_def), intent(inout) :: day     !< in DD format, 01 through 28, 29, 30, or 31
+    integer(i_timestep), intent(in)    :: julian_day_number
+    integer(i_timestep), intent(inout) :: year    !< in YYYY format, eg 2020
+    integer(i_timestep), intent(inout) :: month   !< in MM format, 01 (Jan) through 12 (Dec)
+    integer(i_timestep), intent(inout) :: day     !< in DD format, 01 through 28, 29, 30, or 31
 
-    integer(i_def) :: l, n, i, j
+    integer(i_timestep) :: l, n, i, j
 
-    if ( julian_day_number < 0_i_def ) then
+    if ( julian_day_number < 0 ) then
       write ( log_scratch_space, '(A)' ) &
         'Invalid Julian Date Passed (negative value)'
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end if
 
-    l = julian_day_number + 68569_i_def
-    n = ( 4_i_def * l ) / 146097_i_def
-    l = l - (( (146097_i_def * n) + 3_i_def ) / 4_i_def)
-    i = ( 4000_i_def * (l + 1_i_def) ) / 1461001_i_def
-    l = l - (( 1461_i_def * i ) / 4_i_def) + 31_i_def
-    j = ( 80_i_def * l ) / 2447_i_def
-    day = l - (( 2447_i_def * j ) / 80_i_def)
-    l = j / 11_i_def
-    month = j + 2_i_def - ( 12_i_def * l )
-    year = 100_i_def * ( n - 49_i_def ) + i + l
+    l = julian_day_number + 68569
+    n = ( 4 * l ) / 146097
+    l = l - (( (146097 * n) + 3 ) / 4)
+    i = ( 4000 * (l + 1) ) / 1461001
+    l = l - (( 1461 * i ) / 4) + 31
+    j = ( 80 * l ) / 2447
+    day = l - (( 2447 * j ) / 80)
+    l = j / 11
+    month = j + 2 - ( 12 * l )
+    year = 100 * ( n - 49 ) + i + l
 
     if ( year >= huge(year) ) then
       write ( log_scratch_space, '(A)' ) &
@@ -136,10 +136,10 @@ contains
 
     implicit none
 
-    integer(i_def), intent(in)    :: hour    !< in hh format, 00 through 23
-    integer(i_def), intent(in)    :: minute  !< in mm format, 00 through 59
-    integer(i_def), intent(in)    :: second  !< in ss format, 00 through 59
-    integer(i_def), intent(inout) :: time_seconds
+    integer(i_timestep), intent(in)    :: hour    !< in hh format, 00 through 23
+    integer(i_timestep), intent(in)    :: minute  !< in mm format, 00 through 59
+    integer(i_timestep), intent(in)    :: second  !< in ss format, 00 through 59
+    integer(i_timestep), intent(inout) :: time_seconds
 
     if ( .not. is_valid_hhmmss( hour, minute, second ) ) then
       write ( log_scratch_space, '(3(A, I2))' ) &
@@ -147,7 +147,7 @@ contains
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end if
 
-    time_seconds = hour * 3600_i_def + minute * 60_i_def + second
+    time_seconds = hour * 3600 + minute * 60 + second
 
   end subroutine hhmmss_to_seconds
 
@@ -162,25 +162,25 @@ contains
 
     implicit none
 
-    integer(i_def), intent(in)    :: time_seconds
-    integer(i_def), intent(inout) :: hour    !< in hh format, 00 through 23
-    integer(i_def), intent(inout) :: minute  !< in mm format, 00 through 59
-    integer(i_def), intent(inout) :: second  !< in ss format, 00 through 59
+    integer(i_timestep), intent(in)    :: time_seconds
+    integer(i_timestep), intent(inout) :: hour    !< in hh format, 00 through 23
+    integer(i_timestep), intent(inout) :: minute  !< in mm format, 00 through 59
+    integer(i_timestep), intent(inout) :: second  !< in ss format, 00 through 59
 
-    integer(i_def), parameter :: seconds_per_day = 86400_i_def
-    integer(i_def)            :: local_sec
+    integer(i_timestep), parameter :: seconds_per_day = 86400
+    integer(i_timestep)            :: local_sec
 
-    if ( (time_seconds >= seconds_per_day) .or. (time_seconds < 0_i_def) ) then
+    if ( (time_seconds >= seconds_per_day) .or. (time_seconds < 0) ) then
       write ( log_scratch_space, '(A)' ) &
         'Not a valid time in seconds, 0 =< time =< 86400'
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end if
 
     local_sec = time_seconds
-    hour = local_sec / 3600_i_def
-    local_sec = mod( local_sec, 3600_i_def )
-    minute = local_sec / 60_i_def
-    local_sec = mod( local_sec, 60_i_def )
+    hour = local_sec / 3600
+    local_sec = mod( local_sec, 3600 )
+    minute = local_sec / 60
+    local_sec = mod( local_sec, 60 )
     second = local_sec
 
   end subroutine seconds_to_hhmmss
@@ -196,28 +196,28 @@ contains
 
     implicit none
 
-    integer(i_def), intent(in) :: year
-    integer(i_def), intent(in) :: month
-    integer(i_def), intent(in) :: day
+    integer(i_timestep), intent(in) :: year
+    integer(i_timestep), intent(in) :: month
+    integer(i_timestep), intent(in) :: day
 
     logical(l_def) :: valid
     valid = .false.
 
-    if ( (year == 0_i_def) .and. (month == 0_i_def) .and. (day == 0_i_def) ) then
+    if ( (year == 0) .and. (month == 0) .and. (day == 0) ) then
       valid = .true.
-    else if ( (year >= 0_i_def)  .and. (year <= 9999_i_def) .and. &
-              (month >= 1_i_def) .and. (month <= 12_i_def)  .and. &
-              (day >= 1_i_def)   .and. (day <= 31_i_def) ) then
+    else if ( (year >= 0)  .and. (year <= 9999) .and. &
+              (month >= 1) .and. (month <= 12)  .and. &
+              (day >= 1)   .and. (day <= 31) ) then
 
-      if ( (month == 4_i_def) .or. (month == 6_i_def) .or. &
-           (month == 9_i_def) .or. (month == 11_i_def) ) then
-        if ( day <= 30_i_def ) valid = .true.
-      else if ( month /= 2_i_def ) then
-        if ( day <= 31_i_def ) valid = .true.
+      if ( (month == 4) .or. (month == 6) .or. &
+           (month == 9) .or. (month == 11) ) then
+        if ( day <= 30 ) valid = .true.
+      else if ( month /= 2 ) then
+        if ( day <= 31 ) valid = .true.
       else if ( is_leap_year(year) ) then
-        if ( day <= 29_i_def ) valid = .true.
+        if ( day <= 29 ) valid = .true.
       else
-        if ( day <= 28_i_def ) valid = .true.
+        if ( day <= 28 ) valid = .true.
       end if
 
     end if
@@ -232,13 +232,13 @@ contains
 
     implicit none
 
-    integer(i_def), intent(in) :: year
+    integer(i_timestep), intent(in) :: year
 
     logical(l_def) :: is_leap_year
     is_leap_year = .false.
 
-    if ( ((mod(year, 4_i_def)==0_i_def) .and. ((mod(year, 100_i_def)/=0_i_def))) &
-         .or. (mod(year, 400_i_def)==0_i_def)) then
+    if ( ((mod(year, 4)==0) .and. ((mod(year, 100)/=0))) &
+         .or. (mod(year, 400)==0)) then
       is_leap_year = .true.
     end if
 
@@ -255,16 +255,16 @@ contains
 
     implicit none
 
-    integer(i_def), intent(in) :: hour
-    integer(i_def), intent(in) :: minute
-    integer(i_def), intent(in) :: second
+    integer(i_timestep), intent(in) :: hour
+    integer(i_timestep), intent(in) :: minute
+    integer(i_timestep), intent(in) :: second
 
     logical(l_def) :: valid
     valid = .false.
 
-    if ( (hour >= 0_i_def)   .and. (hour <= 23_i_def)   .and. &
-         (minute >= 0_i_def) .and. (minute <= 59_i_def) .and. &
-         (second >= 0_i_def) .and. (second <= 59_i_def) ) then
+    if ( (hour >= 0)   .and. (hour <= 23)   .and. &
+         (minute >= 0) .and. (minute <= 59) .and. &
+         (second >= 0) .and. (second <= 59) ) then
       valid = .true.
     end if
 
@@ -280,15 +280,15 @@ contains
 
     implicit none
 
-    integer(i_def), intent(in) :: date, time
+    integer(i_timestep), intent(in) :: date, time
 
-    integer(i_def) :: year
-    integer(i_def) :: month
-    integer(i_def) :: day
+    integer(i_timestep) :: year
+    integer(i_timestep) :: month
+    integer(i_timestep) :: day
 
-    integer(i_def) :: hour
-    integer(i_def) :: minute
-    integer(i_def) :: second
+    integer(i_timestep) :: hour
+    integer(i_timestep) :: minute
+    integer(i_timestep) :: second
 
     logical(l_def) :: valid_date, valid_time
     logical(l_def) :: is_valid_datetime

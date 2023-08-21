@@ -11,7 +11,7 @@
 !!          https://github.com/JCSDA-internal/oops/blob/develop/src/oops/util/Duration.h
 module lfric_da_duration_mod
 
-  use constants_mod,               only : i_def, str_def, l_def
+  use constants_mod,               only : i_timestep, str_def, l_def
   use log_mod,                     only : log_event,         &
                                           log_scratch_space, &
                                           LOG_LEVEL_DEBUG,   &
@@ -21,15 +21,15 @@ module lfric_da_duration_mod
   implicit none
   private
 
-  integer(i_def), parameter :: seconds_in_day    = 86400
-  integer(i_def), parameter :: seconds_in_hour   = 3600
-  integer(i_def), parameter :: seconds_in_minute = 60
+  integer(i_timestep), parameter :: seconds_in_day    = 86400
+  integer(i_timestep), parameter :: seconds_in_hour   = 3600
+  integer(i_timestep), parameter :: seconds_in_minute = 60
 
   !> @brief Stores the duration in seconds between two jedi_datetime objects
   type, public :: jedi_duration_type
     private
 
-    integer(i_def) :: seconds  !< duration between two times in seconds
+    integer(i_timestep) :: seconds  !< duration between two times in seconds
 
   contains
 
@@ -110,25 +110,25 @@ contains
     class( jedi_duration_type ), intent(inout) :: self
     character(*),                intent(in)    :: iso_duration
 
-    integer(i_def)     :: err
+    integer(i_timestep)     :: err
     character(str_def) :: message
 
-    integer(i_def)     :: is_negative
+    integer(i_timestep)     :: is_negative
     character(str_def) :: absolute_duration
 
-    integer(i_def)     :: last_index
+    integer(i_timestep)     :: last_index
 
-    integer(i_def)     :: D_index
-    integer(i_def)     :: days
+    integer(i_timestep)     :: D_index
+    integer(i_timestep)     :: days
 
-    integer(i_def)     :: T_index
+    integer(i_timestep)     :: T_index
 
-    integer(i_def)     :: H_index
-    integer(i_def)     :: hours
-    integer(i_def)     :: M_index
-    integer(i_def)     :: minutes
-    integer(i_def)     :: S_index
-    integer(i_def)     :: seconds
+    integer(i_timestep)     :: H_index
+    integer(i_timestep)     :: hours
+    integer(i_timestep)     :: M_index
+    integer(i_timestep)     :: minutes
+    integer(i_timestep)     :: S_index
+    integer(i_timestep)     :: seconds
 
     write ( log_scratch_space, '(A)' )                     &
             'Initialising JEDI duration from iso_string: ' &
@@ -144,7 +144,7 @@ contains
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Check if first character is '-' for negative durations
-    is_negative = scan( iso_duration, '-', kind=i_def )
+    is_negative = scan( iso_duration, '-', kind=i_timestep )
     if ( is_negative > 1 ) then       ! found '-' sign not at string start
       message = 'Failed negative check'
       call self%init_iso_string_err( message )
@@ -159,8 +159,8 @@ contains
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Scan for the D, T, H, M, S chars
 
-    D_index = scan( absolute_duration, 'D', kind=i_def )
-    T_index = scan( absolute_duration, 'T', kind=i_def )
+    D_index = scan( absolute_duration, 'D', kind=i_timestep )
+    T_index = scan( absolute_duration, 'T', kind=i_timestep )
 
     ! raise error if T and D aren't present
     if ( (T_index == 0) .and. (D_index == 0) ) then
@@ -168,9 +168,9 @@ contains
       call self%init_iso_string_err( message )
     end if
 
-    H_index = scan( absolute_duration, 'H', kind=i_def )
-    M_index = scan( absolute_duration, 'M', kind=i_def )
-    S_index = scan( absolute_duration, 'S', kind=i_def )
+    H_index = scan( absolute_duration, 'H', kind=i_timestep )
+    M_index = scan( absolute_duration, 'M', kind=i_timestep )
+    S_index = scan( absolute_duration, 'S', kind=i_timestep )
 
     ! raise error if no D, H, M, or S is present
     if ( (D_index + H_index + M_index + S_index) == 0 ) then
@@ -259,7 +259,7 @@ contains
     implicit none
 
     class( jedi_duration_type ), intent(inout) :: self
-    integer(i_def),              intent(in)    :: seconds
+    integer(i_timestep),         intent(in)    :: seconds
 
     write ( log_scratch_space, * ) seconds
     call log_event( 'Initialising JEDI duration with: ' &
@@ -277,7 +277,7 @@ contains
     implicit none
 
     class( jedi_duration_type ), intent(in)  :: self
-    integer(i_def),              intent(out) :: duration
+    integer(i_timestep),         intent(out) :: duration
 
     duration = self%seconds
 
@@ -298,11 +298,11 @@ contains
 
     character(str_def) :: temp_char
 
-    integer(i_def) :: remainder
+    integer(i_timestep) :: remainder
 
-    integer(i_def) :: days
-    integer(i_def) :: hours
-    integer(i_def) :: minutes
+    integer(i_timestep) :: days
+    integer(i_timestep) :: hours
+    integer(i_timestep) :: minutes
 
     remainder = self%seconds
 
@@ -358,7 +358,7 @@ contains
 
     type( jedi_duration_type ) :: new_duration
 
-    integer(i_def) :: seconds
+    integer(i_timestep) :: seconds
 
     seconds = self%seconds + duration%seconds
 
@@ -375,11 +375,11 @@ contains
     implicit none
 
     class( jedi_duration_type ), intent(in) :: self
-    integer(i_def),              intent(in) :: duration
+    integer(i_timestep),         intent(in) :: duration
 
     type( jedi_duration_type ) :: new_duration
 
-    integer(i_def) :: seconds
+    integer(i_timestep) :: seconds
 
     seconds = self%seconds + duration
 
@@ -400,7 +400,7 @@ contains
 
     type( jedi_duration_type ) :: new_duration
 
-    integer(i_def) :: seconds
+    integer(i_timestep) :: seconds
 
     seconds = self%seconds - duration%seconds
 
@@ -417,11 +417,11 @@ contains
     implicit none
 
     class( jedi_duration_type ), intent(in) :: self
-    integer(i_def),              intent(in) :: duration
+    integer(i_timestep),         intent(in) :: duration
 
     type( jedi_duration_type ) :: new_duration
 
-    integer(i_def) :: seconds
+    integer(i_timestep) :: seconds
 
     seconds = self%seconds - duration
 
@@ -442,7 +442,7 @@ contains
 
     type( jedi_duration_type ) :: new_duration
 
-    integer(i_def) :: seconds
+    integer(i_timestep) :: seconds
 
     seconds = self%seconds * duration%seconds
 
@@ -459,11 +459,11 @@ contains
     implicit none
 
     class( jedi_duration_type ), intent(in) :: self
-    integer(i_def),              intent(in) :: duration
+    integer(i_timestep),         intent(in) :: duration
 
     type( jedi_duration_type ) :: new_duration
 
-    integer(i_def) :: seconds
+    integer(i_timestep) :: seconds
 
     seconds = duration * self%seconds
 
@@ -484,7 +484,7 @@ contains
 
     type( jedi_duration_type ) :: new_duration
 
-    integer(i_def) :: seconds
+    integer(i_timestep) :: seconds
 
     if ( duration%seconds == 0 ) then
       write ( log_scratch_space, '(A)' ) &
@@ -517,11 +517,11 @@ contains
     implicit none
 
     class( jedi_duration_type ), intent(in) :: self
-    integer(i_def),              intent(in) :: duration
+    integer(i_timestep),         intent(in) :: duration
 
     type( jedi_duration_type ) :: new_duration
 
-    integer(i_def) :: seconds
+    integer(i_timestep) :: seconds
 
     if ( duration == 0 ) then
       write ( log_scratch_space, '(A)' ) &
@@ -569,7 +569,7 @@ contains
     implicit none
 
     class( jedi_duration_type ), intent(in) :: self
-    integer(i_def),              intent(in) :: seconds
+    integer(i_timestep),         intent(in) :: seconds
 
     logical(l_def) :: eq_int
 
@@ -601,7 +601,7 @@ contains
     implicit none
 
     class( jedi_duration_type ), intent(in) :: self
-    integer(i_def),              intent(in) :: seconds
+    integer(i_timestep),         intent(in) :: seconds
 
     logical(l_def) :: ne_int
 
@@ -633,7 +633,7 @@ contains
     implicit none
 
     class( jedi_duration_type ), intent(in) :: self
-    integer(i_def),              intent(in) :: seconds
+    integer(i_timestep),         intent(in) :: seconds
 
     logical(l_def) :: gt_int
 
@@ -665,7 +665,7 @@ contains
     implicit none
 
     class( jedi_duration_type ), intent(in) :: self
-    integer(i_def),              intent(in) :: seconds
+    integer(i_timestep),         intent(in) :: seconds
 
     logical(l_def) :: lt_int
 
@@ -697,7 +697,7 @@ contains
     implicit none
 
     class( jedi_duration_type ), intent(in) :: self
-    integer(i_def),              intent(in) :: seconds
+    integer(i_timestep),         intent(in) :: seconds
 
     logical(l_def) :: ge_int
 
@@ -729,7 +729,7 @@ contains
     implicit none
 
     class( jedi_duration_type ), intent(in) :: self
-    integer(i_def),              intent(in) :: seconds
+    integer(i_timestep),         intent(in) :: seconds
 
     logical(l_def) :: le_int
 

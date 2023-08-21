@@ -7,7 +7,6 @@
 !>@brief Tests for lfric_da_duration_mod
 module test_lfric_da_duration_mod
 
-  use constants_mod,         only : i_def
   use lfric_da_duration_mod, only : jedi_duration_type
 
   implicit none
@@ -46,7 +45,7 @@ contains
     type(jedi_duration_type)    :: jedi_duration_3
 
     call jedi_duration%init() ! 0 seconds
-    call jedi_duration_2%init( 4_i_def )
+    call jedi_duration_2%init( 4 )
 
     jedi_duration_3 = jedi_duration_2 / jedi_duration
 
@@ -62,8 +61,8 @@ contains
     type(jedi_duration_type)    :: jedi_duration_2
     type(jedi_duration_type)    :: jedi_duration_3
 
-    call jedi_duration%init( 3_i_def )
-    call jedi_duration_2%init( 4_i_def )
+    call jedi_duration%init( 3 )
+    call jedi_duration_2%init( 4 )
 
     jedi_duration_3 = jedi_duration_2 / jedi_duration
 
@@ -78,9 +77,9 @@ contains
     type(jedi_duration_type)    :: jedi_duration
     type(jedi_duration_type)    :: jedi_duration_2
 
-    call jedi_duration%init( 4_i_def )
+    call jedi_duration%init( 4 )
 
-    jedi_duration_2 = jedi_duration / 0_i_def
+    jedi_duration_2 = jedi_duration / 0
 
   end subroutine test_duration_divide_int_zero_err
 
@@ -93,9 +92,9 @@ contains
     type(jedi_duration_type)    :: jedi_duration
     type(jedi_duration_type)    :: jedi_duration_2
 
-    call jedi_duration%init( 4_i_def )
+    call jedi_duration%init( 4 )
 
-    jedi_duration_2 = jedi_duration / 3_i_def
+    jedi_duration_2 = jedi_duration / 3
 
   end subroutine test_duration_divide_int_remainder_err
 
