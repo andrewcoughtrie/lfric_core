@@ -27,7 +27,6 @@ module mesh_colouring_mod
 
   integer, parameter               :: MAXCOLS = 50 ! Temporary hardcode until
                                                    ! dynamic palette
-  integer(kind=i_def), target      :: cells_per_colour(MAXCOLS)
 
 contains
   !---------------------------------------------------------------------------
@@ -169,6 +168,9 @@ contains
     logical(l_def),              intent(inout) :: colour_ok
 
     ! Local Variables
+
+    integer(i_def) :: cells_per_colour(MAXCOLS)
+
     ! Stores error status from allocate statement
     integer(i_native) :: astat
 
@@ -176,7 +178,6 @@ contains
     integer(i_def), allocatable :: colour_map(:)
 
     ! Loop and status variables
-    integer(i_def) :: i
     integer(i_def) :: cell
 
     ! Cube dimensions
@@ -287,6 +288,7 @@ contains
       !>       the "production" target.
     end if
     colour_map = 0_i_def
+    cells_per_colour = 0_i_def
 
     ! Loop over local cells
     do cell = 1, num_cells
@@ -302,10 +304,6 @@ contains
 
       ! The colour can be looked up now
       colour_map(cell) = cell_colour_order_per_panel(column, row, panel_number)
-    end do
-
-    do i=1,MAXCOLS
-      cells_per_colour(i) = 0_i_def
     end do
 
     ! Check that colouring has been done correctly
@@ -529,6 +527,9 @@ contains
     logical(l_def),              intent(inout) :: colour_ok
 
     ! Local Variables
+
+    integer(i_def) :: cells_per_colour(MAXCOLS)
+
     ! Stores error status from allocate statement
     integer                           :: astat
 
@@ -616,7 +617,7 @@ contains
 
       free_colour = choose_colour_greedy(used_colours)
       ! Alternate colour choice procedures may be applied here, e.g...
-      ! free_colour = choose_colour_balanced(used_colours)
+      ! free_colour = choose_colour_balanced(used_colours, cells_per_colour)
       colour_map(cell) = free_colour
       cells_per_colour(free_colour) = cells_per_colour(free_colour) + 1
     end do
@@ -871,12 +872,14 @@ contains
   !
   ! Returns chosen colour.
   !
-  pure function choose_colour_balanced(used_colours)  result(colour)
+  pure function choose_colour_balanced( used_colours, &
+                                        cells_per_colour ) result(colour)
 
     implicit none
 
-    integer, intent(in)     :: used_colours(0:MAXCOLS)
-    integer                 :: colour
+    integer, intent(in) :: used_colours(0:MAXCOLS)
+    integer, intent(in) :: cells_per_colour(MAXCOLS)
+    integer             :: colour
 
     colour = minloc(cells_per_colour, 1, mask=(used_colours(1:MAXCOLS)==0))
 

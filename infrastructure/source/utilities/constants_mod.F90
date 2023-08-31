@@ -39,8 +39,10 @@ module constants_mod
 
   !> @name Set up default kinds for real and double-precision variables.
   !> @{
-  real               :: r_val              !< A native real used to compute kind of native real.
-  double precision   :: dp_val             !< A native double-precision used to compute kind of native dp.
+  ! A native real used to compute kind of native real.
+  real,             parameter :: r_val = huge(r_val)
+  ! A native double-precision used to compute kind of native dp.
+  double precision, parameter :: dp_val = huge(dp_val)
 
   ! Default real kind for application.
 #if (RDEF_PRECISION == 32)
@@ -108,7 +110,8 @@ module constants_mod
 
   !> @name Set up default kinds for integers.
   !> @{
-  integer            :: i_val                      !< A native integer used to compute kind of native integer.
+  ! A native integer used to compute kind of native integer.
+  integer, parameter :: i_val = huge(i_val)
 
   integer, parameter :: i_byte       = int8        !< Explicit byte integer.
   integer, parameter :: i_def        = int32       !< Default integer kind for application.
@@ -124,7 +127,8 @@ module constants_mod
 
   !> @name Set up default kinds for logicals.
   !> @{
-  logical            :: l_val                   !< A native logical used to compute kind of native logical.
+  ! A native logical used to compute kind of native logical.
+  logical, parameter :: l_val = .false.
 
   integer, parameter :: l_def     = kind(l_val) !< Default logical kind for application.
   integer, parameter :: l_native  = kind(l_val) !< Native kind for logical.
@@ -132,7 +136,8 @@ module constants_mod
 
   !> @name Set up default kinds for character variables.
   !> @{
-  character          :: c_val                   !< A native character used to compute kind of native character.
+  ! A native character used to compute kind of native character.
+  character, parameter :: c_val = ''
 
   integer, parameter :: c_def     = kind(c_val) !< Default character kind for application.
   integer, parameter :: c_native  = kind(c_val) !< Native kind for character.

@@ -5,10 +5,10 @@
 !-----------------------------------------------------------------------------
 
 !> @brief  Describes the cell ordering within the global mesh.
-
+!>
 !> @details This object holds the connectivities that fully
 !>          describe the 2D topology of the global mesh.
-
+!>
 module global_mesh_mod
 
   use constants_mod,                  only: r_def, i_def, str_max_filename, &

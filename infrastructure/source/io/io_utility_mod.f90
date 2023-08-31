@@ -16,7 +16,12 @@ module io_utility_mod
   private
   public :: claim_io_unit, release_io_unit, open_file, close_file, read_line
 
-  ! Unit 10 is used for logging - so start giving out unit numbers from 11
+  ! Unit 10 is used for logging - so start giving out unit numbers from 11.
+  !
+  !> @todo Normally globals like this would be banned but since it represents a
+  !> global resource, file units, it may be appropriate here. The potential
+  !> issue is lack of thread safety.
+  !
   integer(i_native), save :: next_unit = 11
 
 contains

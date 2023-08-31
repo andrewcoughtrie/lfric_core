@@ -4,6 +4,11 @@
 ! received as part of this distribution.
 !-----------------------------------------------------------------------------
 !> @brief A Simple subroutine timer based upon calls to cpu time
+!>
+!> @todo An alternative to global variables will likely be necessary to
+!>       support mulit-instance models. Alternatively the timer module may
+!>       be superceded by Vernier.
+!>
 module timer_mod
    use constants_mod, only: i_def, str_def, str_max_filename, &
                             i_long, r_double, cmdi
@@ -15,6 +20,7 @@ module timer_mod
    character(str_max_filename), parameter      :: &
                                               default_timer_path = "timer.txt"
    integer(i_def),        parameter            :: num_subs       = 300
+
    integer(i_def)                              :: num_tim_in_use = 0
    character(len=str_def)                      :: routine_name(num_subs)
    integer(i_long),       dimension(num_subs)  :: isystem_clock_time
@@ -40,6 +46,7 @@ module timer_mod
    public :: get_routine_total_calls
    public :: get_mean_time
    public :: reset_timer
+
 contains
 
 !=============================================================================!

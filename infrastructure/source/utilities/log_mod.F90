@@ -11,8 +11,11 @@
 !>
 !> @todo  At some point the serial version of a model should also log to a file,
 !>        but for now it is easier for developers if the code logs to stdout.
-
-
+!>
+!> @todo There are many global variables here which must be removed in order
+!>       to support multi-instance models. This almost certainly requires a
+!>       ground-up rewrite of the logging framework.
+!>
 module log_mod
 
   use, intrinsic :: iso_fortran_env, only : output_unit, error_unit

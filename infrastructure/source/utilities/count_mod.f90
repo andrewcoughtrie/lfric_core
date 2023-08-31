@@ -5,7 +5,11 @@
 !-----------------------------------------------------------------------------
 !
 !> @brief gives access to counter functionality
-
+!>
+!> @todo An alternative to global variables will likely be necessary to
+!>       support mulit-instance models. Alternatively the counter module may
+!>       be superceded by Vernier.
+!>
 module count_mod
 
   use constants_mod,      only: i_def, i_native, str_def, str_max_filename, &

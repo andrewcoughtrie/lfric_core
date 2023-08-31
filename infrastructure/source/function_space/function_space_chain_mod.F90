@@ -94,6 +94,12 @@ module function_space_chain_mod
     module procedure function_space_chain_constructor
   end interface
 
+  !> @name Global variables
+  !>
+  !> @todo An alternative to global variables will be needed in order to
+  !>       support multi-instance models.
+  !>
+  !> @{
   type(function_space_chain_type), public, allocatable :: &
   single_layer_function_space_chain
   type(function_space_chain_type), public, allocatable :: &
@@ -106,6 +112,7 @@ module function_space_chain_mod
   W2h_multigrid_function_space_chain
   type(function_space_chain_type), public, allocatable :: &
   W2v_multigrid_function_space_chain
+  !> @}
 
   !=============================================================================
 contains ! Module procedures
