@@ -1,0 +1,323 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!
+!-------------------------------------------------------------------------------
+!> @brief   Combination of X and Y one-dimensional horizontal operators
+!!          for the FFSL flux transport scheme to compute the full 2D
+!!          horizontal update.
+!> @details These routines are required for the horizontal flux-form semi-Lagrangian (FFSL)
+!!          splittings. They provide the calculation of one dimensional flux
+!!          differences. There are two routines: 'first'; 'final'.
+!!          'first' is used for the first step where the direction of the input
+!!                  field is not important.
+!!          'final' is used for later steps where the direction of the previous
+!!                  step is important at the edges of cubed sphere panels.
+
+module ffsl_2d_flux_alg_mod
+
+  ! Constants and types
+  use constants_mod,                  only: r_tran, i_def, l_def
+  use fem_constants_mod,              only: get_inverse_w3_mass_matrix_r_tran
+  use field_mod,                      only: field_type
+  use r_tran_field_mod,               only: r_tran_field_type
+  use r_tran_operator_mod,            only: r_tran_operator_type
+  use transport_enumerated_types_mod, only: horizontal_monotone_none,    &
+                                            horizontal_monotone_strict,  &
+                                            horizontal_monotone_relaxed
+  use fs_continuity_mod,              only: W2broken
+  use mesh_mod,                       only: mesh_type
+  use function_space_mod,             only: function_space_type
+  use function_space_collection_mod,  only: function_space_collection
+
+  ! Algorithms
+  use remap_on_extended_mesh_alg_mod, only: remap_on_extended_mesh_alg
+
+  ! Kernels
+  use ffsl_flux_final_x_kernel_mod,   only: ffsl_flux_final_x_kernel_type
+  use ffsl_flux_final_y_kernel_mod,   only: ffsl_flux_final_y_kernel_type
+  use ffsl_flux_first_x_kernel_mod,   only: ffsl_flux_first_x_kernel_type
+  use ffsl_flux_first_y_kernel_mod,   only: ffsl_flux_first_y_kernel_type
+  use fv_divergence_x_kernel_mod,     only: fv_divergence_x_kernel_type
+  use fv_divergence_y_kernel_mod,     only: fv_divergence_y_kernel_type
+  use psykal_lite_mod,                only: invoke_dg_matrix_vector_rtran
+  use ffsl_unify_flux_kernel_mod,     only: ffsl_unify_flux_kernel_type
+  use average_w2_to_w2b_kernel_mod,   only: average_w2_to_w2b_kernel_type
+
+  ! Configs
+  use transport_config_mod,           only: extended_mesh
+  use finite_element_config_mod,      only: element_order
+
+
+  implicit none
+
+  private
+
+  public :: ffsl_2d_flux_first
+  public :: ffsl_2d_flux_final
+
+contains
+
+  !===========================================================================!
+  !> @brief   Algorithm to calculate the first conservative form FFSL
+  !!          increment in each horizontal dimension.
+  !> @details The algorithm calculates the flux difference in each direction.
+  !!          The mass flux is calculated, then the difference taken to give the
+  !!          increment.
+  !!
+  !> @param[in]     field             Input field
+  !> @param[in]     dep_pts_x         Departure points in the x direction
+  !> @param[in]     dep_pts_y         Departure points in the y direction
+  !> @param[in]     detj_at_w2        Det(J) at W2 dofs
+  !> @param[in]     order             Order of the reconstruction
+  !> @param[in]     dt                The model timestep length
+  !> @param[in]     panel_id          Panel ID of the cells
+  !> @param[in]     monotone          Horizontal monotone option for FFSL
+  !> @param[in,out] mass_flux_x       Horizontal mass flux in x direction
+  !> @param[in,out] increment_x       Conservative transport increment in x direction
+  !> @param[in,out] mass_flux_y       Horizontal mass flux in y direction
+  !> @param[in,out] increment_y       Conservative transport increment in y direction
+  subroutine ffsl_2d_flux_first( field,       &
+                                 dep_pts_x,   &
+                                 dep_pts_y,   &
+                                 detj_at_w2,  &
+                                 order,       &
+                                 dt,          &
+                                 panel_id,    &
+                                 monotone,    &
+                                 mass_flux_x, &
+                                 increment_x, &
+                                 mass_flux_y, &
+                                 increment_y )
+
+    implicit none
+
+    type(r_tran_field_type), target, intent(in)    :: field
+    type(r_tran_field_type),         intent(in)    :: dep_pts_x, dep_pts_y
+    type(r_tran_field_type),         intent(in)    :: detj_at_w2
+    integer(i_def),                  intent(in)    :: order
+    real(r_tran),                    intent(in)    :: dt
+    type(field_type),                intent(in)    :: panel_id
+    integer(kind=i_def),             intent(in)    :: monotone
+    type(r_tran_field_type),         intent(inout) :: mass_flux_x, mass_flux_y
+    type(r_tran_field_type),         intent(inout) :: increment_x, increment_y
+
+    ! Mass flux variables
+    type(r_tran_field_type) :: flux
+    type(r_tran_field_type) :: difference
+
+    ! Inverse mass matrix and stencil extent
+    type(r_tran_operator_type), pointer :: m3_inv => null()
+    integer(kind=i_def) :: stencil_extent
+    integer(kind=i_def) :: cfl_stencil_extent
+    real(kind=r_tran)   :: cfl_min, cfl_max
+
+    ! Fields for remapping
+    type(r_tran_field_type), target  :: remap_field
+    type(r_tran_field_type), pointer :: field_ptr => null()
+
+    type(r_tran_field_type), target :: flux_x_broken
+    type(r_tran_field_type), target :: flux_y_broken
+
+    type( function_space_type ), pointer :: w2b_fs => null()
+    type( mesh_type ), pointer :: mesh => null()
+
+
+    ! Get inverse mass matrix
+    m3_inv => get_inverse_w3_mass_matrix_r_tran(increment_x%get_mesh_id())
+
+    call flux%initialise( vector_space=dep_pts_x%get_function_space() )
+    call difference%initialise( vector_space=field%get_function_space() )
+
+    ! If needed remap the field on an extended cubed sphere
+    if ( extended_mesh ) then
+      call remap_on_extended_mesh_alg(remap_field, field)
+      field_ptr => remap_field
+    else
+      field_ptr => field
+    end if
+
+    ! Compute the flux, multiply by Det(J) to get the mass flux,
+    ! take the difference and multiply by inverse mass matrix to get increment
+    ! x_direction
+    call dep_pts_x%field_minmax(cfl_min, cfl_max)
+    stencil_extent     = int( max( abs(cfl_max), abs(cfl_min) ) ) &
+                         + 1 + order
+    cfl_stencil_extent = int(stencil_extent)
+    call invoke( setval_c(flux, 0.0_r_tran),                                     &
+                 ffsl_flux_first_x_kernel_type( flux, field_ptr, stencil_extent, &
+                                                dep_pts_x, order, monotone,      &
+                                                cfl_stencil_extent, dt ),        &
+                 X_times_Y( mass_flux_x, flux, detj_at_w2 ) )
+    ! y_direction
+    call dep_pts_y%field_minmax(cfl_min, cfl_max)
+    stencil_extent     = int( max( abs(cfl_max), abs(cfl_min) ) ) &
+                         + 1 + order
+    cfl_stencil_extent = int(stencil_extent)
+    call invoke( setval_c(flux, 0.0_r_tran),                                     &
+                 ffsl_flux_first_y_kernel_type( flux, field_ptr, stencil_extent, &
+                                                dep_pts_y, order, monotone,      &
+                                                cfl_stencil_extent, dt ),        &
+                 X_times_Y( mass_flux_y, flux, detj_at_w2 ) )
+
+    if ( extended_mesh ) then
+      mesh => mass_flux_x%get_mesh()
+      w2b_fs => function_space_collection%get_fs(mesh, element_order, W2broken)
+      call flux_x_broken%initialise( w2b_fs )
+      call flux_y_broken%initialise( w2b_fs )
+      call invoke( average_w2_to_w2b_kernel_type( flux_x_broken, mass_flux_x ), &
+                   average_w2_to_w2b_kernel_type( flux_y_broken, mass_flux_y ), &
+                   ffsl_unify_flux_kernel_type( mass_flux_x, mass_flux_y,       &
+                                                flux_x_broken, 1,               &
+                                                flux_y_broken, 1,               &
+                                                panel_id, 1 ) )
+    end if
+    call invoke( fv_divergence_x_kernel_type( difference, mass_flux_x ) )
+    call invoke_dg_matrix_vector_rtran(increment_x, difference, m3_inv)
+    call invoke( fv_divergence_y_kernel_type( difference, mass_flux_y ) )
+    call invoke_dg_matrix_vector_rtran(increment_y, difference, m3_inv)
+
+
+    nullify( m3_inv, field_ptr )
+
+  end subroutine ffsl_2d_flux_first
+
+
+  !===========================================================================!
+  !> @brief   Algorithm to calculate the final conservative form FFSL
+  !!          increment in one horizontal dimension.
+  !> @details The algorithm calculates the flux difference in each direction.
+  !!          The mass flux is calculated, then the difference taken to give the
+  !!          increment. Inputs from steps in both x and y are required to get the
+  !!          correct direction at cubed sphere panel edges.
+  !!
+  !> @param[in]     field_x           Input field from steps in x
+  !> @param[in]     field_y           Input field from steps in y
+  !> @param[in]     dep_pts_x         Departure points in the x direction
+  !> @param[in]     dep_pts_y         Departure points in the x direction
+  !> @param[in]     detj_at_w2        Det(J) at W2 dofs
+  !> @param[in]     order             Order of the reconstruction
+  !> @param[in]     dt                The model timestep length
+  !> @param[in]     panel_id          Panel ID of the cells
+  !> @param[in]     monotone          Horizontal monotone option for FFSL
+  !> @param[in,out] mass_flux_x       Horizontal mass flux in x direction
+  !> @param[in,out] increment_x       Conservative transport increment in x direction
+  !> @param[in,out] mass_flux_y       Horizontal mass flux in y direction
+  !> @param[in,out] increment_y       Conservative transport increment in y direction
+  subroutine ffsl_2d_flux_final( field_x,     &
+                                 field_y,     &
+                                 dep_pts_x,   &
+                                 dep_pts_y,   &
+                                 detj_at_w2,  &
+                                 order,       &
+                                 dt,          &
+                                 panel_id,    &
+                                 monotone,    &
+                                 mass_flux_x, &
+                                 increment_x, &
+                                 mass_flux_y, &
+                                 increment_y )
+
+    implicit none
+
+    type(r_tran_field_type), target, intent(in)    :: field_x
+    type(r_tran_field_type), target, intent(in)    :: field_y
+    type(r_tran_field_type),         intent(in)    :: dep_pts_x, dep_pts_y
+    type(r_tran_field_type),         intent(in)    :: detj_at_w2
+    integer(i_def),                  intent(in)    :: order
+    real(r_tran),                    intent(in)    :: dt
+    type(field_type),                intent(in)    :: panel_id
+    integer(kind=i_def),             intent(in)    :: monotone
+    type(r_tran_field_type),         intent(inout) :: mass_flux_x, mass_flux_y
+    type(r_tran_field_type),         intent(inout) :: increment_x, increment_y
+
+    ! Mass flux variables
+    type(r_tran_field_type) :: flux
+    type(r_tran_field_type) :: difference
+
+    ! Inverse mass matrix and stencil extent
+    type(r_tran_operator_type), pointer :: m3_inv => null()
+    integer(kind=i_def) :: stencil_extent
+    integer(kind=i_def) :: cfl_stencil_extent
+    real(kind=r_tran)   :: cfl_min, cfl_max
+
+    ! Fields for remapping
+    type(r_tran_field_type), target  :: remap_field_x
+    type(r_tran_field_type), target  :: remap_field_y
+    type(r_tran_field_type), pointer :: field_x_ptr => null()
+    type(r_tran_field_type), pointer :: field_y_ptr => null()
+
+    type(r_tran_field_type), target :: flux_x_broken
+    type(r_tran_field_type), target :: flux_y_broken
+
+    type( function_space_type ), pointer :: w2b_fs => null()
+    type( mesh_type ), pointer :: mesh => null()
+
+    ! Get inverse mass matrix
+    m3_inv => get_inverse_w3_mass_matrix_r_tran(increment_x%get_mesh_id())
+
+    call flux%initialise( vector_space=dep_pts_x%get_function_space() )
+    call difference%initialise( vector_space=field_x%get_function_space() )
+
+    ! If needed remap the field on an extended cubed sphere
+    if ( extended_mesh ) then
+      call remap_on_extended_mesh_alg(remap_field_x, field_x)
+      field_x_ptr => remap_field_x
+      call remap_on_extended_mesh_alg(remap_field_y, field_y)
+      field_y_ptr => remap_field_y
+    else
+      field_x_ptr => field_x
+      field_y_ptr => field_y
+    end if
+    ! Compute the flux, multiply by Det(J) to get the mass flux,
+    ! take the difference and multiply by inverse mass matrix to get increment
+    ! x_direction
+    call dep_pts_x%field_minmax(cfl_min, cfl_max)
+    stencil_extent = int( max( abs(cfl_max), abs(cfl_min) ) ) &
+                     + 1 + order
+    cfl_stencil_extent = int(stencil_extent)
+    call invoke( setval_c(flux,  0.0_r_tran),                                      &
+                 ffsl_flux_final_x_kernel_type( flux, field_x_ptr, stencil_extent, &
+                                                field_y_ptr, stencil_extent,       &
+                                                panel_id, stencil_extent,          &
+                                                dep_pts_x, order, monotone,        &
+                                                cfl_stencil_extent, dt ),          &
+                 X_times_Y( mass_flux_x, flux, detj_at_w2 ) )
+    ! y_direction
+    call dep_pts_y%field_minmax(cfl_min, cfl_max)
+    stencil_extent = int( max( abs(cfl_max), abs(cfl_min) ) ) &
+                     + 1 + order
+    cfl_stencil_extent = int(stencil_extent)
+    call invoke( setval_c(flux,  0.0_r_tran),                                      &
+                 ffsl_flux_final_y_kernel_type( flux, field_x_ptr, stencil_extent, &
+                                                field_y_ptr, stencil_extent,       &
+                                                panel_id, stencil_extent,          &
+                                                dep_pts_y, order, monotone,        &
+                                                cfl_stencil_extent, dt ),          &
+                 X_times_Y( mass_flux_y, flux, detj_at_w2 ) )
+
+    if ( extended_mesh ) then
+      mesh => mass_flux_x%get_mesh()
+      w2b_fs => function_space_collection%get_fs(mesh, element_order, W2broken)
+      call flux_x_broken%initialise( w2b_fs )
+      call flux_y_broken%initialise( w2b_fs )
+      call invoke( average_w2_to_w2b_kernel_type( flux_x_broken, mass_flux_x ), &
+                   average_w2_to_w2b_kernel_type( flux_y_broken, mass_flux_y ), &
+                   ffsl_unify_flux_kernel_type( mass_flux_x, mass_flux_y,       &
+                                                flux_x_broken, 1,               &
+                                                flux_y_broken, 1,               &
+                                                panel_id, 1 ) )
+    end if
+    call invoke( fv_divergence_x_kernel_type( difference, mass_flux_x ) )
+    call invoke_dg_matrix_vector_rtran(increment_x, difference, m3_inv)
+    call invoke( fv_divergence_y_kernel_type( difference, mass_flux_y ) )
+    call invoke_dg_matrix_vector_rtran(increment_y, difference, m3_inv)
+
+    nullify( m3_inv, field_x_ptr, field_y_ptr )
+
+  end subroutine ffsl_2d_flux_final
+
+
+end module ffsl_2d_flux_alg_mod

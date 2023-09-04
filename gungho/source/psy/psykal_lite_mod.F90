@@ -894,6 +894,11 @@ contains
 
     !>@brief Remap a scalar field from the standard cubed sphere mesh onto an extended
     !!       mesh
+    !!       This routine loops only over halo cells (and always to the full
+    !!       depth of the halo). It is not clear if this functionality will ever
+    !!       be supported by psyclone or if it should be treated as a special
+    !!       case (as with computation of coordinate fields). Issue 2300 has been
+    !!       opened to investigate this.
     subroutine invoke_remap_on_extended_mesh_kernel_type(remap_field, field, stencil_depth, &
                                                          chi_ext, chi, chi_stencil_depth, &
                                                          panel_id, pid_stencil_depth, &
@@ -997,6 +1002,9 @@ contains
       ! Call kernels and communication routines
       if (field_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN
         call field_proxy%halo_exchange(depth=mesh%get_halo_depth())
+      end if
+      if (panel_id_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN
+        call panel_id_proxy%halo_exchange(depth=mesh%get_halo_depth())
       end if
 
       cell_start = mesh%get_last_edge_cell() + 1

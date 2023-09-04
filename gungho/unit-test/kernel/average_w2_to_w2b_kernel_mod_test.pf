@@ -1,0 +1,103 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the kernel mapping for restoring continuity to broken W2 field
+!>
+module average_w2_to_w2b_kernel_mod_test
+
+  use constants_mod,         only: i_def, r_def
+  use pFUnit_Mod
+
+
+  implicit none
+
+  private
+  public :: average_w2_to_w2b_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: average_w2_to_w2b_test_type
+    private
+  contains
+
+    procedure test_all
+
+  end type average_w2_to_w2b_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use average_w2_to_w2b_kernel_mod, only : average_w2_to_w2b_code
+
+    implicit none
+
+    ! ------------------------------------------------------------------------ !
+    ! Declare variables
+    ! ------------------------------------------------------------------------ !
+
+    class(average_w2_to_w2b_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: tol = 1.0e-12_r_def
+
+    ! Sizes
+    integer(kind=i_def), parameter :: nlayers  = 1
+    integer(kind=i_def), parameter :: ndf_w2b  = 4
+    integer(kind=i_def), parameter :: undf_w2b = 4*nlayers
+    integer(kind=i_def), parameter :: ndf_w2   = 4
+    integer(kind=i_def), parameter :: undf_w2  = 4*nlayers
+
+    ! Dofmaps
+    integer(kind=i_def), dimension(ndf_w2b) :: map_w2b
+    integer(kind=i_def), dimension(ndf_w2)  :: map_w2
+
+    ! Fields
+    real(kind=r_def), dimension(undf_w2b) :: w2b_field
+    real(kind=r_def), dimension(undf_w2)  :: w2_field
+
+    ! Counters
+    integer(kind=i_def) :: k, df
+
+    ! ------------------------------------------------------------------------ !
+    ! Set variables describing function spaces
+    ! ------------------------------------------------------------------------ !
+
+    ! Create the data
+    map_w2(:) = (/ 1, 2, 3, 4 /)
+    map_w2b = map_w2
+
+    ! ------------------------------------------------------------------------ !
+    ! Set values of input fields
+    ! ------------------------------------------------------------------------ !
+
+    ! Set horizontal values -- Vary with cell and height
+    do k = 0, nlayers - 1
+      do df = 1,ndf_w2
+        w2_field(map_w2(df)+k) = real(df*(k+1),r_def)
+      end do
+    end do
+
+    ! ------------------------------------------------------------------------ !
+    ! Run kernel
+    ! ------------------------------------------------------------------------ !
+
+    call average_w2_to_w2b_code( nlayers,   &
+                                 w2b_field, &
+                                 w2_field,  &
+                                 ndf_w2,    &
+                                 undf_w2,   &
+                                 map_w2,    &
+                                 ndf_w2b,   &
+                                 undf_w2b,  &
+                                 map_w2b    &
+                               )
+
+    @assertEqual(w2_field(:), w2b_field(:), tol)
+
+  end subroutine test_all
+
+end module average_w2_to_w2b_kernel_mod_test

@@ -34,8 +34,6 @@ contains
                                     runge_kutta_method_ssp2,       &
                                     slice_order_cubic,             &
                                     vertical_sl_order_quintic,     &
-                                    ffsl_flux_splitting_full,      &
-                                    ffsl_advective_splitting_full, &
                                     max_vert_cfl_calc_uniform,     &
                                     theta_variable_dry
     implicit none
@@ -58,8 +56,6 @@ contains
                                  theta_variable=theta_variable_dry,                        &
                                  use_density_predictor = .false.,                          &
                                  cap_density_predictor = 0.001_r_def,                      &
-                                 ffsl_flux_splitting = ffsl_flux_splitting_full,           &
-                                 ffsl_advective_splitting = ffsl_advective_splitting_full, &
                                  adjust_theta = .false.,                                   &
                                  adjust_theta_above = 0.0_r_def,                           &
                                  min_val_abs_tol = -1.0e-12_r_def,                         &

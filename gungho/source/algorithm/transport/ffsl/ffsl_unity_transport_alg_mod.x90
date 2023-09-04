@@ -17,8 +17,8 @@ module ffsl_unity_transport_alg_mod
   use check_configuration_mod,          only: check_horz_dep_pts, &
                                               check_vert_dep_pts
   use constants_mod,                    only: r_def, i_def, l_def
-  use ffsl_1d_flux_alg_mod,             only: ffsl_1d_flux_first, &
-                                              ffsl_1d_flux_vert
+  use ffsl_1d_flux_alg_mod,             only: ffsl_1d_flux_vert
+  use ffsl_2d_flux_alg_mod,             only: ffsl_2d_flux_first
   use field_mod,                        only: field_type
   use flux_direction_mod,               only: x_direction, y_direction
   use function_space_mod,               only: function_space_type
@@ -30,6 +30,7 @@ module ffsl_unity_transport_alg_mod
                                               log_scratch_space, &
                                               LOG_LEVEL_ERROR,   &
                                               LOG_LEVEL_INFO
+  use geometric_constants_mod,          only: get_panel_id
 
   implicit none
 
@@ -105,6 +106,8 @@ contains
     logical(kind=l_def) :: any_horz_dep_pts, any_vert_dep_pts, reversibility
     integer(kind=i_def) :: hori_monotone, vert_monotone
 
+    type(field_type), pointer :: panel_id => null()
+
     ! Check which unity transport directions are needed
     any_horz_dep_pts = check_horz_dep_pts()
     any_vert_dep_pts = check_vert_dep_pts()
@@ -135,26 +138,20 @@ contains
 
     ! Check if we need increment of unity in x and y directions
     if (any_horz_dep_pts) then
-      ! Compute the increment of unity, F(1), in x direction
-      call ffsl_1d_flux_first( x_direction,   &
-                               ini_one,       &
+      panel_id => get_panel_id( ini_one%get_mesh_id() )
+      call ffsl_2d_flux_first( ini_one,       &
                                dep_pts_x,     &
-                               detj_at_w2,    &
-                               outer_order,   &
-                               dt,            &
-                               hori_monotone, &
-                               flux_x,        &
-                               inc_one_x )
-      ! Compute the increment of unity, F(1), in y direction
-      call ffsl_1d_flux_first( y_direction,   &
-                               ini_one,       &
                                dep_pts_y,     &
                                detj_at_w2,    &
                                outer_order,   &
                                dt,            &
+                               panel_id,      &
                                hori_monotone, &
+                               flux_x,        &
+                               inc_one_x,     &
                                flux_y,        &
                                inc_one_y )
+      nullify( panel_id )
     end if
 
     ! Check if we need increment of unity in z directions

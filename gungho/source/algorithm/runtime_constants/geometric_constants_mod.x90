@@ -172,7 +172,8 @@ contains
 
       !================ Set coordinates field and panel ID ====================!
 
-      if ( extended_mesh ) then
+      if ( extended_mesh .and. ( label_list(i) == primary_mesh_label .or. &
+                                 label_list(i) == shifted_mesh_label )  ) then
         call log_event( "Computing extended mesh coodinates", LOG_LEVEL_INFO )
         wchi_fs => chi_in(1,i)%get_function_space()
         call extended_chi_inventory%add_field_array(extended_chi, wchi_fs, 3, mesh)
