@@ -114,6 +114,8 @@ module gungho_model_mod
   use um_physics_init_mod,         only : um_physics_init
   use um_radaer_lut_init_mod,      only : um_radaer_lut_init
   use um_ukca_init_mod,            only : um_ukca_init
+  use random_seed_gen_alg_mod,     only : random_seed_gen_alg
+  use stochastic_physics_config_mod, only : use_spt, use_skeb
 #endif
 
   implicit none
@@ -559,6 +561,11 @@ contains
       end if
       ! Initialisation of UM variables related to the mesh
       call um_domain_init(mesh)
+
+      ! Initialise random seed for stochastic physics
+      if ( use_spt .or. use_skeb ) then
+        call random_seed_gen_alg()
+      end if
 
     end if
 #endif
