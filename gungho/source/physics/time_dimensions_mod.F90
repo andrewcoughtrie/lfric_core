@@ -36,18 +36,6 @@ module time_dimensions_mod
                                        emiss_om_biomass_lo_ancil_path,        &
                                        emiss_so2_low_ancil_path,              &
                                        emiss_so2_high_ancil_path,             &
-                                       emiss_c2h6_ancil_path,                 &
-                                       emiss_c3h8_ancil_path,                 &
-                                       emiss_c5h8_ancil_path,                 &
-                                       emiss_ch4_ancil_path,                  &
-                                       emiss_co_ancil_path,                   &
-                                       emiss_hcho_ancil_path,                 &
-                                       emiss_me2co_ancil_path,                &
-                                       emiss_mecho_ancil_path,                &
-                                       emiss_nh3_ancil_path,                  &
-                                       emiss_no_ancil_path,                   &
-                                       emiss_meoh_ancil_path,                 &
-                                       emiss_no_aircrft_ancil_path,           &
 #endif
                                        lbc_dir => lbc_directory,              &
                                        lbc_filename
@@ -124,20 +112,20 @@ module time_dimensions_mod
   !> @brief Get time dimension of ancil file
   !> @param[in]  dir  Ancil file directory
   !> @param[in]  file Ancil file name (may include subdirectories)
-  !> @param[out] dim  Time dimension of ancil file
+  !> @param[out] tdim Time dimension of ancil file
   !> @result     True if and only if the dimension could be obtained
-  function get_ancil_dim(dir, file, dim) result(status)
+  function get_ancil_dim(dir, file, tdim) result(status)
     implicit none
     character(*), intent(in) :: dir
     character(*), intent(in) :: file
-    integer(i_def), intent(out) :: dim
+    integer(i_def), intent(out) :: tdim
 
     logical(l_def) :: status
 
     if (file == cmdi) then
       status = .false.
     else
-      dim = get_netcdf_time_dim(trim(dir) // '/' // trim(file) // '.nc')
+      tdim = get_netcdf_time_dim(trim(dir) // '/' // trim(file) // '.nc')
       status = .true.
     end if
   end function get_ancil_dim
@@ -149,19 +137,19 @@ module time_dimensions_mod
     implicit none
 
     logical(l_def), parameter :: tolerate_missing_axes = .true.
-    integer(i_def) :: dim
+    integer(i_def) :: tdim
 
     ! determine time axis dimensions from ancil file being read
-    dim = get_lbc_dim()
-    if (dim /= 0) &
-      call set_axis_dimension('lbc_axis', dim, tolerate_missing_axes)
-    dim = get_reynolds_dim()
-    if (dim /= 0) &
-      call set_axis_dimension('reynolds_timeseries', dim, &
+    tdim = get_lbc_dim()
+    if (tdim /= 0) &
+      call set_axis_dimension('lbc_axis', tdim, tolerate_missing_axes)
+    tdim = get_reynolds_dim()
+    if (tdim /= 0) &
+      call set_axis_dimension('reynolds_timeseries', tdim, &
         tolerate_missing_axes)
-    dim = get_emiss_dim()
-    if (dim /= 0) &
-      call set_axis_dimension('emiss_axis', dim, tolerate_missing_axes)
+    tdim = get_emiss_dim()
+    if (tdim /= 0) &
+      call set_axis_dimension('emiss_axis', tdim, tolerate_missing_axes)
   end subroutine sync_time_dimensions
 
   !> @brief Source the dimension of the lbc_axis from the lbc file.
@@ -169,15 +157,15 @@ module time_dimensions_mod
   !> @result The dimension of the lbc_axis
   !>         or zero if there is no lbc file.
   !>
-  function get_lbc_dim() result(dim)
+  function get_lbc_dim() result(tdim)
     implicit none
 
-    integer(i_def) :: dim
-    dim = 0
+    integer(i_def) :: tdim
+    tdim = 0
     if (lbc_option == lbc_option_gungho_file .or.                             &
         lbc_option == lbc_option_um2lfric_file) then
 
-      if (.not. get_ancil_dim(lbc_dir, lbc_filename, dim)) return
+      if (.not. get_ancil_dim(lbc_dir, lbc_filename, tdim)) return
 
     end if
   end function get_lbc_dim
@@ -188,16 +176,16 @@ module time_dimensions_mod
   !> @result The dimension of the reynolds_timeseries axis
   !>         or zero if the relevant ancil file is not enabled.
   !>
-  function get_reynolds_dim() result(dim)
+  function get_reynolds_dim() result(tdim)
     implicit none
 
-    integer(i_def) :: dim
-    dim = 0
+    integer(i_def) :: tdim
+    tdim = 0
 #ifdef UM_PHYSICS
     if(ancil_option == ancil_option_fixed .or.                                &
        ancil_option == ancil_option_updating ) then
 
-        if (.not. get_ancil_dim(ancil_dir, sst_ancil_path, dim)) return
+        if (.not. get_ancil_dim(ancil_dir, sst_ancil_path, tdim)) return
 
     end if
 #endif
@@ -209,44 +197,26 @@ module time_dimensions_mod
   !> @result The dimension of the emiss_axis
   !>         or zero if there are no enabled emiss files.
   !>
-  function get_emiss_dim() result(dim)
+  function get_emiss_dim() result(tdim)
     implicit none
-    integer(i_def) :: dim
-    dim = 0
+    integer(i_def) :: tdim
+    tdim = 0
 #ifdef UM_PHYSICS
     ! conditions and list of emiss files from gungho_setup_io_mod;
     ! to be safe, we try them all in sequence
-    if ( (chem_scheme == chem_scheme_strattrop     .or.                       &
-          chem_scheme == chem_scheme_strat_test)   .and.                      &
-          ancil_option == ancil_option_updating ) then
-
-      if (get_ancil_dim(ancil_dir, emiss_c2h6_ancil_path, dim)) return
-      if (get_ancil_dim(ancil_dir, emiss_c3h8_ancil_path, dim)) return
-      if (get_ancil_dim(ancil_dir, emiss_c5h8_ancil_path, dim)) return
-      if (get_ancil_dim(ancil_dir, emiss_ch4_ancil_path, dim)) return
-      if (get_ancil_dim(ancil_dir, emiss_co_ancil_path, dim)) return
-      if (get_ancil_dim(ancil_dir, emiss_hcho_ancil_path, dim)) return
-      if (get_ancil_dim(ancil_dir, emiss_mecho_ancil_path, dim)) return
-      if (get_ancil_dim(ancil_dir, emiss_nh3_ancil_path, dim)) return
-      if (get_ancil_dim(ancil_dir, emiss_no_ancil_path, dim)) return
-      if (get_ancil_dim(ancil_dir, emiss_meoh_ancil_path, dim)) return
-      if (get_ancil_dim(ancil_dir, emiss_no_aircrft_ancil_path, dim)) return
-
-    end if
-
     if (glomap_mode == glomap_mode_ukca   .and.                               &
         ancil_option == ancil_option_updating) then
 
-      if (get_ancil_dim(ancil_dir, emiss_bc_biofuel_ancil_path, dim)) return
-      if (get_ancil_dim(ancil_dir, emiss_bc_fossil_ancil_path, dim)) return
-      if (get_ancil_dim(ancil_dir, emiss_bc_biomass_ancil_path, dim)) return
-      if (get_ancil_dim(ancil_dir, emiss_bc_biomass_hi_ancil_path, dim)) return
-      if (get_ancil_dim(ancil_dir, emiss_bc_biomass_lo_ancil_path, dim)) return
-      if (get_ancil_dim(ancil_dir, emiss_om_biofuel_ancil_path, dim)) return
-      if (get_ancil_dim(ancil_dir, emiss_om_fossil_ancil_path, dim)) return
-      if (get_ancil_dim(ancil_dir, emiss_om_biomass_ancil_path, dim)) return
-      if (get_ancil_dim(ancil_dir, emiss_so2_low_ancil_path, dim)) return
-      if (get_ancil_dim(ancil_dir, emiss_so2_high_ancil_path, dim)) return
+      if (get_ancil_dim(ancil_dir, emiss_bc_biofuel_ancil_path, tdim)) return
+      if (get_ancil_dim(ancil_dir, emiss_bc_fossil_ancil_path, tdim)) return
+      if (get_ancil_dim(ancil_dir, emiss_bc_biomass_ancil_path, tdim)) return
+      if (get_ancil_dim(ancil_dir, emiss_bc_biomass_hi_ancil_path, tdim)) return
+      if (get_ancil_dim(ancil_dir, emiss_bc_biomass_lo_ancil_path, tdim)) return
+      if (get_ancil_dim(ancil_dir, emiss_om_biofuel_ancil_path, tdim)) return
+      if (get_ancil_dim(ancil_dir, emiss_om_fossil_ancil_path, tdim)) return
+      if (get_ancil_dim(ancil_dir, emiss_om_biomass_ancil_path, tdim)) return
+      if (get_ancil_dim(ancil_dir, emiss_so2_low_ancil_path, tdim)) return
+      if (get_ancil_dim(ancil_dir, emiss_so2_high_ancil_path, tdim)) return
 
     end if
 #endif
