@@ -392,6 +392,8 @@ contains
       @assertEqual( dofmap(:,cell), test_fs%get_cell_dofmap(cell) )
     end do
 
+    @assertFalse ( test_fs%is_ndata_first() )
+
     call test_fs%compute_basis_function( this%test_basis, &
                                          test_ndof_cell,  &
                                          nqp_h, nqp_v,    &
@@ -436,12 +438,14 @@ contains
 
     ! Now test multidata function spaces
     ndat = 4
-    test_fs = function_space_type( this%mesh_id,  &
-                                   element_order, &
+    test_fs = function_space_type( this%mesh_id,        &
+                                   element_order,       &
                                    this%function_space, &
-                                   ndata=ndat )
+                                   ndata=ndat,          &
+                                   ndata_first=.true. )
 
     @assertEqual( ndat, test_fs%get_ndata() )
+    @assertTrue ( test_fs%is_ndata_first())
 
     ! Test we have the right number of dofs in the multi-data field.
     ! In this serial test, last owned, annexed and halo dof will all be the same

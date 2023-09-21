@@ -210,7 +210,6 @@ contains
     integer(i_def)             :: order
     real(real64)               :: test_sum, test_min, test_max
     logical                    :: dirty
-    logical                    :: multidata_order
 
     ! Make a field with a function space
     call f1%initialise( vector_space = this%w2_fs, name='f1' )
@@ -269,23 +268,6 @@ contains
     call f1_p%set_clean(1)
     dirty=f1_p%is_dirty(1)
     @assertFalse ( dirty )
-
-    ! check that a default field is ordered layer-first
-    ! i.e. ndata_first is false
-    multidata_order=f1_p%is_ndata_first()
-    @assertFalse ( multidata_order )
-
-    ! Make a field with different multi-data ordering
-    call f3%initialise( vector_space = this%w2_fs, &
-                        name='f3', &
-                        ndata_first=.true.)
-
-    ! get the proxy
-    f3_p = f3%get_proxy()
-
-    ! check that the multi-data field is ordered multi-data-first
-    multidata_order=f3_p%is_ndata_first()
-    @assertTrue ( multidata_order )
 
   end subroutine test_field_r64_proxy
 

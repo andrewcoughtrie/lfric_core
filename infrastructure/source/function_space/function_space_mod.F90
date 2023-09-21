@@ -26,7 +26,7 @@ module function_space_mod
                                    W2Htrace, W2Vtrace, W2V, W2H, Wchi
   use function_space_constructor_helper_functions_mod,                         &
                             only : ndof_setup, basis_setup, dofmap_setup,      &
-                                   levels_setup
+                                   levels_setup, generate_fs_id
   use linked_list_data_mod, only : linked_list_data_type
   use linked_list_mod,      only : linked_list_type, linked_list_item_type
   use mesh_collection_mod,  only : mesh_collection
@@ -84,6 +84,9 @@ module function_space_mod
 
     !> The number of data values to be held at each dof location
     integer(i_def) :: ndata
+
+    !> Flag describes order of data. False=layer first, true=multi-data first
+    logical(l_def) :: ndata_first
 
     !> Number of dimensions in this function space
     integer(i_def) :: dim_space
@@ -285,6 +288,10 @@ module function_space_mod
     !> @brief Returns the number of data values held at each dof
     procedure, public :: get_ndata
 
+    !> Returns if the ordering of data is multi-data quickest
+    !> @return True if the data is ordered multi-data quickest
+    procedure, public :: is_ndata_first
+
     !> @brief Gets mapping from degree of freedom to reference element entity.
     !> @return Integer array mapping degree of freedom index to geometric entity
     !> on the reference element.
@@ -381,35 +388,45 @@ contains
   !>                           "handles" in the fs_handles_mod module.
   !> @param[in] ndata          The number of data values to be held at each dof
   !>                           location
+  !> @param[in] ndata_first    Flag to set data to be layer first (false) or
+  !!                           ndata first (true)
   !> @return    A pointer to the function space held in this module
-  function fs_constructor( mesh_id, &
+  function fs_constructor( mesh_id,       &
                            element_order, &
-                           lfric_fs, &
-                           ndata )  result(instance)
+                           lfric_fs,      &
+                           ndata,         &
+                           ndata_first )  result(instance)
 
     implicit none
 
-    integer(i_def), intent(in) :: mesh_id
-    integer(i_def), intent(in) :: element_order
-    integer(i_native), intent(in) :: lfric_fs
+    integer(i_def),           intent(in) :: mesh_id
+    integer(i_def),           intent(in) :: element_order
+    integer(i_native),        intent(in) :: lfric_fs
     integer(i_def), optional, intent(in) :: ndata
+    logical(l_def), optional, intent(in) :: ndata_first
 
     type(function_space_type) :: instance
 
-    integer(i_def) :: ndata_sz, id
+    integer(i_def) :: id
 
-  if (present(ndata)) then
-    ndata_sz = ndata
-  else
-    ndata_sz = 1
-  end if
+    if ( present(ndata_first) ) then
+      instance%ndata_first = ndata_first
+    else
+      instance%ndata_first = .false.
+    end if
+
+    if (present(ndata)) then
+      instance%ndata = ndata
+    else
+      instance%ndata = 1
+    end if
 
     instance%mesh => mesh_collection%get_mesh(mesh_id)
     instance%fs = lfric_fs
     instance%element_order = element_order
-    instance%ndata = ndata_sz
 
-    id=ndata_sz + 1000_i_def*element_order + 100000*i_def*lfric_fs + 10000000*i_def*mesh_id
+    id = generate_fs_id(lfric_fs, element_order, mesh_id, &
+                        instance%ndata, instance%ndata_first)
     call instance%set_id(id)
 
     if (lfric_fs == W0) then
@@ -503,6 +520,7 @@ contains
     allocate(self%last_dof_halo (0 : self%mesh % get_halo_depth()))
 
     call dofmap_setup ( self%mesh, self%fs, self%element_order, self%ndata, &
+                        self%ndata_first,                                   &
                         ncells_2d_with_ghost,                               &
                         self%ndof_vert, self%ndof_edge, self%ndof_face,     &
                         self%ndof_vol, self%ndof_cell, self%last_dof_owned, &
@@ -982,6 +1000,20 @@ contains
     ndata = self%ndata
 
   end function get_ndata
+
+  !> Returns whether the field data is ordered multi-data first
+  !>
+  !> @return Flag for if field data order is multi-data first
+  function is_ndata_first(self) result(flag)
+
+    implicit none
+
+    class(function_space_type), intent(in) :: self
+    logical(l_def) :: flag
+
+    flag = self%ndata_first
+
+  end function is_ndata_first
 
   !-----------------------------------------------------------------------------
   ! Gets the mapping from degrees of freedom to reference

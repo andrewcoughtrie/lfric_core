@@ -7,7 +7,7 @@
 !>
 module function_space_constructor_helper_functions_mod
 
-  use constants_mod,         only: i_def, i_halo_index, r_def, IMDI
+  use constants_mod,         only: i_def, i_halo_index, r_def, IMDI, l_def
   use local_mesh_mod,        only: local_mesh_type
   use mesh_mod,              only: mesh_type
   use fs_continuity_mod,     only: W0, W1, W2, W2V, W2H,   &
@@ -26,7 +26,7 @@ module function_space_constructor_helper_functions_mod
   implicit none
 
   private
-  public :: ndof_setup, basis_setup, dofmap_setup, levels_setup
+  public :: ndof_setup, basis_setup, dofmap_setup, levels_setup, generate_fs_id
 
   ! Select entities in the function space
   type select_entity_type
@@ -1582,6 +1582,8 @@ contains
   !> @param[in] element_order          Polynomial order of the function space.
   !> @param[in] ndata                  The number of data values to be held
   !>                                   at each dof location
+  !> @param[in] ndata_first            Flag for ndata or nlayer first data
+  !>                                   layout
   !> @param[in] ncells_2d_with_ghost   Number of 2d cells with ghost cells.
   !> @param[in] ndof_vert              Number of dofs on vertices.
   !> @param[in] ndof_edge              Number of dofs on edges.
@@ -1605,6 +1607,7 @@ contains
   !>                                   horizontal domain
   !>
   subroutine dofmap_setup( mesh, gungho_fs, element_order, ndata,   &
+                           ndata_first,                             &
                            ncells_2d_with_ghost,                    &
                            ndof_vert, ndof_edge, ndof_face,         &
                            ndof_vol, ndof_cell, last_dof_owned,     &
@@ -1619,6 +1622,7 @@ contains
     integer(i_def), intent(in) :: gungho_fs
     integer(i_def), intent(in) :: element_order
     integer(i_def), intent(in) :: ndata
+    logical(l_def), intent(in) :: ndata_first
     integer(i_def), intent(in) :: ncells_2d_with_ghost
     integer(i_def), intent(in) :: ndof_vert
     integer(i_def), intent(in) :: ndof_edge
@@ -1704,6 +1708,8 @@ contains
 
     integer(i_halo_index) :: num_layers, num_dofs, num_ndata
 
+    integer(i_def) :: ndata_offset
+
     !===========================================================================
 
     local_mesh => mesh%get_local_mesh()
@@ -1717,6 +1723,17 @@ contains
     number_horizontal_vertices = reference_element%get_number_2d_vertices()
 
     ncells = ncells_2d_with_ghost
+
+    ! Offset for multidata fields with continuous vertical components
+    ! If ndata_first we need to add ndata to the dof value
+    !    => dof on top entity (face, edge, vert) = dof on bottom entity + ndata
+    ! If nlayer_first we need to add 1 to the dof value
+    !    => dof on top entity (face, edge, vert) = dof on bottom entity + 1
+    if ( ndata_first ) then
+      ndata_offset = ndata
+    else
+      ndata_offset = 1
+    end if
 
     ! dofmaps for a 3D horizontal layer
     nlayers = mesh%get_nlayers()
@@ -1885,9 +1902,9 @@ contains
               end if
 
               if (iface == number_horizontal_faces + 1) then
-                id_owned = id0 + ndata
+                id_owned = id0 + ndata_offset
               else
-                id_owned = id_owned - ndata
+                id_owned = id_owned - ndata_offset
               end if
 
             end if ! select_entity
@@ -1910,9 +1927,9 @@ contains
                 end do
               end if
               if (iface == number_horizontal_faces + 1) then
-                id_halo = id0 - ndata
+                id_halo = id0 - ndata_offset
               else
-                id_halo = id_halo + ndata
+                id_halo = id_halo + ndata_offset
               end if
             end if ! select_entity
           end do
@@ -1928,7 +1945,7 @@ contains
             if (dofmap_d1(1, bottom_edge_id) == 0) then
               do idof = 1, ndof_edge
                 dofmap_d1(idof, bottom_edge_id) = id_owned
-                dofmap_d1(idof, top_edge_id) = id_owned + ndata
+                dofmap_d1(idof, top_edge_id) = id_owned + ndata_offset
                 dof_column_height_d1(idof, bottom_edge_id) = nlayers + 1
                 dof_column_height_d1(idof, top_edge_id) = 0
                 dof_cell_owner_d1(idof, bottom_edge_id) = &
@@ -1942,7 +1959,7 @@ contains
             if (dofmap_d1(1, bottom_edge_id) == 0) then
               do idof = 1, ndof_edge
                 dofmap_d1(idof, bottom_edge_id) = id_halo
-                dofmap_d1(idof, top_edge_id) = id_halo - ndata
+                dofmap_d1(idof, top_edge_id) = id_halo - ndata_offset
                 dof_column_height_d1(idof, bottom_edge_id) = nlayers + 1
                 dof_column_height_d1(idof, top_edge_id) = 0
                 dof_cell_owner_d1(idof, bottom_edge_id) = &
@@ -1997,7 +2014,7 @@ contains
             if (dofmap_d0(1, bottom_vert_id) == 0) then
               do idof = 1, ndof_vert
                 dofmap_d0(idof, bottom_vert_id) = id_owned
-                dofmap_d0(idof, top_vert_id) = id_owned + ndata
+                dofmap_d0(idof, top_vert_id) = id_owned + ndata_offset
                 dof_column_height_d0(idof, bottom_vert_id) = nlayers + 1
                 dof_column_height_d0(idof, top_vert_id) = 0
                 dof_cell_owner_d0(idof, bottom_vert_id) = &
@@ -2011,7 +2028,7 @@ contains
             if (dofmap_d0(1, bottom_vert_id) == 0) then
               do idof = 1, ndof_vert
                 dofmap_d0(idof, bottom_vert_id) = id_halo
-                dofmap_d0(idof, top_vert_id) = id_halo - ndata
+                dofmap_d0(idof, top_vert_id) = id_halo - ndata_offset
                 dof_column_height_d0(idof, bottom_vert_id) = nlayers + 1
                 dof_column_height_d0(idof, top_vert_id) = 0
                 dof_cell_owner_d0(idof, bottom_vert_id) = &
@@ -2454,5 +2471,36 @@ contains
     end do
 
   end subroutine compute_levels
+
+  !> @brief Generate a unique integer id for a function space
+  !> @param[in] lfric_fs      Function space continuity flag
+  !> @param[in] element_order Polynomial order of the space
+  !> @param[in] mesh_id       Id of the mesh to build the function space on
+  !> @param[in] ndata         Number of multidata points
+  !> @param[in] ndata_first   ndata of layer first layout of multidata array
+  !> @result    fs_id         Unique id for the function space
+  function generate_fs_id(lfric_fs, element_order, mesh_id, ndata, ndata_first) result(fs_id)
+
+    implicit none
+
+    integer(i_def), intent(in) :: lfric_fs
+    integer(i_def), intent(in) :: element_order
+    integer(i_def), intent(in) :: mesh_id
+    integer(i_def), intent(in) :: ndata
+    logical(l_def), intent(in) :: ndata_first
+
+    integer(i_def) :: fs_id
+    integer(i_def) :: ndata_first_int
+
+    if ( ndata_first ) then
+      ndata_first_int = 1
+    else
+      ndata_first_int = 2
+    end if
+
+    fs_id = ndata + 1000_i_def*element_order + 100000_i_def*lfric_fs &
+      + 10000000_i_def*mesh_id + 1000000000_i_def*ndata_first_int
+
+  end function generate_fs_id
 
 end module function_space_constructor_helper_functions_mod

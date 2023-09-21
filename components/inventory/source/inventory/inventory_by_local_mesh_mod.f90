@@ -479,8 +479,7 @@ end subroutine remove_paired_object
 !> @param[in]  fs          Function space for the field to be created
 !> @param[in]  local_mesh  The local mesh to pair the field with
 !> @param[in]  name        Optional name for the field
-!> @param[in]  ndata_first Optional flag for ordering of multidata field DoFs
-subroutine add_r32_field(self, field, fs, local_mesh, name, ndata_first)
+subroutine add_r32_field(self, field, fs, local_mesh, name)
 
   implicit none
 
@@ -489,7 +488,6 @@ subroutine add_r32_field(self, field, fs, local_mesh, name, ndata_first)
   type(function_space_type),  pointer, intent(in)    :: fs
   type(local_mesh_type),               intent(in)    :: local_mesh
   character(*),              optional, intent(in)    :: name
-  logical(kind=l_def),       optional, intent(in)    :: ndata_first
   type(id_r32_field_pair_type)                       :: paired_object
   character(str_def)                                 :: local_name
 
@@ -500,11 +498,7 @@ subroutine add_r32_field(self, field, fs, local_mesh, name, ndata_first)
   end if
 
   ! Set up the paired_object
-  if (present(ndata_first)) then
-    call paired_object%initialise(fs, local_mesh%get_id(), name=local_name, ndata_first=ndata_first)
-  else
-    call paired_object%initialise(fs, local_mesh%get_id(), name=local_name)
-  end if
+  call paired_object%initialise(fs, local_mesh%get_id(), name=local_name)
   call self%add_paired_object(paired_object)
   call self%get_r32_field(local_mesh, field)
 
@@ -515,8 +509,7 @@ end subroutine add_r32_field
 !> @param[in]  fs          Function space for the field to be created
 !> @param[in]  local_mesh  The local mesh to pair the field with
 !> @param[in]  name        Optional name for the field
-!> @param[in]  ndata_first Optional flag for ordering of multidata field DoFs
-subroutine add_r64_field(self, field, fs, local_mesh, name, ndata_first)
+subroutine add_r64_field(self, field, fs, local_mesh, name)
 
   implicit none
 
@@ -525,7 +518,6 @@ subroutine add_r64_field(self, field, fs, local_mesh, name, ndata_first)
   type(function_space_type),  pointer, intent(in)    :: fs
   type(local_mesh_type),               intent(in)    :: local_mesh
   character(*),              optional, intent(in)    :: name
-  logical(kind=l_def),       optional, intent(in)    :: ndata_first
   type(id_r64_field_pair_type)                       :: paired_object
   character(str_def)                                 :: local_name
 
@@ -536,11 +528,7 @@ subroutine add_r64_field(self, field, fs, local_mesh, name, ndata_first)
   end if
 
   ! Set up the paired_object
-  if (present(ndata_first)) then
-    call paired_object%initialise(fs, local_mesh%get_id(), name=local_name, ndata_first=ndata_first)
-  else
-    call paired_object%initialise(fs, local_mesh%get_id(), name=local_name)
-  end if
+  call paired_object%initialise(fs, local_mesh%get_id(), name=local_name)
   call self%add_paired_object(paired_object)
   call self%get_r64_field(local_mesh, field)
 
@@ -551,8 +539,7 @@ end subroutine add_r64_field
 !> @param[in]  fs          Function space for the field to be created
 !> @param[in]  local_mesh  The local mesh to pair the field with
 !> @param[in]  name        Optional name for the field
-!> @param[in]  ndata_first Optional flag for ordering of multidata field DoFs
-subroutine add_integer_field(self, field, fs, local_mesh, name, ndata_first)
+subroutine add_integer_field(self, field, fs, local_mesh, name)
 
   implicit none
 
@@ -561,7 +548,6 @@ subroutine add_integer_field(self, field, fs, local_mesh, name, ndata_first)
   type(function_space_type),  pointer, intent(in)    :: fs
   type(local_mesh_type),               intent(in)    :: local_mesh
   character(*),              optional, intent(in)    :: name
-  logical(kind=l_def),       optional, intent(in)    :: ndata_first
   type(id_r64_field_pair_type)                       :: paired_object
   character(str_def)                                 :: local_name
 
@@ -572,11 +558,7 @@ subroutine add_integer_field(self, field, fs, local_mesh, name, ndata_first)
   end if
 
   ! Set up the paired_object
-  if (present(ndata_first)) then
-    call paired_object%initialise(fs, local_mesh%get_id(), name=local_name, ndata_first=ndata_first)
-  else
-    call paired_object%initialise(fs, local_mesh%get_id(), name=local_name)
-  end if
+  call paired_object%initialise(fs, local_mesh%get_id(), name=local_name)
   call self%add_paired_object(paired_object)
   call self%get_integer_field(local_mesh, field)
 

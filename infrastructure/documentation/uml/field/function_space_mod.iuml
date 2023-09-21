@@ -15,6 +15,7 @@ class function_space_mod::function_space_type {
     -fs: integer
     -fs_order: integer
     -ndata: integer
+    -ndata_first : logical
     -global_dof_id: integer[] <<allocatable>>
     -global_cell_dof_id_2d: integer[] <<allocatable>>
     -global_edge_dof_id_2d: integer[] <<allocatable>>
@@ -76,6 +77,7 @@ class function_space_mod::function_space_type {
     +get_undf() : integer
     +set_colours()
     +which() : integer
+    +is_ndata_first() : logical
 }
 
 linked_list_data_mod::linked_list_data_type <|-- function_space_mod::function_space_type

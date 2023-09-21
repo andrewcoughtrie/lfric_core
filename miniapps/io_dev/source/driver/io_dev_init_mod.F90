@@ -299,13 +299,15 @@ module io_dev_init_mod
 
     ! Set up function space
     if ( twod_flag ) then
-      vector_space => function_space_collection%get_fs(twod_mesh, element_order, fs_id, ndata=multi_data_level)
+      vector_space => function_space_collection%get_fs(twod_mesh, element_order, fs_id, &
+                                                       ndata=multi_data_level, ndata_first=.true.)
     else
-      vector_space => function_space_collection%get_fs(mesh, element_order, fs_id, ndata=multi_data_level)
+      vector_space => function_space_collection%get_fs(mesh, element_order, fs_id, &
+                                                       ndata=multi_data_level, ndata_first=.true.)
     end if
 
     ! Initialise field object from specifications
-    call new_field%initialise( vector_space, name=field_name, ndata_first=.true. )
+    call new_field%initialise( vector_space, name=field_name )
 
     ! Set up I/O methods
     if ( fs_id == W0 ) then
@@ -338,13 +340,13 @@ module io_dev_init_mod
       ! Set up function space
       if ( twod_flag ) then
         vector_space => function_space_collection%get_fs(twod_mesh, element_order, fs_id, &
-                                              ndata=multi_data_level*time_axis%get_window_size())
+                                              ndata=multi_data_level*time_axis%get_window_size(), ndata_first=.true.)
       else
         vector_space => function_space_collection%get_fs(mesh, element_order, fs_id, &
-                                        ndata=multi_data_level*time_axis%get_window_size())
+                                        ndata=multi_data_level*time_axis%get_window_size(), ndata_first=.true.)
       end if
       ! Initialise field object from specifications
-      call new_field%initialise( vector_space, name=field_name, ndata_first=.true. )
+      call new_field%initialise( vector_space, name=field_name )
 
       call time_axis%add_field( new_field )
     end if
@@ -405,13 +407,15 @@ module io_dev_init_mod
 
     ! Set up function space
     if ( twod_flag ) then
-      vector_space => function_space_collection%get_fs(twod_mesh, element_order, fs_id, ndata=multi_data_level)
+      vector_space => function_space_collection%get_fs(twod_mesh, element_order, fs_id, &
+                                                       ndata=multi_data_level, ndata_first=.true.)
     else
-      vector_space => function_space_collection%get_fs(mesh, element_order, fs_id, ndata=multi_data_level)
+      vector_space => function_space_collection%get_fs(mesh, element_order, fs_id, &
+                                                       ndata=multi_data_level, ndata_first=.true.)
     end if
 
     ! Initialise field object from specifications
-    call new_field%initialise( vector_space, name=field_name, ndata_first=.true. )
+    call new_field%initialise( vector_space, name=field_name )
 
     ! Set up I/O methods
     if ( fs_id == W0 ) then

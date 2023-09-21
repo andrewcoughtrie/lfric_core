@@ -42,8 +42,7 @@ contains
   !> @param[in] fs           The function space of the new field
   !> @param[in] id           The integer ID to pair with the field
   !> @param[in] name         Optional name to give to field
-  !> @param[in] ndata_first  Optional flag for ordering of multidata
-  subroutine initialise(self, fs, id, name, ndata_first)
+  subroutine initialise(self, fs, id, name)
 
     implicit none
 
@@ -51,7 +50,6 @@ contains
     type(function_space_type), pointer, intent(in)    :: fs
     integer(kind=i_def),                intent(in)    :: id
     character(*),             optional, intent(in)    :: name
-    logical(kind=l_def),      optional, intent(in)    :: ndata_first
 
     character(str_def) :: local_name
 
@@ -61,11 +59,7 @@ contains
       local_name = 'none'
     end if
 
-    if (present(ndata_first)) then
-      call self%field_%initialise(fs, name=local_name, ndata_first=ndata_first)
-    else
-      call self%field_%initialise(fs, name=local_name)
-    end if
+    call self%field_%initialise(fs, name=local_name)
 
     call self%set_id(id)
 

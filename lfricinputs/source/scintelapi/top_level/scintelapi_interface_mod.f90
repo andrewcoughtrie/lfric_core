@@ -275,10 +275,11 @@ CALL field_list(l) % initialise(vector_space =                                 &
                                                                 tmp_mesh,      &
                                                                 element_order, &
                                                                 Fspace,        &
-                                                                ndata = ndata  &
+                                                                ndata = ndata, &
+                                                                ndata_first =  &
+                                                                  ndata_first  &
                                                                 ),             &
-                                name         = field_id,                       &
-                                ndata_first  = ndata_first)
+                                name         = field_id)
 
 ! Initialise new field data to rmdi
 field_proxy = field_list(l) % get_proxy()

@@ -108,11 +108,11 @@ contains
         select case ( direction )
         case ( direction_3d )
 
-          w3md_h_fs => function_space_collection%get_fs( mesh, element_order, W3, ndata_h )
-          w3md_v_fs => function_space_collection%get_fs( mesh, element_order, W3, ndata_v )
+          w3md_h_fs => function_space_collection%get_fs( mesh, element_order, W3, ndata_h, ndata_first = ndata_first )
+          w3md_v_fs => function_space_collection%get_fs( mesh, element_order, W3, ndata_v, ndata_first = ndata_first )
 
-          call field_new_h%initialise( vector_space=w3md_h_fs, ndata_first = ndata_first )
-          call field_new_v%initialise( vector_space=w3md_v_fs, ndata_first = ndata_first )
+          call field_new_h%initialise( vector_space=w3md_h_fs )
+          call field_new_v%initialise( vector_space=w3md_v_fs )
 
           ! Reconstruct W3 field separately in horizontal and vertical
           call hori_w3_reconstruct_alg(field_new_h, field_old, &

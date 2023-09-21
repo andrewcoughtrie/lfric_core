@@ -119,8 +119,8 @@ contains
               case default
                 call log_event('W3 reconstruction at W2: direction not recognised', LOG_LEVEL_ERROR)
             end select
-            recon_fs => function_space_collection%get_fs( mesh, element_order, recon_space )
-            call reconstruction_field%initialise( vector_space=recon_fs, ndata_first = .false. )
+            recon_fs => function_space_collection%get_fs( mesh, element_order, recon_space, ndata_first = .false. )
+            call reconstruction_field%initialise( vector_space=recon_fs )
             rmultiplicity_rdef => get_rmultiplicity(recon_space, mesh%get_id())
             call rmultiplicity%initialise(  &
                vector_space = rmultiplicity_rdef%get_function_space()  )
@@ -159,8 +159,8 @@ contains
               case default
                 call log_event('W3 reconstruction at W2: direction not recognised', LOG_LEVEL_ERROR)
             end select
-            recon_fs => function_space_collection%get_fs( mesh, element_order, W3, ndata )
-            call reconstruction_field%initialise( vector_space=recon_fs, ndata_first = .false. )
+            recon_fs => function_space_collection%get_fs( mesh, element_order, W3, ndata, ndata_first = .false. )
+            call reconstruction_field%initialise( vector_space=recon_fs )
             call reconstruct_w3_field_alg(reconstruction_field, density, direction, &
                                           transport_metadata, final_rk_stage)
 

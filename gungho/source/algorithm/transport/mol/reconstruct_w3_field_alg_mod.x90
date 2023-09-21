@@ -296,9 +296,10 @@ contains
         md_w3 => get_mass_matrix_diagonal(W3, mesh%get_id())
         ! Create multi-data space and field for the horizontal flux coefficients
         ndata_h = nfaces_re_h*flux_stencil_size
-        multidata_fs => function_space_collection%get_fs( twod_mesh, element_order, W3, ndata_h )
+        multidata_fs => function_space_collection%get_fs( twod_mesh, element_order, W3, &
+                                                          ndata_h, ndata_first=.false. )
         call ndata_h_inventory%add_integer(ndata_h, mesh)
-        call flux_coeffs_inventory%add_field(flux_coeffs, multidata_fs, mesh, ndata_first=.false.)
+        call flux_coeffs_inventory%add_field(flux_coeffs, multidata_fs, mesh)
 
         if ( oned_reconstruction ) then
           if ( extended_mesh ) then
@@ -355,9 +356,9 @@ contains
         vertical_order = fv_vertical_order
         ndata_v = nfaces_re_v*(vertical_order + 1_i_def)
         call ndata_v_inventory%add_integer(ndata_v, mesh)
-        multidata_fs => function_space_collection%get_fs( mesh, element_order, Wtheta, ndata_v )
-        call vert_flux_coeffs_inventory%add_field(                             &
-                      vert_flux_coeffs, multidata_fs, mesh, ndata_first=.true.)
+        multidata_fs => function_space_collection%get_fs( mesh, element_order, Wtheta, &
+                                                          ndata_v, ndata_first=.true. )
+        call vert_flux_coeffs_inventory%add_field( vert_flux_coeffs, multidata_fs, mesh)
         height => get_height(Wtheta, mesh%get_id())
         call invoke(poly1d_vert_flux_coeffs_kernel_type(                       &
                                           vert_flux_coeffs,                    &
@@ -372,9 +373,10 @@ contains
           vertical_order = fv_vertical_order-1
           ndata_v = vertical_order + 1_i_def
           call reversible_ndata_v_inventory%add_integer(ndata_v, mesh)
-          multidata_fs => function_space_collection%get_fs( mesh, element_order, Wtheta, ndata_v )
-          call reversible_vert_flux_coeffs_inventory%add_field(                &
-            reversible_vert_flux_coeffs, multidata_fs, mesh, ndata_first=.true.)
+          multidata_fs => function_space_collection%get_fs( mesh, element_order, Wtheta, &
+                                                            ndata_v, ndata_first=.true. )
+          call reversible_vert_flux_coeffs_inventory%add_field(reversible_vert_flux_coeffs, &
+                                                               multidata_fs, mesh)
           height => get_height(Wtheta, mesh%get_id())
           call invoke(poly1d_vert_flux_coeffs_kernel_type(                     &
                                             reversible_vert_flux_coeffs,       &
@@ -452,11 +454,13 @@ contains
     select case ( direction )
       case ( direction_3d )
 
-        w3md_h_fs => function_space_collection%get_fs( mesh, element_order, W3, ndata_h )
-        w3md_v_fs => function_space_collection%get_fs( mesh, element_order, W3, ndata_v )
+        w3md_h_fs => function_space_collection%get_fs( mesh, element_order, W3, &
+                                                       ndata_h, ndata_first = ndata_first )
+        w3md_v_fs => function_space_collection%get_fs( mesh, element_order, W3, &
+                                                       ndata_v, ndata_first = ndata_first )
 
-        call field_new_h%initialise( vector_space=w3md_h_fs, ndata_first = ndata_first )
-        call field_new_v%initialise( vector_space=w3md_v_fs, ndata_first = ndata_first )
+        call field_new_h%initialise( vector_space=w3md_h_fs )
+        call field_new_v%initialise( vector_space=w3md_v_fs )
 
         ! Reconstruct W3 field separately in horizontal and vertical
         call hori_w3_reconstruct_alg(field_new_h, field_old, &

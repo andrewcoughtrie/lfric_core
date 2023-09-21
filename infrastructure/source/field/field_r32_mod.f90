@@ -258,14 +258,11 @@ contains
   !>
   !> @param [in] vector_space the function space that the field lives on
   !> @param [in] name The field name. 'none' (constant name_none) is a reserved name
-  !> @param [in] ndata_first Whether mutlidata fields have data ordered by
-  !>                         the multidata dimension first
   !> @param [in] override_data Optional alternative data that can be attached to field
   !>
   subroutine field_initialiser(self, &
                                vector_space, &
                                name, &
-                               ndata_first, &
                                override_data)
 
     use, intrinsic :: ieee_arithmetic, only: ieee_value, IEEE_SIGNALING_NAN, IEEE_INVALID
@@ -276,7 +273,6 @@ contains
     class(field_r32_type), intent(inout)           :: self
     type(function_space_type), pointer, intent(in) :: vector_space
     character(*), optional, intent(in)             :: name
-    logical,      optional, intent(in)             :: ndata_first
     real(real32), target, optional, intent(in)     :: override_data( : )
 
     character(str_def) :: local_name
@@ -299,8 +295,7 @@ contains
     call self%field_parent_initialiser(vector_space, &
                                        name=local_name, &
                                        fortran_type=real_type, &
-                                       fortran_kind=real32, &
-                                       ndata_first=ndata_first)
+                                       fortran_kind=real32)
 
     ! Associate data with the field
     if (present(override_data))then

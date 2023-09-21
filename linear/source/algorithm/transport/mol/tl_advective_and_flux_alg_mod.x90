@@ -119,9 +119,9 @@ contains
             call log_event('W3 reconstruction at W2: direction not recognised', LOG_LEVEL_ERROR)
         end select
 
-        recon_fs => function_space_collection%get_fs( mesh, element_order, W3, ndata )
-        call reconstruction_field%initialise( vector_space=recon_fs, ndata_first = .false. )
-        call ls_reconstruction_field%initialise( vector_space=recon_fs, ndata_first = .false. )
+        recon_fs => function_space_collection%get_fs( mesh, element_order, W3, ndata, ndata_first = .false. )
+        call reconstruction_field%initialise( vector_space=recon_fs )
+        call ls_reconstruction_field%initialise( vector_space=recon_fs )
 
         ! Reconstruct W3 variables in multidata fields
         call reconstruct_w3_field_alg(ls_reconstruction_field, ls_density,  &

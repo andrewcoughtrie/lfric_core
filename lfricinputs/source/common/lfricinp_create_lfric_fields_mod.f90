@@ -160,10 +160,10 @@ DO i=1, SIZE(stash_list)
                                               type_mesh,                       &
                                               element_order,                   &
                                               fs_id,                           &
-                                              ndata=INT(ndata_64, KIND=i_def)  &
+                                              ndata=INT(ndata_64, KIND=i_def), &
+                                              ndata_first=ndata_first          &
                                                     )
-    CALL field % initialise(vector_space=vector_space, name=field_name,        &
-                            ndata_first=ndata_first)
+    CALL field % initialise(vector_space=vector_space, name=field_name)
     CALL field % set_read_behaviour(tmp_read_ptr)
     CALL field % set_write_behaviour(tmp_write_ptr)
     CALL log_event("Add "//field_name//" to field collection", LOG_LEVEL_INFO)

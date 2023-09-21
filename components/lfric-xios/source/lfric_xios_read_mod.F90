@@ -341,7 +341,7 @@ subroutine read_field_time_var(xios_field_name, field_proxy, time_indices, time_
 
       ! We require multi-data fields with vertical levels to be multi-data first
       if ( ndata /= 1 .and. vert_levels /= 1 .and. &
-           .not. field_proxy%is_ndata_first() ) then
+           .not. field_proxy%vspace%is_ndata_first() ) then
         write( log_scratch_space,'(A,A)' ) "Only ndata_first ordering supported for read_field_time_var: "// &
                                       trim( xios_field_name )
         call log_event( log_scratch_space, LOG_LEVEL_ERROR )

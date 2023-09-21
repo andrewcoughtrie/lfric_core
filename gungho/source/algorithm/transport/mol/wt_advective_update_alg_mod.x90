@@ -268,8 +268,8 @@ contains
         ! Create multi-data space and field for the horizontal advective coefficients
         ndata_h = nfaces_re_h*adv_stencil_size
         call ndata_h_inventory%add_integer(ndata_h, mesh)
-        multidata_fs => function_space_collection%get_fs( twod_mesh, element_order, W3, ndata_h )
-        call adv_coeffs_inventory%add_field(adv_coeffs, multidata_fs, mesh, ndata_first=.false.)
+        multidata_fs => function_space_collection%get_fs( twod_mesh, element_order, W3, ndata_h, ndata_first=.false. )
+        call adv_coeffs_inventory%add_field(adv_coeffs, multidata_fs, mesh)
 
         chi => get_coordinates(mesh%get_id())
         panel_id => get_panel_id(mesh%get_id())
@@ -357,9 +357,9 @@ contains
         vertical_order = fv_vertical_order + 1_i_def
         ndata_v = nfaces_re_v*(vertical_order + 1_i_def)
         call ndata_v_inventory%add_integer(ndata_v, mesh)
-        multidata_fs => function_space_collection%get_fs( mesh, element_order, Wtheta, ndata_v )
+        multidata_fs => function_space_collection%get_fs( mesh, element_order, Wtheta, ndata_v, ndata_first=.true. )
         call vert_adv_coeffs_inventory%add_field(                              &
-                        vert_adv_coeffs, multidata_fs, mesh, ndata_first=.true.)
+                        vert_adv_coeffs, multidata_fs, mesh)
         height_rdef => get_height(Wtheta, mesh%get_id())
         call invoke( poly1d_vert_adv_coeffs_kernel_type(                       &
                                             vert_adv_coeffs,                   &
@@ -372,9 +372,9 @@ contains
           vertical_order = fv_vertical_order
           ndata_v = nfaces_re_v*(vertical_order + 1_i_def)
           call reversible_ndata_v_inventory%add_integer(ndata_v, mesh)
-          multidata_fs => function_space_collection%get_fs( mesh, element_order, Wtheta, ndata_v )
+          multidata_fs => function_space_collection%get_fs( mesh, element_order, Wtheta, ndata_v, ndata_first =.true. )
           call reversible_vert_adv_coeffs_inventory%add_field(                 &
-              reversible_vert_adv_coeffs, multidata_fs, mesh, ndata_first =.true.)
+              reversible_vert_adv_coeffs, multidata_fs, mesh)
           height_rdef => get_height(Wtheta, mesh%get_id())
           call invoke( poly1d_vert_adv_coeffs_kernel_type(                     &
                                               reversible_vert_adv_coeffs,      &
@@ -458,8 +458,8 @@ contains
     ! each Wt point contains 4 values assigned to each edge,
     ! in the order (W,S,E,N) which is the same order as a W2 field
     multidata_fs => &
-      function_space_collection%get_fs( mesh, element_order, Wtheta, 4 )
-    call h_reconstruction%initialise( multidata_fs, ndata_first=.false. )
+      function_space_collection%get_fs( mesh, element_order, Wtheta, 4, ndata_first=.false. )
+    call h_reconstruction%initialise( multidata_fs )
     if ( extended_mesh .and.                                                        &
          (transport_metadata%get_horizontal_monotone() == horizontal_monotone_koren &
           .or. oned_reconstruction) ) then
