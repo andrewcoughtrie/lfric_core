@@ -13,6 +13,7 @@ module init_gungho_prognostics_alg_mod
   use constants_mod,                   only: r_def, i_def, radians_to_degrees
   use domain_mod,                      only: domain_type
   use mass_matrix_solver_alg_mod,      only: mass_matrix_solver_alg
+  use sample_init_u_alg_mod,           only: sample_init_u_alg
   use geometric_constants_mod,         only: get_coordinates, &
                                              get_panel_id,    &
                                              get_height
@@ -43,7 +44,8 @@ module init_gungho_prognostics_alg_mod
                                              profile_dcmip301_streamfunction, &
                                              profile_div_free_reversible,     &
                                              profile_eternal_fountain,        &
-                                             profile_rotational
+                                             profile_rotational,              &
+                                             profile_pw_linear
   use planet_config_mod,               only: gravity, cp, rd, p_zero, kappa,  &
                                              recip_epsilon
 
@@ -134,9 +136,13 @@ contains
         call log_event('Sampling initial wind only implemented for planar geometry', &
                        LOG_LEVEL_ERROR)
       end if
-      call invoke( name = "get_u_from_sampling", &
-                   setval_c( u, 0.0_r_def ),     &
-                   sample_initial_u_kernel_type( u, chi, u0, v0 ) )
+      if ( profile == profile_pw_linear ) then
+        call sample_init_u_alg( u )
+      else
+        call invoke( name = "get_u_from_sampling", &
+                     setval_c( u, 0.0_r_def ),     &
+                     sample_initial_u_kernel_type( u, chi, u0, v0 ) )
+      end if
     else
 
       if ( profile == profile_sbr_streamfunction .or.  &

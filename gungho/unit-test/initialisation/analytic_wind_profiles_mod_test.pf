@@ -82,6 +82,13 @@ contains
                                  )
 
     call feign_initial_wind_config( profile=profile_none,                  &
+                                    profile_data_u = (/ 0.0_r_def /),      &
+                                    profile_data_v = (/ 0.0_r_def /),      &
+                                    profile_data_w = (/ 0.0_r_def /),      &
+                                    profile_heights_uv = (/ 0.0_r_def /),  &
+                                    profile_heights_w  = (/ 0.0_r_def /),  &
+                                    profile_size_uv = 1_i_def,             &
+                                    profile_size_w  = 1_i_def,             &
                                     u0=0.0_r_def,                          &
                                     v0=0.0_r_def,                          &
                                     sbr_angle_lat=0.0_r_def,               &

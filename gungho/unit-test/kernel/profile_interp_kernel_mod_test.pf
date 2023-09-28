@@ -7,12 +7,12 @@
 !>
 module profile_interp_kernel_mod_test
 
-use constants_mod,       only: i_def, r_def
+use constants_mod,                 only: i_def, r_def
 
 use, intrinsic :: iso_fortran_env, only: real64
-use profile_interp_kernel_mod, only: profile_size,   &
-                                     profile_data,   &
-                                     profile_heights
+use profile_interp_kernel_mod,     only: profile_size,   &
+                                         profile_data,   &
+                                         profile_heights
 use pFUnit_Mod
 
 implicit none
@@ -31,8 +31,8 @@ end type profile_interp_test_type
 
 ! Define a geometrically stretched grid of 30 layers on a 40km deep domain
 integer(i_def), parameter :: nlayers       = 30_i_def
-integer(i_def), parameter :: ndf_wt       = 1_i_def
-integer(i_def), parameter :: undf_wt      = nlayers + 1_i_def
+integer(i_def), parameter :: ndf_wt        = 2_i_def
+integer(i_def), parameter :: undf_wt       = nlayers + 1_i_def
 real(r_def),    parameter :: height_domain = 40.0e3_r_def
 real(r_def),    parameter :: stretch       = 1.03_r_def
 
@@ -96,7 +96,7 @@ contains
     allocate( height_wt(undf_wt) )
 
     ! Create the model grid
-    map_wt(1) = 1_i_def
+    map_wt(:) = (/ 1_i_def, 2_i_def /)
     delta = 1.0_r_def
     height_wt(map_wt(1)) = 0.0_r_def
 

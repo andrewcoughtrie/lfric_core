@@ -88,7 +88,7 @@
       'schar_cart_8s', 'schar_cart_8s_lagged_orog', 'schar_cart_8s_inconsistent', 'bell_3d_cart',
       'bryan_fritsch-dry', 'bryan_fritsch-moist', 'grabowski-clark',
       'runge-kutta-for-linear', 'semi-implicit-for-linear',
-      'profile_init', 'default'
+      'default'
     ] } %}
 
 {%- set canned_configurations = ['gungho_model'] %}
@@ -252,11 +252,6 @@
                      env={"nrun":240,
                           "directives":{"default":{"mpi_parts":4, "threads":6, "wallclock":"00:10:00"} } },
                      plotstr="sbr.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR dcmip 30 31 sbr-lam")',
-    'run_application("gungho_model", "profile_init",
-                     resolutions=[("BiP4x4-600x400",10.0)],
-                     env={"nrun":10,
-                          "directives":{"default":{"use_xios":"True"} } },
-                     plotstr="profile_plot.py $NODAL_DATA_DIR theta:m_v geometric 38 40 $PLOT_DIR")',
     'run_application("gungho_model", "runge-kutta-for-linear",
                      resolutions=[("C12",1.0)], env={"nrun":30} )',
     'run_application("gungho_model", "semi-implicit-for-linear",

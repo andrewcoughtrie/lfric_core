@@ -9,11 +9,11 @@ module profile_interp_kernel_mod
 use argument_mod,      only: arg_type,                  &
                              GH_FIELD, GH_REAL,         &
                              GH_WRITE, GH_READ,         &
+                             ANY_DISCONTINUOUS_SPACE_1, &
                              CELL_COLUMN
 
 use constants_mod,     only: r_def, i_def
-use kernel_mod,        only : kernel_type
-use fs_continuity_mod, only : Wtheta
+use kernel_mod,        only: kernel_type
 
 implicit none
 
@@ -29,14 +29,14 @@ integer(i_def), public :: profile_size
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: profile_interp_kernel_type
     private
-    type(arg_type) :: meta_args(2) = (/                 &
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, Wtheta), &
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta)  &
+    type(arg_type) :: meta_args(2) = (/                                    &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1)  &
          /)
     integer :: operates_on = CELL_COLUMN
 contains
     procedure, nopass :: profile_interp_code
-end type
+end type profile_interp_kernel_type
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
@@ -47,31 +47,34 @@ contains
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-!> @brief Interpolate profile data onto a field in Wtheta
+!> @brief Interpolate profile data onto a field
 !> @param[in] nlayers Number of layers
-!> @param[in,out] field_wt Field, in Wtheta space, to be initialised
-!> @param[in] height_wt Height coordinate in Wtheta
-!> @param[in] ndf_wt Number of degrees of freedom per cell for Wtheta
-!> @param[in] undf_wt Number of unique degrees of freedom  for Wtheta
-!> @param[in] map_wt Dofmap for the cell at the base of the column for Wtheta
-subroutine profile_interp_code(nlayers, field_wt, height_wt, &
-                               ndf_wt, undf_wt, map_wt)
+!> @param[in,out] field Field to be initialised
+!> @param[in] height Height coordinate
+!> @param[in] ndf Number of degrees of freedom per cell
+!> @param[in] undf Number of unique degrees of freedom
+!> @param[in] map Dofmap for the cell at the base of the column
+subroutine profile_interp_code( nlayers, field, height, &
+                                ndf, undf, map )
 
 implicit none
 
 ! Arguments
-integer(kind=i_def), intent(in)                     :: nlayers
-integer(kind=i_def), intent(in)                     :: ndf_wt, undf_wt
-integer(kind=i_def), dimension(ndf_wt), intent(in)  :: map_wt
+integer(kind=i_def), intent(in)                  :: nlayers
+integer(kind=i_def), intent(in)                  :: ndf, undf
+integer(kind=i_def), dimension(ndf), intent(in)  :: map
 
-real(kind=r_def), dimension(undf_wt), intent(inout) :: field_wt
-real(kind=r_def), dimension(undf_wt), intent(in)    :: height_wt
+real(kind=r_def), dimension(undf), intent(inout) :: field
+real(kind=r_def), dimension(undf), intent(in)    :: height
 
 ! Loop counter over output profile
 integer(kind=i_def) :: k
 
-! map_wt(1) + k
+! map(1) + k
 integer(kind=i_def) :: kp
+
+! Index of uppermost dof
+integer(kind=i_def) :: top_df
 
 ! For each output point with index k, a search is conducted to
 ! find the index, input_pt, of the input profile coordinate, such
@@ -111,29 +114,33 @@ else
   data_at_highest = profile_data(profile_size)
 end if
 
-! Loop through output points
-do k = 0, nlayers
+! For Wtheta ndf = 2, loop k = 0, nalyers
+! For W3 ndf = 1, loop k = 0, nlayers - 1
+top_df = nlayers + ndf - 2
 
-  kp = map_wt(1) + k
+! Loop through output points
+do k = 0, top_df
+
+  kp = map(1) + k
 
   ! If output point is outside the range of the input coordinate, use
   ! constant extrapolation
-  if ( height_wt(kp) <= coord_lowest ) then
-    field_wt(kp) = data_at_lowest
-  else if ( height_wt(kp) >= coord_highest ) then
-    field_wt(kp) = data_at_highest
+  if ( height(kp) <= coord_lowest ) then
+    field(kp) = data_at_lowest
+  else if ( height(kp) >= coord_highest ) then
+    field(kp) = data_at_highest
   else
     ! Locate the position of the output point on the input coordinate
     do input_pt = 1, profile_size - 1
-      cell_check = (profile_heights(input_pt + 1) - height_wt(kp)) * &
-                   (height_wt(kp) - profile_heights(input_pt))
+      cell_check = (profile_heights(input_pt + 1) - height(kp)) * &
+                   (height(kp) - profile_heights(input_pt))
       ! Exit search if output point k lies between input_pt and input_pt+1
       if (cell_check >= 0.0_r_def) exit
     end do
     ! Linearly interpolate the input data to the output point
-    interp_weight = ( height_wt(kp) - profile_heights(input_pt) ) / &
+    interp_weight = ( height(kp) - profile_heights(input_pt) ) / &
                     ( profile_heights(input_pt+1) - profile_heights(input_pt) )
-    field_wt(kp) = (1.0_r_def - interp_weight) * profile_data(input_pt) + &
+    field(kp) = (1.0_r_def - interp_weight) * profile_data(input_pt) + &
                                       interp_weight * profile_data(input_pt+1)
   end if
 

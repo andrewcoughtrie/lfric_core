@@ -374,7 +374,8 @@
                      env={"crun":6, "nrun":720,
                           "directives":{"default":{"mpi_parts":64,
                                                    "threads":1,
-                                                   "wallclock":"00:20:00"}, } },)'],
+                                                   "wallclock":"00:20:00"}, } },
+                     plotstr="profile_plot.py $NODAL_DATA_DIR/lfric_diag.nc theta:u_in_w3:v_in_w3:w_in_wth umL70 70 40  $PLOT_DIR")'],
   'performance': [
     'run_application("lfric_atm", "nwp_gal9_hres_perf",
                      configuration_suffix="24nodes",

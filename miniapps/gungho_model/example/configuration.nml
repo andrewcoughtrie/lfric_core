@@ -84,7 +84,7 @@ stretching_method='linear',
   v0             = 0.0
   sbr_angle_lat  = 0.0
   sbr_angle_lon  = 0.0
-  smp_init_wind=.false.
+  smp_init_wind  = .false.
 /
 
 &initialization
