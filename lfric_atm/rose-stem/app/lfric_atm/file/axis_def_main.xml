@@ -26,6 +26,8 @@
   <axis id="cloudsat_levels" name="cloudsat_levels" />
   <axis id="csat_lvls_atb_bins" name="csat_lvls_atb_bins" />
   <axis id="cloud_subcols" name="cloud_subcols" />
+  <axis id="sw_bands" name="sw_bands" />
+  <axis id="lw_bands" name="lw_bands" />
 
 <!-- Zoom filters -->
   <axis id="surface_tiles_sea_zoom" axis_ref="surface_tiles">

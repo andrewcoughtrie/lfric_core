@@ -51,7 +51,8 @@ module create_physics_prognostics_mod
                                              glomap_mode_dust_and_clim,        &
                                              glomap_mode_ukca, n_radaer_step,  &
                                              l_radaer, emissions,              &
-                                             emissions_GC3, emissions_GC5
+                                             emissions_GC3, emissions_GC5,     &
+                                             easyaerosol_sw, easyaerosol_lw
   use section_choice_config_mod,      only : cloud, cloud_um,                  &
                                              aerosol, aerosol_um,              &
                                              radiation, radiation_socrates,    &
@@ -1320,6 +1321,35 @@ contains
     ! 3D fields, don't need checkpointing
     ! Sulphuric Acid aerosol MMR
     call processor%apply(make_spec('sulphuric', main%aerosol, Wtheta))
+
+    ! EasyAerosol fields, might need checkpointing
+    if ( easyaerosol_sw ) then
+       checkpoint_flag = .true.
+
+      call processor%apply(make_spec('easy_absorption_sw', main%aerosol, Wtheta, &
+        mult='sw_bands', ckp=checkpoint_flag))
+
+      call processor%apply(make_spec('easy_extinction_sw', main%aerosol, Wtheta, &
+        mult='sw_bands', ckp=checkpoint_flag))
+
+      call processor%apply(make_spec('easy_asymmetry_sw', main%aerosol, Wtheta, &
+        mult='sw_bands', ckp=checkpoint_flag))
+
+    end if
+
+    if ( easyaerosol_lw ) then
+       checkpoint_flag = .true.
+
+      call processor%apply(make_spec('easy_absorption_lw', main%aerosol, Wtheta, &
+        mult='lw_bands', ckp=checkpoint_flag))
+
+      call processor%apply(make_spec('easy_extinction_lw', main%aerosol, Wtheta, &
+        mult='lw_bands', ckp=checkpoint_flag))
+
+      call processor%apply(make_spec('easy_asymmetry_lw', main%aerosol, Wtheta, &
+        mult='lw_bands', ckp=checkpoint_flag))
+
+    end if
 
     !========================================================================
     ! Fields owned by the stochastic physics scheme

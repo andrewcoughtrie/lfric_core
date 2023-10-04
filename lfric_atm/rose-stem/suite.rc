@@ -776,6 +776,7 @@ echo $RELATIVE_LOG_ROOT > $DESTINATION_DIRECTORY/compile.log.path
 {%-                   endif %} {# configuration_label #}
 
             BIG_DATA_DIR      = {{TARGET_BIG_DATA_DIR}}
+            EA_DATA_DIR       = {{TARGET_EA_DATA_DIR}}
             MESH_DIR          = $OUTPUT_ROOT/{{mesh_label}}/meshes
             APP_NAME          = {{appName}}
             RUN_METHOD        = {{get_target_property(PRIMARY_TARGET, 'queue.run.launcher')}}

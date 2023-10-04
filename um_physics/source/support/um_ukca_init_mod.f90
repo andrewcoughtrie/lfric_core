@@ -29,7 +29,8 @@ module um_ukca_init_mod
   use aerosol_config_mod,        only: glomap_mode,                            &
                                        glomap_mode_ukca,                       &
                                        glomap_mode_dust_and_clim,              &
-                                       emissions, emissions_GC3, emissions_GC5
+                                       emissions, emissions_GC3, emissions_GC5,&
+                                       easyaerosol_cdnc
   use section_choice_config_mod, only: aerosol, aerosol_um
   use chemistry_config_mod,      only: chem_scheme, chem_scheme_offline_ox,    &
                                        chem_scheme_strattrop, chem_scheme_none,&
@@ -499,6 +500,7 @@ contains
     ! These should be obtained from namelists (chemistry_config) eventually
     integer :: i_tmp_ukca_chem=ukca_chem_off
     logical :: l_ukca_mode = .false.
+    integer :: i_tmp_ukca_activation_scheme
 
     ! Variables for UKCA error handling
     integer :: ukca_errcode
@@ -533,6 +535,15 @@ contains
     if (aerosol == aerosol_um .and. glomap_mode == glomap_mode_ukca) then
       l_ukca_mode = .true.
     end if
+
+    ! If the Easy Aerosol climatology is being used to set CDNC values
+    ! then there is no need to calculate CDNCs via an activation scheme in UKCA
+    if (easyaerosol_cdnc) then
+      i_tmp_ukca_activation_scheme = ukca_activation_off
+    else
+      i_tmp_ukca_activation_scheme = ukca_activation_arg
+    end if
+
     call ukca_setup( ukca_errcode,                                             &
            ! Context information
            row_length=row_length,                                              &
@@ -604,7 +615,7 @@ contains
            ! GLOMAP feedback configuration options
            l_ukca_radaer=.true.,                                               &
            i_ukca_tune_bc=i_ukca_bc_tuned,                                     &
-           i_ukca_activation_scheme=ukca_activation_arg,                       &
+           i_ukca_activation_scheme=i_tmp_ukca_activation_scheme,              &
            i_ukca_nwbins=20,                                                   &
            ! Callback procedures
            proc_bl_tracer_mix = bl_tracer_mix,                                 &

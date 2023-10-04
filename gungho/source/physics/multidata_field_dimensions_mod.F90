@@ -21,7 +21,7 @@ module multidata_field_dimensions_mod
 #ifdef UM_PHYSICS
       !                   1         2         3
       !          123456789012345678901234567890
-      character(30), parameter :: multidata_items(23) = &
+      character(30), parameter :: multidata_items(25) = &
             [character(30) ::                           &
                 'plant_func_types',                     &
                 'sea_ice_categories',                   &
@@ -45,7 +45,9 @@ module multidata_field_dimensions_mod
                 'cloudsat_levels',                      &
                 'csat_lvls_atb_bins',                   &
                 'horizon_angles',                       &
-                'horizon_aspects'                       &
+                'horizon_aspects',                      &
+                'sw_bands',                             &
+                'lw_bands'                              &
       ]
 #endif
 
@@ -103,6 +105,7 @@ end subroutine sync_multidata_field_dimensions
     use nlsizes_namelist_mod,    only: sm_levels
     use ancil_info,              only: rad_nband
     use um_physics_init_mod,     only: sw_band_mode, lw_band_mode, mode_dimen
+    use socrates_init_mod,       only: n_sw_band, n_lw_band
     use dust_parameters_mod,     only: ndiv
     use extrusion_config_mod,    only: number_of_layers
     use cosp_config_mod,         only: n_subcol_gen
@@ -159,6 +162,10 @@ end subroutine sync_multidata_field_dimensions
             dim = sw_band_mode
       case ('lw_bands_aero_modes')
             dim = lw_band_mode
+      case ('sw_bands')
+            dim = n_sw_band
+      case ('lw_bands')
+            dim = n_lw_band
       case ('cloud_subcols')
             dim = n_subcol_gen
       case ('isccp_ctp_tau_bins')

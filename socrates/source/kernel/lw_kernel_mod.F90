@@ -228,11 +228,12 @@ subroutine lw_code(nlayers, n_profile,                                         &
     i_cloud_ice_type_lw, i_cloud_liq_type_lw, &
     cloud_vertical_decorr, constant_droplet_effective_radius, &
     liu_aparam, liu_bparam
-  use aerosol_config_mod, only: l_radaer, sulphuric_strat_climatology
+  use aerosol_config_mod, only: l_radaer, sulphuric_strat_climatology, &
+       easyaerosol_lw
   use jules_control_init_mod, only: n_surf_tile
   use socrates_init_mod, only: n_lw_band, &
     i_cloud_representation, i_overlap, i_inhom, i_drop_re
-  use um_physics_init_mod, only: n_aer_mode, mode_dimen, lw_band_mode
+  use um_physics_init_mod, only: n_aer_mode_lw, mode_dimen, lw_band_mode
   use socrates_runes, only: runes, StrDiag, ip_source_thermal
   use empty_data_mod, only: empty_real_data
   use gas_calc_all_mod, only: co2_mix_ratio_now,    &
@@ -315,8 +316,8 @@ subroutine lw_code(nlayers, n_profile,                                         &
   integer(i_def) :: tile_1, tile_last, rtile_1, rtile_last
   integer(i_def) :: mode_1, mode_last, rmode_1, rmode_last
   integer(i_def) :: flux_0, flux_last, twod_1, twod_last
-  type(StrDiag) :: lw_diag
-
+  type(StrDiag)  :: lw_diag
+  logical        :: l_aerosol_mode
 
   ! Set indexing
   wth_0 = map_wth(1,1)
@@ -419,6 +420,13 @@ subroutine lw_code(nlayers, n_profile,                                         &
     lw_diag%aerosol_optical_depth(0:nlayers, 5:5, 1:n_profile) &
                     => lw_aer_optical_depth_rts(wth_0:wth_last)
 
+  ! If radaer or easyaerosol are running, socrates includes aerosol modes
+  if (l_radaer .or. easyaerosol_lw) then
+    l_aerosol_mode = .true.
+  else
+    l_aerosol_mode = .false.
+  end if
+
   do k=0, nlayers
     profile_list = pack( [(l, l=1, n_profile)], &
                          n_cloud_layer(twod_1:twod_last) == k )
@@ -485,8 +493,8 @@ subroutine lw_code(nlayers, n_profile,                                         &
         i_cnv_ice              = i_cloud_ice_type_lw,                        &
         l_sulphuric            = sulphuric_strat_climatology,                &
         sulphuric_1d           = sulphuric(wth_1:wth_last),                  &
-        l_aerosol_mode         = l_radaer,                                   &
-        n_aer_mode             = n_aer_mode,                                 &
+        l_aerosol_mode         = l_aerosol_mode,                             &
+        n_aer_mode             = n_aer_mode_lw,                              &
         aer_mix_ratio_1d       = aer_mix_ratio(mode_1:mode_last),            &
         aer_absorption_1d      = aer_lw_absorption(rmode_1:rmode_last),      &
         aer_scattering_1d      = aer_lw_scattering(rmode_1:rmode_last),      &

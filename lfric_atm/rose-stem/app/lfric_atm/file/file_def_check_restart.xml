@@ -137,6 +137,13 @@
       <field id="checkpoint_pvol_om_ait_ins" name="pvol_om_ait_ins" long_name="partial_volume_of_organic_matter_in_aitken_insoluble_mode" unit="m3" grid_ref="full_level_face_grid" enabled=".FALSE." />
       <field id="checkpoint_pvol_du_acc_ins" name="pvol_du_acc_ins" long_name="partial_volume_of_dust_in_accumulation_insoluble_mode" unit="m3" grid_ref="full_level_face_grid" enabled=".FALSE." />
       <field id="checkpoint_pvol_du_cor_ins" name="pvol_du_cor_ins" long_name="partial_volume_of_dust_in_coarse_insoluble_mode" unit="m3" grid_ref="full_level_face_grid" enabled=".FALSE." />
+      <!-- Easy Aerosol fields -->
+      <field id="checkpoint_easy_asymmetry_sw" name="easy_asymmetry_sw" long_name="asymmetry parameter of EasyAerosol" unit="1" grid_ref="full_level_face_grid_sw_bands" />
+      <field id="checkpoint_easy_asymmetry_lw" name="easy_asymmetry_lw" long_name="asymmetry parameter of EasyAerosol" unit="1" grid_ref="full_level_face_grid_lw_bands" />
+      <field id="checkpoint_easy_absorption_sw" name="easy_absorption_sw" long_name="absorption coefficient of EasyAerosol" unit="m-1" grid_ref="full_level_face_grid_sw_bands" />
+      <field id="checkpoint_easy_absorption_lw" name="easy_absorption_lw" long_name="absorption coefficient of EasyAerosol" unit="m-1" grid_ref="full_level_face_grid_lw_bands" />
+      <field id="checkpoint_easy_extinction_sw" name="easy_extinction_sw" long_name="extinction coefficient of EasyAerosol" unit="m-1" grid_ref="full_level_face_grid_sw_bands" />
+      <field id="checkpoint_easy_extinction_lw" name="easy_extinction_lw" long_name="extinction coefficient of EasyAerosol" unit="m-1" grid_ref="full_level_face_grid_lw_bands" />
       <!-- cloud fields -->
       <field id="checkpoint_area_fraction" name="area_fraction" long_name="area_fraction" unit="1" grid_ref="full_level_face_grid" enabled=".FALSE." />
       <field id="checkpoint_frozen_fraction" name="frozen_fraction" long_name="frozen_fraction" unit="1" grid_ref="full_level_face_grid" enabled=".FALSE." />
@@ -232,12 +239,12 @@
       <field id="checkpoint_lw_heating_rate_rtsi" name="lw_heating_rate_rtsi" long_name="longwave_heating_rate" unit="K s-1" grid_ref="full_level_face_grid" enabled=".FALSE." />
       <!-- radiation fields from radaer -->
       <field id="checkpoint_aer_mix_ratio" name="aer_mix_ratio" long_name="aer_mix_ratio" unit="kg kg-1" grid_ref="aero_mode_grid" enabled=".FALSE." />
-      <field id="checkpoint_aer_sw_absorption" name="aer_sw_absorption" long_name="aer_sw_absorption" unit="1" grid_ref="sw_aero_grid" enabled=".FALSE." />
-      <field id="checkpoint_aer_sw_scattering" name="aer_sw_scattering" long_name="aer_sw_scattering" unit="1" grid_ref="sw_aero_grid" enabled=".FALSE." />
-      <field id="checkpoint_aer_sw_asymmetry" name="aer_sw_asymmetry" long_name="aer_sw_asymmetry" unit="1" grid_ref="sw_aero_grid" enabled=".FALSE." />
-      <field id="checkpoint_aer_lw_absorption" name="aer_lw_absorption" long_name="aer_lw_absorption" unit="1" grid_ref="lw_aero_grid" enabled=".FALSE." />
-      <field id="checkpoint_aer_lw_scattering" name="aer_lw_scattering" long_name="aer_lw_scattering" unit="1" grid_ref="lw_aero_grid" enabled=".FALSE." />
-      <field id="checkpoint_aer_lw_asymmetry" name="aer_lw_asymmetry" long_name="aer_lw_asymmetry" unit="1" grid_ref="lw_aero_grid" enabled=".FALSE." />
+      <field id="checkpoint_aer_sw_absorption" name="aer_sw_absorption" long_name="aer_sw_absorption" unit="1" grid_ref="full_level_face_grid_sw_bands_aero_modes" enabled=".FALSE." />
+      <field id="checkpoint_aer_sw_scattering" name="aer_sw_scattering" long_name="aer_sw_scattering" unit="1" grid_ref="full_level_face_grid_sw_bands_aero_modes" enabled=".FALSE." />
+      <field id="checkpoint_aer_sw_asymmetry" name="aer_sw_asymmetry" long_name="aer_sw_asymmetry" unit="1" grid_ref="full_level_face_grid_sw_bands_aero_modes" enabled=".FALSE." />
+      <field id="checkpoint_aer_lw_absorption" name="aer_lw_absorption" long_name="aer_lw_absorption" unit="1" grid_ref="full_level_face_grid_lw_bands_aero_modes" enabled=".FALSE." />
+      <field id="checkpoint_aer_lw_scattering" name="aer_lw_scattering" long_name="aer_lw_scattering" unit="1" grid_ref="full_level_face_grid_lw_bands_aero_modes" enabled=".FALSE." />
+      <field id="checkpoint_aer_lw_asymmetry" name="aer_lw_asymmetry" long_name="aer_lw_asymmetry" unit="1" grid_ref="full_level_face_grid_lw_bands_aero_modes" enabled=".FALSE." />
       <!-- snow fields -->
       <field id="checkpoint_tile_snow_mass" name="tile_snow_mass" long_name="tile_snow_mass" unit="kg m-2" domain_ref="face" axis_ref="surface_tiles" enabled=".FALSE." />
       <field id="checkpoint_tile_snow_rgrain" name="tile_snow_rgrain" long_name="tile_snow_grain_size" unit="microns" domain_ref="face" axis_ref="surface_tiles" enabled=".FALSE." />
@@ -413,6 +420,13 @@
     <field id="restart_pvol_om_ait_ins" name="pvol_om_ait_ins" long_name="partial_volume_of_organic_matter_in_aitken_insoluble_mode" unit="m3" operation="once" grid_ref="full_level_face_grid" enabled=".FALSE." />
     <field id="restart_pvol_du_acc_ins" name="pvol_du_acc_ins" long_name="partial_volume_of_dust_in_accumulation_insoluble_mode" unit="m3" operation="once" grid_ref="full_level_face_grid" enabled=".FALSE." />
     <field id="restart_pvol_du_cor_ins" name="pvol_du_cor_ins" long_name="partial_volume_of_dust_in_coarse_insoluble_mode" unit="m3" operation="once" grid_ref="full_level_face_grid" enabled=".FALSE." />
+    <!-- Easy Aerosol fields -->
+    <field id="restart_easy_asymmetry_sw" name="easy_asymmetry_sw" long_name="asymmetry parameter of EasyAerosol" unit="1" operation="once" grid_ref="full_level_face_grid_sw_bands" />
+    <field id="restart_easy_asymmetry_lw" name="easy_asymmetry_lw" long_name="asymmetry parameter of EasyAerosol" unit="1" operation="once" grid_ref="full_level_face_grid_lw_bands" />
+    <field id="restart_easy_absorption_sw" name="easy_absorption_sw" long_name="absorption coefficient of EasyAerosol" unit="m-1" operation="once" grid_ref="full_level_face_grid_sw_bands" />
+    <field id="restart_easy_absorption_lw" name="easy_absorption_lw" long_name="absorption coefficient of EasyAerosol" unit="m-1" operation="once" grid_ref="full_level_face_grid_lw_bands" />
+    <field id="restart_easy_extinction_sw" name="easy_extinction_sw" long_name="extinction coefficient of EasyAerosol" unit="m-1" operation="once" grid_ref="full_level_face_grid_sw_bands" />
+    <field id="restart_easy_extinction_lw" name="easy_extinction_lw" long_name="extinction coefficient of EasyAerosol" unit="m-1" operation="once" grid_ref="full_level_face_grid_lw_bands" />
     <!-- cloud fields -->
     <field id="restart_area_fraction" name="area_fraction" long_name="area_fraction" unit="1" operation="once" grid_ref="full_level_face_grid" enabled=".FALSE." />
     <field id="restart_frozen_fraction" name="frozen_fraction" long_name="frozen_fraction" unit="1" operation="once" grid_ref="full_level_face_grid" enabled=".FALSE." />
@@ -508,12 +522,12 @@
     <field id="restart_lw_heating_rate_rtsi" name="lw_heating_rate_rtsi" long_name="longwave_heating_rate" unit="K s-1" operation="once" grid_ref="full_level_face_grid" enabled=".FALSE." />
     <!-- radiation fields from radaer -->
     <field id="restart_aer_mix_ratio" name="aer_mix_ratio" long_name="aer_mix_ratio" unit="kg kg-1" operation="once" grid_ref="aero_mode_grid" enabled=".FALSE." />
-    <field id="restart_aer_sw_absorption" name="aer_sw_absorption" long_name="aer_sw_absorption" unit="1" operation="once" grid_ref="sw_aero_grid" enabled=".FALSE." />
-    <field id="restart_aer_sw_scattering" name="aer_sw_scattering" long_name="aer_sw_scattering" unit="1" operation="once" grid_ref="sw_aero_grid" enabled=".FALSE." />
-    <field id="restart_aer_sw_asymmetry" name="aer_sw_asymmetry" long_name="aer_sw_asymmetry" unit="1" operation="once" grid_ref="sw_aero_grid" enabled=".FALSE." />
-    <field id="restart_aer_lw_absorption" name="aer_lw_absorption" long_name="aer_lw_absorption" unit="1" operation="once" grid_ref="lw_aero_grid" enabled=".FALSE." />
-    <field id="restart_aer_lw_scattering" name="aer_lw_scattering" long_name="aer_lw_scattering" unit="1" operation="once" grid_ref="lw_aero_grid" enabled=".FALSE." />
-    <field id="restart_aer_lw_asymmetry" name="aer_lw_asymmetry" long_name="aer_lw_asymmetry" unit="1" operation="once" grid_ref="lw_aero_grid" enabled=".FALSE." />
+    <field id="restart_aer_sw_absorption" name="aer_sw_absorption" long_name="aer_sw_absorption" unit="1" operation="once" grid_ref="full_level_face_grid_sw_bands_aero_modes" enabled=".FALSE." />
+    <field id="restart_aer_sw_scattering" name="aer_sw_scattering" long_name="aer_sw_scattering" unit="1" operation="once" grid_ref="full_level_face_grid_sw_bands_aero_modes" enabled=".FALSE." />
+    <field id="restart_aer_sw_asymmetry" name="aer_sw_asymmetry" long_name="aer_sw_asymmetry" unit="1" operation="once" grid_ref="full_level_face_grid_sw_bands_aero_modes" enabled=".FALSE." />
+    <field id="restart_aer_lw_absorption" name="aer_lw_absorption" long_name="aer_lw_absorption" unit="1" operation="once" grid_ref="full_level_face_grid_lw_bands_aero_modes" enabled=".FALSE." />
+    <field id="restart_aer_lw_scattering" name="aer_lw_scattering" long_name="aer_lw_scattering" unit="1" operation="once" grid_ref="full_level_face_grid_lw_bands_aero_modes" enabled=".FALSE." />
+    <field id="restart_aer_lw_asymmetry" name="aer_lw_asymmetry" long_name="aer_lw_asymmetry" unit="1" operation="once" grid_ref="full_level_face_grid_lw_bands_aero_modes" enabled=".FALSE." />
     <!-- snow fields -->
     <field id="restart_tile_snow_mass" name="tile_snow_mass" long_name="tile_snow_mass" unit="kg m-2" operation="once" domain_ref="face" axis_ref="surface_tiles" enabled=".FALSE." />
     <field id="restart_tile_snow_rgrain" name="tile_snow_rgrain" long_name="tile_snow_grain_size" unit="microns" operation="once" domain_ref="face" axis_ref="surface_tiles" enabled=".FALSE." />

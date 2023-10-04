@@ -24,7 +24,9 @@ module um_physics_init_mod
                                         crlw_file,                             &
                                         crsw_file,                             &
                                         prec_file,                             &
-                                        l_radaer
+                                        l_radaer,                              &
+                                        easyaerosol_sw,                        &
+                                        easyaerosol_lw
 
   use blayer_config_mod,         only : a_ent_shr, a_ent_2_in => a_ent_2,      &
                                         cbl_opt, cbl_opt_conventional,         &
@@ -160,14 +162,17 @@ module um_physics_init_mod
 
   implicit none
 
-  integer(i_def), protected :: n_aer_mode
+  integer(i_def), protected :: n_radaer_mode
+  integer(i_def), protected :: n_aer_mode_sw
+  integer(i_def), protected :: n_aer_mode_lw
   integer(i_def), protected :: mode_dimen
   integer(i_def), protected :: sw_band_mode
   integer(i_def), protected :: lw_band_mode
 
   private
   public :: um_physics_init, &
-            n_aer_mode, mode_dimen, sw_band_mode, lw_band_mode
+            n_radaer_mode, mode_dimen, sw_band_mode, lw_band_mode, &
+            n_aer_mode_sw, n_aer_mode_lw
 
 contains
 
@@ -383,20 +388,31 @@ contains
 
       ! Initialisation of RADAER fields
       if ( l_radaer ) then
-        n_aer_mode = 6_i_def
+        n_radaer_mode = 6_i_def
       else
-        n_aer_mode = 0_i_def
+        n_radaer_mode = 0_i_def
       end if
 
     else ! if ( aerosol == aerosol_um ) then
       ! Initialisation of RADAER fields
-      n_aer_mode = 0_i_def
+      n_radaer_mode = 0_i_def
     end if ! if ( aerosol == aerosol_um ) then
 
-    ! Initialisation of RADAER fields
-    mode_dimen   = max(  n_aer_mode,             1_i_def )
-    sw_band_mode = max( (n_aer_mode*n_sw_band) , 1_i_def )
-    lw_band_mode = max( (n_aer_mode*n_lw_band) , 1_i_def )
+    if (easyaerosol_sw) then
+       n_aer_mode_sw = n_radaer_mode + 1_i_def
+    else
+       n_aer_mode_sw = n_radaer_mode
+    end if
+    if (easyaerosol_lw) then
+       n_aer_mode_lw = n_radaer_mode + 1_i_def
+    else
+       n_aer_mode_lw = n_radaer_mode
+    end if
+
+    ! Initialisation of aerosol optical property fields
+    mode_dimen   = max(  n_aer_mode_sw, n_aer_mode_lw, 1_i_def )
+    sw_band_mode = max( (n_aer_mode_sw*n_sw_band) , 1_i_def )
+    lw_band_mode = max( (n_aer_mode_lw*n_lw_band) , 1_i_def )
 
     ! ----------------------------------------------------------------
     ! UM boundary layer scheme settings - contained in UM module bl_option_mod

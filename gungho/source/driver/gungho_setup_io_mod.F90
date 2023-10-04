@@ -54,6 +54,14 @@ module gungho_setup_io_mod
                                        emiss_no_ancil_path,       &
                                        emiss_meoh_ancil_path,     &
                                        emiss_no_aircrft_ancil_path, &
+                                       ea_ancil_directory,        &
+                                       cloud_drop_no_conc_ancil_path, &
+                                       easy_asymmetry_sw_ancil_path,&
+                                       easy_asymmetry_lw_ancil_path,&
+                                       easy_absorption_sw_ancil_path,&
+                                       easy_absorption_lw_ancil_path,&
+                                       easy_extinction_sw_ancil_path,&
+                                       easy_extinction_lw_ancil_path,&
                                        hydtop_ancil_path,         &
                                        h2o2_limit_ancil_path,     &
                                        ho2_ancil_path,            &
@@ -111,7 +119,10 @@ module gungho_setup_io_mod
                                        glomap_mode_dust_and_clim, &
                                        glomap_mode_ukca,          &
                                        emissions, emissions_GC3,  &
-                                       emissions_GC5
+                                       emissions_GC5,             &
+                                       easyaerosol_cdnc,          &
+                                       easyaerosol_sw,            &
+                                       easyaerosol_lw
   use chemistry_config_mod,      only: chem_scheme, chem_scheme_strattrop, &
                                        chem_scheme_strat_test
 #endif
@@ -564,6 +575,42 @@ module gungho_setup_io_mod
                                                          xios_id="soil_dust_ancil", &
                                                          io_mode=FILE_MODE_READ ) )
     end if
+
+   ! Easy Aerosols
+   if ( easyaerosol_cdnc .and. ancil_option == ancil_option_updating )  then
+      write(ancil_fname,'(A)') trim(ea_ancil_directory)//'/'// &
+                               trim(cloud_drop_no_conc_ancil_path)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,           &
+           xios_id="cloud_drop_no_conc_ancil", io_mode=FILE_MODE_READ ) )
+   endif
+   if ( easyaerosol_sw .and. ancil_option == ancil_option_updating )  then
+      write(ancil_fname,'(A)') trim(ea_ancil_directory)//'/'// &
+                               trim(easy_asymmetry_sw_ancil_path)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,           &
+           xios_id="easy_asymmetry_sw_ancil", io_mode=FILE_MODE_READ ) )
+      write(ancil_fname,'(A)') trim(ea_ancil_directory)//'/'// &
+                               trim(easy_absorption_sw_ancil_path)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,           &
+           xios_id="easy_absorption_sw_ancil", io_mode=FILE_MODE_READ ) )
+      write(ancil_fname,'(A)') trim(ea_ancil_directory)//'/'// &
+                               trim(easy_extinction_sw_ancil_path)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,           &
+           xios_id="easy_extinction_sw_ancil", io_mode=FILE_MODE_READ ) )
+   endif
+   if ( easyaerosol_lw .and. ancil_option == ancil_option_updating )  then
+      write(ancil_fname,'(A)') trim(ea_ancil_directory)//'/'// &
+                               trim(easy_asymmetry_lw_ancil_path)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,           &
+           xios_id="easy_asymmetry_lw_ancil", io_mode=FILE_MODE_READ ) )
+      write(ancil_fname,'(A)') trim(ea_ancil_directory)//'/'// &
+                               trim(easy_absorption_lw_ancil_path)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,           &
+           xios_id="easy_absorption_lw_ancil", io_mode=FILE_MODE_READ ) )
+      write(ancil_fname,'(A)') trim(ea_ancil_directory)//'/'// &
+                               trim(easy_extinction_lw_ancil_path)
+      call files_list%insert_item( lfric_xios_file_type( ancil_fname,           &
+           xios_id="easy_extinction_lw_ancil", io_mode=FILE_MODE_READ ) )
+   endif
 #endif
 
     ! Setup orography ancillary file

@@ -128,6 +128,21 @@
   <field id="aerosol__pvol_om_ait_ins" name="pvol_om_ait_ins" long_name="partial_volume_of_organic_matter_in_aitken_insoluble_mode" unit="m3" grid_ref="full_level_face_grid" />
   <field id="aerosol__pvol_du_acc_ins" name="pvol_du_acc_ins" long_name="partial_volume_of_dust_in_accumulation_insoluble_mode" unit="m3" grid_ref="full_level_face_grid" />
   <field id="aerosol__pvol_du_cor_ins" name="pvol_du_cor_ins" long_name="partial_volume_of_dust_in_coarse_insoluble_mode" unit="m3" grid_ref="full_level_face_grid" />
+  <!-- Easy Aerosol diagnostics -->
+  <field id="aerosol__easy_sw_abs" name="easy_sw_abs" long_name="absorption coefficient of EasyAerosol" unit="m-1" grid_ref="full_level_face_grid_sw_bands" />
+  <field id="aerosol__easy_sw_sca" name="easy_sw_sca" long_name="scattering coefficient of EasyAerosol" unit="m-1" grid_ref="full_level_face_grid_sw_bands" />
+  <field id="aerosol__easy_sw_ext" name="easy_sw_ext" long_name="extinction coefficient of EasyAerosol" unit="m-1" grid_ref="full_level_face_grid_sw_bands" />
+  <field id="aerosol__easy_sw_asy" name="easy_sw_asy"  long_name="asymmetry parameter of EasyAerosol" unit="1"      grid_ref="full_level_face_grid_sw_bands" />
+  <field id="aerosol__easy_lw_abs" name="easy_lw_abs" long_name="absorption coefficient of EasyAerosol" unit="m-1" grid_ref="full_level_face_grid_lw_bands" />
+  <field id="aerosol__easy_lw_sca" name="easy_lw_sca" long_name="scattering coefficient of EasyAerosol" unit="m-1" grid_ref="full_level_face_grid_lw_bands" />
+  <field id="aerosol__easy_lw_ext" name="easy_lw_ext" long_name="extinction coefficient of EasyAerosol" unit="m-1" grid_ref="full_level_face_grid_lw_bands" />
+  <field id="aerosol__easy_lw_asy" name="easy_lw_asy"  long_name="asymmetry parameter of EasyAerosol" unit="1"      grid_ref="full_level_face_grid_lw_bands" />
+  <field id="radiation__aer_sw_abs" name="aer_sw_abs" long_name="aer_sw_absorption" unit="m-1" grid_ref="full_level_face_grid_sw_bands_aero_modes" /> 
+  <field id="radiation__aer_sw_sca" name="aer_sw_sca" long_name="aer_sw_scattering" unit="m-1" grid_ref="full_level_face_grid_sw_bands_aero_modes" /> 
+  <field id="radiation__aer_sw_asy"  name="aer_sw_asy"  long_name="aer_sw_asymmetry" unit="1" grid_ref="full_level_face_grid_sw_bands_aero_modes" /> 
+  <field id="radiation__aer_lw_abs" name="aer_lw_abs" long_name="aer_lw_absorption" unit="m-1" grid_ref="full_level_face_grid_lw_bands_aero_modes" /> 
+  <field id="radiation__aer_lw_sca" name="aer_lw_sca" long_name="aer_lw_scattering" unit="m-1" grid_ref="full_level_face_grid_lw_bands_aero_modes" /> 
+  <field id="radiation__aer_lw_asy"  name="aer_lw_asy"  long_name="aer_lw_asymmetry" unit="1" grid_ref="full_level_face_grid_lw_bands_aero_modes" /> 
   <!-- cloud diagnostics -->
   <field id="cloud__area_fraction" name="area_fraction" long_name="area_cloud_fraction" unit="1" grid_ref="full_level_face_grid" />
   <field id="cloud__bulk_fraction" name="bulk_fraction" long_name="bulk_cloud_fraction" unit="1" grid_ref="full_level_face_grid" />

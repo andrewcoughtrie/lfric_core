@@ -1,0 +1,7 @@
+<!-- Axis definitions required to support aerosol optical property fields assuming -->
+<!-- 7 modes (6 from RADAER, 1 from easyaerosol). -->
+
+<axis_definition>
+  <axis id="sw_bands_aero_modes" name="sw_bands_aero_modes" n_glo="42"/>
+  <axis id="lw_bands_aero_modes" name="lw_bands_aero_modes" n_glo="63"/>
+</axis_definition>

@@ -21,12 +21,12 @@
     <axis axis_ref="vert_axis_full_levels"/>
     <axis axis_ref="aero_modes"/>
   </grid>
-  <grid id="sw_aero_grid">
+  <grid id="full_level_face_grid_sw_bands_aero_modes">
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_full_levels"/>
     <axis axis_ref="sw_bands_aero_modes"/>
   </grid>
-  <grid id="lw_aero_grid">
+  <grid id="full_level_face_grid_lw_bands_aero_modes">
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_full_levels"/>
     <axis axis_ref="lw_bands_aero_modes"/>
@@ -68,5 +68,27 @@
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_full_levels"/>
     <axis axis_ref="cloud_subcols"/>
+  </grid>
+  <grid id="full_level_face_grid_sw_bands">
+    <domain domain_ref="face"/>
+    <axis axis_ref="vert_axis_full_levels"/>
+    <axis axis_ref="sw_bands"/>
+  </grid>
+  <grid id="full_level_face_grid_lw_bands">
+    <domain domain_ref="face"/>
+    <axis axis_ref="vert_axis_full_levels"/>
+    <axis axis_ref="lw_bands"/>
+  </grid>
+  <grid id="full_level_face_grid_sw_bands_monthly">
+    <domain domain_ref="face"/>
+    <axis axis_ref="vert_axis_full_levels"/>
+    <axis axis_ref="monthly_climatology"/>
+    <axis axis_ref="sw_bands"/>
+  </grid>
+  <grid id="full_level_face_grid_lw_bands_monthly">
+    <domain domain_ref="face"/>
+    <axis axis_ref="vert_axis_full_levels"/>
+    <axis axis_ref="monthly_climatology"/>
+    <axis axis_ref="lw_bands"/>
   </grid>
 </grid_definition>

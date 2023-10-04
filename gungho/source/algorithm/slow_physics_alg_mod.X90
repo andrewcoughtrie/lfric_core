@@ -108,12 +108,14 @@ module slow_physics_alg_mod
                                        glomap_mode_ukca,          &
                                        glomap_mode_radaer_test,   &
                                        l_radaer,                  &
-                                       sulphuric_strat_climatology
+                                       sulphuric_strat_climatology,            &
+                                       easyaerosol_sw, easyaerosol_lw
   use ancil_info,                only: rad_nband
   use jules_control_init_mod,    only: n_land_tile
   use fsd_condensate_alg_mod,    only: fsd_condensate_alg
   use bm_tau_alg_mod,            only: bm_tau_alg
   use um_sizes_init_mod,         only: um_sizes_init
+  use easyaerosol_alg_mod,      only : easyaerosol_alg
 #endif
 
   implicit none
@@ -511,6 +513,14 @@ contains
                          exner_in_wth,                                         &
                          trop_level,                                           &
                          clock%get_step() )
+      end if
+
+      !--------------------------------------------------------------------
+      ! Easy Aerosol climatology
+      !--------------------------------------------------------------------
+      if (easyaerosol_sw .or. easyaerosol_lw) then
+        call easyaerosol_alg(radiation_fields, aerosol_fields, &
+                                 derived_fields )
       end if
 
       !--------------------------------------------------------------------

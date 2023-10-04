@@ -40,7 +40,11 @@ module init_ancils_mod
                                              glomap_mode_dust_and_clim, &
                                              glomap_mode_ukca,          &
                                              emissions, emissions_GC3,  &
-                                             emissions_GC5
+                                             emissions_GC5,             &
+                                             easyaerosol_cdnc,          &
+                                             easyaerosol_sw,            &
+                                             easyaerosol_lw
+  use socrates_init_mod,              only : n_sw_band, n_lw_band
   use jules_surface_config_mod,       only : l_vary_z0m_soil, l_urban2t
   use surface_config_mod,             only : sea_alb_var_chl, albedo_obs, &
                                              amip_ice_thick
@@ -122,6 +126,13 @@ contains
     type(time_axis_type), save :: no3_time_axis
     type(time_axis_type), save :: o3_time_axis
     type(time_axis_type), save :: oh_time_axis
+    type(time_axis_type), save :: cloud_drop_no_conc_time_axis
+    type(time_axis_type), save :: easy_asymmetry_sw_time_axis
+    type(time_axis_type), save :: easy_asymmetry_lw_time_axis
+    type(time_axis_type), save :: easy_absorption_sw_time_axis
+    type(time_axis_type), save :: easy_absorption_lw_time_axis
+    type(time_axis_type), save :: easy_extinction_sw_time_axis
+    type(time_axis_type), save :: easy_extinction_lw_time_axis
 
     ! Time axis options
     logical(l_def),   parameter :: interp_flag=.true.
@@ -556,6 +567,88 @@ contains
 
     endif  ! ancil_updating, glomap_ukca
 
+    ! ====== Easy aerosols ======
+    ! CDNC
+    if ( easyaerosol_cdnc .and. ancil_option == ancil_option_updating )  then
+       call cloud_drop_no_conc_time_axis%initialise("cloud_drop_no_conc_time", &
+                                       file_id="cloud_drop_no_conc_ancil",     &
+                                       interp_flag=interp_flag,                &
+                                       pop_freq="five_days")
+       call setup_ancil_field("cloud_drop_no_conc", depository, ancil_fields,  &
+                           mesh, twod_mesh,                                    &
+                           time_axis=cloud_drop_no_conc_time_axis)   ! 3-D
+       call ancil_times_list%insert_item(cloud_drop_no_conc_time_axis)
+    endif ! easyaerosol_cdnc
+
+    ! SW ASYMMETRY
+    if ( easyaerosol_sw .and. ancil_option == ancil_option_updating )  then
+       call easy_asymmetry_sw_time_axis%initialise("easy_asymmetry_sw_time",   &
+                                       file_id="easy_asymmetry_sw_ancil",      &
+                                       interp_flag=interp_flag,                &
+                                       pop_freq="five_days")
+       call setup_ancil_field("easy_asymmetry_sw", depository, ancil_fields,   &
+                           mesh, twod_mesh,                                    &
+                           ndata=n_sw_band, ndata_first=.true.,&
+                           time_axis=easy_asymmetry_sw_time_axis)   ! 3-D
+       call ancil_times_list%insert_item(easy_asymmetry_sw_time_axis)
+
+    ! SW ABSORPTION
+       call easy_absorption_sw_time_axis%initialise("easy_absorption_sw_time", &
+                                       file_id="easy_absorption_sw_ancil", &
+                                       interp_flag=interp_flag,          &
+                                       pop_freq="five_days")
+       call setup_ancil_field("easy_absorption_sw", depository, ancil_fields,  &
+                           mesh, twod_mesh,                                    &
+                           ndata=n_sw_band, ndata_first=.true.,                &
+                           time_axis=easy_absorption_sw_time_axis)   ! 3-D
+       call ancil_times_list%insert_item(easy_absorption_sw_time_axis)
+
+    ! SW EXTINCTION
+       call easy_extinction_sw_time_axis%initialise("easy_extinction_sw_time", &
+                                       file_id="easy_extinction_sw_ancil",     &
+                                       interp_flag=interp_flag,                &
+                                       pop_freq="five_days")
+       call setup_ancil_field("easy_extinction_sw", depository, ancil_fields,  &
+                           mesh, twod_mesh,                                    &
+                           ndata=n_sw_band, ndata_first=.true.,&
+                           time_axis=easy_extinction_sw_time_axis)   ! 3-D
+       call ancil_times_list%insert_item(easy_extinction_sw_time_axis)
+    endif ! easyaerosol_sw
+
+    ! LW ASYMMETRY
+    if ( easyaerosol_lw .and. ancil_option == ancil_option_updating )  then
+       call easy_asymmetry_lw_time_axis%initialise("easy_asymmetry_lw_time", &
+                                       file_id="easy_asymmetry_lw_ancil", &
+                                       interp_flag=interp_flag,          &
+                                       pop_freq="five_days")
+       call setup_ancil_field("easy_asymmetry_lw", depository, ancil_fields,   &
+                           mesh, twod_mesh,                                    &
+                           ndata=n_lw_band, ndata_first=.true.,&
+                           time_axis=easy_asymmetry_lw_time_axis)   ! 3-D
+       call ancil_times_list%insert_item(easy_asymmetry_lw_time_axis)
+
+    ! LW ABSORPTION
+       call easy_absorption_lw_time_axis%initialise("easy_absorption_lw_time", &
+                                       file_id="easy_absorption_lw_ancil", &
+                                       interp_flag=interp_flag,          &
+                                       pop_freq="five_days")
+       call setup_ancil_field("easy_absorption_lw", depository, ancil_fields,   &
+                           mesh, twod_mesh,                                    &
+                           ndata=n_lw_band, ndata_first=.true.,&
+                           time_axis=easy_absorption_lw_time_axis)   ! 3-D
+       call ancil_times_list%insert_item(easy_absorption_lw_time_axis)
+       call easy_extinction_lw_time_axis%initialise("easy_extinction_lw_time", &
+                                       file_id="easy_extinction_lw_ancil", &
+                                       interp_flag=interp_flag,          &
+                                       pop_freq="five_days")
+
+    ! LW EXTINCTION
+       call setup_ancil_field("easy_extinction_lw", depository, ancil_fields,   &
+                           mesh, twod_mesh,                                    &
+                           ndata=n_lw_band, ndata_first=.true.,&
+                           time_axis=easy_extinction_lw_time_axis)   ! 3-D
+       call ancil_times_list%insert_item(easy_extinction_lw_time_axis)
+    endif ! easyaerosol_lw
 
     ! === Chemistry Ancils ======
     if ( (chem_scheme == chem_scheme_strattrop .or.                  &
@@ -689,8 +782,8 @@ contains
   !> @param[in, optional] alt_mesh      Alternative 3d mesh for time axis fields
   !> @param[in, optional] alt_twod_mesh Alternative 2d mesh for time axis fields
   subroutine setup_ancil_field( name, depository, ancil_fields, mesh, &
-                                twod_mesh, twod, ndata, time_axis,    &
-                                alt_mesh, alt_twod_mesh  )
+                                twod_mesh, twod, ndata, ndata_first,  &
+                                time_axis, alt_mesh, alt_twod_mesh  )
 
     implicit none
 
@@ -701,6 +794,7 @@ contains
     type( mesh_type ),    pointer,  intent(in)          :: twod_mesh
     logical(l_def),       optional, intent(in)          :: twod
     integer(i_def),       optional, intent(in)          :: ndata
+    logical(l_def),       optional, intent(in)          :: ndata_first
     type(time_axis_type), optional, intent(inout)       :: time_axis
     type( mesh_type ), optional, pointer, intent(in)    :: alt_mesh
     type( mesh_type ), optional, pointer, intent(in)    :: alt_twod_mesh
@@ -709,6 +803,7 @@ contains
     type(field_type)          :: new_field
     integer(i_def)            :: ndat, time_ndat
     logical(l_def)            :: twod_field
+    logical(l_def)            :: ndat_first
     integer(i_def), parameter :: fs_order = 0
 
     ! Pointers
@@ -729,6 +824,11 @@ contains
     else
       twod_field = .false.
     end if
+    if (present(ndata_first)) then
+       ndat_first = ndata_first
+    else
+       ndat_first = .false.
+    end if
 
     ! If field does not yet exist, then create it
     if ( .not. depository%field_exists( name ) ) then
@@ -744,7 +844,7 @@ contains
                                                        WTheta, ndat )
         tmp_write_ptr => write_field_face
        end if
-      call new_field%initialise( vec_space, name=trim(name) )
+      call new_field%initialise( vec_space, name=trim(name))
       call new_field%set_write_behaviour(tmp_write_ptr)
       ! Add the new field to the field depository
       call depository%add_field(new_field)
@@ -762,18 +862,22 @@ contains
       if (twod_field) then
         if ( present(alt_twod_mesh) ) then
           vec_space => function_space_collection%get_fs( alt_twod_mesh, fs_order, &
-                                                        W3, time_ndat )
+                                                         W3, time_ndat,        &
+                                                         ndata_first )
         else
-          vec_space => function_space_collection%get_fs( twod_mesh, fs_order, &
-                                                        W3, time_ndat )
+          vec_space => function_space_collection%get_fs( twod_mesh, fs_order,  &
+                                                         W3, time_ndat,        &
+                                                         ndata_first )
         end if
       else
         if ( present(alt_mesh) ) then
-          vec_space => function_space_collection%get_fs( alt_mesh, fs_order, &
-                                                         Wtheta, time_ndat )
+          vec_space => function_space_collection%get_fs( alt_mesh, fs_order,   &
+                                                         Wtheta, time_ndat,    &
+                                                         ndata_first )
         else
-          vec_space => function_space_collection%get_fs( mesh, fs_order, &
-                                                         Wtheta, time_ndat )
+          vec_space => function_space_collection%get_fs( mesh, fs_order,       &
+                                                         Wtheta, time_ndat,    &
+                                                         ndata_first )
         end if
       end if
       call new_field%initialise( vec_space, name=trim(name) )

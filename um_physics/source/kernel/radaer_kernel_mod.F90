@@ -298,8 +298,8 @@ subroutine radaer_code( nlayers,                                               &
                                                lw_n_band_exclude,              &
                                                lw_index_exclude
 
-  use um_physics_init_mod,               only: n_aer_mode
-
+  use um_physics_init_mod,               only: n_radaer_mode,                  &
+                                               n_aer_mode_sw, n_aer_mode_lw
   !---------------------------------------
   ! UM modules
   !---------------------------------------
@@ -480,25 +480,25 @@ subroutine radaer_code( nlayers,                                               &
   real(r_um),dimension( row_length*rows, nlayers, n_ukca_mode ) ::             &
                                                               ukca_modal_wtv_um
 
-  real(r_um),dimension( row_length*rows, nlayers, n_aer_mode ) ::              &
+  real(r_um),dimension( row_length*rows, nlayers, n_radaer_mode) ::            &
                                                          ukca_mode_mix_ratio_um
 
-  real(r_um),dimension( row_length*rows, nlayers, n_aer_mode, n_lw_band ) ::   &
+  real(r_um),dimension( row_length*rows, nlayers, n_radaer_mode, n_lw_band) :: &
                                                            aer_lw_absorption_um
 
-  real(r_um),dimension( row_length*rows, nlayers, n_aer_mode, n_lw_band ) ::   &
+  real(r_um),dimension( row_length*rows, nlayers, n_radaer_mode, n_lw_band) :: &
                                                            aer_lw_scattering_um
 
-  real(r_um),dimension( row_length*rows, nlayers, n_aer_mode, n_lw_band ) ::   &
+  real(r_um),dimension( row_length*rows, nlayers, n_radaer_mode, n_lw_band) :: &
                                                            aer_lw_asymmetry_um
 
-  real(r_um),dimension( row_length*rows, nlayers, n_aer_mode, n_sw_band ) ::   &
+  real(r_um),dimension( row_length*rows, nlayers, n_radaer_mode, n_sw_band) :: &
                                                            aer_sw_absorption_um
 
-  real(r_um),dimension( row_length*rows, nlayers, n_aer_mode, n_sw_band ) ::   &
+  real(r_um),dimension( row_length*rows, nlayers, n_radaer_mode, n_sw_band) :: &
                                                            aer_sw_scattering_um
 
-  real(r_um),dimension( row_length*rows, nlayers, n_aer_mode, n_sw_band ) ::   &
+  real(r_um),dimension( row_length*rows, nlayers, n_radaer_mode, n_sw_band) :: &
                                                            aer_sw_asymmetry_um
 
   integer, parameter :: i_ukca_tune_bc = i_ukca_bc_tuned
@@ -688,7 +688,7 @@ subroutine radaer_code( nlayers,                                               &
     ! Input Actual array dimensions
     npd_profile, nlayers, n_ukca_mode, n_ukca_cpnt,                            &
     ! Input Fixed array dimensions
-    npd_profile, nlayers, n_aer_mode,                                          &
+    npd_profile, nlayers, n_radaer_mode,                                       &
     ! Input from the UKCA_RADAER structure
     nmodes, ncp_max, i_cpnt_index, n_cpnt_in_mode,                             &
     ! Input Component mass-mixing ratios
@@ -704,7 +704,7 @@ subroutine radaer_code( nlayers,                                               &
   )
 
   ! MODE aerosol mixing ratios
-  do i_mode = 1, n_aer_mode
+  do i_mode = 1, n_radaer_mode
     do k = 1, nlayers
       aer_mix_ratio( map_mode(1) + ( (i_mode-1)*(nlayers+1) ) + k ) =          &
                                    ukca_mode_mix_ratio_um( 1, k, i_mode )
@@ -719,7 +719,7 @@ subroutine radaer_code( nlayers,                                               &
     ! Fixed array dimensions (input)
     npd_profile,                                                               &
     nlayers,                                                                   &
-    n_aer_mode,                                                                &
+    n_radaer_mode,                                                             &
     n_lw_band,                                                                 &
     npd_exclude_lw,                                                            &
     ! Spectral information (input)
@@ -777,10 +777,12 @@ subroutine radaer_code( nlayers,                                               &
     aer_lw_asymmetry_um                                                        &
   )
 
-  ! MODE aerosol optical properties in bands
+  ! Socrates arrays filled with MODE aerosol optical properties in bands
   i_rmode = 0
   do i_band = 1, n_lw_band
-    do i_mode = 1, n_aer_mode
+
+    ! Fill the radaer modes within this band
+    do i_mode = 1, n_radaer_mode
       i_rmode = i_rmode + 1
       do k = 1, nlayers
         aer_lw_absorption(map_rmode_lw(1) + ((i_rmode-1)*(nlayers+1)) + k ) =  &
@@ -791,7 +793,15 @@ subroutine radaer_code( nlayers,                                               &
                                   aer_lw_asymmetry_um(  1, k, i_mode, i_band )
       end do
     end do
-  end do
+
+    ! If there are additional aerosol modes not associated with radaer
+    ! (e.g. from easyaerosol) then i_rmode needs advancing past them
+    ! before starting on the next radiation band.
+    if (n_aer_mode_lw > n_radaer_mode) then
+      i_rmode = i_rmode + n_aer_mode_lw - n_radaer_mode
+    end if
+
+  end do ! n_lw_bands
 
   ! Only calculate SW on lit points
   ! If superstepping (n_radaer_step>1) then need to calculate on all points
@@ -804,7 +814,7 @@ subroutine radaer_code( nlayers,                                               &
          ! Fixed array dimensions (input)
          npd_profile,                                                          &
          nlayers,                                                              &
-         n_aer_mode,                                                           &
+         n_radaer_mode,                                                        &
          n_sw_band,                                                            &
          npd_exclude_sw,                                                       &
          ! Spectral information (input)
@@ -862,10 +872,12 @@ subroutine radaer_code( nlayers,                                               &
          aer_sw_asymmetry_um                                                   &
          )
 
-    ! MODE aerosol optical properties in bands
+   ! Socrates arrays filled with MODE aerosol optical properties in bands
     i_rmode = 0
     do i_band = 1, n_sw_band
-      do i_mode = 1, n_aer_mode
+
+      ! Fill the radaer modes within this band
+      do i_mode = 1, n_radaer_mode
         i_rmode = i_rmode + 1
         do k = 1, nlayers
           aer_sw_absorption(map_rmode_sw(1) + ((i_rmode-1)*(nlayers+1)) + k ) &
@@ -876,14 +888,24 @@ subroutine radaer_code( nlayers,                                               &
                                 =  aer_sw_asymmetry_um(  1, k, i_mode, i_band )
         end do
       end do
-    end do
+
+      ! If there are additional aerosol modes not associated with radaer
+      ! (e.g. from easyaerosol) then i_rmode needs advancing past them
+      ! before starting on the next radiation band.
+      if (n_aer_mode_sw > n_radaer_mode) then
+        i_rmode = i_rmode + n_aer_mode_sw - n_radaer_mode
+      end if
+
+    end do ! n_sw_bands
 
   else ! unlit points
 
     ! Dummy values to avoid problems in radiation code
     i_rmode = 0
     do i_band = 1, n_sw_band
-      do i_mode = 1, n_aer_mode
+
+      ! Fill the radaer modes within this band
+      do i_mode = 1, n_radaer_mode
         i_rmode = i_rmode + 1
         do k = 1, nlayers
           aer_sw_absorption(map_rmode_sw(1) + ((i_rmode-1)*(nlayers+1)) + k ) &
@@ -894,7 +916,15 @@ subroutine radaer_code( nlayers,                                               &
                                 =  1.0_r_def
         end do
       end do
-    end do
+
+      ! If there are additional aerosol modes not associated with radaer
+      ! (e.g. from easyaerosol) then i_rmode needs advancing past them
+      ! before starting on the next radiation band.
+      if (n_aer_mode_sw > n_radaer_mode) then
+        i_rmode = i_rmode + n_aer_mode_sw - n_radaer_mode
+      end if
+
+    end do ! n_sw_bands
 
   end if ! lit points
 
