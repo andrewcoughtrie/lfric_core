@@ -470,7 +470,8 @@ contains
     ! Local variables for the kernel
     !-----------------------------------------------------------------------
     ! loop counters etc
-    integer(i_def) :: i, i_tile, i_sice, n, l, m, land_field, ssi_pts, sice_pts
+    integer(i_def) :: i, i_tile, i_sice, n, l, m, land_field, ssi_pts,       &
+                      sice_pts, sea_pts
 
     ! local switches and scalars
     integer(i_um) :: error_code
@@ -709,6 +710,7 @@ contains
       ! individual sea and sea-ice indices
       ! first set defaults
       sice_pts = 0
+      sea_pts = 0
       ! then calculate based on state
       do i = 1, seg_len
         if (ainfo%ssi_index(i) > 0) then
@@ -716,6 +718,11 @@ contains
             sice_pts = sice_pts + 1
             ainfo%sice_index(sice_pts) = i
             ainfo%sice_frac(i) = ainfo%ice_fract_ij(i, 1)
+          end if
+          if (ainfo%ice_fract_ij(i, 1) < 1.0_r_um) then
+            sea_pts = sea_pts + 1
+            ainfo%sea_index(sea_pts) = i
+            ainfo%sea_frac(i) = 1.0_r_um - ainfo%ice_fract_ij(i,1)
           end if
         end if
       end do
@@ -1061,7 +1068,7 @@ contains
          !UM-only arguments
          !JULES ancil_info module
          !IN
-         ntiles, land_field, ssi_pts, sice_pts, ainfo%surft_pts,             &
+         ntiles, land_field, ssi_pts, sice_pts, sea_pts, ainfo%surft_pts,    &
          !JULES coastal module IN
          flandg,                                                             &
          ! Coastal OUT - do this here as needs to be OUT
