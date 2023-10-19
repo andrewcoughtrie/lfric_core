@@ -10,27 +10,27 @@
 !!         corresponding nonlinear code.
 program runge_kutta
 
-  use configuration_mod,       only: read_configuration, final_configuration
-  use driver_collections_mod,  only: init_collections, final_collections
-  use driver_time_mod,         only: init_time, get_calendar
-  use gungho_modeldb_mod,      only: modeldb_type
-  use halo_comms_mod,          only: initialise_halo_comms, finalise_halo_comms
-  use log_mod,                 only: log_event,       &
-                                     LOG_LEVEL_ERROR, &
-                                     LOG_LEVEL_INFO
-  use mpi_mod,                 only: create_comm, destroy_comm, global_mpi
-  use namelist_collection_mod, only: namelist_collection_type
-  use tl_test_driver_mod,      only: initialise,                  &
-                                     finalise,                    &
-                                     run_timesteps,               &
-                                     run_kinetic_energy_gradient, &
-                                     run_advect_density_field,    &
-                                     run_advect_theta_field,      &
-                                     run_vorticity_advection,     &
-                                     run_project_eos_pressure,    &
-                                     run_hydrostatic,             &
-                                     run_pressure_gradient_bd,    &
-                                     run_rk_alg
+  use configuration_mod,      only: read_configuration, final_configuration
+  use driver_collections_mod, only: init_collections, final_collections
+  use driver_time_mod,        only: init_time, get_calendar
+  use gungho_modeldb_mod,     only: modeldb_type
+  use halo_comms_mod,         only: initialise_halo_comms, &
+                                    finalise_halo_comms
+  use log_mod,                only: log_event,       &
+                                    LOG_LEVEL_ERROR, &
+                                    LOG_LEVEL_INFO
+  use mpi_mod,                only: create_comm, destroy_comm, global_mpi
+  use tl_test_driver_mod,     only: initialise,                  &
+                                    finalise,                    &
+                                    run_timesteps,               &
+                                    run_kinetic_energy_gradient, &
+                                    run_advect_density_field,    &
+                                    run_advect_theta_field,      &
+                                    run_vorticity_advection,     &
+                                    run_project_eos_pressure,    &
+                                    run_hydrostatic,             &
+                                    run_pressure_gradient_bd,    &
+                                    run_rk_alg
 
   implicit none
 
@@ -61,8 +61,6 @@ program runge_kutta
 
   ! Usage message to print
   character(len=256) :: usage_message
-
-  type(namelist_collection_type) :: nml_bank
 
   modeldb%mpi => global_mpi
 
@@ -134,8 +132,8 @@ program runge_kutta
      call log_event( "Unknown test", LOG_LEVEL_ERROR )
   end select
 
-  call nml_bank%initialise( program_name, table_len=10 )
-  call read_configuration( filename, nml_bank )
+  call modeldb%configuration%initialise( program_name, table_len=10 )
+  call read_configuration( filename, modeldb%configuration )
   deallocate( filename )
 
   call init_collections()

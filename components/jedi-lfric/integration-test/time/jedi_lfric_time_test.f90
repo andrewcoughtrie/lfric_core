@@ -53,6 +53,8 @@ program jedi_lfric_time_test
 
   character(:), allocatable :: filename
 
+  type(namelist_collection_type), save :: configuration
+
   ! Variables used for parsing command line arguments
   integer(i_def)   :: length, status, nargs
   character(len=0) :: dummy
@@ -79,8 +81,6 @@ program jedi_lfric_time_test
 
   ! Usage message to print
   character(len=512) :: usage_message
-
-  type(namelist_collection_type), save :: nml_bank
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Communicators and Logging Setup
@@ -186,8 +186,8 @@ program jedi_lfric_time_test
   end if
 
   ! Setup configuration, and initialise tests
-  call nml_bank%initialise( program_name, table_len=10 )
-  call read_configuration( filename, nml_bank )
+  call configuration%initialise( program_name, table_len=10 )
+  call read_configuration( filename, configuration )
   call test_jedi_interface_init()
 
   if ( do_test_init_lfric_calendar_start ) then

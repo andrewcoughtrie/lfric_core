@@ -31,7 +31,6 @@ program planar_mesh_generator
   use halo_comms_mod,                 only: initialise_halo_comms, &
                                             finalise_halo_comms
   use io_utility_mod,                 only: open_file, close_file
-  use namelist_collection_mod,        only: namelist_collection_type
   use local_mesh_collection_mod,      only: local_mesh_collection, &
                                             local_mesh_collection_type
 
@@ -40,6 +39,10 @@ program planar_mesh_generator
                            log_scratch_space, LOG_LEVEL_INFO,    &
                            LOG_LEVEL_ERROR
   use mpi_mod,       only: global_mpi, create_comm, destroy_comm
+
+  use namelist_collection_mod, only: namelist_collection_type
+  use namelist_mod,            only: namelist_type
+
   use ncdf_quad_mod, only: ncdf_quad_type
   use partition_mod, only: partition_type, partitioner_interface
 
@@ -53,35 +56,18 @@ program planar_mesh_generator
   use write_local_meshes_mod, only: write_local_meshes
 
   ! Configuration modules.
-  use mesh_config_mod,         only: mesh_file_prefix, rotate_mesh, &
-                                     n_meshes, mesh_names,          &
-                                     mesh_maps, partition_mesh,     &
-                                     coord_sys, coord_sys_ll,       &
-                                     coord_sys_xyz,                 &
-                                     key_from_coord_sys,            &
-                                     topology,                      &
-                                     topology_non_periodic,         &
-                                     topology_periodic,             &
-                                     topology_channel,              &
-                                     key_from_topology,             &
-                                     geometry, geometry_planar,     &
-                                     geometry_spherical,            &
-                                     key_from_geometry
-  use partitions_config_mod,   only: max_stencil_depth, &
-                                     n_partitions,      &
-                                     partition_range
-  use planar_mesh_config_mod,  only: edge_cells_x, edge_cells_y, &
-                                     periodic_x, periodic_y,     &
-                                     domain_x, domain_y,         &
-                                     first_node,                 &
-                                     create_lbc_mesh,            &
-                                     lbc_rim_depth,              &
-                                     lbc_parent_mesh
-  use rotation_config_mod,     only: target_north_pole,           &
-                                     target_null_island,          &
-                                     rotation_target,             &
-                                     ROTATION_TARGET_NULL_ISLAND, &
-                                     ROTATION_TARGET_NORTH_POLE
+  use mesh_config_mod,     only: COORD_SYS_LL,          &
+                                 COORD_SYS_XYZ,         &
+                                 key_from_coord_sys,    &
+                                 TOPOLOGY_PERIODIC,     &
+                                 TOPOLOGY_NON_PERIODIC, &
+                                 TOPOLOGY_CHANNEL,      &
+                                 key_from_topology,     &
+                                 GEOMETRY_PLANAR,       &
+                                 GEOMETRY_SPHERICAL,    &
+                                 key_from_geometry
+  use rotation_config_mod, only: ROTATION_TARGET_NULL_ISLAND, &
+                                 ROTATION_TARGET_NORTH_POLE
 
   implicit none
 
@@ -141,16 +127,51 @@ program planar_mesh_generator
 
   character(str_def) :: name
 
-  type(namelist_collection_type) :: nml_bank
-
   ! Counters.
   integer(i_def) :: i, j, k, l, n_voids
+
+  ! Configuration variables
+  type(namelist_collection_type) :: configuration
+  type(namelist_type), pointer   :: nml_obj => null()
+
+  character(str_max_filename) :: mesh_file_prefix
+
+  logical :: partition_mesh
+  logical :: rotate_mesh
+  integer(i_def) :: n_meshes
+  character(str_def), allocatable :: mesh_names(:)
+  character(str_def), allocatable :: mesh_maps(:)
+
+  integer(i_def) :: coord_sys
+  integer(i_def) :: topology
+  integer(i_def) :: geometry
+
+  integer(i_def) :: max_stencil_depth
+  integer(i_def) :: n_partitions
+  integer(i_def), allocatable :: partition_range(:)
+
+  integer(i_def) :: rotation_target
+  real(r_def), allocatable :: target_north_pole(:)
+  real(r_def), allocatable :: target_null_island(:)
+
+  integer(i_def), allocatable :: edge_cells_x(:)
+  integer(i_def), allocatable :: edge_cells_y(:)
+
+  logical     :: periodic_x
+  logical     :: periodic_y
+  logical     :: create_lbc_mesh
+  real(r_def) :: domain_x
+  real(r_def) :: domain_y
+  integer(i_def) :: lbc_rim_depth
+
+  character(str_def) :: lbc_parent_mesh
+  real(r_def), allocatable :: first_node(:)
 
   !===================================================================
   ! 1.0 Set the logging level for the run, should really be able
   !     to set it from the command line as an option.
   !===================================================================
-  call log_set_level(LOG_LEVEL_INFO)
+  call log_set_level( LOG_LEVEL_INFO )
 
   !===================================================================
   ! 2.0 Start up.
@@ -165,15 +186,57 @@ program planar_mesh_generator
 
   total_ranks = global_mpi%get_comm_size()
   local_rank  = global_mpi%get_comm_rank()
-  call initialise_logging( communicator, 'PlanarGen' )
-  call nml_bank%initialise( 'PlanarGen', table_len=10 )
+  call initialise_logging( communicator, "PlanarGen" )
+
 
   !===================================================================
   ! 3.0 Read in the control namelists from file.
   !===================================================================
   call get_initial_filename( filename )
-  call read_configuration( filename, nml_bank )
+  call configuration%initialise( 'PlanarGen', table_len=10 )
+  call read_configuration( filename, configuration )
+
   deallocate( filename )
+  if (configuration%namelist_exists('mesh')) then
+    nml_obj => configuration%get_namelist('mesh')
+    call nml_obj%get_value( 'mesh_file_prefix', mesh_file_prefix )
+    call nml_obj%get_value( 'n_meshes',         n_meshes )
+    call nml_obj%get_value( 'mesh_names',       mesh_names )
+    call nml_obj%get_value( 'mesh_maps',        mesh_maps )
+    call nml_obj%get_value( 'partition_mesh',   partition_mesh )
+    call nml_obj%get_value( 'rotate_mesh',      rotate_mesh )
+    call nml_obj%get_value( 'coord_sys',        coord_sys )
+    call nml_obj%get_value( 'topology',         topology )
+    call nml_obj%get_value( 'geometry',         geometry )
+  end if
+
+  if (configuration%namelist_exists('partitions')) then
+    nml_obj => configuration%get_namelist('partitions')
+    call nml_obj%get_value( 'max_stencil_depth', max_stencil_depth )
+    call nml_obj%get_value( 'n_partitions', n_partitions )
+    call nml_obj%get_value( 'partition_range', partition_range )
+  end if
+
+  if (configuration%namelist_exists('rotation')) then
+    nml_obj => configuration%get_namelist('rotation')
+    call nml_obj%get_value( 'rotation_target', rotation_target )
+    call nml_obj%get_value( 'target_north_pole', target_north_pole )
+    call nml_obj%get_value( 'target_null_island', target_null_island )
+  end if
+
+  if (configuration%namelist_exists('planar_mesh')) then
+    nml_obj => configuration%get_namelist('planar_mesh')
+    call nml_obj%get_value( 'edge_cells_x', edge_cells_x )
+    call nml_obj%get_value( 'edge_cells_y', edge_cells_y )
+    call nml_obj%get_value( 'periodic_x', periodic_x )
+    call nml_obj%get_value( 'periodic_y', periodic_y )
+    call nml_obj%get_value( 'domain_x', domain_x )
+    call nml_obj%get_value( 'domain_y', domain_y )
+    call nml_obj%get_value( 'first_node', first_node )
+    call nml_obj%get_value( 'create_lbc_mesh', create_lbc_mesh )
+    call nml_obj%get_value( 'lbc_rim_depth', lbc_rim_depth )
+    call nml_obj%get_value( 'lbc_parent_mesh', lbc_parent_mesh )
+  end if
 
   ! The number of mesh maps in the namelist array is unbounded
   ! and so may contain unset/empty array elements. Remove
@@ -819,6 +882,14 @@ program planar_mesh_generator
   if ( allocated( target_mesh_names_tmp   ) ) deallocate (target_mesh_names_tmp)
   if ( allocated( target_edge_cells_x_tmp ) ) deallocate (target_edge_cells_x_tmp)
   if ( allocated( target_edge_cells_y_tmp ) ) deallocate (target_edge_cells_y_tmp)
+
+  if ( allocated( mesh_names         ) ) deallocate(mesh_names)
+  if ( allocated( partition_range    ) ) deallocate(partition_range)
+  if ( allocated( target_north_pole  ) ) deallocate(target_north_pole)
+  if ( allocated( target_null_island ) ) deallocate(target_null_island)
+  if ( allocated( edge_cells_x       ) ) deallocate(edge_cells_x)
+  if ( allocated( edge_cells_y       ) ) deallocate(edge_cells_y)
+  if ( allocated( first_node         ) ) deallocate(first_node)
 
   call finalise_halo_comms()
 

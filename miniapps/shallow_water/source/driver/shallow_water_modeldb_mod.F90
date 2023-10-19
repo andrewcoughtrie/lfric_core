@@ -12,9 +12,10 @@
 !!
 module shallow_water_modeldb_mod
 
-  use shallow_water_model_data_mod, only : model_data_type
-  use model_clock_mod,              only : model_clock_type
-  use mpi_mod,                      only : mpi_type
+  use shallow_water_model_data_mod, only: model_data_type
+  use model_clock_mod,              only: model_clock_type
+  use mpi_mod,                      only: mpi_type
+  use namelist_collection_mod,      only: namelist_collection_type
 
   implicit none
 
@@ -28,6 +29,10 @@ module shallow_water_modeldb_mod
 
     !> Stores all the fields used by the model
     type( model_data_type ), public :: model_data
+
+    !> Stores all the configuration namelists used by the model
+    !> from a namelist input file.
+    type( namelist_collection_type ), public :: configuration
 
     !> Manages time in the model instance
     type(model_clock_type), public, allocatable :: clock

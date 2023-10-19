@@ -57,8 +57,6 @@ program semi_implicit
   ! Usage message to print
   character(len=256) :: usage_message
 
-  type(namelist_collection_type) :: nml_bank
-
   modeldb%mpi => global_mpi
 
   call create_comm( communicator )
@@ -120,8 +118,8 @@ program semi_implicit
      call log_event( "Unknown test", LOG_LEVEL_ERROR )
   end select
 
-  call nml_bank%initialise( program_name, table_len=10 )
-  call read_configuration( filename, nml_bank )
+  call modeldb%configuration%initialise( program_name, table_len=10 )
+  call read_configuration( filename, modeldb%configuration )
   deallocate( filename )
 
   call init_collections()

@@ -40,22 +40,28 @@ program lfric_atm
 
   modeldb%mpi => global_mpi
 
+  call modeldb%configuration%initialise( application_name, &
+                                         table_len=10 )
+  call modeldb%values%initialise( 'values', 5 )
+
+  ! Create the depository, prognostics and diagnostics field collections
+  call modeldb%model_data%depository%initialise( &
+                          name='depository', table_len=100 )
+  call modeldb%model_data%prognostic_fields%initialise( &
+                          name="prognostics", table_len=100 )
+  call modeldb%model_data%diagnostic_fields%initialise( &
+                          name="diagnostics", table_len=100 )
+
   call init_comm( application_name, modeldb%mpi )
   call get_initial_filename( filename )
-  call init_config( filename, gungho_required_namelists )
-  deallocate( filename )
+  call init_config( filename, gungho_required_namelists, &
+                    modeldb%configuration )
   call init_logger( modeldb%mpi%get_comm(), application_name )
   call init_timers( application_name )
   call init_collections()
   call init_time( modeldb%clock )
   call init_counters( application_name )
-
-  call modeldb%values%initialise( 'values', 5 )
-
-  ! Create the depository, prognostics and diagnostics field collections
-  call modeldb%model_data%depository%initialise(name='depository', table_len=100)
-  call modeldb%model_data%prognostic_fields%initialise(name="prognostics", table_len=100)
-  call modeldb%model_data%diagnostic_fields%initialise(name="diagnostics", table_len=100)
+  deallocate( filename )
 
   call initialise( application_name, modeldb, get_calendar() )
   do while (modeldb%clock%tick())

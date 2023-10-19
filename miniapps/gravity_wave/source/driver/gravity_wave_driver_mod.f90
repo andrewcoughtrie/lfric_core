@@ -49,6 +49,7 @@ module gravity_wave_driver_mod
   use mesh_collection_mod,            only: mesh_collection
   use model_clock_mod,                only: model_clock_type
   use mpi_mod,                        only: mpi_type
+  use namelist_collection_mod,        only: namelist_collection_type
   use io_mod,                         only: ts_fname
   use files_config_mod,               only: checkpoint_stem_name
 

@@ -33,19 +33,12 @@ program linear_model
   ! Model run working data set
   type (modeldb_type) :: modeldb
 
-  character(*), parameter :: application_name = "linear_model"
-
+  character(*), parameter   :: application_name = "linear_model"
   character(:), allocatable :: filename
 
   modeldb%mpi => global_mpi
 
-  call init_comm( application_name, modeldb%mpi )
-  call get_initial_filename( filename )
-  call init_config( filename, gungho_required_namelists )
-  deallocate( filename )
-  call init_logger( modeldb%mpi%get_comm(), application_name)
-  call init_collections()
-  call init_time( modeldb%clock )
+  call modeldb%configuration%initialise( application_name, table_len=10 )
 
   call modeldb%values%initialise('values', 5)
 
@@ -53,6 +46,15 @@ program linear_model
   call modeldb%model_data%depository%initialise(name='depository', table_len=100)
   call modeldb%model_data%prognostic_fields%initialise(name="prognostics", table_len=100)
   call modeldb%model_data%diagnostic_fields%initialise(name="diagnostics", table_len=100)
+
+  call init_comm( application_name, modeldb%mpi )
+  call get_initial_filename( filename )
+  call init_config( filename, gungho_required_namelists, &
+                    modeldb%configuration )
+  call init_logger( modeldb%mpi%get_comm(), application_name )
+  call init_collections()
+  call init_time( modeldb%clock )
+  deallocate( filename )
 
   call initialise( modeldb, get_calendar() )
 

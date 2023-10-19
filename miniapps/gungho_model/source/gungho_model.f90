@@ -15,61 +15,66 @@
 
 program gungho_model
 
-  use cli_mod,                only : get_initial_filename
-  use derived_config_mod,     only : l_esm_couple
-  use driver_collections_mod, only : init_collections, final_collections
-  use driver_comm_mod,        only : init_comm, final_comm
-  use driver_config_mod,      only : init_config, final_config
-  use driver_counter_mod,     only : init_counters, final_counters
-  use driver_log_mod,         only : init_logger, final_logger
-  use driver_time_mod,        only : init_time, get_calendar
-  use driver_timer_mod,       only : init_timers, final_timers
-  use gungho_mod,             only : gungho_required_namelists
-  use gungho_driver_mod,      only : initialise, step, finalise
-  use gungho_modeldb_mod,     only : modeldb_type
-  use log_mod,                only : log_event,       &
-                                     log_level_info,  &
-                                     log_level_trace, &
-                                     log_scratch_space
-  use mpi_mod,                only : global_mpi
+  use cli_mod,                only: get_initial_filename
+  use derived_config_mod,     only: l_esm_couple
+  use driver_collections_mod, only: init_collections, final_collections
+  use driver_comm_mod,        only: init_comm, final_comm
+  use driver_config_mod,      only: init_config, final_config
+  use driver_counter_mod,     only: init_counters, final_counters
+  use driver_log_mod,         only: init_logger, final_logger
+  use driver_time_mod,        only: init_time, get_calendar
+  use driver_timer_mod,       only: init_timers, final_timers
+  use gungho_mod,             only: gungho_required_namelists
+  use gungho_driver_mod,      only: initialise, step, finalise
+  use gungho_modeldb_mod,     only: modeldb_type
+  use log_mod,                only: log_event,       &
+                                    log_level_info,  &
+                                    log_level_trace, &
+                                    log_scratch_space
+  use mpi_mod,                only: global_mpi
 
   implicit none
 
   ! Model run working data set
   type(modeldb_type) :: modeldb
 
-  character(*), parameter :: application_name = "gungho_model"
-
+  character(*), parameter   :: application_name = "gungho_model"
   character(:), allocatable :: filename
 
   modeldb%mpi => global_mpi
 
-  call init_comm( application_name,  modeldb%mpi )
+  call modeldb%configuration%initialise( application_name, &
+                                         table_len=10 )
+  call modeldb%values%initialise( 'values', 5 )
+
+  ! Create the depository, prognostics and diagnostics field collections
+  call modeldb%model_data%depository%initialise( &
+                          name='depository', table_len=100 )
+  call modeldb%model_data%prognostic_fields%initialise( &
+                          name="prognostics", table_len=100 )
+  call modeldb%model_data%diagnostic_fields%initialise( &
+                          name="diagnostics", table_len=100 )
+
+  call init_comm( application_name, modeldb%mpi )
   call get_initial_filename( filename )
-  call init_config( filename, gungho_required_namelists )
-  deallocate(filename)
+  call init_config( filename, gungho_required_namelists, &
+                    modeldb%configuration )
   call init_logger( modeldb%mpi%get_comm(), application_name )
   call init_timers( application_name )
   call init_collections()
   call init_time( modeldb%clock )
   call init_counters( application_name )
-
-  call  modeldb%values%initialise( 'values', 5 )
-
-  ! Create the depository, prognostics and diagnostics field collections
-  call modeldb%model_data%depository%initialise(name='depository', table_len=100)
-  call modeldb%model_data%prognostic_fields%initialise(name="prognostics", table_len=100)
-  call modeldb%model_data%diagnostic_fields%initialise(name="diagnostics", table_len=100)
+  deallocate( filename )
 
   write( log_scratch_space, '("Initialise ", A, " ...")' ) application_name
   call log_event( log_scratch_space, log_level_trace )
   call initialise( application_name, modeldb, get_calendar() )
 
-  if(l_esm_couple) then
+  if (l_esm_couple) then
     write(log_scratch_space,'("Configuration is coupled to ocean")')
   else
     write(log_scratch_space,'("Configuration is not coupled to ocean")')
-  endif
+  end if
   call log_event( log_scratch_space, log_level_info )
 
   write(log_scratch_space,'("Running ", A, " ...")') application_name

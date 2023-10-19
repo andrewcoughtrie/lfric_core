@@ -75,6 +75,7 @@ module gungho_model_mod
   use moisture_conservation_alg_mod, &
                                   only : moisture_conservation_alg
   use mpi_mod,                    only : mpi_type
+  use namelist_collection_mod,    only : namelist_collection_type
   use mr_indices_mod,             only : nummr
   use rk_alg_timestep_mod,        only : rk_alg_init, &
                                          rk_alg_final
@@ -251,8 +252,10 @@ contains
   !> @param [out]    model_clock  Time within the model
   !> @param [in]     mpi          Communication object
   !>
-  subroutine initialise_infrastructure( model_data, &
-                                        model_clock, calendar, mpi )
+  subroutine initialise_infrastructure( model_data,  &
+                                        model_clock, &
+                                        calendar,    &
+                                        mpi )
 
     use logging_config_mod, only: key_from_run_log_level, &
                                   RUN_LOG_LEVEL_ERROR,    &
@@ -699,15 +702,18 @@ contains
   !---------------------------------------------------------------------------
   !> @brief Finalise the gungho application
   !>
-  !> @param[in,out] model_data The working data set for the model run
-  !> @param[in] program_name   An identifier given to the model begin run
+  !> @param[in,out] model_data    The working data set for the model run
+  !> @param[in,out] configuration The configuration for the model run
+  !> @param[in]     program_name  An identifier given to the model run
   !>
-  subroutine finalise_model( model_data, &
+  subroutine finalise_model( model_data,    &
+                             configuration, &
                              program_name )
 
     implicit none
 
     type( model_data_type ), target,  intent(inout) :: model_data
+    type( namelist_collection_type ), intent(inout) :: configuration
     character(*),                     intent(in)    :: program_name
 
     type( field_collection_type ), pointer :: prognostic_fields => null()
@@ -755,6 +761,8 @@ contains
     if ( method == method_semi_implicit ) call semi_implicit_alg_final()
     if ( method == method_rk )            call rk_alg_final()
     call gungho_transport_control_alg_final()
+
+    call configuration%clear()
 
   end subroutine finalise_model
 

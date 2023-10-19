@@ -38,6 +38,10 @@ program cubedsphere_mesh_generator
                            log_scratch_space, LOG_LEVEL_INFO,    &
                            LOG_LEVEL_ERROR, LOG_LEVEL_WARNING
   use mpi_mod,       only: global_mpi, create_comm, destroy_comm
+
+  use namelist_collection_mod, only: namelist_collection_type
+  use namelist_mod,            only: namelist_type
+
   use ncdf_quad_mod, only: ncdf_quad_type
   use partition_mod, only: partition_type, partitioner_interface
 
@@ -49,30 +53,18 @@ program cubedsphere_mesh_generator
   use write_local_meshes_mod, only: write_local_meshes
 
   ! Configuration modules.
-  use cubedsphere_mesh_config_mod, only: edge_cells, smooth_passes,  &
-                                         stretch_factor
-  use mesh_config_mod,             only: mesh_file_prefix, rotate_mesh, &
-                                         n_meshes, mesh_names,          &
-                                         mesh_maps, partition_mesh,     &
-                                         coord_sys, coord_sys_ll,       &
-                                         coord_sys_xyz,                 &
-                                         key_from_coord_sys,            &
-                                         topology,                      &
-                                         topology_periodic,             &
-                                         topology_non_periodic,         &
-                                         topology_channel,              &
-                                         key_from_topology,             &
-                                         geometry, geometry_planar,     &
-                                         geometry_spherical,            &
-                                         key_from_geometry
-  use partitions_config_mod,       only: max_stencil_depth, &
-                                         n_partitions,      &
-                                         partition_range
-  use rotation_config_mod,         only: target_north_pole,           &
-                                         target_null_island,          &
-                                         rotation_target,             &
-                                         ROTATION_TARGET_NULL_ISLAND, &
-                                         ROTATION_TARGET_NORTH_POLE
+  use mesh_config_mod,     only: COORD_SYS_LL,          &
+                                 COORD_SYS_XYZ,         &
+                                 key_from_coord_sys,    &
+                                 TOPOLOGY_PERIODIC,     &
+                                 TOPOLOGY_NON_PERIODIC, &
+                                 TOPOLOGY_CHANNEL,      &
+                                 key_from_topology,     &
+                                 GEOMETRY_PLANAR,       &
+                                 GEOMETRY_SPHERICAL,    &
+                                 key_from_geometry
+  use rotation_config_mod, only: ROTATION_TARGET_NULL_ISLAND, &
+                                 ROTATION_TARGET_NORTH_POLE
 
   implicit none
 
@@ -136,13 +128,38 @@ program cubedsphere_mesh_generator
   ! Counters.
   integer(i_def) :: i, j, k, l, n_voids
 
-  type(namelist_collection_type), save :: nml_bank
+  type(namelist_collection_type), save :: configuration
+  type(namelist_type), pointer         :: nml_obj => null()
+
+  ! Configuration variables to obtain from configuration.
+  character(str_max_filename) :: mesh_file_prefix
+
+  logical :: partition_mesh
+  logical :: rotate_mesh
+  integer(i_def) :: n_meshes
+  character(str_def), allocatable :: mesh_names(:)
+  character(str_def), allocatable :: mesh_maps(:)
+  integer(i_def) :: coord_sys
+  integer(i_def) :: topology
+  integer(i_def) :: geometry
+
+  integer(i_def) :: max_stencil_depth
+  integer(i_def) :: n_partitions
+  integer(i_def), allocatable :: partition_range(:)
+
+  integer(i_def) :: rotation_target
+  real(r_def), allocatable :: target_north_pole(:)
+  real(r_def), allocatable :: target_null_island(:)
+
+  integer(i_def), allocatable :: edge_cells(:)
+  integer(i_def) :: smooth_passes
+  real(r_def)    :: stretch_factor
 
   !===================================================================
   ! 1.0 Set the logging level for the run, should really be able
   !     to set it from the command line as an option.
   !===================================================================
-  call log_set_level(LOG_LEVEL_INFO )
+  call log_set_level( LOG_LEVEL_INFO )
 
   !===================================================================
   ! 2.0 Start up.
@@ -156,23 +173,62 @@ program cubedsphere_mesh_generator
   total_ranks = global_mpi%get_comm_size()
   local_rank  = global_mpi%get_comm_rank()
   call initialise_logging( communicator, 'CubeGen' )
-  call nml_bank%initialise( 'CubeGen', table_len=10 )
+  call configuration%initialise( 'CubeGen', table_len=10 )
 
   !===================================================================
   ! 3.0 Read in the control namelists from file.
   !===================================================================
   call get_initial_filename( filename )
-  call read_configuration( filename, nml_bank )
+  call configuration%initialise( 'CubeGen', table_len=10 )
+  call read_configuration( filename, configuration )
+
   deallocate( filename )
 
-  max_res = maxval(edge_cells(:n_meshes))
+  if (configuration%namelist_exists('mesh')) then
+    nml_obj => configuration%get_namelist('mesh')
+    call nml_obj%get_value( 'mesh_file_prefix', mesh_file_prefix )
+    call nml_obj%get_value( 'n_meshes',         n_meshes )
+    call nml_obj%get_value( 'mesh_names',       mesh_names )
+    call nml_obj%get_value( 'mesh_maps',        mesh_maps )
+    call nml_obj%get_value( 'partition_mesh',   partition_mesh )
+    call nml_obj%get_value( 'rotate_mesh',      rotate_mesh )
+    call nml_obj%get_value( 'coord_sys',        coord_sys )
+    call nml_obj%get_value( 'topology',         topology )
+    call nml_obj%get_value( 'geometry',         geometry )
+  end if
 
+  if (configuration%namelist_exists('partitions')) then
+    nml_obj => configuration%get_namelist('partitions')
+    call nml_obj%get_value( 'max_stencil_depth', max_stencil_depth )
+    call nml_obj%get_value( 'n_partitions', n_partitions )
+    call nml_obj%get_value( 'partition_range', partition_range )
+  end if
+
+  if (configuration%namelist_exists('rotation')) then
+    nml_obj => configuration%get_namelist('rotation')
+    call nml_obj%get_value( 'rotation_target', rotation_target )
+    call nml_obj%get_value( 'target_north_pole', target_north_pole )
+    call nml_obj%get_value( 'target_null_island', target_null_island )
+  end if
+
+  if (configuration%namelist_exists('cubedsphere_mesh')) then
+    nml_obj => configuration%get_namelist('cubedsphere_mesh')
+    call nml_obj%get_value( 'edge_cells',     edge_cells )
+    call nml_obj%get_value( 'smooth_passes',  smooth_passes )
+    call nml_obj%get_value( 'stretch_factor', stretch_factor )
+  end if
+
+  ! The number of mesh maps in the namelist array is unbounded
+  ! and so may contain unset/empty array elements. Remove
+  ! these from the initial count of mesh-maps.
   n_voids = count(cmdi == mesh_maps)
   if ( n_voids == 0 ) then
     n_mesh_maps = size(mesh_maps)
   else
     n_mesh_maps = size(mesh_maps) - n_voids
   end if
+
+  max_res = maxval(edge_cells(:n_meshes))
 
   !===================================================================
   ! 4.0 Perform some error checks on the namelist inputs.
@@ -736,6 +792,14 @@ program cubedsphere_mesh_generator
   if ( allocated( target_mesh_names     ) ) deallocate (target_mesh_names)
   if ( allocated( target_edge_cells_tmp ) ) deallocate (target_edge_cells_tmp)
   if ( allocated( target_mesh_names_tmp ) ) deallocate (target_mesh_names_tmp)
+
+  if ( allocated( mesh_names         ) ) deallocate(mesh_names)
+  if ( allocated( mesh_maps          ) ) deallocate(mesh_maps)
+  if ( allocated( partition_range    ) ) deallocate(partition_range)
+  if ( allocated( target_north_pole  ) ) deallocate(target_north_pole)
+  if ( allocated( target_null_island ) ) deallocate(target_null_island)
+  if ( allocated( edge_cells         ) ) deallocate(edge_cells)
+
 
   call finalise_halo_comms()
 

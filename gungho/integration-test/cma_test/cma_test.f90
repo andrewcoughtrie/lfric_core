@@ -18,9 +18,7 @@
 program cma_test
 
   use, intrinsic :: iso_fortran_env,  only : real64
-  use base_mesh_config_mod,           only : geometry,           &
-                                             geometry_spherical, &
-                                             prime_mesh_name
+
   use check_configuration_mod,        only : get_required_stencil_depth
   use cma_test_algorithm_mod,         only : cma_test_init,                  &
                                              test_cma_apply_mass_p,          &
@@ -31,12 +29,12 @@ program cma_test
                                              test_cma_add,                   &
                                              test_cma_apply_inv,             &
                                              test_cma_diag_DhMDhT
-  use constants_mod,                  only : i_def, r_def, r_solver, pi, str_def
+  use constants_mod,                  only : i_def, r_def, i_def, &
+                                             r_solver, pi, str_def
   use derived_config_mod,             only : set_derived_config
   use mpi_mod,                        only : global_mpi, &
                                              create_comm, destroy_comm
   use field_mod,                      only : field_type
-  use finite_element_config_mod,      only : element_order
   use fs_continuity_mod,              only : W0,W1,W2,W3
   use function_space_mod,             only : function_space_type
   use halo_comms_mod,                 only : initialise_halo_comms, &
@@ -54,7 +52,9 @@ program cma_test
   use mesh_mod,                       only : mesh_type
   use mesh_collection_mod,            only : mesh_collection
   use namelist_collection_mod,        only : namelist_collection_type
-  use planet_config_mod,              only : radius
+  use namelist_mod,                   only : namelist_type
+
+  use base_mesh_config_mod,           only : GEOMETRY_SPHERICAL
 
   implicit none
 
@@ -110,7 +110,12 @@ program cma_test
   logical :: do_test_diag_dhmdht = .false.
 
   ! Namelist and configuration variables
-  type(namelist_collection_type), save :: nml_bank
+  type(namelist_collection_type), save :: configuration
+  type(namelist_type), pointer         :: nml_obj => null()
+
+  character(str_def) :: prime_mesh_name
+  real(r_def)        :: radius
+  integer(i_def)     :: geometry
 
   ! Error tolerance for tests
   ! Note: tolerance is for r_solver = real64
@@ -202,6 +207,8 @@ program cma_test
      call log_event( "Unknown test", LOG_LEVEL_ERROR )
   end select
 
+  call configuration%initialise( program_name, table_len=10 )
+
   deallocate(program_name)
   deallocate(test_flag)
 
@@ -212,9 +219,7 @@ program cma_test
   call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
   allocate( success_map(size(required_configuration)) )
-
-  call nml_bank%initialise( program_name, table_len=10 )
-  call read_configuration( filename, nml_bank )
+  call read_configuration( filename, configuration )
 
   okay = ensure_configuration( required_configuration, success_map )
   if (.not. okay) then
@@ -233,6 +238,18 @@ program cma_test
 
   call init_collections()
 
+  if (configuration%namelist_exists('planet')) then
+    nml_obj => configuration%get_namelist('planet')
+    call nml_obj%get_value( 'radius', radius )
+  end if
+
+  if (configuration%namelist_exists('base_mesh')) then
+    nml_obj => configuration%get_namelist('base_mesh')
+    call nml_obj%get_value( 'geometry', geometry )
+    call nml_obj%get_value( 'prime_mesh_name', prime_mesh_name )
+  end if
+
+
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Initialise
 
@@ -247,7 +264,7 @@ program cma_test
   ncells_2d_local = mesh%get_ncells_2d()
 
   ! Ensure that a spherical geometry is used (otherwise tests are too simple)
-  if (geometry /= geometry_spherical) then
+  if (geometry /= GEOMETRY_SPHERICAL) then
      call log_event( "Geometry has to be spherical", &
                      LOG_LEVEL_ERROR )
   end if

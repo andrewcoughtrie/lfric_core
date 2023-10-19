@@ -381,7 +381,8 @@ contains
     call log_event( 'Finalising '//program_name//' ...', LOG_LEVEL_ALWAYS )
 
     ! Model configuration finalisation
-    call finalise_model( modeldb%model_data, &
+    call finalise_model( modeldb%model_data,    &
+                         modeldb%configuration, &
                          program_name )
 
     ! Destroy the fields stored in model_data

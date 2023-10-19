@@ -12,11 +12,9 @@
 !!
 module gungho_modeldb_mod
 
-  use driver_modeldb_mod,    only : driver_modeldb_type => modeldb_type
-  use gungho_model_data_mod, only : model_data_type
-  use gungho_time_axes_mod,  only : gungho_time_axes_type
-  use model_clock_mod,       only : model_clock_type
-  use mpi_mod,               only : mpi_type
+  use driver_modeldb_mod,    only: driver_modeldb_type => modeldb_type
+  use gungho_model_data_mod, only: model_data_type
+  use gungho_time_axes_mod,  only: gungho_time_axes_type
 
   implicit none
 

@@ -33,6 +33,7 @@ USE lfricinp_setup_io_mod,      ONLY: io_config
 USE linked_list_mod,            ONLY: linked_list_type
 USE mesh_mod,                   ONLY: mesh_type
 USE mesh_collection_mod,        ONLY: mesh_collection
+USE namelist_collection_mod,    ONLY: namelist_collection_type
 USE lfricinp_runtime_constants_mod, ONLY: lfricinp_create_runtime_constants
 USE step_calendar_mod,          ONLY: step_calendar_type
 
@@ -98,6 +99,8 @@ CLASS(extrusion_type),    ALLOCATABLE :: extrusion
 TYPE(step_calendar_type), ALLOCATABLE :: model_calendar
 TYPE(linked_list_type),   POINTER     :: file_list => null()
 
+TYPE(namelist_collection_type), SAVE :: configuration
+
 TYPE(field_type), POINTER :: chi(:) => null()
 TYPE(field_type), POINTER :: panel_id => null()
 TYPE(inventory_by_mesh_type), POINTER :: chi_inventory => null()
@@ -112,7 +115,7 @@ xios_id = TRIM(program_name) // "_client"
 CALL create_comm(comm)
 
 ! Initialise xios
-call lfric_xios_initialise( program_name, comm, .false. )
+CALL lfric_xios_initialise( program_name, comm, .false. )
 
 ! Save LFRic's part of the split communicator for later use, and
 ! set the total number of ranks and the local rank of the split
@@ -124,7 +127,9 @@ local_rank = global_mpi%get_comm_rank()
 !Initialise halo functionality
 CALL initialise_halo_comms( comm )
 
-CALL load_configuration(lfric_nl_fname, required_lfric_namelists)
+CALL configuration%initialise( program_name_arg, table_len=10 )
+CALL load_configuration( lfric_nl_fname, required_lfric_namelists, &
+                         configuration )
 
 ! Initialise logging system
 CALL init_logger( comm, program_name )
@@ -157,8 +162,8 @@ CALL init_fem(mesh_collection, chi_inventory, panel_id_inventory)
 ! XIOS domain initialisation
 mesh => mesh_collection%get_mesh(prime_mesh_name)
 twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
-call chi_inventory%get_field_array(mesh, chi)
-call panel_id_inventory%get_field(mesh, panel_id)
+CALL chi_inventory%get_field_array(mesh, chi)
+CALL panel_id_inventory%get_field(mesh, panel_id)
 model_calendar = step_calendar_type(time_origin, start_date)
 model_clock = model_clock_type( first_step, last_step, seconds_per_step, &
                                 spinup_period )
@@ -168,7 +173,7 @@ file_list => io_context%get_filelist()
 CALL io_config%init_lfricinp_files(file_list)
 CALL io_context%initialise( xios_ctx, comm, chi, panel_id, &
                             model_clock, model_calendar, before_close )
-call advance(io_context, model_clock)
+CALL advance(io_context, model_clock)
 
 ! Initialise runtime constants
 CALL log_event('Initialising runtime constants', LOG_LEVEL_INFO)
@@ -183,7 +188,8 @@ END SUBROUTINE lfricinp_initialise_lfric
 
 !------------------------------------------------------------------
 
-SUBROUTINE load_configuration(lfric_nl, required_lfric_namelists)
+SUBROUTINE load_configuration( lfric_nl, required_lfric_namelists, &
+                               configuration )
 
 ! Description:
 !  Reads lfric namelists and checks that all required namelists are present
@@ -196,19 +202,18 @@ CHARACTER(*), INTENT(IN) :: lfric_nl
 
 CHARACTER(*), INTENT(IN)  :: required_lfric_namelists(:)
 
+TYPE(namelist_collection_type), INTENT(INOUT) :: configuration
+
 LOGICAL              :: okay
 LOGICAL, ALLOCATABLE :: success_map(:)
 INTEGER              :: i
-
-TYPE(namelist_collection_type) :: nml_bank
 
 ALLOCATE(success_map(SIZE(required_lfric_namelists)))
 
 CALL log_event('Loading '//TRIM(program_name)//' configuration ...',           &
                LOG_LEVEL_ALWAYS)
 
-CALL nml_bank%initialise( program_name, table_len=10 )
-CALL read_configuration( lfric_nl, nml_bank )
+CALL read_configuration( lfric_nl, configuration )
 
 okay = ensure_configuration(required_lfric_namelists, success_map)
 IF (.NOT. okay) THEN

@@ -12,10 +12,11 @@
 !!
 module driver_modeldb_mod
 
-  use driver_model_data_mod,    only : model_data_type
-  use key_value_collection_mod, only : key_value_collection_type
-  use model_clock_mod,          only : model_clock_type
-  use mpi_mod,                  only : mpi_type
+  use driver_model_data_mod,    only: model_data_type
+  use key_value_collection_mod, only: key_value_collection_type
+  use model_clock_mod,          only: model_clock_type
+  use mpi_mod,                  only: mpi_type
+  use namelist_collection_mod,  only: namelist_collection_type
 
   implicit none
 
@@ -26,6 +27,9 @@ module driver_modeldb_mod
   type :: modeldb_type
 
     private
+
+    !> Configuration namelist collection
+    type(namelist_collection_type), public :: configuration
 
     !> Stores all the fields used by the model
     type( model_data_type ), public :: fields

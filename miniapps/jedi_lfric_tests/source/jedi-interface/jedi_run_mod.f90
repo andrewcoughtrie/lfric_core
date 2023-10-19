@@ -38,7 +38,7 @@ end type jedi_run_type
 !------------------------------------------------------------------------------
 contains
 
-!> @brief    Initialiser for jedi_run_type
+!> @brief Initialiser for jedi_run_type
 !>
 !> @param [in]  program_name     The model name
 !> @param [out] out_communicator The communicator to be used by the application
@@ -50,8 +50,8 @@ subroutine initialise( self, program_name, out_communicator )
   implicit none
 
   class( jedi_run_type ), intent(inout) :: self
-  character(len=*), intent(in)          :: program_name
-  integer(i_def), intent(out)           :: out_communicator
+  character(len=*),       intent(in)    :: program_name
+  integer(i_def),         intent(out)   :: out_communicator
 
   ! Local
   integer(i_def) :: world_communicator
@@ -69,10 +69,13 @@ end subroutine initialise
 
 !> @brief    Initialiser for LFRic infrastructure
 !>
-!> @param [in] filename           A character that contains the location of the
-!>                                namelist file.
-!> @param [in] model_communicator The communicator used by the model.
-subroutine initialise_infrastructure( self, filename, model_communicator )
+!> @param [in]    filename           A character that contains the
+!>                                   location of the namelist file.
+!> @param [in]    model_communicator The communicator used by the model.
+!> @param [inout] configuration      Namelist collection object storing the
+!>                                   namelists read in from <filename>.
+subroutine initialise_infrastructure( self, filename, model_communicator, &
+                                      configuration )
 
   use mpi_mod,                       only: global_mpi
   use jedi_lfric_comm_mod,           only: init_internal_comm
@@ -80,19 +83,22 @@ subroutine initialise_infrastructure( self, filename, model_communicator )
   use driver_collections_mod,        only: init_collections
   use driver_config_mod,             only: init_config
   use jedi_lfric_tests_mod,          only: jedi_lfric_tests_required_namelists
+  use namelist_collection_mod,       only: namelist_collection_type
 
   implicit none
 
-  class( jedi_run_type ), intent(inout) :: self
-  character(len=*),       intent(in)    :: filename
-  integer(i_def),         intent(in)    :: model_communicator
+  class( jedi_run_type ),         intent(inout) :: self
+  character(len=*),               intent(in)    :: filename
+  integer(i_def),                 intent(in)    :: model_communicator
+  type(namelist_collection_type), intent(inout) :: configuration
 
   ! Initialise the model communicator to setup global_mpi
   call init_internal_comm( model_communicator )
 
   ! The global_mpi is initialized in the previous step via init_internal_comm
   ! That is required for the following
-  call init_config( filename, jedi_lfric_tests_required_namelists )
+  call init_config( filename, jedi_lfric_tests_required_namelists, &
+                    configuration )
   call init_collections()
   call initialise_toy_model( self%jedi_run_name, global_mpi )
 

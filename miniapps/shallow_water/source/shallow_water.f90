@@ -37,25 +37,27 @@ program shallow_water
   character(*), parameter :: program_name = "shallow_water"
 
   ! Model run working data set
-  type(modeldb_type) :: modeldb
-
+  type(modeldb_type)        :: modeldb
   character(:), allocatable :: filename
 
   modeldb%mpi => global_mpi
 
+  call modeldb%configuration%initialise( program_name, table_len=10 )
+
+  ! Create the depository and prognostics field collections
+  call modeldb%model_data%depository%initialise(name='depository', table_len=100)
+  call modeldb%model_data%prognostic_fields%initialise(name="prognostics", table_len=100)
+
   call init_comm( program_name, global_mpi )
   call get_initial_filename( filename )
-  call init_config( filename, shallow_water_required_namelists )
-  deallocate( filename )
+  call init_config( filename, shallow_water_required_namelists, &
+                    modeldb%configuration )
   call init_logger( global_mpi%get_comm(), program_name )
   call init_timers( program_name )
   call init_counters( program_name )
   call init_collections()
   call init_time( modeldb%clock )
-
-  ! Create the depository and prognostics field collections
-  call modeldb%model_data%depository%initialise(name='depository', table_len=100)
-  call modeldb%model_data%prognostic_fields%initialise(name="prognostics", table_len=100)
+  deallocate( filename )
 
   call log_event( 'Initialising Infrastructure ...', log_level_trace )
   call initialise( modeldb, program_name, get_calendar() )

@@ -38,9 +38,12 @@ program jedi_lfric_tests
 
   modeldb%mpi => global_mpi
 
+  call modeldb%configuration%initialise( program_name, table_len=10 )
+
   call init_comm( program_name, modeldb%mpi )
   call get_initial_filename( filename )
-  call init_config( filename, gungho_required_namelists )
+  call init_config( filename, gungho_required_namelists, &
+                    modeldb%configuration )
   call init_logger( global_mpi%get_comm(), program_name )
   call init_collections()
   deallocate( filename )

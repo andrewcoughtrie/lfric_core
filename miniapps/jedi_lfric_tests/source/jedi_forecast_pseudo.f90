@@ -18,6 +18,7 @@ program jedi_forecast_pseudo
   use constants_mod,           only : PRECISION_REAL, i_def
   use log_mod,                 only : log_event, log_scratch_space, &
                                       LOG_LEVEL_ALWAYS
+  use namelist_collection_mod, only : namelist_collection_type
 
   ! Data types and methods to get/store configurations
   use jedi_state_config_mod,        only : jedi_state_config_type
@@ -52,6 +53,8 @@ program jedi_forecast_pseudo
   integer(i_def)            :: model_communicator
   character(*), parameter   :: program_name = "jedi_forecast_pseudo"
 
+  type(namelist_collection_type), save :: configuration
+
   call log_event( 'Running ' // program_name // ' ...', LOG_LEVEL_ALWAYS )
   write(log_scratch_space,'(A)')                        &
         'Application built with '//trim(PRECISION_REAL)// &
@@ -68,7 +71,9 @@ program jedi_forecast_pseudo
   ! Ensemble applications would split the communicator here
 
   ! Initialize LFRic infrastructure
-  call jedi_run%initialise_infrastructure( filename, model_communicator )
+  call configuration%initialise( program_name, table_len=10 )
+  call jedi_run%initialise_infrastructure( filename, model_communicator, &
+                                           configuration )
 
   ! Config for the jedi emulator objects
   ! State config

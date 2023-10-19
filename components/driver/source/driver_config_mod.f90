@@ -21,26 +21,26 @@ module driver_config_mod
 
 contains
 
-  subroutine init_config( filename, required_namelists )
+  subroutine init_config( filename, required_namelists, &
+                          configuration )
 
     implicit none
 
     character(*), intent(in) :: filename
     character(*), intent(in) :: required_namelists(:)
 
+    type(namelist_collection_type), intent(inout) :: configuration
+
     logical, allocatable :: success_map(:)
     logical              :: success
     integer              :: i
-
-    type(namelist_collection_type) :: nml_bank
 
     allocate( success_map(size(required_namelists)) )
 
     call log_event( 'Loading configuration ...', &
                     log_level_debug )
 
-    call nml_bank%initialise( 'dummy', table_len=10 )
-    call read_configuration( filename, nml_bank )
+    call read_configuration( filename, configuration )
 
     success = ensure_configuration( required_namelists, success_map )
     if (.not. success) then

@@ -44,16 +44,28 @@ program multires_coupling
   logical :: physics_running
 
   dynamics_mesh_modeldb%mpi => global_mpi
-  physics_mesh_modeldb%mpi => global_mpi
+  physics_mesh_modeldb%mpi  => global_mpi
+
+  call dynamics_mesh_modeldb%configuration%initialise(                      &
+                                           trim(program_name)//'_dynamics', &
+                                           table_len=10 )
+  call physics_mesh_modeldb%configuration%initialise(                       &
+                                           trim(program_name)//'_physics',  &
+                                           table_len=10 )
 
   call init_comm( program_name, dynamics_mesh_modeldb%mpi )
   call get_initial_filename( filename )
-  call init_config( filename, multires_required_namelists )
-  deallocate( filename )
+  call init_config( filename, multires_required_namelists, &
+                    dynamics_mesh_modeldb%configuration )
+  call init_config( filename, multires_required_namelists, &
+                    physics_mesh_modeldb%configuration )
+
   call init_logger( dynamics_mesh_modeldb%mpi%get_comm(), program_name )
   call init_timers( program_name )
   call init_counters( program_name )
   call init_collections()
+  deallocate( filename )
+
   !
   ! Running two clocks like this is fairely unpleasent but until we have
   ! clock proxies it seems the best way to progress.

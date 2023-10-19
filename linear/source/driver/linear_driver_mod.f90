@@ -209,7 +209,8 @@ contains
     call output_model_data( modeldb%model_data, modeldb%clock )
 
     ! Model configuration finalisation
-    call finalise_model( modeldb%model_data, &
+    call finalise_model( modeldb%model_data,    &
+                         modeldb%configuration, &
                          program_name )
 
     call finalise_linear_model( )

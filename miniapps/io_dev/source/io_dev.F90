@@ -28,28 +28,34 @@ program io_dev
   use model_clock_mod,        only: model_clock_type
   use mpi_mod,                only: global_mpi
 
+  use namelist_collection_mod, only: namelist_collection_type
+
   implicit none
 
   character(*), parameter :: program_name = "io_dev"
 
   type (io_dev_data_type)             :: model_data
   type(model_clock_type), allocatable :: model_clock
+  character(:),           allocatable :: filename
 
-  character(:), allocatable :: filename
+  type(namelist_collection_type), save :: configuration
 
-  write( log_scratch_space,                                       &
-         '("Application built with ", A, "-bit real numbers")' ) &
-       precision_real
+  call configuration%initialise( program_name, table_len=10 )
+
+  write( log_scratch_space,'(A)' )                         &
+      'Application built with ' // trim(precision_real) // &
+      '-bit real numbers.'
   call log_event( log_scratch_space, log_level_trace )
 
   call init_comm( "io_dev", global_mpi )
   call get_initial_filename( filename )
-  call init_config( filename, io_dev_required_namelists )
-  deallocate( filename )
+  call init_config( filename, io_dev_required_namelists, &
+                    configuration )
   call init_logger( global_mpi%get_comm(), program_name )
   call init_timers( program_name )
   call init_collections()
   call init_time( model_clock )
+  deallocate( filename )
 
   call log_event( 'Initialising '//program_name//' ...', log_level_trace )
   call initialise( model_data, model_clock, global_mpi, &

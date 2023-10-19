@@ -42,7 +42,7 @@ program algorithm_test
 
   character(:), allocatable :: filename
 
-  type(namelist_collection_type) :: nml_bank
+  type(namelist_collection_type), save :: configuration
 
   ! Variables used for parsing command line arguments
   integer :: length, status, nargs
@@ -71,8 +71,6 @@ program algorithm_test
 
   ! Initialise halo functionality
   call initialise_halo_comms(comm)
-
-  call nml_bank%initialise( program_name, table_len=10 )
 
   total_ranks = global_mpi%get_comm_size()
   local_rank  = global_mpi%get_comm_rank()
@@ -115,7 +113,8 @@ program algorithm_test
   end select
 
   ! Setup configuration, mesh, and fem
-  call read_configuration( filename, nml_bank )
+  call configuration%initialise( program_name, table_len=10 )
+  call read_configuration( filename, configuration )
   base_mesh_names(1) = prime_mesh_name
 
   call init_collections()
@@ -142,6 +141,7 @@ program algorithm_test
 
   ! Finalise MPI communications
   call global_mpi%finalise()
+  call configuration%clear()
   call destroy_comm()
 
   call final_collections()

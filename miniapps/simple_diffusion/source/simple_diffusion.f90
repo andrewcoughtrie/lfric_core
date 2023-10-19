@@ -7,6 +7,7 @@
 !> @brief Main program used to calculate diffusion of randomly initialised theta field
 !> @details Calls init, run and finalise routines from simple_diffusion driver module
 program simple_diffusion
+
   use cli_mod,                     only : get_initial_filename
   use driver_collections_mod,      only : init_collections, final_collections
   use constants_mod,               only : precision_real
@@ -26,8 +27,10 @@ program simple_diffusion
 
   ! The technical and scientific state
   type(modeldb_type) :: modeldb
-  character(*), parameter :: program_name = "simple_diffusion"
+  character(*), parameter   :: program_name = "simple_diffusion"
   character(:), allocatable :: filename
+
+  call modeldb%configuration%initialise( program_name, table_len=10 )
 
   write(log_scratch_space,&
         '("Application built with ", A, "-bit real numbers")') &
@@ -36,7 +39,9 @@ program simple_diffusion
   modeldb%mpi => global_mpi
   call init_comm("simple_diffusion", modeldb%mpi)
   call get_initial_filename( filename )
-  call init_config( filename, simple_diffusion_required_namelists )
+  call init_config( filename,                            &
+                    simple_diffusion_required_namelists, &
+                    modeldb%configuration )
   deallocate( filename )
 
   call init_logger( modeldb%mpi%get_comm(), program_name )
