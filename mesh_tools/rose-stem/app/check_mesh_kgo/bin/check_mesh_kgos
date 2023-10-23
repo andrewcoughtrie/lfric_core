@@ -11,7 +11,7 @@ suffix=.nc
 for test_file in ${array[@]} ; do
   partition=${test_file%${suffix}}
   partition=${partition#${MESH_DIR}/${MESH_FILE_PREFIX}}
-  kgo_file=${KGO_DIR}/${APP_NAME}/${TARGET_OPT}/${APP_NAME}_${CONFIG}${partition}.${COMPILER}.kgo${suffix}
+  kgo_file=${KGO_DIR}/mesh/${TARGET_OPT}/mesh_${CONFIG}${partition}.${COMPILER}.kgo${suffix}
   echo ===============================
   echo Comparing result against KGO, Tolerance=${TOLERANCE}
   echo Result : ${test_file}
@@ -25,6 +25,23 @@ for test_file in ${array[@]} ; do
     if [ $? != 0 ] ; then
       err_code=2
       echo error_code is ${err_code}
+
+      updated_kgo_path=\$\{WORKING_COPY_DIR\}/${PROJECT_NAME}/kgos/mesh/${TARGET_OPT}
+      updated_kgo_file=${updated_kgo_path}/mesh_${CONFIG}${partition}.${COMPILER}.kgo${suffix}
+
+      update_script=${OUTPUT_ROOT}/kgo_task_failures
+      if [ ${TARGET_OPT} == "meto-spice" ] ; then
+        command="cp "
+      elif [ ${TARGET_OPT} == "meto-xc40" ] ; then
+        remote_host=$(rose host-select "xc")
+        command="scp -q ${remote_host}:"
+      else
+        command="<unsupported target> "
+      fi
+      if [ -f ${updated_script} ] ; then
+        echo "${command}${test_file} ${updated_kgo_file}" >> ${update_script}
+      fi
+
     fi
   fi
 done

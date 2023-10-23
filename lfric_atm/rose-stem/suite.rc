@@ -208,16 +208,16 @@
 {%- if 'export_source' in scheduledTasks %}
     [[export_source]]
         inherit = PRELIMINARIES, LOCAL
-        script = """
-                 mkdir -p `dirname $SOURCE_ROOT`
-                 svn export --force {{SOURCE_LFRIC}} $SOURCE_ROOT
+        script  = """
+                  mkdir -p `dirname $SOURCE_ROOT`
+                  svn export --force {{SOURCE_LFRIC}} $SOURCE_ROOT
 
-                 HOST={{get_target_property(PRIMARY_TARGET, 'hostname')}}
-                 RELATIVE_SOURCE_DIRECTORY=`echo $SOURCE_DIRECTORY | sed "s|$HOME/||"`
-                 ssh $HOST mkdir -p $RELATIVE_SOURCE_DIRECTORY
-                 rsync -avz $SOURCE_DIRECTORY/ $HOST:$RELATIVE_SOURCE_DIRECTORY/
-                 sleep 5
-                 """
+                  HOST={{get_target_property(PRIMARY_TARGET, 'hostname')}}
+                  RELATIVE_SOURCE_DIRECTORY=`echo $SOURCE_DIRECTORY | sed "s|$HOME/||"`
+                  ssh $HOST mkdir -p $RELATIVE_SOURCE_DIRECTORY
+                  rsync -avz $SOURCE_DIRECTORY/ $HOST:$RELATIVE_SOURCE_DIRECTORY/
+                  sleep 5
+                  """
 
         [[[environment]]]
             SOURCE_DIRECTORY = $SOURCE_ROOT
@@ -305,20 +305,20 @@
 ##############################################################################
 
 {%- for app in projectApps %}
-{{validate_rose_meta_task( projectName, 'TECHNICAL', appName=app )}}
+{{ validate_rose_meta_task(projectName, 'TECHNICAL', appName=app) }}
 {%- endfor %}
 
 {{ check_config_dump_task('TECHNICAL', SECONDARY_TARGET) }}
 
-{{check_style_task('TECHNICAL', SECONDARY_TARGET)}}
+{{ check_style_task('TECHNICAL', SECONDARY_TARGET) }}
 
 {{ check_globals_task('TECHNICAL', SECONDARY_TARGET) }}
 
-{{extract_list_task('TECHNICAL', SECONDARY_TARGET)}}
+{{ extract_list_task('TECHNICAL', SECONDARY_TARGET) }}
 
-{{api_documentation_task('DOCUMENTATION', SECONDARY_TARGET, 'PUBLISH', SECONDARY_TARGET)}}
-{{uml_documentation_task('DOCUMENTATION', SECONDARY_TARGET, 'PUBLISH', SECONDARY_TARGET)}}
-{{design_documentation_task('DOCUMENTATION', SECONDARY_TARGET, 'PUBLISH', SECONDARY_TARGET)}}
+{{ api_documentation_task('DOCUMENTATION', SECONDARY_TARGET, 'PUBLISH', SECONDARY_TARGET) }}
+{{ uml_documentation_task('DOCUMENTATION', SECONDARY_TARGET, 'PUBLISH', SECONDARY_TARGET) }}
+{{ design_documentation_task('DOCUMENTATION', SECONDARY_TARGET, 'PUBLISH', SECONDARY_TARGET) }}
 
 ##############################################################################
 # COMPILE {{projectName|upper}} PROJECT
@@ -842,9 +842,26 @@ echo $RELATIVE_LOG_ROOT > $DESTINATION_DIRECTORY/compile.log.path
                      if [ ! -d $KGO_DIR/$APP_NAME/$TARGET_OPT/${KGO_PREC_DIR} ] ; then
                        export KGO_PREC_DIR=''
                      fi
+                     if [ ! -e ${OUTPUT_ROOT}/kgo_task_failures ] ; then
+                       echo \#\!/bin/sh > ${OUTPUT_ROOT}/kgo_task_failures
+                     fi
                      """
 
         script = rose task-run --app-key=check_application_kgo
+
+        err-script = """
+                     CHECKSUM_FILE=${DESTINATION_DIRECTORY}/{{pathFragment}}/{{compiler}}.checksums
+                     KGO_FILENAME=checksum.${APP_NAME}_${CONFIG}${RES_LABEL}.$COMPILER.kgo.txt
+                     KGO_FILE=\$\{WORKING_COPY_DIR\}/{{appPathFragment}}{{projectName}}/kgos/$APP_NAME/$TARGET_OPT/${KGO_PREC_DIR}${KGO_FILENAME}
+
+                     if [ ${TARGET_OPT} == "meto-spice" ] ; then
+                       COMMAND="cp "
+                     elif [ ${TARGET_OPT} == "meto-xc40" ] ; then
+                       REMOTE_HOST=$(rose host-select "xc") 
+                       COMMAND="scp -q ${REMOTE_HOST}:"
+                     fi
+                     echo "${COMMAND}${CHECKSUM_FILE} ${KGO_FILE}" >> ${OUTPUT_ROOT}/kgo_task_failures
+                     """
 
         [[[environment]]]
             APP_NAME   = {{appName}}

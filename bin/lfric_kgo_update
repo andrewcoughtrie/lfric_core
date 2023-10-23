@@ -1,0 +1,87 @@
+#!/bin/sh
+#-----------------------------------------------------------------------------
+# (c) Crown copyright 2023 Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+#-----------------------------------------------------------------------------
+#
+# Script to update kgos as flagged by instrumented rose-stem suite.
+# Rose-Stem. (currently excluding mesh summaries)
+#
+# Usage: Run from LFRic working copy root directory.
+#
+# i.e.   ./bin/lfric_kgo_update
+#
+# An instrumented LFRic rose-test suites checking apps will produce an
+# update script to update failed KGOS (checksums, mesh files).
+#
+# The scripts are extracted from the PROJECT test suite, used to
+# update the local working copy and then removed.
+#
+#============================================================================
+# These may have to be altered for non-met office sites
+PLATFORMS=( 'meto-spice' 'meto-xc40' )
+REMOTE_HOST=$(rose host-select "xc")
+LOCAL_PLATFORM='meto-spice'
+#============================================================================
+
+GROUP_NAME=developer
+
+PROJECT_NAMES=( lfric_atm \
+                lfric_coupled \
+                gungho_model \
+                linear_model \
+                skeleton \
+                jedi_lfric_tests \
+                diagnostics \
+                gravity_wave \
+                simple_diffusion \
+                solver_miniapp \
+                shallow_water \
+                io_dev \
+                transport \
+                multires_coupling \
+                mesh_tools )
+
+#============================================================================
+# Do not edit below this point
+#============================================================================
+WORKING_COPY_DIR=`pwd`
+WORKING_COPY_NAME="$(basename ${WORKING_COPY_DIR})"
+TEST_SUITE_UPDATE_SCRIPT=share/output/kgo_task_failures
+
+ERR_FILE=./lfric_kgo_update.err
+if [ -e ${ERR_FILE} ] ; then
+  rm ${ERR_FILE}
+fi
+touch ${ERR_FILE}
+
+for platform in ${PLATFORMS[@]} ; do
+
+  if [ ${platform} == ${LOCAL_PLATFORM} ] ; then
+    COMMAND="cp "
+    PLATFORM_HOME=${HOME}
+  else
+    COMMAND="scp -q ${REMOTE_HOST}:"
+    PLATFORM_HOME="\${HOME}"
+  fi
+
+  for project_name in ${PROJECT_NAMES[@]} ; do
+
+    SUITE_NAME="${WORKING_COPY_NAME}-${project_name}-${platform}-${GROUP_NAME}"
+    CYLC_DIR="${PLATFORM_HOME}/cylc-run/${SUITE_NAME}"
+
+    UPDATE_SCRIPT=update_${project_name}_${platform}_kgos
+    ${COMMAND}${CYLC_DIR}/${TEST_SUITE_UPDATE_SCRIPT} ./${UPDATE_SCRIPT} 2>>${ERR_FILE}
+
+    if [ -e "./${UPDATE_SCRIPT}" ] ; then
+      echo Updating KGOS from ${SUITE_NAME} ...
+      chmod +x ./${UPDATE_SCRIPT}
+      export WORKING_COPY_DIR=${WORKING_COPY_DIR}
+      . ./${UPDATE_SCRIPT}
+      rm ./${UPDATE_SCRIPT}
+    fi
+
+  done # Projects
+
+done # Platforms

@@ -796,9 +796,28 @@ echo $RELATIVE_LOG_ROOT > $DESTINATION_DIRECTORY/'+pathFragment+'/run.log.path
                      if [ ! -d $KGO_DIR/$APP_NAME/$TARGET_OPT/${KGO_PREC_DIR} ] ; then
                        export KGO_PREC_DIR=''
                      fi
+                     if [ ! -e ${OUTPUT_ROOT}/kgo_task_failures ] ; then
+                       echo \#\!/bin/sh > ${OUTPUT_ROOT}/kgo_task_failures
+                     fi
                      """
 
         script = rose task-run --app-key=check_application_kgo
+
+        err-script = """
+                     NEW_KGO_PATH=${DESTINATION_DIRECTORY}/{{pathFragment}}
+                     NEW_KGO_FILE=${NEW_KGO_PATH}/{{compiler}}.checksums
+
+                     KGO_PATH=\$\{WORKING_COPY_DIR\}/{{appPathFragment}}{{projectName}}/kgos/${APP_NAME}/${TARGET_OPT}/${KGO_PREC_DIR}
+                     KGO_FILE=${KGO_PATH}checksum.${APP_NAME}_${CONFIG}${RES_LABEL}.$COMPILER.kgo.txt 
+
+                     if [ ${TARGET_OPT} == "meto-spice" ] ; then
+                       COMMAND="cp "
+                     else
+                       REMOTE_HOST=$(rose host-select "xc") 
+                       COMMAND="scp -q ${REMOTE_HOST}:"
+                     fi
+                     echo "${COMMAND}${NEW_KGO_FILE} ${KGO_FILE}" >> ${OUTPUT_ROOT}/kgo_task_failures
+                     """ 
 
         [[[environment]]]
             APP_NAME   = {{appName}}

@@ -215,14 +215,14 @@
 ##############################################################################
 {#- Technical tasks                                                          #}
 {%- for app in projectApps %}
-{{ validate_rose_meta_task( projectName, 'TECHNICAL', appName=app ) }}
+{{ validate_rose_meta_task(projectName, 'TECHNICAL', appName=app) }}
 {%- endfor %}
 
 {{ check_config_dump_task('TECHNICAL', SECONDARY_TARGET) }}
 
-{{ check_style_task( 'TECHNICAL', SECONDARY_TARGET ) }}
+{{ check_style_task('TECHNICAL', SECONDARY_TARGET) }}
 
-{{ check_globals_task( 'TECHNICAL', SECONDARY_TARGET ) }}
+{{ check_globals_task('TECHNICAL', SECONDARY_TARGET) }}
 
 {{ api_documentation_task( 'TECHNICAL', SECONDARY_TARGET, 'PUBLISH', SECONDARY_TARGET) }}
 {{ uml_documentation_task( 'TECHNICAL', SECONDARY_TARGET, 'PUBLISH', SECONDARY_TARGET) }}
@@ -354,7 +354,6 @@ echo $CYLC_TASK_LOG_ROOT > $DESTINATION_DIRECTORY/lfric.mesher."+compiler+".log
       )}}
 
     [[[environment]]]
-      MESH_FILE        = $DESTINATION_DIRECTORY/meshes/{{mesh}}/{{mesh}}.nc
       MESH_DIR         = $DESTINATION_DIRECTORY/meshes/{{mesh}}
       MESH_FILE_PREFIX = {{mesh}}
       SUMMARY_FILE     = $MESH_DIR/summary_{{mesh}}_ugrid.txt
@@ -373,14 +372,22 @@ echo $CYLC_TASK_LOG_ROOT > $DESTINATION_DIRECTORY/lfric.mesher."+compiler+".log
           PRIMARY_TARGET,
           ['base', 'compiler.'+compiler],
           ['base'],
+          prescript="""
+                    if [ ! -e ${OUTPUT_ROOT}/kgo_task_failures ] ; then
+                      echo \#\!/bin/sh > ${OUTPUT_ROOT}/kgo_task_failures
+                    fi
+                    """,
           script='rose task-run --app-key=check_summary'
       )}}
 
     [[[environment]]]
+      PROJECT_NAME     = {{projectName}}
+      APP_NAME         = check_summary
+      CONFIG           = {{mesh}}
       MESH_DIR         = $DESTINATION_DIRECTORY/meshes/{{mesh}}
       MESH_FILE_PREFIX = {{mesh}}
       SUMMARY_KGO      = summary_{{mesh}}_ugrid.kgo.txt
-      SUMMARY_FILE    = ${MESH_DIR}/summary_{{mesh}}_ugrid.txt
+      SUMMARY_FILE     = ${MESH_DIR}/summary_{{mesh}}_ugrid.txt
 
 {{            directives( PRIMARY_TARGET, 'tech') }}
 {%-         endif %} {#- 'summarise_' + mesh + '_' + label in scheduledTasks #}
@@ -394,18 +401,23 @@ echo $CYLC_TASK_LOG_ROOT > $DESTINATION_DIRECTORY/lfric.mesher."+compiler+".log
           PRIMARY_TARGET,
           ['base', 'compiler.'+compiler],
           ['base'],
+          prescript="""
+                    if [ ! -e ${OUTPUT_ROOT}/kgo_task_failures ] ; then
+                      echo \#\!/bin/sh > ${OUTPUT_ROOT}/kgo_task_failures
+                    fi
+                    """,
           script='rose task-run --app-key=check_mesh_kgo'
       )}}
 
     [[[environment]]]
-      APP_NAME   = mesh
-      KGO_DIR    = $SOURCE_ROOT/{{projectName}}/kgos
-      TARGET_OPT = {{PRIMARY_TARGET['platform']}}
-      CONFIG     = {{mesh}}
-      MESH_DIR   = $DESTINATION_DIRECTORY/meshes/{{mesh}}
-      MESH_FILE  = {{mesh}}.nc
+      PROJECT_NAME     = {{projectName}}
+      APP_NAME         = check_mesh
+      KGO_DIR          = $SOURCE_ROOT/{{projectName}}/kgos
+      TARGET_OPT       = {{PRIMARY_TARGET['platform']}}
+      CONFIG           = {{mesh}}
+      MESH_DIR         = $DESTINATION_DIRECTORY/meshes/{{mesh}}
       MESH_FILE_PREFIX = {{mesh}}
-      TOLERANCE  = 1.0E-30
+      TOLERANCE        = 1.0E-30
 
 {{            directives(PRIMARY_TARGET, 'tech') }}
 {%-         endif %} {#- f'check_mesh_{mesh}_{label}' in scheduledTasks #}

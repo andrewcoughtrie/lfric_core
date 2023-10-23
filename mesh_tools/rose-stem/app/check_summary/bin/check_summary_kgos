@@ -39,6 +39,15 @@ for test_file in $file_list ; do
     if [ $? != 0 ] ; then
       err_code=2
       echo error_code is ${err_code}
+
+      if [ ${TARGET_OPT} == "meto-spice" ] ; then
+        command="cp "
+        updated_kgo_path=\$\{WORKING_COPY_DIR\}/${PROJECT_NAME}/rose-stem/app/${APP_NAME}/file
+        updated_kgo_file=${updated_kgo_path}/${summary_kgo_file}
+        update_script=${OUTPUT_ROOT}/kgo_task_failures
+        echo "${command}${test_file}.stripped ${updated_kgo_file}" >> ${update_script}
+      fi
+
     fi
   fi
 done
