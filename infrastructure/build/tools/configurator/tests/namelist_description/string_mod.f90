@@ -10,7 +10,7 @@ module mirth_config_mod
   use constants_mod, only: i_def, &
                            str_def
   use log_mod,       only: log_event, log_scratch_space &
-                         , LOG_LEVEL_ERROR, LOG_LEVEL_WARNING, LOG_LEVEL_INFO
+                         , LOG_LEVEL_ERROR, LOG_LEVEL_DEBUG, LOG_LEVEL_INFO
   use mpi_mod,       only: global_mpi
 
   use namelist_mod,      only: namelist_type
@@ -208,7 +208,7 @@ contains
           '"mirth:chortle" not allocated, '// &
           'deferred size "biggles" '//   &
           'has not been specified.'
-      call log_event( log_scratch_space, LOG_LEVEL_WARNING )
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
       array_size = 0
     end if
     allocate( new_chortle(array_size), stat=condition )

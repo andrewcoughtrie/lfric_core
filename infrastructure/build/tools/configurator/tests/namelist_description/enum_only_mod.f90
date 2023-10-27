@@ -10,7 +10,7 @@ module enum_config_mod
   use constants_mod, only: i_def, &
                            str_def
   use log_mod,       only: log_event, log_scratch_space &
-                         , LOG_LEVEL_ERROR, LOG_LEVEL_WARNING, LOG_LEVEL_INFO
+                         , LOG_LEVEL_ERROR, LOG_LEVEL_DEBUG, LOG_LEVEL_INFO
   use mpi_mod,       only: global_mpi
 
   use namelist_mod,      only: namelist_type
@@ -71,7 +71,7 @@ contains
       write( log_scratch_space, '(A)') &
           'Missing key for value enumeration in enum namelist.'
       value_from_key = emdi
-      call log_event( log_scratch_space, LOG_LEVEL_WARNING )
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
       return
     end if
 

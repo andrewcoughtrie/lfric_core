@@ -11,7 +11,7 @@ module aerial_config_mod
                            r_def, &
                            str_def
   use log_mod,       only: log_event, log_scratch_space &
-                         , LOG_LEVEL_ERROR, LOG_LEVEL_WARNING, LOG_LEVEL_INFO
+                         , LOG_LEVEL_ERROR, LOG_LEVEL_DEBUG, LOG_LEVEL_INFO
   use mpi_mod,       only: global_mpi
 
   use namelist_mod,      only: namelist_type
@@ -211,7 +211,7 @@ contains
           '"aerial:inlist" not allocated, '// &
           'deferred size "lsize" '//   &
           'has not been specified.'
-      call log_event( log_scratch_space, LOG_LEVEL_WARNING )
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
       array_size = 0
     end if
     allocate( new_inlist(array_size), stat=condition )
@@ -229,7 +229,7 @@ contains
           '"aerial:outlist" not allocated, '// &
           'deferred size "esize" '//   &
           'has not been specified.'
-      call log_event( log_scratch_space, LOG_LEVEL_WARNING )
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
       array_size = 0
     end if
     allocate( new_outlist(array_size), stat=condition )

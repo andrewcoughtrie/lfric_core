@@ -9,7 +9,7 @@ module test_config_mod
 
   use constants_mod, only: i_def
   use log_mod,       only: log_event, log_scratch_space &
-                         , LOG_LEVEL_ERROR, LOG_LEVEL_WARNING, LOG_LEVEL_INFO
+                         , LOG_LEVEL_ERROR, LOG_LEVEL_DEBUG, LOG_LEVEL_INFO
   use mpi_mod,       only: global_mpi
 
   use namelist_mod,      only: namelist_type

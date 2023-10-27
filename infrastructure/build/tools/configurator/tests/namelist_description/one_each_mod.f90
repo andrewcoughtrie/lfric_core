@@ -18,7 +18,7 @@ module test_config_mod
                            str_def, &
                            str_max_filename
   use log_mod,       only: log_event, log_scratch_space &
-                         , LOG_LEVEL_ERROR, LOG_LEVEL_WARNING, LOG_LEVEL_INFO
+                         , LOG_LEVEL_ERROR, LOG_LEVEL_DEBUG, LOG_LEVEL_INFO
   use mpi_mod,       only: global_mpi
 
   use namelist_mod,      only: namelist_type
@@ -92,7 +92,7 @@ contains
       write( log_scratch_space, '(A)') &
           'Missing key for enum enumeration in test namelist.'
       enum_from_key = emdi
-      call log_event( log_scratch_space, LOG_LEVEL_WARNING )
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
       return
     end if
 

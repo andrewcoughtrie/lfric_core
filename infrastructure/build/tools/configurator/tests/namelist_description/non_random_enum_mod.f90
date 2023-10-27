@@ -10,7 +10,7 @@ module telly_config_mod
   use constants_mod, only: i_def, &
                            str_def
   use log_mod,       only: log_event, log_scratch_space &
-                         , LOG_LEVEL_ERROR, LOG_LEVEL_WARNING, LOG_LEVEL_INFO
+                         , LOG_LEVEL_ERROR, LOG_LEVEL_DEBUG, LOG_LEVEL_INFO
   use mpi_mod,       only: global_mpi
 
   use constants_mod, only: cmdi, emdi, imdi, rmdi, unset_key
@@ -62,7 +62,7 @@ contains
       write( log_scratch_space, '(A)') &
           'Missing key for tubbies enumeration in telly namelist.'
       tubbies_from_key = emdi
-      call log_event( log_scratch_space, LOG_LEVEL_WARNING )
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
       return
     end if
 
