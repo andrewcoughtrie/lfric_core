@@ -33,13 +33,17 @@ module ffsl_vert_alg_mod
   use transport_runtime_collection_mod, only: get_transport_runtime
 
   ! Kernels
-  use ffsl_vertical_flux_kernel_mod,    only: ffsl_vertical_flux_kernel_type
-  use ffsl_vert_constant_flux_kernel_mod, &
-                                        only: ffsl_vert_constant_flux_kernel_type
   use fv_divergence_z_kernel_mod,       only: fv_divergence_z_kernel_type
+  use vert_int_low_kernel_mod,          only: vert_int_low_kernel_type
   use vert_nirvana_kernel_mod,          only: vert_nirvana_kernel_type
+  use vert_nirvana_strict_kernel_mod,   only: vert_nirvana_strict_kernel_type
+  use vert_nirvana_relax_kernel_mod,    only: vert_nirvana_relax_kernel_type
   use vert_nirvana_reversible_kernel_mod, &
                                         only: vert_nirvana_reversible_kernel_type
+  use vert_nirvana_reversible_strict_kernel_mod, &
+                                        only: vert_nirvana_reversible_strict_kernel_type
+  use vert_nirvana_reversible_relax_kernel_mod, &
+                                        only: vert_nirvana_reversible_relax_kernel_type
   use vert_ppm_limiter_kernel_mod,      only: vert_ppm_limiter_kernel_type
   use vert_ppm_no_limiter_kernel_mod,   only: vert_ppm_no_limiter_kernel_type
   use vert_ppm_strict_limiter_kernel_mod, &
@@ -47,7 +51,6 @@ module ffsl_vert_alg_mod
 
   ! Configuration options
   use io_config_mod,                    only: subroutine_timers
-  use subgrid_config_mod,               only: outer_order
   use finite_element_config_mod,        only: element_order
 
   ! PSyKAl-lite code
@@ -171,9 +174,9 @@ contains
 
     if ( subroutine_timers ) call timer(routine_name)
 
-
   end subroutine ffsl_vert_transport_alg
 
+  !----------------------------------------------------------------------------
   !> @brief   Computes the mass flux associated with a vertical FFSL step.
   !> @details Performs a conservative flux calculation using vertical FFSL.
   !> @param[in,out] mass_flux          Mass flux used to transport the field.
@@ -199,6 +202,7 @@ contains
     type(transport_runtime_type), pointer :: transport_runtime => null()
     type(mesh_type),              pointer :: mesh => null()
     type(r_tran_field_type),      pointer :: dep_pts_z_ptr => null()
+    type(r_tran_field_type),      pointer :: frac_wind   => null()
     type(r_tran_field_type),      pointer :: detj_at_w2v => null()
     type(field_type),             pointer :: dz_w3_rdef => null()
 
@@ -214,8 +218,10 @@ contains
 
     ! Internal fields
     type(r_tran_field_type) :: dep_pts_z
-    type(r_tran_field_type) :: a0, a1, a2
     type(r_tran_field_type) :: dz_w3
+    type(r_tran_field_type) :: mass_flux_low
+    type(r_tran_field_type) :: mass_flux_high
+    type(r_tran_field_type) :: mass_flux_int
 
     ! Useful constants
     integer(kind=i_def) :: mesh_id
@@ -242,73 +248,109 @@ contains
 
     ! Initialise fields used by all splitting options --------------------------
     call mass_flux%initialise( vector_space = w2v_fs )
-    call a0%initialise( vector_space = field_fs )
-    call a1%initialise( vector_space = field_fs )
-    call a2%initialise( vector_space = field_fs )
+    call mass_flux_low%initialise( vector_space = w2v_fs )
+    call mass_flux_high%initialise( vector_space = w2v_fs )
+    call mass_flux_int%initialise( vector_space = w2v_fs )
     call dz_w3%initialise( vector_space = field_fs )
     call dep_pts_z%initialise( vector_space = dep_fs_v )
 
     ! If vertical scheme for Strang splitting divide departure distance by 2
     if ( transport_metadata%get_splitting() ==  splitting_strang_vhv ) then
       call invoke( a_times_X(dep_pts_z, 0.5_r_tran, dep_pts_z_ptr) )
+      frac_wind => transport_runtime%get_frac_wind_z_half(mesh_id)
     else
       call invoke( setval_X(dep_pts_z, dep_pts_z_ptr) )
+      frac_wind => transport_runtime%get_frac_wind_z(mesh_id)
     end if
 
     ! Initialise variables
     call invoke( setval_c(mass_flux, 0.0_r_tran) )
     call invoke_copy_to_rtran(dz_w3, dz_w3_rdef)
 
-    ! Compute subgrid coefficients and compute the flux ------------------------
+    ! Compute low order and integer fluxes -----------------------------------
+    call invoke(vert_int_low_kernel_type(mass_flux_low,  &
+                                         mass_flux_int,  &
+                                         frac_wind,      &
+                                         dep_pts_z,      &
+                                         detj_at_w2v,    &
+                                         field_n,        &
+                                         dz_w3,          &
+                                         step_dt) )
+
+    ! Compute high order fractional flux -------------------------------------
     if (order == 0) then
-      ! Constant reconstruction and flux
-      call invoke( ffsl_vert_constant_flux_kernel_type(mass_flux, dep_pts_z,   &
-                                                       detj_at_w2v, field_n,   &
-                                                       step_dt) )
+      ! Reuse low order flux
+      call invoke( setval_X(mass_flux_high, mass_flux_low) )
     else if (order == 1) then
       if (reversible) then
         ! Reversible Nirvana reconstruction
-        call invoke( vert_nirvana_reversible_kernel_type(a0, a1, a2, field_n,  &
-                                                         dz_w3, monotone,      &
-                                                         log_space ),          &
-                     ffsl_vertical_flux_kernel_type(mass_flux, dep_pts_z,      &
-                                                    detj_at_w2v, field_n,      &
-                                                    a0, a1, a2, step_dt) )
+        if ( monotone == vertical_monotone_none) then
+          call invoke( vert_nirvana_reversible_kernel_type(mass_flux_high,       &
+                                                           frac_wind,            &
+                                                           dep_pts_z, field_n,   &
+                                                           dz_w3, log_space) )
+        else if ( monotone == vertical_monotone_strict ) then
+          call invoke( vert_nirvana_reversible_strict_kernel_type(               &
+                                                           mass_flux_high,       &
+                                                           frac_wind,            &
+                                                           dep_pts_z, field_n,   &
+                                                           dz_w3, log_space) )
+        else
+          call invoke( vert_nirvana_reversible_relax_kernel_type(                &
+                                                           mass_flux_high,       &
+                                                           frac_wind,            &
+                                                           dep_pts_z, field_n,   &
+                                                           dz_w3, log_space) )
+        end if
       else
         ! Standard Nirvana reconstruction
-        call invoke( vert_nirvana_kernel_type(a0, a1, a2, field_n, dz_w3,      &
-                                              monotone),                       &
-                     ffsl_vertical_flux_kernel_type(mass_flux, dep_pts_z,      &
-                                                    detj_at_w2v, field_n,      &
-                                                    a0, a1, a2, step_dt) )
+        if ( monotone == vertical_monotone_none) then
+          call invoke( vert_nirvana_kernel_type(mass_flux_high, &
+                                                frac_wind,      &
+                                                dep_pts_z,      &
+                                                field_n, dz_w3) )
+        else if ( monotone == vertical_monotone_strict ) then
+          call invoke( vert_nirvana_strict_kernel_type(         &
+                                                mass_flux_high, &
+                                                frac_wind,      &
+                                                dep_pts_z,      &
+                                                field_n, dz_w3) )
+        else
+          call invoke( vert_nirvana_relax_kernel_type(          &
+                                                mass_flux_high, &
+                                                frac_wind,      &
+                                                dep_pts_z,      &
+                                                field_n, dz_w3) )
+        end if
       end if
     else
       if ( monotone == vertical_monotone_none) then
-        ! Compute unlimited PPM coefficients for reconstruction and compute flux
-        call invoke( vert_ppm_no_limiter_kernel_type(a0, a1, a2, field_n,      &
-                                                     dz_w3, log_space),        &
-                     ffsl_vertical_flux_kernel_type(mass_flux, dep_pts_z,      &
-                                                    detj_at_w2v, field_n,      &
-                                                    a0, a1, a2, step_dt) )
+          ! Unlimited PPM
+          call invoke( vert_ppm_no_limiter_kernel_type(mass_flux_high,     &
+                                                       frac_wind,          &
+                                                       dep_pts_z, field_n, &
+                                                       dz_w3, log_space) )
       else if ( monotone == vertical_monotone_strict ) then
-        ! Compute strict monotonic PPM coefficients for reconstruction and compute flux
-        call invoke( vert_ppm_strict_limiter_kernel_type(a0, a1, a2, field_n,  &
-                                                         dz_w3, log_space),    &
-                     ffsl_vertical_flux_kernel_type(mass_flux, dep_pts_z,      &
-                                                    detj_at_w2v, field_n,      &
-                                                    a0, a1, a2, step_dt) )
+          ! Strict monotone PPM
+          call invoke( vert_ppm_strict_limiter_kernel_type(                &
+                                                       mass_flux_high,     &
+                                                       frac_wind,          &
+                                                       dep_pts_z, field_n, &
+                                                       dz_w3, log_space) )
       else
-        ! Compute relaxed monotonic PPM coefficients for reconstruction and compute flux
-        call invoke( vert_ppm_limiter_kernel_type(a0, a1, a2, field_n,         &
-                                                  dz_w3, log_space),           &
-                     ffsl_vertical_flux_kernel_type(mass_flux, dep_pts_z,      &
-                                                    detj_at_w2v, field_n,      &
-                                                    a0, a1, a2, step_dt) )
+          ! Relaxed monotone PPM
+          call invoke( vert_ppm_limiter_kernel_type( mass_flux_high,       &
+                                                     frac_wind,            &
+                                                     dep_pts_z, field_n,   &
+                                                     dz_w3, log_space) )
       end if
     end if
 
+    ! Combine integer and fractional fluxes
+    call invoke( X_plus_Y(mass_flux, mass_flux_high, mass_flux_int) )
+
     nullify( dep_pts_z_ptr, detj_at_w2v, field_fs, dep_fs_v, w2v_fs,           &
-             dz_w3_rdef, transport_runtime, mesh )
+             dz_w3_rdef, frac_wind, transport_runtime, mesh )
 
   end subroutine ffsl_1d_vert_flux_alg
 

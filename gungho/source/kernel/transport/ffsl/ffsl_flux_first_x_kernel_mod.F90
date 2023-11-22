@@ -3,11 +3,11 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-!> @brief Calculates the flux in x using 1D PPM.
-!> @details This kernel computes the flux in the x direction. PPM is used
-!!          to compute the subgrid reconstruction of the form a0 + a1 x + a2 x^2,
-!!          and this is integrated between the flux point and the departure point.
-!!          For CFL > 1 the field values are summed between the flux point and
+!> @brief Calculates the first flux in x for FFSL.
+!> @details This kernel computes the flux in the x direction. A choice of
+!!          constant, Nirvana, or PPM is used to compute the edge reconstruction.
+!!          This is multiplied by the velocity and divided by Det(J) to give
+!!          the flux. For CFL > 1 the field values are summed between the flux point and
 !!          the departure cell. This kernel is used for the initial step of
 !!          the FFSL transport scheme.
 !!
@@ -58,24 +58,24 @@ module ffsl_flux_first_x_kernel_mod
 
 contains
 
-  !> @brief Compute the advective increment in x using PPM for the advective fluxes.
-  !> @param[in]     nlayers           Number of layers
-  !> @param[in,out] flux              The output flux in x
-  !> @param[in]     field             Field to transport
-  !> @param[in]     stencil_size      Local length of field W3 stencil
-  !> @param[in]     stencil_map       Dofmap for the field stencil
-  !> @param[in]     dep_pts           Departure points in x
-  !> @param[in]     detj              Volume factor
-  !> @param[in]     order             Order of reconstruction
-  !> @param[in]     monotone          Horizontal monotone option for FFSL
-  !> @param[in]     extent_size       Stencil extent needed for the LAM edge
-  !> @param[in]     dt                Time step
-  !> @param[in]     ndf_w2h           Number of degrees of freedom for W2h per cell
-  !> @param[in]     undf_w2h          Number of unique degrees of freedom for W2h
-  !> @param[in]     map_w2h           Map for W2h
-  !> @param[in]     ndf_w3            Number of degrees of freedom for W3 per cell
-  !> @param[in]     undf_w3           Number of unique degrees of freedom for W3
-  !> @param[in]     map_w3            Map for W3
+  !> @brief Compute the first fluxes in x for FFSL.
+  !> @param[in]     nlayers      Number of layers
+  !> @param[in,out] flux         The output flux in x
+  !> @param[in]     field        Field to transport
+  !> @param[in]     stencil_size Local length of field W3 stencil
+  !> @param[in]     stencil_map  Dofmap for the field stencil
+  !> @param[in]     dep_pts      Departure points in x
+  !> @param[in]     detj         Volume factor
+  !> @param[in]     order        Order of reconstruction
+  !> @param[in]     monotone     Horizontal monotone option for FFSL
+  !> @param[in]     extent_size  Stencil extent needed for the LAM edge
+  !> @param[in]     dt           Time step
+  !> @param[in]     ndf_w2h      Number of degrees of freedom for W2h per cell
+  !> @param[in]     undf_w2h     Number of unique degrees of freedom for W2h
+  !> @param[in]     map_w2h      Map for W2h
+  !> @param[in]     ndf_w3       Number of degrees of freedom for W3 per cell
+  !> @param[in]     undf_w3      Number of unique degrees of freedom for W3
+  !> @param[in]     map_w3       Map for W3
 
   subroutine ffsl_flux_first_x_code( nlayers,      &
                                      flux,         &
@@ -95,13 +95,9 @@ contains
                                      undf_w3,      &
                                      map_w3 )
 
-    use subgrid_rho_mod, only: horizontal_ppm_coeffs, &
-                               horizontal_nirvana_coeffs
-    use cosmic_flux_mod, only: frac_and_int_part,                &
-                               calc_integration_limits_positive, &
-                               calc_integration_limits_negative, &
-                               return_part_mass,                 &
-                               get_index_negative,               &
+    use subgrid_rho_mod, only: horizontal_nirvana_recon, &
+                               horizontal_ppm_recon
+    use cosmic_flux_mod, only: get_index_negative, &
                                get_index_positive
 
     implicit none
@@ -124,10 +120,10 @@ contains
     real(kind=r_tran), dimension(undf_w3),  intent(in)    :: field
     real(kind=r_tran), dimension(undf_w2h), intent(in)    :: dep_pts
     real(kind=r_tran), dimension(undf_w2h), intent(in)    :: detj
-    integer(kind=i_def), intent(in)                       :: order
-    integer(kind=i_def), intent(in)                       :: monotone
-    integer(kind=i_def), intent(in)                       :: extent_size
-    real(kind=r_tran), intent(in)                         :: dt
+    integer(kind=i_def),                    intent(in)    :: order
+    integer(kind=i_def),                    intent(in)    :: monotone
+    integer(kind=i_def),                    intent(in)    :: extent_size
+    real(kind=r_tran),                      intent(in)    :: dt
 
     ! Variables for flux calculation
     real(kind=r_tran) :: mass_total
@@ -135,14 +131,9 @@ contains
     real(kind=r_tran) :: fractional_distance
     real(kind=r_tran) :: mass_frac
     real(kind=r_tran) :: mass_from_whole_cells
-    real(kind=r_tran) :: left_integration_limit
-    real(kind=r_tran) :: right_integration_limit
 
     ! Local fields
     real(kind=r_tran)   :: field_local(1:stencil_size)
-
-    ! PPM coefficients
-    real(kind=r_tran)   :: coeffs(1:3)
 
     ! DOFs
     integer(kind=i_def) :: local_dofs(1:2)
@@ -184,7 +175,6 @@ contains
 
       ! Initialise field_local to zero
       field_local(1:stencil_size) = 0.0_r_tran
-      coeffs(1:3) = 0.0_r_tran
 
       ! Loop over the x direction dofs to compute flux at each dof
       do dof_iterator = 1,2
@@ -206,8 +196,9 @@ contains
             ! Get the departure distance
             departure_dist = dep_pts( map_w2h(local_dofs(dof_iterator)) + k )
 
-            ! Calculates number of cells of interest and fraction of a cell to add.
-            call frac_and_int_part(departure_dist,n_cells_to_sum,fractional_distance)
+            ! Calculates number of cells of interest and fraction of a cell to add
+            fractional_distance = departure_dist - int(departure_dist)
+            n_cells_to_sum = abs(int(departure_dist))+1_i_def
 
             ! Get local field values
             do jj = 1, stencil_half
@@ -217,47 +208,39 @@ contains
               field_local(jj) = field(stencil_map(1,jj) + k)
             end do
 
-            ! Get a0, a1, a2 in the required cell and build up whole cell part
+            ! Get cell index and build up whole cell part
             mass_from_whole_cells = 0.0_r_tran
             if (departure_dist >= 0.0_r_tran ) then
               call get_index_positive(ind_lo,ind_hi,n_cells_to_sum,dof_iterator,stencil_size,stencil_half)
               do ii = 1, n_cells_to_sum-1
                 mass_from_whole_cells = mass_from_whole_cells + field_local(stencil_half - (2-dof_iterator) - (ii-1) )
               end do
-              ! Calculate the left and right integration limits for the fractional cell
-              call calc_integration_limits_positive( fractional_distance,    &
-                                                     left_integration_limit, &
-                                                     right_integration_limit )
             else
               call get_index_negative(ind_lo,ind_hi,n_cells_to_sum,dof_iterator,stencil_size,stencil_half)
               do ii = 1, n_cells_to_sum-1
                 mass_from_whole_cells = mass_from_whole_cells + field_local(stencil_half + (dof_iterator-1) + (ii-1) )
               end do
-              ! Calculate the left and right integration limits for the fractional cell
-              call calc_integration_limits_negative( fractional_distance,    &
-                                                     left_integration_limit, &
-                                                     right_integration_limit )
-            end if
-            if ( order == 0 ) then
-              ! Piecewise constant reconstruction
-              coeffs(1) = field_local(ind_lo+2)
-            else if ( order == 1 ) then
-              ! Nirvana reconstruction
-              call horizontal_nirvana_coeffs( coeffs, field_local(ind_lo+1:ind_hi-1), monotone )
-            else
-              ! Piecewise parabolic reconstruction
-              call horizontal_ppm_coeffs( coeffs, field_local(ind_lo:ind_hi), monotone )
             end if
 
-            ! Compute fractional flux
-            mass_frac = return_part_mass(3,coeffs,left_integration_limit,right_integration_limit)
+            if ( order == 0 ) then
+              ! Constant reconstruction
+              mass_frac = field_local(ind_lo+2)
+            else if ( order == 1 ) then
+              ! Get Nirvana flux in reconstruction form
+              call horizontal_nirvana_recon(mass_frac, fractional_distance, &
+                                           field_local(ind_lo+1:ind_hi-1), monotone)
+            else
+              ! Piecewise parabolic flux in reconstruction form
+              call horizontal_ppm_recon(mass_frac, fractional_distance, &
+                                        field_local(ind_lo:ind_hi), monotone)
+            end if
 
             ! Get total flux, i.e. fractional part + whole cell part
-            mass_total = mass_from_whole_cells + mass_frac
+            mass_total = mass_from_whole_cells + abs(fractional_distance)*mass_frac
 
-            ! Assign to flux variable and divide by dt to get the correct form
+            ! Assign to flux variable and divide by dt to get the correct form, then multiply by Det(J)
             flux(map_w2h(local_dofs(dof_iterator)) + k) = sign(1.0_r_tran,departure_dist) * mass_total / dt &
-                                                         * detj(map_w2h(local_dofs(dof_iterator)) + k)
+                                                          * detj(map_w2h(local_dofs(dof_iterator)) + k)
 
           end do ! vertical levels k
 

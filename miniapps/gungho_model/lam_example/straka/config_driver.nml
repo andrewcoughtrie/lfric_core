@@ -175,6 +175,7 @@ calculate_detj='upwind',
 dep_pt_stencil_extent=3,
 inner_order=2
 outer_order=2
+vertical_order=2
 /
 &time
 calendar='timestep',

@@ -11,7 +11,8 @@ module check_configuration_mod
                                   viscosity_mu
   use subgrid_config_mod,   only: dep_pt_stencil_extent, &
                                   inner_order,           &
-                                  outer_order
+                                  outer_order,           &
+                                  vertical_order
   use transport_config_mod, only: operators,                   &
                                   operators_fv,                &
                                   operators_fem,               &
@@ -328,7 +329,7 @@ contains
           call log_event(log_scratch_space, LOG_LEVEL_ERROR)
         end if
 
-        if ( vertical_method(i) == split_method_ffsl .AND. outer_order == 2    &
+        if ( vertical_method(i) == split_method_ffsl .AND. vertical_order == 2    &
             .AND. .NOT. reversible(i) ) then
           write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
             'is being transported with a reversible form of the FFSL scheme, ' // &
@@ -336,7 +337,7 @@ contains
           call log_event(log_scratch_space, LOG_LEVEL_ERROR)
         end if
 
-        if ( vertical_method(i) == split_method_ffsl .AND. outer_order == 1    &
+        if ( vertical_method(i) == split_method_ffsl .AND. vertical_order == 1    &
             .AND. log_space(i) .AND. .NOT. reversible(i) ) then
           write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
             'is being transported with Nirvana as part of the FFSL scheme, ' // &

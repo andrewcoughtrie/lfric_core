@@ -44,7 +44,7 @@ module ffsl_control_alg_mod
 
   ! Configs
   use finite_element_config_mod,        only: element_order
-  use subgrid_config_mod,               only: outer_order
+  use subgrid_config_mod,               only: vertical_order
 
   implicit none
 
@@ -127,8 +127,8 @@ contains
 
     select case (direction)
     case (direction_v)
-      call ffsl_vert_transport_alg(mass_flux, increment, field_n_ptr,        &
-                                   step_dt, transport_metadata, outer_order, &
+      call ffsl_vert_transport_alg(mass_flux, increment, field_n_ptr,           &
+                                   step_dt, transport_metadata, vertical_order, &
                                    compute_adv_inc=compute_adv_field)
 
     case (direction_h)

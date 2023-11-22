@@ -26,6 +26,7 @@ private
 public :: calc_stencil_ordering
 public :: stencil_ordering_and_orientation
 public :: frac_and_int_part
+public :: frac_and_int_vert_index
 public :: calc_integration_limits_positive
 public :: calc_integration_limits_negative
 public :: populate_array
@@ -69,6 +70,46 @@ contains
     int_x = abs(int(x_value))+1
 
   end subroutine frac_and_int_part
+
+  !----------------------------------------------------------------------------
+  !> @brief  Splits the vertical departure distance into integer and fractional parts,
+  !!         returning the fractional part, the number of cells to sum over for
+  !!         the integer flux, and the index of the cell where the reconstruction
+  !!         will take place.
+  !!
+  !! @param[in]   departure_dist      Vertical departure distance
+  !! @param[in]   k                   Vertical level index
+  !! @param[out]  fractional_distance Fractional departure distance
+  !! @param[out]  n_cells_to_sum      Number of cells to sum over for
+  !!                                  integer flux
+  !! @param[out]  nc                  Index of cell
+  !----------------------------------------------------------------------------
+  subroutine frac_and_int_vert_index(departure_dist,      &
+                                     k,                   &
+                                     fractional_distance, &
+                                     n_cells_to_sum,      &
+                                     nc)
+
+    implicit none
+
+    real(kind=r_tran),   intent(in)  :: departure_dist
+    integer(kind=i_def), intent(in)  :: k
+    real(kind=r_tran),   intent(out) :: fractional_distance
+    integer(kind=i_def), intent(out) :: n_cells_to_sum
+    integer(kind=i_def), intent(out) :: nc
+
+    ! Calculate number of cells of interest and fractional departure distance
+    fractional_distance = departure_dist - int(departure_dist)
+    n_cells_to_sum = abs(int(departure_dist))+1_i_def
+
+    ! Get index
+    if (departure_dist >= 0.0_r_tran) then
+      nc = k-(n_cells_to_sum-1)
+    else
+      nc = k+(n_cells_to_sum-1)+1
+    end if
+
+  end subroutine frac_and_int_vert_index
 
 
   !----------------------------------------------------------------------------

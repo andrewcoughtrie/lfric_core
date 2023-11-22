@@ -23,7 +23,6 @@ module ffsl_unity_transport_alg_mod
   use fem_constants_mod,                only: get_inverse_w3_mass_matrix
   use ffsl_flux_first_x_kernel_mod,     only: ffsl_flux_first_x_kernel_type
   use ffsl_flux_first_y_kernel_mod,     only: ffsl_flux_first_y_kernel_type
-  use ffsl_vertical_flux_kernel_mod,    only: ffsl_vertical_flux_kernel_type
   use ffsl_vert_constant_flux_kernel_mod, &
                                         only: ffsl_vert_constant_flux_kernel_type
   use field_mod,                        only: field_type
@@ -36,11 +35,8 @@ module ffsl_unity_transport_alg_mod
   use operator_mod,                     only: operator_type
   use psykal_lite_mod,                  only: invoke_copy_to_rtran
   use r_tran_field_mod,                 only: r_tran_field_type
-  use subgrid_config_mod,               only: outer_order
   use transport_enumerated_types_mod,   only: horizontal_monotone_none, &
                                               vertical_monotone_none
-  use vert_nirvana_kernel_mod,          only: vert_nirvana_kernel_type
-  use vert_ppm_no_limiter_kernel_mod,   only: vert_ppm_no_limiter_kernel_type
 
 
   implicit none
@@ -124,6 +120,7 @@ contains
     logical(kind=l_def), parameter :: log_space = .false.
     integer(kind=i_def), parameter :: hori_monotone = horizontal_monotone_none
     integer(kind=i_def), parameter :: vert_monotone = vertical_monotone_none
+    integer(kind=i_def), parameter :: order = 1_i_def
 
     ! Unity fields, increments, and fluxes
     type(r_tran_field_type) :: inc_one_x
@@ -133,7 +130,7 @@ contains
     type(r_tran_field_type) :: flux_x
     type(r_tran_field_type) :: flux_y
     type(r_tran_field_type) :: flux_z
-    type(r_tran_field_type) :: a0, a1, a2
+    type(r_tran_field_type) :: flux_z_high, flux_z_low, flux_z_int
     type(r_tran_field_type) :: dz_w3
 
     ! Half time step and flags for departure points
@@ -176,19 +173,19 @@ contains
                    setval_c(flux_y,    0.0_r_tran)  )
 
       ! x-direction ------------------------------------------------------------
-      stencil_extent = dep_stencil_x + 1_i_def + outer_order
+      stencil_extent = dep_stencil_x + 1_i_def + order
       cfl_stencil_extent = stencil_extent
       call invoke( ffsl_flux_first_x_kernel_type(flux_x, ini_one,              &
                                                  stencil_extent, dep_pts_x,    &
-                                                 detj_at_w2h, outer_order,     &
+                                                 detj_at_w2h, order,           &
                                                  hori_monotone,                &
                                                  cfl_stencil_extent, dt) )
       ! y-direction ------------------------------------------------------------
-      stencil_extent = dep_stencil_y + 1_i_def + outer_order
+      stencil_extent = dep_stencil_y + 1_i_def + order
       cfl_stencil_extent = stencil_extent
       call invoke( ffsl_flux_first_y_kernel_type(flux_y, ini_one,              &
                                                  stencil_extent, dep_pts_y,    &
-                                                 detj_at_w2h, outer_order,     &
+                                                 detj_at_w2h, order,           &
                                                  hori_monotone,                &
                                                  cfl_stencil_extent, dt ) )
       call invoke( fv_divergence_x_kernel_type( inc_one_x, flux_x, m3_inv ),   &
@@ -209,11 +206,11 @@ contains
       m3_inv => get_inverse_w3_mass_matrix(ini_one%get_mesh_id())
 
       call inc_one_z%initialise( vector_space = field_fs )
-      call a0%initialise( vector_space = field_fs )
-      call a1%initialise( vector_space = field_fs )
-      call a2%initialise( vector_space = field_fs )
       call dz_w3%initialise( vector_space = field_fs )
       call flux_z%initialise( vector_space = w2v_fs )
+      call flux_z_high%initialise( vector_space = w2v_fs )
+      call flux_z_low%initialise( vector_space = w2v_fs )
+      call flux_z_int%initialise( vector_space = w2v_fs )
 
       ! Copy vertical spacing to r_tran precision
       call invoke_copy_to_rtran(dz_w3, dz_w3_rdef)
@@ -223,30 +220,16 @@ contains
                    setval_c(ini_one,   1.0_r_tran), &
                    setval_c(flux_z,    0.0_r_tran)  )
 
-      ! Compute subgrid coefficients and compute the flux
-      if (outer_order == 0) then
-        ! Constant reconstruction and flux
-        call invoke( ffsl_vert_constant_flux_kernel_type(flux_z, dep_pts_z,    &
-                                                         detj_at_w2v, ini_one, &
-                                                         dt) )
-      else if (outer_order == 1) then
-        ! Standard Nirvana reconstruction
-        call invoke( vert_nirvana_kernel_type(a0, a1, a2, ini_one, dz_w3,      &
-                                              vert_monotone ),                 &
-                     ffsl_vertical_flux_kernel_type(flux_z, dep_pts_z,         &
-                                                    detj_at_w2v, ini_one,      &
-                                                    a0, a1, a2, dt) )
-      else
-        ! Compute unlimited PPM coefficients for reconstruction and compute flux
-        call invoke( vert_ppm_no_limiter_kernel_type(a0, a1, a2, ini_one,      &
-                                                     dz_w3, log_space),        &
-                     ffsl_vertical_flux_kernel_type(flux_z, dep_pts_z,         &
-                                                    detj_at_w2v, ini_one,      &
-                                                    a0, a1, a2, dt) )
-      end if
+      ! Compute the flux
+      call invoke( ffsl_vert_constant_flux_kernel_type(flux_z_high, flux_z_low, &
+                                                       flux_z_int, dep_pts_z,   &
+                                                       detj_at_w2v, ini_one,    &
+                                                       dz_w3, dt) )
 
-      ! Multiply by Det(J) to get mass flux, take difference and multiply by inverse
-      ! mass matrix to get increment
+      ! Combine integer and fractional fluxes
+      call invoke( X_plus_Y(flux_z, flux_z_high, flux_z_int) )
+
+      ! Take flux difference and multiply by inverse mass matrix to get increment
       call invoke( fv_divergence_z_kernel_type(inc_one_z, flux_z, m3_inv),     &
                    ! Get the updated unity values: np1 = 1 - dt * F(1)
                    X_minus_bY(np1_z, ini_one, dt, inc_one_z),                  &

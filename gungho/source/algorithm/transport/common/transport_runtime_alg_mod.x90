@@ -82,6 +82,8 @@ module transport_runtime_alg_mod
     type(r_tran_field_type),    allocatable, dimension(:)   :: departure_points_x_w2
     type(r_tran_field_type),    allocatable, dimension(:)   :: departure_points_y_w2
     type(r_tran_field_type),    allocatable, dimension(:)   :: departure_points_z_w2
+    type(r_tran_field_type),    allocatable, dimension(:)   :: frac_wind_z
+    type(r_tran_field_type),    allocatable, dimension(:)   :: frac_wind_z_half
     type(r_tran_field_type),    allocatable, dimension(:)   :: adv_unity_x
     type(r_tran_field_type),    allocatable, dimension(:)   :: adv_unity_y
     type(r_tran_field_type),    allocatable, dimension(:)   :: adv_unity_z
@@ -141,6 +143,8 @@ module transport_runtime_alg_mod
     procedure, public  :: get_departure_points_x_w2
     procedure, public  :: get_departure_points_y_w2
     procedure, public  :: get_departure_points_z_w2
+    procedure, public  :: get_frac_wind_z
+    procedure, public  :: get_frac_wind_z_half
     procedure, public  :: get_dep_stencil_extent_x
     procedure, public  :: get_dep_stencil_extent_y
     procedure, public  :: get_adv_unity_x
@@ -204,6 +208,8 @@ contains
                                              compute_vert_cubic_coefficients_alg
     use cosmic_index_alg_mod,          only: cosmic_index_alg
     use ffsl_unity_transport_alg_mod,  only: ffsl_unity_transport_alg
+    use fractional_vertical_wind_kernel_mod, &
+                                       only: fractional_vertical_wind_kernel_type
     use split_w2_field_kernel_mod,     only: split_w2_field_kernel_type
     use transport_config_mod,          only: max_vert_cfl_calc,           &
                                              max_vert_cfl_calc_dep_point, &
@@ -235,6 +241,7 @@ contains
     type(r_tran_field_type)          :: cfl, vertical_cfl, horizontal_cfl, cfl_dep
     type(r_tran_field_type)          :: sum_cfl, sum_horizontal_cfl, hori_cfl_dep
     type(r_tran_field_type)          :: dep_pt_wind_n, dep_pt_wind_np1
+    type(r_tran_field_type)          :: departure_points_z_w2_half
     integer(kind=i_def)              :: mesh_idx, i, fs_idx, num_compute_meshes
     type(mesh_type),         pointer :: mesh => null()
     type(local_mesh_type),   pointer :: local_mesh => null()
@@ -249,7 +256,7 @@ contains
     real(kind=r_tran)                :: dep_min, dep_max
     real(kind=r_tran)                :: h_cfl_min, h_cfl_max
     real(kind=r_tran)                :: v_cfl_min, v_cfl_max
-    real(r_tran)                     :: cast_dt
+    real(r_tran)                     :: cast_dt, half_dt
     logical(kind=l_def)              :: any_scheme_mol, any_scheme_split
     logical(kind=l_def)              :: any_scheme_ffsl, any_shifted
     logical(kind=l_def)              :: any_splitting_vhv, any_scheme_slice
@@ -340,6 +347,8 @@ contains
                 self%departure_points_x_w2(self%n_meshes),     &
                 self%departure_points_y_w2(self%n_meshes),     &
                 self%departure_points_z_w2(self%n_meshes),     &
+                self%frac_wind_z(self%n_meshes),               &
+                self%frac_wind_z_half(self%n_meshes),          &
                 self%dep_stencil_extent_x(self%n_meshes),      &
                 self%dep_stencil_extent_y(self%n_meshes),      &
                 self%adv_unity_x(self%n_meshes),               &
@@ -426,6 +435,8 @@ contains
       call self%detj_at_w2h_transport(mesh_idx)%initialise( w2h_fs )
       call self%detj_at_w2v_transport(mesh_idx)%initialise( w2v_fs )
       call self%departure_points_z_w2(mesh_idx)%initialise( w2v_fs )
+      call self%frac_wind_z(mesh_idx)%initialise( w2v_fs )
+      call self%frac_wind_z_half(mesh_idx)%initialise( w2v_fs )
       call self%departure_points_x_w2(mesh_idx)%initialise( w2h_fs )
       call self%departure_points_y_w2(mesh_idx)%initialise( w2h_fs )
       call self%adv_unity_x(mesh_idx)%initialise( w3_fs )
@@ -519,6 +530,27 @@ contains
                                 dep_pt_wind_np1,                      &
                                 detj_at_w2_transport,                 &
                                 cast_dt )
+
+        ! Compute fractional wind
+        call invoke( fractional_vertical_wind_kernel_type(            &
+                                self%frac_wind_z(mesh_idx),           &
+                                self%departure_points_z_w2(mesh_idx), &
+                                self%detj_at_w2v_transport(mesh_idx), &
+                                cast_dt ) )
+        if (any_splitting_vhv) then
+          ! Compute fractional wind for half step of Strang splitting
+          w2v_fs => function_space_collection%get_fs(tmp_mesh, element_order, W2v)
+          call departure_points_z_w2_half%initialise( w2v_fs )
+          half_dt = cast_dt * 0.5_r_tran
+          call invoke( a_times_X(departure_points_z_w2_half, 0.5_r_tran, &
+                                 self%departure_points_z_w2(mesh_idx) ), &
+                       fractional_vertical_wind_kernel_type(             &
+                                  self%frac_wind_z_half(mesh_idx),       &
+                                  departure_points_z_w2_half,            &
+                                  self%detj_at_w2v_transport(mesh_idx),  &
+                                  half_dt ) )
+        end if
+
       end if
 
       ! If any horizontal scheme is ffsl compute horizontal departure points
@@ -784,6 +816,8 @@ contains
     if ( allocated( self%departure_points_x_w2 ) )     deallocate( self%departure_points_x_w2 )
     if ( allocated( self%departure_points_y_w2 ) )     deallocate( self%departure_points_y_w2 )
     if ( allocated( self%departure_points_z_w2 ) )     deallocate( self%departure_points_z_w2 )
+    if ( allocated( self%frac_wind_z ) )               deallocate( self%frac_wind_z )
+    if ( allocated( self%frac_wind_z_half ) )          deallocate( self%frac_wind_z_half )
     if ( allocated( self%adv_unity_x ) )               deallocate( self%adv_unity_x )
     if ( allocated( self%adv_unity_y ) )               deallocate( self%adv_unity_y )
     if ( allocated( self%adv_unity_z ) )               deallocate( self%adv_unity_z )
@@ -1332,9 +1366,9 @@ contains
 
   end function get_detj_at_w2_transport
 
-  !> @brief Returns a pointer to the x departure points at W2 DoFs
+  !> @brief Returns a pointer to the x departure points at W2h DoFs
   !> @param[in] mesh_id The ID of the mesh to get the object for
-  !> @return The departure points for the x direction at W2 DoFs
+  !> @return The departure points for the x direction at W2h DoFs
   function get_departure_points_x_w2(self, mesh_id) result(departure_points_x_w2)
 
     implicit none
@@ -1350,9 +1384,9 @@ contains
 
   end function get_departure_points_x_w2
 
-  !> @brief Returns a pointer to the y departure points at W2 DoFs
+  !> @brief Returns a pointer to the y departure points at W2h DoFs
   !> @param[in] mesh_id The ID of the mesh to get the object for
-  !> @return The departure points for the y direction at W2 DoFs
+  !> @return The departure points for the y direction at W2h DoFs
   function get_departure_points_y_w2(self, mesh_id) result(departure_points_y_w2)
 
     implicit none
@@ -1368,9 +1402,9 @@ contains
 
   end function get_departure_points_y_w2
 
-  !> @brief Returns a pointer to the z departure points at W2 DoFs
+  !> @brief Returns a pointer to the z departure points at W2v DoFs
   !> @param[in] mesh_id The ID of the mesh to get the object for
-  !> @return The departure points for the z direction at W2 DoFs
+  !> @return The departure points for the z direction at W2v DoFs
   function get_departure_points_z_w2(self, mesh_id) result(departure_points_z_w2)
 
     implicit none
@@ -1385,6 +1419,38 @@ contains
     call check_initialised_field(departure_points_z_w2, field_name, mesh_id)
 
   end function get_departure_points_z_w2
+
+  !> @brief Returns a pointer to the fractional vertical wind
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The fractional vertical wind at W2v DOFs
+  function get_frac_wind_z(self, mesh_id) result(frac_wind_z)
+
+    implicit none
+
+    class(transport_runtime_type), target, intent(in) :: self
+    integer(kind=i_def),                   intent(in) :: mesh_id
+    type(r_tran_field_type),               pointer    :: frac_wind_z
+
+    frac_wind_z => self%frac_wind_z(self%idx_from_mesh_id(mesh_id))
+
+  end function get_frac_wind_z
+
+  !> @brief Returns a pointer to the fractional vertical wind computed
+  !!        using half departure points and time step for the half steps
+  !!        of Strang splitting
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The fractional vertical wind at W2v DOFs
+  function get_frac_wind_z_half(self, mesh_id) result(frac_wind_z_half)
+
+    implicit none
+
+    class(transport_runtime_type), target, intent(in) :: self
+    integer(kind=i_def),                   intent(in) :: mesh_id
+    type(r_tran_field_type),               pointer    :: frac_wind_z_half
+
+    frac_wind_z_half => self%frac_wind_z_half(self%idx_from_mesh_id(mesh_id))
+
+  end function get_frac_wind_z_half
 
   !> @brief Returns a pointer to the transport of unity in x
   !> @param[in] mesh_id The ID of the mesh to get the object for

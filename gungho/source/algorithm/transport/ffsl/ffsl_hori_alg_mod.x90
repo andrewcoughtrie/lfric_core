@@ -223,6 +223,8 @@ contains
     type(r_tran_field_type)         :: conservative_field_y
     type(r_tran_field_type)         :: divide_part
     type(r_tran_field_type)         :: inc_part
+    type(r_tran_field_type), target :: dep_pts_x_half
+    type(r_tran_field_type), target :: dep_pts_y_half
 
     ! Pointer to field, to avoid unnecessary setval calculation
     type(r_tran_field_type),   pointer :: field_ptr => null()
@@ -274,6 +276,16 @@ contains
     else
       adv_one_x => transport_runtime%get_adv_unity_x(mesh_id)
       adv_one_y => transport_runtime%get_adv_unity_y(mesh_id)
+    end if
+
+    ! Halve the departure points if using Strang
+    if ( strang ) then
+      call dep_pts_x_half%initialise( vector_space = w2h_fs )
+      call dep_pts_y_half%initialise( vector_space = w2h_fs )
+      call invoke( a_times_X(dep_pts_x_half, 0.5_r_tran, dep_pts_x), &
+                   a_times_X(dep_pts_y_half, 0.5_r_tran, dep_pts_y) )
+      dep_pts_x => dep_pts_x_half
+      dep_pts_y => dep_pts_y_half
     end if
 
     ! Initialise fields
@@ -408,12 +420,22 @@ contains
     ! Fields and increments
     type(r_tran_field_type), target :: remap_field_x
     type(r_tran_field_type), target :: remap_field_y
+    type(r_tran_field_type), target :: dep_pts_x_half
+    type(r_tran_field_type), target :: dep_pts_y_half
 
     type(r_tran_field_type) :: flux_broken
     type(r_tran_field_type) :: conservative_field_x
     type(r_tran_field_type) :: conservative_field_y
     type(r_tran_field_type) :: divide_part
     type(r_tran_field_type) :: inc_part
+
+    ! Flux parts
+    type(r_tran_field_type) :: flux_x_high
+    type(r_tran_field_type) :: flux_x_low
+    type(r_tran_field_type) :: flux_x_int
+    type(r_tran_field_type) :: flux_y_high
+    type(r_tran_field_type) :: flux_y_low
+    type(r_tran_field_type) :: flux_y_int
 
     ! Pointers to field, to avoid unnecessary setval calculation
     type(r_tran_field_type),   pointer :: field_x_ptr => null()
@@ -474,6 +496,12 @@ contains
     ! Initialise fields --------------------------------------------------------
     call flux_x%initialise( vector_space = w2h_fs )
     call flux_y%initialise( vector_space = w2h_fs )
+    call flux_x_high%initialise( vector_space = w2h_fs )
+    call flux_y_high%initialise( vector_space = w2h_fs )
+    call flux_x_low%initialise( vector_space = w2h_fs )
+    call flux_y_low%initialise( vector_space = w2h_fs )
+    call flux_x_int%initialise( vector_space = w2h_fs )
+    call flux_y_int%initialise( vector_space = w2h_fs )
 
     ! Set constant values
     one_over_dt = 1.0_r_tran / dt
@@ -502,9 +530,23 @@ contains
       field_y_ptr => field_y
     end if
 
+    ! Halve the departure points if using Strang
+    if ( strang ) then
+      call dep_pts_x_half%initialise( vector_space = w2h_fs )
+      call dep_pts_y_half%initialise( vector_space = w2h_fs )
+      call invoke( a_times_X(dep_pts_x_half, 0.5_r_tran, dep_pts_x), &
+                   a_times_X(dep_pts_y_half, 0.5_r_tran, dep_pts_y) )
+      dep_pts_x => dep_pts_x_half
+      dep_pts_y => dep_pts_y_half
+    end if
+
     ! Compute the mass fluxes: x-direction -------------------------------------
     call invoke( setval_c(flux_x, 0.0_r_tran),                                 &
-                 ffsl_flux_final_x_kernel_type(flux_x,                         &
+                 setval_c(flux_x_high, 0.0_r_tran),                            &
+                 setval_c(flux_x_low, 0.0_r_tran),                             &
+                 setval_c(flux_x_int, 0.0_r_tran),                             &
+                 ffsl_flux_final_x_kernel_type(flux_x_high,                    &
+                                               flux_x_low, flux_x_int,         &
                                                field_x_ptr, stencil_extent_x,  &
                                                field_y_ptr, stencil_extent_x,  &
                                                cosmic_istart_y, cosmic_iend_y, &
@@ -512,12 +554,19 @@ contains
                                                monotone, cfl_stencil_x, dt),   &
     ! Compute the mass fluxes: y-direction -------------------------------------
                  setval_c(flux_y, 0.0_r_tran),                                 &
-                 ffsl_flux_final_y_kernel_type(flux_y,                         &
+                 setval_c(flux_y_high, 0.0_r_tran),                            &
+                 setval_c(flux_y_low, 0.0_r_tran),                             &
+                 setval_c(flux_y_int, 0.0_r_tran),                             &
+                 ffsl_flux_final_y_kernel_type(flux_y_high,                    &
+                                               flux_y_low, flux_y_int,         &
                                                field_x_ptr, stencil_extent_y,  &
                                                field_y_ptr, stencil_extent_y,  &
                                                cosmic_istart_x, cosmic_iend_x, &
                                                dep_pts_y, detj_at_w2h, order,  &
-                                               monotone, cfl_stencil_y, dt) )
+                                               monotone, cfl_stencil_y, dt),   &
+    ! Combine integer and fractional fluxes ------------------------------------
+                 X_plus_Y(flux_x, flux_x_high, flux_x_int),                    &
+                 X_plus_Y(flux_y, flux_y_high, flux_y_int) )
 
     ! fluxes may need unifying to guarantee a unique flux for each face --------
     if ( extended_mesh ) then

@@ -3,61 +3,28 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-!> @brief Test the final 1D PPM flux computation in the y direction
+!> @brief Test the final 1D FFSL flux computation in the y direction
 
 module ffsl_flux_final_y_kernel_mod_test
 
-  use constants_mod, only : i_def, r_def, r_tran
+  use constants_mod, only : i_def, r_tran
   use pFUnit_Mod
 
   implicit none
 
   private
-
   public :: test_all
 
   @TestCase
   type, public, extends(TestCase) :: ffsl_flux_final_y_test_type
     private
   contains
-    procedure setUp
-    procedure tearDown
     procedure test_all
   end type ffsl_flux_final_y_test_type
 
 contains
- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine setUp( this )
 
-    use feign_config_mod,   only : feign_subgrid_config
-    use subgrid_config_mod, only : calculate_detj_upwind
-
-    implicit none
-
-    class(ffsl_flux_final_y_test_type), intent(inout) :: this
-
-    call feign_subgrid_config( calculate_detj = calculate_detj_upwind, &
-                               dep_pt_stencil_extent = 2,              &
-                               inner_order = 2,                        &
-                               outer_order = 2                         &
-                               )
-
-  end subroutine setUp
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine tearDown( this )
-
-    use configuration_mod, only: final_configuration
-
-    implicit none
-
-    class(ffsl_flux_final_y_test_type), intent(inout) :: this
-
-    call final_configuration()
-
-  end subroutine tearDown
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @Test
   subroutine test_all( this )
 
@@ -91,10 +58,12 @@ contains
     real(kind=r_tran),   dimension(undf_w3) :: field_x
     real(kind=r_tran),   dimension(undf_w3) :: field_y
     real(kind=r_tran),   dimension(undf_w2) :: dep_pts
-    real(kind=r_tran),   dimension(undf_w2) :: flux
+    real(kind=r_tran),   dimension(undf_w2) :: flux_high
+    real(kind=r_tran),   dimension(undf_w2) :: flux_low
+    real(kind=r_tran),   dimension(undf_w2) :: flux_int
     integer(kind=i_def), dimension(undf_wp) :: i_start
     integer(kind=i_def), dimension(undf_wp) :: i_end
-    real(kind=r_tran), dimension(undf_w2) :: detj
+    real(kind=r_tran),   dimension(undf_w2) :: detj
 
     real(kind=r_tran)   :: dt
     integer(kind=i_def) :: monotone
@@ -117,7 +86,9 @@ contains
                     1.0_r_tran, 1.0_r_tran, 1.0_r_tran /)
 
     ! Initialise flux to zero before each test
-    flux(:) = 0.0_r_tran
+    flux_high(:) = 0.0_r_tran
+    flux_low(:) = 0.0_r_tran
+    flux_int(:) = 0.0_r_tran
 
     ! Volume factor
     detj(:) = 2.0_r_tran
@@ -128,7 +99,9 @@ contains
     i_start = -1_i_def
     i_end = -2_i_def
     call ffsl_flux_final_y_code( nlayers,        &
-                                 flux,           &
+                                 flux_high,      &
+                                 flux_low,       &
+                                 flux_int,       &
                                  field_x,        &
                                  stencil_size,   &
                                  stencil_map,    &
@@ -156,21 +129,29 @@ contains
     if ( r_tran == real64 ) then
       use_tol = tol
     else
-      use_tol = 10.0_r_tran*spacing( maxval( flux(1:4) ) )
+      use_tol = 10.0_r_tran*spacing( maxval( flux_high(1:4) ) )
     end if
+    answer = 0.0_r_tran
+    @assertEqual(answer, flux_high(2), use_tol)
     answer = 4.0_r_tran
-    @assertEqual(answer, flux(2), use_tol)
+    @assertEqual(answer, flux_int(2), use_tol)
+    answer = 0.0_r_tran
+    @assertEqual(answer, flux_high(4), use_tol)
     answer = 2.0_r_tran
-    @assertEqual(answer, flux(4), use_tol)
+    @assertEqual(answer, flux_int(4), use_tol)
 
     ! Test with positive distance on one panel
     dep_pts(:) = 0.6_r_tran
     dt = 1.0_r_tran
-    flux(:) = 0.0_r_def
+    flux_high(:) = 0.0_r_tran
+    flux_low(:) = 0.0_r_tran
+    flux_int(:) = 0.0_r_tran
     i_start = -1_i_def
     i_end = -2_i_def
     call ffsl_flux_final_y_code( nlayers,        &
-                                 flux,           &
+                                 flux_high,      &
+                                 flux_low,       &
+                                 flux_int,       &
                                  field_x,        &
                                  stencil_size,   &
                                  stencil_map,    &
@@ -195,18 +176,22 @@ contains
                                  undf_wp,        &
                                  map_wp )
     answer = 1.904_r_tran
-    @assertEqual(answer, flux(2), use_tol)
+    @assertEqual(answer, flux_high(2), use_tol)
     answer = 1.184_r_tran
-    @assertEqual(answer, flux(4), use_tol)
+    @assertEqual(answer, flux_high(4), use_tol)
 
     ! Test with positive distance over panel edge
     dep_pts(:) = 0.4_r_tran
     dt = 1.0_r_tran
-    flux(:) = 0.0_r_def
+    flux_high(:) = 0.0_r_tran
+    flux_low(:) = 0.0_r_tran
+    flux_int(:) = 0.0_r_tran
     i_start = 1_i_def
     i_end = 4_i_def
     call ffsl_flux_final_y_code( nlayers,        &
-                                 flux,           &
+                                 flux_high,      &
+                                 flux_low,       &
+                                 flux_int,       &
                                  field_x,        &
                                  stencil_size,   &
                                  stencil_map,    &
@@ -231,18 +216,22 @@ contains
                                  undf_wp,        &
                                  map_wp )
     answer = 0.776_r_tran
-    @assertEqual(answer, flux(2), use_tol)
+    @assertEqual(answer, flux_high(2), use_tol)
     answer = 0.888_r_tran
-    @assertEqual(answer, flux(4), use_tol)
+    @assertEqual(answer, flux_high(4), use_tol)
 
     ! Test with negative distance over panel edge
     dep_pts(:) = -0.4_r_tran
     dt = 1.0_r_tran
-    flux(:) = 0.0_r_def
+    flux_high(:) = 0.0_r_tran
+    flux_low(:) = 0.0_r_tran
+    flux_int(:) = 0.0_r_tran
     i_start = 6_i_def
     i_end = 9_i_def
     call ffsl_flux_final_y_code( nlayers,        &
-                                 flux,           &
+                                 flux_high,      &
+                                 flux_low,       &
+                                 flux_int,       &
                                  field_x,        &
                                  stencil_size,   &
                                  stencil_map,    &
@@ -267,9 +256,9 @@ contains
                                  undf_wp,        &
                                  map_wp )
     answer = -0.888_r_tran
-    @assertEqual(answer, flux(2), use_tol)
+    @assertEqual(answer, flux_high(2), use_tol)
     answer = -0.776_r_tran
-    @assertEqual(answer, flux(4), use_tol)
+    @assertEqual(answer, flux_high(4), use_tol)
 
   end subroutine test_all
 

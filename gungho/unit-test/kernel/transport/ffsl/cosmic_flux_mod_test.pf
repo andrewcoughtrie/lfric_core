@@ -19,7 +19,7 @@ contains
     implicit none
 
     real(kind=r_tran) :: x_value, frac_x, tol
-    integer          :: int_x
+    integer           :: int_x
 
     tol = 1.0e-6_r_tran
     x_value = -3.4_r_tran
@@ -33,6 +33,49 @@ contains
     @assertEqual(0.4_r_tran, frac_x, tol)
 
   end subroutine frac_and_int_part_test
+
+  @test
+  subroutine frac_and_int_vert_index_test()
+    use pFUnit_Mod
+    use constants_mod,   only: r_tran, i_def
+    use cosmic_flux_mod, only: frac_and_int_vert_index
+
+    implicit none
+
+    real(kind=r_tran)   :: dist, frac_dist, tol
+    integer(kind=i_def) :: ncells, nc, k
+    real(kind=r_tran)   :: answer_frac, answer_ncells, answer_nc
+
+    ! Set tolerance
+    tol = 1.0e-6_r_tran
+
+    ! Set up distance and level for negative test
+    dist = -3.4_r_tran
+    k = 10
+    ! Compute answers
+    answer_frac = -0.4_r_tran
+    answer_ncells = 4.0_r_tran
+    answer_nc = 14.0_r_Tran
+    ! Test routine
+    call frac_and_int_vert_index(dist,k,frac_dist,ncells,nc)
+    @assertEqual(answer_frac, frac_dist, tol)
+    @assertEqual(answer_ncells, real(ncells,r_tran), tol)
+    @assertEqual(answer_nc, real(nc,r_tran), tol)
+
+    ! Set up distance and level for positive test
+    dist = 0.7_r_tran
+    k = 10
+    ! Compute answers
+    answer_frac = 0.7_r_tran
+    answer_ncells = 1.0_r_tran
+    answer_nc = 10.0_r_Tran
+    ! Test routine
+    call frac_and_int_vert_index(dist,k,frac_dist,ncells,nc)
+    @assertEqual(answer_frac, frac_dist, tol)
+    @assertEqual(answer_ncells, real(ncells,r_tran), tol)
+    @assertEqual(answer_nc, real(nc,r_tran), tol)
+
+  end subroutine frac_and_int_vert_index_test
 
 
   @test

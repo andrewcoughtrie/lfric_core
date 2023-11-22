@@ -3,11 +3,11 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-!> @brief Calculates the flux in y using 1D PPM.
-!> @details This kernel computes the flux in the y direction. PPM is used
-!!          to compute the subgrid reconstruction of the form a0 + a1 y + a2 y^2,
-!!          and this is integrated between the flux point and the departure point.
-!!          For CFL > 1 the field values are summed between the flux point and
+!> @brief Calculates the final flux in y for FFSL.
+!> @details This kernel computes the flux in the y direction. A choice of
+!!          constant, Nirvana, or PPM is used to compute the edge reconstruction.
+!!          This is multiplied by the velocity and divided by Det(J) to give
+!!          the flux. For CFL > 1 the field values are summed between the flux point and
 !!          the departure cell. As this is used for the final steps of the FFSL
 !!          transport scheme the flux is computed using field_x. At cubed sphere
 !!          panel edges the correct direction must be used, hence field_y is also
@@ -39,8 +39,10 @@ module ffsl_flux_final_y_kernel_mod
   !> The type declaration for the kernel. Contains the metadata needed by the PSy layer
   type, public, extends(kernel_type) :: ffsl_flux_final_y_kernel_type
     private
-    type(arg_type) :: meta_args(11) = (/                                        &
-         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, W2h),                        & ! flux
+    type(arg_type) :: meta_args(13) = (/                                        &
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, W2h),                        & ! flux_high
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, W2h),                        & ! flux_low
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, W2h),                        & ! flux_int
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W3, STENCIL(Y1D)),           & ! field_x
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W3, STENCIL(Y1D)),           & ! field_y
          arg_type(GH_FIELD,  GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_1 ), & ! i_start
@@ -64,9 +66,11 @@ module ffsl_flux_final_y_kernel_mod
 
 contains
 
-  !> @brief Compute the advective increment in y using PPM for the advective fluxes.
+  !> @brief Compute the flux in y for the final horizontal stage of FFSL.
   !> @param[in]     nlayers           Number of layers
-  !> @param[in,out] flux              The output flux in y
+  !> @param[in,out] flux_high         The output high order fractional flux in y
+  !> @param[in,out] flux_low          The output low order fractional flux in y
+  !> @param[in,out] flux_int          The output integer flux in y
   !> @param[in]     field_x           Field from x direction
   !> @param[in]     stencil_size_x    Local length of field_x W3 stencil
   !> @param[in]     stencil_map_x     Dofmap for the field_x stencil
@@ -94,7 +98,9 @@ contains
   !> @param[in]     map_wp            Map for panel ID index function space
 
   subroutine ffsl_flux_final_y_code( nlayers,        &
-                                     flux,           &
+                                     flux_high,      &
+                                     flux_low,       &
+                                     flux_int,       &
                                      field_x,        &
                                      stencil_size_x, &
                                      stencil_map_x,  &
@@ -119,14 +125,10 @@ contains
                                      undf_wp,        &
                                      map_wp )
 
-    use subgrid_rho_mod,            only: horizontal_ppm_coeffs, &
-                                          horizontal_nirvana_coeffs
-    use cosmic_flux_mod,            only: frac_and_int_part,                &
-                                          calc_integration_limits_positive, &
-                                          calc_integration_limits_negative, &
-                                          return_part_mass,                 &
-                                          get_index_negative,               &
-                                          get_index_positive
+    use subgrid_rho_mod, only: horizontal_nirvana_recon, &
+                               horizontal_ppm_recon
+    use cosmic_flux_mod, only: get_index_negative, &
+                               get_index_positive
 
     implicit none
 
@@ -149,34 +151,31 @@ contains
     integer(kind=i_def), dimension(ndf_w3,stencil_size_y), intent(in) :: stencil_map_y
 
     ! Arguments: Fields
-    real(kind=r_tran),   dimension(undf_w2h), intent(inout) :: flux
+    real(kind=r_tran),   dimension(undf_w2h), intent(inout) :: flux_high
+    real(kind=r_tran),   dimension(undf_w2h), intent(inout) :: flux_low
+    real(kind=r_tran),   dimension(undf_w2h), intent(inout) :: flux_int
     real(kind=r_tran),   dimension(undf_w3),  intent(in)    :: field_x
     real(kind=r_tran),   dimension(undf_w3),  intent(in)    :: field_y
     integer(kind=i_def), dimension(undf_wp),  intent(in)    :: i_start
     integer(kind=i_def), dimension(undf_wp),  intent(in)    :: i_end
     real(kind=r_tran),   dimension(undf_w2h), intent(in)    :: dep_pts
     real(kind=r_tran),   dimension(undf_w2h), intent(in)    :: detj
-    integer(kind=i_def), intent(in)                         :: order
-    integer(kind=i_def), intent(in)                         :: monotone
-    integer(kind=i_def), intent(in)                         :: extent_size
-    real(kind=r_tran),   intent(in)                         :: dt
+    integer(kind=i_def),                      intent(in)    :: order
+    integer(kind=i_def),                      intent(in)    :: monotone
+    integer(kind=i_def),                      intent(in)    :: extent_size
+    real(kind=r_tran),                        intent(in)    :: dt
 
     ! Variables for flux calculation
-    real(kind=r_tran) :: mass_total
     real(kind=r_tran) :: departure_dist
     real(kind=r_tran) :: fractional_distance
-    real(kind=r_tran) :: mass_frac
+    real(kind=r_tran) :: reconstruction
+    real(kind=r_tran) :: reconstruction_low
     real(kind=r_tran) :: mass_from_whole_cells
-    real(kind=r_tran) :: left_integration_limit
-    real(kind=r_tran) :: right_integration_limit
 
     ! Local fields
     real(kind=r_tran)   :: field_local(1:stencil_size_x)
     real(kind=r_tran)   :: field_x_local(1:stencil_size_x)
     real(kind=r_tran)   :: field_y_local(1:stencil_size_y)
-
-    ! PPM coefficients
-    real(kind=r_tran)    :: coeffs(1:3)
 
     ! DOFs
     integer(kind=i_def) :: local_dofs(1:2)
@@ -209,7 +208,9 @@ contains
       ! At edge of LAM, so set output to zero
       do k = 0,nlayers-1
         do dof_iterator = 1,2
-         flux( map_w2h(local_dofs(dof_iterator)) + k ) = 0.0_r_tran
+         flux_high( map_w2h(local_dofs(dof_iterator)) + k ) = 0.0_r_tran
+         flux_low( map_w2h(local_dofs(dof_iterator)) + k )  = 0.0_r_tran
+         flux_int( map_w2h(local_dofs(dof_iterator)) + k )  = 0.0_r_tran
         end do
       end do
 
@@ -219,7 +220,6 @@ contains
 
       ! Initialise field_local to zero
       field_local(1:stencil_size) = 0.0_r_tran
-      coeffs(1:3) = 0.0_r_tran
 
       ! Loop over the y direction dofs to compute flux at each dof
       do dof_iterator = 1,2
@@ -232,8 +232,8 @@ contains
 
         half_level = floor( nlayers/2.0_r_tran, i_def)
 
-        if ( flux(map_w2h(local_dofs(dof_iterator)) ) == 0.0_r_tran .AND. &
-             flux(map_w2h(local_dofs(dof_iterator)) + half_level) == 0.0_r_tran ) then
+        if ( flux_high(map_w2h(local_dofs(dof_iterator)) ) == 0.0_r_tran .AND. &
+             flux_high(map_w2h(local_dofs(dof_iterator)) + half_level) == 0.0_r_tran ) then
 
           ! Loop over vertical levels
           do k = 0,nlayers-1
@@ -241,8 +241,9 @@ contains
             ! Get the departure distance
             departure_dist = dep_pts( map_w2h(local_dofs(dof_iterator)) + k )
 
-            ! Calculates number of cells of interest and fraction of a cell to add.
-            call frac_and_int_part(departure_dist,n_cells_to_sum,fractional_distance)
+            ! Calculates number of cells of interest and fraction of a cell to add
+            fractional_distance = departure_dist - int(departure_dist)
+            n_cells_to_sum = abs(int(departure_dist))+1_i_def
 
             ! Get local field values - this will depend on panel ID at cubed sphere edges
             do jj = 1, stencil_half
@@ -259,47 +260,44 @@ contains
               field_local(ijk) = field_y_local(ijk)
             end do
 
-            ! Get a0, a1, a2 in the required cell and build up whole cell part
+            ! Get cell index and build up whole cell part
             mass_from_whole_cells = 0.0_r_tran
             if (departure_dist >= 0.0_r_tran ) then
               call get_index_positive(ind_lo,ind_hi,n_cells_to_sum,dof_iterator,stencil_size,stencil_half)
               do ii = 1, n_cells_to_sum-1
                 mass_from_whole_cells = mass_from_whole_cells + field_local(stencil_half - (2-dof_iterator) - (ii-1) )
               end do
-              ! Calculate the left and right integration limits for the fractional cell
-              call calc_integration_limits_positive( fractional_distance,    &
-                                                     left_integration_limit, &
-                                                     right_integration_limit )
             else
               call get_index_negative(ind_lo,ind_hi,n_cells_to_sum,dof_iterator,stencil_size,stencil_half)
               do ii = 1, n_cells_to_sum-1
                 mass_from_whole_cells = mass_from_whole_cells + field_local(stencil_half + (dof_iterator-1) + (ii-1) )
               end do
-              ! Calculate the left and right integration limits for the fractional cell
-              call calc_integration_limits_negative( fractional_distance,    &
-                                                     left_integration_limit, &
-                                                     right_integration_limit )
             end if
+
+            ! Low order reconstruction
+            reconstruction_low = field_local(ind_lo+2)
+
             if ( order == 0 ) then
-              ! Piecewise constant reconstruction
-              coeffs(1) = field_local(ind_lo+2)
+              ! Constant reconstruction
+              reconstruction = reconstruction_low
             else if ( order == 1 ) then
-              ! Nirvana reconstruction
-              call horizontal_nirvana_coeffs( coeffs, field_local(ind_lo+1:ind_hi-1), monotone )
+              ! Get Nirvana flux in reconstruction form
+              call horizontal_nirvana_recon(reconstruction, fractional_distance, &
+                                            field_local(ind_lo+1:ind_hi-1), monotone)
             else
-              ! Piecewise parabolic reconstruction
-              call horizontal_ppm_coeffs( coeffs, field_local(ind_lo:ind_hi), monotone )
+              ! Piecewise parabolic flux in reconstruction form
+              call horizontal_ppm_recon(reconstruction, fractional_distance, &
+                                        field_local(ind_lo:ind_hi), monotone)
             end if
 
-            ! Compute fractional flux
-            mass_frac = return_part_mass(3,coeffs,left_integration_limit,right_integration_limit)
-
-            ! Get total flux, i.e. fractional part + whole cell part
-            mass_total = mass_from_whole_cells + mass_frac
-
-            ! Assign to flux variable and divide by dt to get the correct form
-            flux(map_w2h(local_dofs(dof_iterator)) + k) = sign(1.0_r_tran,departure_dist) * mass_total / dt &
-                                                         *detj(map_w2h(local_dofs(dof_iterator)) + k)
+            ! Assign to flux variable and divide by dt to get the correct form, then multiply by Det(J)
+            flux_high(map_w2h(local_dofs(dof_iterator)) + k) = fractional_distance * reconstruction / dt &
+                                                               * detj(map_w2h(local_dofs(dof_iterator)) + k)
+            flux_low(map_w2h(local_dofs(dof_iterator)) + k)  = fractional_distance * reconstruction_low / dt &
+                                                               * detj(map_w2h(local_dofs(dof_iterator)) + k)
+            flux_int(map_w2h(local_dofs(dof_iterator)) + k)  = sign(1.0_r_tran,departure_dist) &
+                                                               * mass_from_whole_cells / dt    &
+                                                               * detj(map_w2h(local_dofs(dof_iterator)) + k)
 
           end do ! vertical levels k
 

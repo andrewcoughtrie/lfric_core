@@ -4,11 +4,11 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
-!> This code tests Nirvana with no limiter in the vertical.
+!> This code tests reversible Nirvana with no limiter in the vertical.
 
 module vert_nirvana_reversible_kernel_mod_test
 
-  use constants_mod, only : i_def, l_def, str_long, r_tran
+  use constants_mod, only : i_def, l_def, r_tran
   use pFUnit_Mod
 
   implicit none
@@ -31,8 +31,6 @@ contains
 
     use, intrinsic :: iso_fortran_env,      only : real64
     use vert_nirvana_reversible_kernel_mod, only : vert_nirvana_reversible_code
-    use transport_enumerated_types_mod,     only : vertical_monotone_none,   &
-                                                   vertical_monotone_strict
 
     implicit none
 
@@ -40,48 +38,48 @@ contains
 
     real(r_tran),   parameter :: tol       = 1.0e-12_r_tran   ! r_tran 64bit
     integer(i_def), parameter :: nlayers   = 5
-    integer(i_def), parameter :: undf_w3   = 5
     integer(i_def), parameter :: ndf_w3    = 1
-    integer(i_def), parameter :: map_w3(1) = 1
+    integer(i_def), parameter :: ndf_w2v   = 2
+    integer(i_def), parameter :: undf_w3   = nlayers
+    integer(i_def), parameter :: undf_w2v  = nlayers+1
     logical(l_def), parameter :: log_space = .false.
+    integer(i_def), dimension(ndf_w3)  :: map_w3
+    integer(i_def), dimension(ndf_w2v) :: map_w2v
 
-    real(r_tran) :: rho(5)
+    real(r_tran), dimension(undf_w2v) :: flux_high
+    real(r_tran), dimension(undf_w2v) :: frac_wind
+
+    real(r_tran) :: field(5)
     real(r_tran) :: dz(5)
-    real(r_tran) :: answer_level0(1:3)
-    real(r_tran) :: answer_level1(1:3)
-    real(r_tran) :: answer_level2(1:3)
-    real(r_tran) :: answer_level3(1:3)
-    real(r_tran) :: answer_level4(1:3)
+    real(r_tran) :: dep_pts(6)
+    real(r_tran) :: answer_high(1:6)
 
     real(r_tran)   :: use_tol
-    integer(i_def) :: monotone
+    integer(i_def) :: k
 
-    real(kind=r_tran) :: a0(1:nlayers)
-    real(kind=r_tran) :: a1(1:nlayers)
-    real(kind=r_tran) :: a2(1:nlayers)
+    ! Set up maps
+    map_w3(1)= 1
+    map_w2v(:) = (/ 1, 2 /)
 
-    ! Set constant grid spacing for first reversible Nirvana tests
-    dz  = (/ 1.0_r_tran, 1.0_r_tran, 1.0_r_tran, 1.0_r_tran, 1.0_r_tran /)
+    ! Set constant grid spacing for reversible Nirvana tests
+    dz = (/ 1.0_r_tran, 1.0_r_tran, 1.0_r_tran, 1.0_r_tran, 1.0_r_tran /)
 
-    ! Test with no limiter
-    monotone = vertical_monotone_none
-
-    ! Use linear rho
-    rho = (/ 1.0_r_tran, 2.0_r_tran, 3.0_r_tran, 4.0_r_tran, 5.0_r_tran /)
-    answer_level0 = (/ 0.5_r_tran, 1.0_r_tran, 0.0_r_tran /)
-    answer_level1 = (/ 1.5_r_tran, 1.0_r_tran, 0.0_r_tran /)
-    answer_level2 = (/ 2.5_r_tran, 1.0_r_tran, 0.0_r_tran /)
-    answer_level3 = (/ 3.5_r_tran, 1.0_r_tran, 0.0_r_tran /)
-    answer_level4 = (/ 4.5_r_tran, 1.0_r_tran, 0.0_r_tran /)
+    ! Use linear field
+    field = (/ 1.0_r_tran, 2.0_r_tran, 3.0_r_tran, 4.0_r_tran, 5.0_r_tran /)
+    dep_pts = (/ 0.0_r_tran, 0.2_r_tran, 0.5_r_tran, -1.2_r_tran, -0.2_r_tran, 0.0_r_tran /)
+    frac_wind = (/ 0.0_r_tran, 1.0_r_tran, 2.0_r_tran, -2.0_r_tran, -1.0_r_tran, 0.0_r_tran /)
+    answer_high = (/ 0.0_r_tran,  1.4_r_tran,  4.5_r_tran, -9.2_r_tran,  -4.6_r_tran,  0.0_r_tran /)
 
     call vert_nirvana_reversible_code( nlayers,   &
-                                       a0,        &
-                                       a1,        &
-                                       a2,        &
-                                       rho,       &
+                                       flux_high, &
+                                       frac_wind, &
+                                       dep_pts,   &
+                                       field,     &
                                        dz,        &
-                                       monotone,  &
                                        log_space, &
+                                       ndf_w2v,   &
+                                       undf_w2v,  &
+                                       map_w2v,   &
                                        ndf_w3,    &
                                        undf_w3,   &
                                        map_w3 )
@@ -89,175 +87,13 @@ contains
     if ( r_tran == real64 ) then
       use_tol = tol
     else
-      ! Set tolerance based on precision of coefficients
-      use_tol = 1000.0_r_tran*spacing( maxval( (/ a0, a1, a2 /) ) )
+      ! Set tolerance based on precision of field
+      use_tol = 10.0_r_tran*spacing( maxval(field(:)) )
     endif
 
-    @assertEqual( answer_level0(1), a0(1), use_tol)
-    @assertEqual( answer_level0(2), a1(1), use_tol)
-    @assertEqual( answer_level0(3), a2(1), use_tol)
-
-    @assertEqual( answer_level1(1), a0(2), use_tol)
-    @assertEqual( answer_level1(2), a1(2), use_tol)
-    @assertEqual( answer_level1(3), a2(2), use_tol)
-
-    @assertEqual( answer_level2(1), a0(3), use_tol)
-    @assertEqual( answer_level2(2), a1(3), use_tol)
-    @assertEqual( answer_level2(3), a2(3), use_tol)
-
-    @assertEqual( answer_level3(1), a0(4), use_tol)
-    @assertEqual( answer_level3(2), a1(4), use_tol)
-    @assertEqual( answer_level3(3), a2(4), use_tol)
-
-    @assertEqual( answer_level4(1), a0(5), use_tol)
-    @assertEqual( answer_level4(2), a1(5), use_tol)
-    @assertEqual( answer_level4(3), a2(5), use_tol)
-
-    ! Use quadratic rho without limiter
-    rho = (/ 1.0_r_tran, 4.0_r_tran, 9.0_r_tran, 4.0_r_tran, 1.0_r_tran /)
-    answer_level0 = (/ -0.5_r_tran, 3.0_r_tran,   0.0_r_tran  /)
-    answer_level1 = (/ 2.5_r_tran,  1.0_r_tran,   3.0_r_tran  /)
-    answer_level2 = (/ 6.5_r_tran,  15.0_r_tran, -15.0_r_tran /)
-    answer_level3 = (/ 6.5_r_tran, -7.0_r_tran,   3.0_r_tran  /)
-    answer_level4 = (/ 2.5_r_tran, -3.0_r_tran,   0.0_r_tran  /)
-
-    call vert_nirvana_reversible_code( nlayers,   &
-                                       a0,        &
-                                       a1,        &
-                                       a2,        &
-                                       rho,       &
-                                       dz,        &
-                                       monotone,  &
-                                       log_space, &
-                                       ndf_w3,    &
-                                       undf_w3,   &
-                                       map_w3 )
-
-    if ( r_tran == real64 ) then
-      use_tol = tol
-    else
-      ! Set tolerance based on precision of coefficients
-      use_tol = 1000.0_r_tran*spacing( maxval( (/ a0, a1, a2 /) ) )
-    endif
-
-    @assertEqual( answer_level0(1), a0(1), use_tol)
-    @assertEqual( answer_level0(2), a1(1), use_tol)
-    @assertEqual( answer_level0(3), a2(1), use_tol)
-
-    @assertEqual( answer_level1(1), a0(2), use_tol)
-    @assertEqual( answer_level1(2), a1(2), use_tol)
-    @assertEqual( answer_level1(3), a2(2), use_tol)
-
-    @assertEqual( answer_level2(1), a0(3), use_tol)
-    @assertEqual( answer_level2(2), a1(3), use_tol)
-    @assertEqual( answer_level2(3), a2(3), use_tol)
-
-    @assertEqual( answer_level3(1), a0(4), use_tol)
-    @assertEqual( answer_level3(2), a1(4), use_tol)
-    @assertEqual( answer_level3(3), a2(4), use_tol)
-
-    @assertEqual( answer_level4(1), a0(5), use_tol)
-    @assertEqual( answer_level4(2), a1(5), use_tol)
-    @assertEqual( answer_level4(3), a2(5), use_tol)
-
-    ! Use quadratic rho with the strict limiter
-    monotone = vertical_monotone_strict
-    rho = (/ 1.0_r_tran, 4.0_r_tran, 9.0_r_tran, 4.0_r_tran, 1.0_r_tran /)
-    answer_level0 = (/ -0.5_r_tran, 3.0_r_tran, 0.0_r_tran /)
-    answer_level1 = (/ 2.5_r_tran,  1.0_r_tran, 3.0_r_tran /)
-    answer_level2 = (/ 9.0_r_tran,  0.0_r_tran, 0.0_r_tran /)
-    answer_level3 = (/ 6.5_r_tran, -7.0_r_tran, 3.0_r_tran /)
-    answer_level4 = (/ 2.5_r_tran, -3.0_r_tran, 0.0_r_tran /)
-
-    call vert_nirvana_reversible_code( nlayers,   &
-                                       a0,        &
-                                       a1,        &
-                                       a2,        &
-                                       rho,       &
-                                       dz,        &
-                                       monotone,  &
-                                       log_space, &
-                                       ndf_w3,    &
-                                       undf_w3,   &
-                                       map_w3 )
-
-    if ( r_tran == real64 ) then
-      use_tol = tol
-    else
-      ! Set tolerance based on precision of coefficients
-      use_tol = 1000.0_r_tran*spacing( maxval( (/ a0, a1, a2 /) ) )
-    endif
-
-    @assertEqual( answer_level0(1), a0(1), use_tol)
-    @assertEqual( answer_level0(2), a1(1), use_tol)
-    @assertEqual( answer_level0(3), a2(1), use_tol)
-
-    @assertEqual( answer_level1(1), a0(2), use_tol)
-    @assertEqual( answer_level1(2), a1(2), use_tol)
-    @assertEqual( answer_level1(3), a2(2), use_tol)
-
-    @assertEqual( answer_level2(1), a0(3), use_tol)
-    @assertEqual( answer_level2(2), a1(3), use_tol)
-    @assertEqual( answer_level2(3), a2(3), use_tol)
-
-    @assertEqual( answer_level3(1), a0(4), use_tol)
-    @assertEqual( answer_level3(2), a1(4), use_tol)
-    @assertEqual( answer_level3(3), a2(4), use_tol)
-
-    @assertEqual( answer_level4(1), a0(5), use_tol)
-    @assertEqual( answer_level4(2), a1(5), use_tol)
-    @assertEqual( answer_level4(3), a2(5), use_tol)
-
-    ! Set non-uniform grid spacing for final Nirvana tests
-    dz  = (/ 1.0_r_tran, 3.0_r_tran, 5.0_r_tran, 7.0_r_tran, 9.0_r_tran /)
-
-    ! Use linear rho without limiter
-    monotone = vertical_monotone_none
-    rho = (/ 0.5_r_tran, 2.5_r_tran, 6.5_r_tran, 12.5_r_tran, 20.5_r_tran /)
-    answer_level0 = (/  0.0_r_tran, 1.0_r_tran, 0.0_r_tran /)
-    answer_level1 = (/  1.0_r_tran, 3.0_r_tran, 0.0_r_tran /)
-    answer_level2 = (/  4.0_r_tran, 5.0_r_tran, 0.0_r_tran /)
-    answer_level3 = (/  9.0_r_tran, 7.0_r_tran, 0.0_r_tran /)
-    answer_level4 = (/ 16.0_r_tran, 9.0_r_tran, 0.0_r_tran /)
-
-    call vert_nirvana_reversible_code( nlayers,   &
-                                       a0,        &
-                                       a1,        &
-                                       a2,        &
-                                       rho,       &
-                                       dz,        &
-                                       monotone,  &
-                                       log_space, &
-                                       ndf_w3,    &
-                                       undf_w3,   &
-                                       map_w3 )
-
-    if ( r_tran == real64 ) then
-      use_tol = tol
-    else
-      ! Set tolerance based on precision of coefficients
-      use_tol = 1000.0_r_tran*spacing( maxval( (/ a0, a1, a2 /) ) )
-    endif
-
-    @assertEqual( answer_level0(1), a0(1), use_tol)
-    @assertEqual( answer_level0(2), a1(1), use_tol)
-    @assertEqual( answer_level0(3), a2(1), use_tol)
-
-    @assertEqual( answer_level1(1), a0(2), use_tol)
-    @assertEqual( answer_level1(2), a1(2), use_tol)
-    @assertEqual( answer_level1(3), a2(2), use_tol)
-
-    @assertEqual( answer_level2(1), a0(3), use_tol)
-    @assertEqual( answer_level2(2), a1(3), use_tol)
-    @assertEqual( answer_level2(3), a2(3), use_tol)
-
-    @assertEqual( answer_level3(1), a0(4), use_tol)
-    @assertEqual( answer_level3(2), a1(4), use_tol)
-    @assertEqual( answer_level3(3), a2(4), use_tol)
-
-    @assertEqual( answer_level4(1), a0(5), use_tol)
-    @assertEqual( answer_level4(2), a1(5), use_tol)
-    @assertEqual( answer_level4(3), a2(5), use_tol)
+    do k=1,nlayers+1
+      @assertEqual( answer_high(k), flux_high(k), use_tol)
+    end do
 
   end subroutine test_all
 

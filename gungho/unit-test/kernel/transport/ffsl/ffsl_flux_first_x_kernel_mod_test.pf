@@ -7,7 +7,7 @@
 
 module ffsl_flux_first_x_kernel_mod_test
 
-  use constants_mod, only : i_def, r_def, r_tran
+  use constants_mod, only : i_def, r_tran
   use pFUnit_Mod
 
   implicit none
@@ -20,44 +20,12 @@ module ffsl_flux_first_x_kernel_mod_test
   type, public, extends(TestCase) :: ffsl_flux_first_x_test_type
     private
   contains
-    procedure setUp
-    procedure tearDown
     procedure test_all
   end type ffsl_flux_first_x_test_type
 
 contains
+
  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine setUp( this )
-
-    use feign_config_mod,   only : feign_subgrid_config
-    use subgrid_config_mod, only : calculate_detj_upwind
-
-    implicit none
-
-    class(ffsl_flux_first_x_test_type), intent(inout) :: this
-
-    call feign_subgrid_config( calculate_detj = calculate_detj_upwind, &
-                               dep_pt_stencil_extent = 2,              &
-                               inner_order = 2,                        &
-                               outer_order = 2                         &
-                               )
-
-  end subroutine setUp
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine tearDown( this )
-
-    use configuration_mod, only: final_configuration
-
-    implicit none
-
-    class(ffsl_flux_first_x_test_type), intent(inout) :: this
-
-    call final_configuration()
-
-  end subroutine tearDown
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
   @Test
   subroutine test_all( this )
 
@@ -146,7 +114,7 @@ contains
     ! Test with positive distance
     dep_pts(:) = 0.4_r_tran
     dt = 1.0_r_tran
-    flux(:) = 0.0_r_def
+    flux(:) = 0.0_r_tran
     call ffsl_flux_first_x_code( nlayers,        &
                                  flux,           &
                                  field,          &
@@ -172,7 +140,7 @@ contains
     ! Test with negative distance
     dep_pts(:) = -0.4_r_tran
     dt = 1.0_r_tran
-    flux(:) = 0.0_r_def
+    flux(:) = 0.0_r_tran
     call ffsl_flux_first_x_code( nlayers,        &
                                  flux,           &
                                  field,          &

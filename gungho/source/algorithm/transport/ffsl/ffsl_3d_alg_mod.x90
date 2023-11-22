@@ -33,7 +33,7 @@ module ffsl_3d_alg_mod
 
   ! Configuration options
   use io_config_mod,                    only: subroutine_timers
-  use subgrid_config_mod,               only: inner_order, outer_order
+  use subgrid_config_mod,               only: inner_order, outer_order, vertical_order
   use finite_element_config_mod,        only: element_order
 
   implicit none
@@ -224,7 +224,7 @@ contains
                               field_g, field_f, step_dt, transport_metadata,   &
                               outer_order, compute_adv_inc=compute_adv_inc )
     call ffsl_vert_transport_alg( flux_z, increment_z, field_h,                &
-                                  step_dt, transport_metadata, outer_order,    &
+                                  step_dt, transport_metadata, vertical_order, &
                                   compute_adv_inc=compute_adv_inc )
 
     ! Bring together final fluxes or increments --------------------------------
