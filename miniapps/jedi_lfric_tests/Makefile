@@ -27,7 +27,7 @@ export INTERNAL_DEPENDENCIES = $(ROOT_DIR)/infrastructure \
                                $(ROOT_DIR)/components/inventory \
                                $(ROOT_DIR)/components/jedi-lfric \
                                $(ROOT_DIR)/components/lfric-xios \
-	                             $(ROOT_DIR)/gungho \
+                               $(ROOT_DIR)/gungho \
                                $(ROOT_DIR)/linear
 
 export SUITE_GROUP ?= developer

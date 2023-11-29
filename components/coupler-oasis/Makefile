@@ -23,12 +23,18 @@ export ROOT_DIR    ?= ../..
 
 export INTERNAL_DEPENDENCIES = $(ROOT_DIR)/infrastructure \
                                $(ROOT_DIR)/components/lfric-xios
+
 export SUITE_GROUP ?= developer
 export SUITE_GROUP_NAME ?= $(notdir $(realpath $(shell pwd)/$(ROOT_DIR)))-$(PROJECT_NAME)-.*
 
 META_VN       ?= HEAD
 META_FILE_DIR  = $(PROJECT_DIR)/rose-meta/$(PROJECT_NAME)/$(META_VN)
 
+include $(ROOT_DIR)/infrastructure/build/lfric.mk
+include $(PROJECT_DIR)/build/import.mk
+include $(INTERNAL_DEPENDENCIES:=/build/import.mk)
+
+##############################################################################
 # Check PSyclone transformation option is valid
 ifneq ("$(PSYCLONE_TRANSFORMATION)","none")
   export OPTIMISATION_PATH ?= $(wildcard optimisation/$(PSYCLONE_TRANSFORMATION))
@@ -64,10 +70,7 @@ test-suite: SUITE_CONFIG = rose-stem
 test-suite: launch-suite-gscan launch-test-suite
 	$(Q)echo > /dev/null
 
-include $(ROOT_DIR)/infrastructure/build/lfric.mk
-include $(PROJECT_DIR)/build/import.mk
-include $(INTERNAL_DEPENDENCIES:=/build/import.mk)
-
+##############################################################################
 # Documentation
 #
 .PHONY: document-uml

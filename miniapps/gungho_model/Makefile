@@ -21,11 +21,11 @@ export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 export ROOT_DIR    ?= ../..
 
 export INTERNAL_DEPENDENCIES = $(ROOT_DIR)/infrastructure \
-                                $(ROOT_DIR)/components/driver \
-                                $(ROOT_DIR)/components/science \
-                                $(ROOT_DIR)/components/inventory \
-                                $(ROOT_DIR)/components/lfric-xios \
-                                $(ROOT_DIR)/gungho
+                               $(ROOT_DIR)/components/driver \
+                               $(ROOT_DIR)/components/science \
+                               $(ROOT_DIR)/components/inventory \
+                               $(ROOT_DIR)/components/lfric-xios \
+                               $(ROOT_DIR)/gungho
 
 export SUITE_GROUP ?= developer
 export SUITE_GROUP_NAME ?= $(notdir $(realpath $(shell pwd)/$(ROOT_DIR)))-$(PROJECT_NAME)-.*
@@ -68,6 +68,7 @@ launch-suite-gscan: ALWAYS
 test-suite: SUITE_BASE_NAME = $(notdir $(realpath $(shell pwd)/$(ROOT_DIR)))-$(PROJECT_NAME)
 test-suite: SUITE_CONFIG = rose-stem
 test-suite: launch-suite-gscan launch-test-suite
+
 
 ##############################################################################
 # Documentation

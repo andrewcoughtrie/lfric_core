@@ -130,7 +130,7 @@ FUNCTION soil_moist_content(soil_moist_stress, soil_moist_content_crit,        &
                            RESULT (sm_content)
 
 USE constants_def_mod, ONLY: r_def, rmdi
-USE mdi_mod, ONLY: is_rmdi 
+USE mdi_mod, ONLY: is_rmdi
 
 IMPLICIT NONE
 

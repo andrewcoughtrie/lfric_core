@@ -86,7 +86,7 @@ USE lfricinp_stashmaster_mod, ONLY: &
     stashcode_meoh, stashcode_msa, stashcode_nh3, stashcode_cs2,              &
     stashcode_csul, stashcode_h2s, stashcode_so3, stashcode_passive_o3,       &
     stashcode_age_of_air, stashcode_lumped_n, stashcode_lumped_br,            &
-    stashcode_lumped_cl 
+    stashcode_lumped_cl
 
 USE lfricinp_regrid_options_mod, ONLY: winds_on_w3
 

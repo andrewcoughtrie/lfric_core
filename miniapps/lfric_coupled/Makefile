@@ -130,6 +130,7 @@ test-suite: SUITE_CONFIG = rose-stem
 test-suite: launch-suite-gscan launch-test-suite-xc40
 	$(Q)echo > /dev/null
 
+
 ##############################################################################
 # Documentation
 #
