@@ -36,11 +36,10 @@ module io_dev_driver_mod
   use mesh_collection_mod,        only: mesh_collection, &
                                         mesh_collection_type
   use mesh_mod,                   only: mesh_type
-  use model_clock_mod,            only: model_clock_type
   use mpi_mod,                    only: mpi_type
   use io_dev_init_files_mod,      only: init_io_dev_files
-  use io_dev_data_mod,            only: io_dev_data_type,          &
-                                        create_model_data,         &
+  use io_dev_modeldb_mod,         only: modeldb_type
+  use io_dev_data_mod,            only: create_model_data,         &
                                         initialise_model_data,     &
                                         update_model_data,         &
                                         output_model_data,         &
@@ -58,15 +57,16 @@ module io_dev_driver_mod
   contains
 
   !> @brief Sets up required state in preparation for run.
-  subroutine initialise( model_data, model_clock, mpi, program_name, calendar )
+  !> @param[in,out] modeldb The database holding the model state.
+  !> @param[in] program_name The name of the program.
+  !> @param[in] calendar The calendar for timekeeping.
+  subroutine initialise( modeldb, program_name, calendar )
 
     implicit none
 
-    class(io_dev_data_type), intent(inout) :: model_data
-    class(model_clock_type), intent(inout) :: model_clock
-    class(mpi_type),         intent(inout) :: mpi
-    character(*),            intent(in)    :: program_name
-    class(calendar_type),    intent(in)    :: calendar
+    type(modeldb_type),     intent(inout) :: modeldb
+    character(*),           intent(in)    :: program_name
+    class(calendar_type),   intent(in)    :: calendar
 
 
     type(field_type), pointer :: chi(:) => null()
@@ -98,14 +98,15 @@ module io_dev_driver_mod
 
     base_mesh_names(1) = prime_mesh_name
 
-    call init_mesh( mpi%get_comm_rank(), &
-                    mpi%get_comm_size(), &
+    call init_mesh( modeldb%mpi%get_comm_rank(), &
+                    modeldb%mpi%get_comm_size(), &
                     base_mesh_names )
 
     ! Create FEM specifics (function spaces and chi fields)
     call init_fem( mesh_collection, chi_inventory, panel_id_inventory )
 
     ! Create IO and instantiate the fields stored in model_data
+    ! This routine is specific to lfric-xios components
     files_init_ptr => init_io_dev_files
 
     mesh => mesh_collection%get_mesh(prime_mesh_name)
@@ -117,34 +118,34 @@ module io_dev_driver_mod
       alt_mesh => mesh_collection%get_mesh(alt_mesh_name)
       allocate(alt_mesh_names(1))
       alt_mesh_names(1) = alt_mesh_name
-      call create_model_data( model_data, chi, panel_id, &
+      call create_model_data( modeldb, chi, panel_id,        &
                               mesh, twod_mesh, alt_mesh )
-      call init_io( program_name, mpi%get_comm(),       &
-                    chi_inventory, panel_id_inventory,  &
-                    model_clock, calendar,              &
-                    populate_filelist = files_init_ptr, &
-                    model_data = model_data,            &
+      call init_io( program_name, modeldb%mpi%get_comm(),    &
+                    chi_inventory, panel_id_inventory,       &
+                    modeldb%clock, calendar,                 &
+                    populate_filelist = files_init_ptr,      &
+                    model_data = modeldb%fields,             &
                     alt_mesh_names = alt_mesh_names )
 
     else
-      call create_model_data( model_data, chi, panel_id, &
+      call create_model_data( modeldb, chi, panel_id,        &
                               mesh, twod_mesh )
-      call init_io( program_name, mpi%get_comm(),       &
-                    chi_inventory, panel_id_inventory,  &
-                    model_clock, calendar,              &
-                    populate_filelist = files_init_ptr, &
-                    model_data = model_data )
+      call init_io( program_name, modeldb%mpi%get_comm(),    &
+                    chi_inventory, panel_id_inventory,       &
+                    modeldb%clock, calendar,                 &
+                    populate_filelist = files_init_ptr,      &
+                    model_data = modeldb%fields )
     end if
 
-    ! Initialise the fields stored in the model_data
-    call initialise_model_data( model_data, model_clock, chi, panel_id )
+    ! Initialise the fields stored in the modeldb
+    call initialise_model_data( modeldb, chi, panel_id )
 
     ! Write initial output
     io_context => get_io_context()
-    if (model_clock%is_initialisation()) then
+    if (modeldb%clock%is_initialisation()) then
       select type (io_context)
       type is (lfric_xios_context_type)
-          call advance(io_context, model_clock)
+          call advance(io_context, modeldb%clock)
       end select
     end if
 
@@ -155,41 +156,41 @@ module io_dev_driver_mod
 
   !> @brief Timestep the model, calling the desired timestepping algorithm
   !>        based upon the configuration
-  !> @param [in,out] model_data The structure that holds model state
-  subroutine step( model_data, model_clock, program_name )
+  !> @param[in,out] modeldb The database holding the model state.
+  !> @param[in] program_name The name of the program.
+  subroutine step( modeldb, program_name )
 
     implicit none
 
-    class(io_dev_data_type), intent(inout) :: model_data
-    class(model_clock_type), intent(in)    :: model_clock
-    character(*),            intent(in)    :: program_name
+    class(modeldb_type), intent(inout) :: modeldb
+    character(*),        intent(in)    :: program_name
 
     ! Update fields
-    call update_model_data( model_data, model_clock )
+    call update_model_data( modeldb )
 
     ! Write out diagnostics
     if (write_diag) then
-      if ( (mod( model_clock%get_step(), diagnostic_frequency ) == 0) ) then
+      if ( (mod( modeldb%clock%get_step(), diagnostic_frequency ) == 0) ) then
         call log_event( program_name//': Writing output', LOG_LEVEL_INFO)
-        call output_model_data( model_data, model_clock )
+        call output_model_data( modeldb )
       end if
     end if
 
   end subroutine step
 
   !> @brief Tidies up after a model run.
-  !> @param [in,out] model_data The structure that holds model state
-  subroutine finalise( model_data )
+  !> @param[in,out] modeldb The database holding the model state.
+  subroutine finalise( modeldb )
 
     implicit none
 
-    class(io_dev_data_type), intent(inout) :: model_data
+    class(modeldb_type), intent(inout) :: modeldb
 
     ! Finalise IO context
     call final_io()
 
-    ! Destroy the fields stored in model_data
-    call finalise_model_data( model_data )
+    ! Destroy the fields stored in modeldb
+    call finalise_model_data( modeldb )
 
     ! Finalise aspects of the grid
     call final_fem()

@@ -21,7 +21,7 @@ program io_dev
   use driver_timer_mod,       only: init_timers, final_timers
   use io_dev_mod,             only: io_dev_required_namelists
   use io_dev_driver_mod,      only: initialise, step, finalise
-  use io_dev_data_mod,        only: io_dev_data_type
+  use io_dev_modeldb_mod,     only: modeldb_type
   use log_mod,                only: log_event,       &
                                     log_level_trace, &
                                     log_scratch_space
@@ -34,13 +34,16 @@ program io_dev
 
   character(*), parameter :: program_name = "io_dev"
 
-  type (io_dev_data_type)             :: model_data
-  type(model_clock_type), allocatable :: model_clock
-  character(:),           allocatable :: filename
+  type (modeldb_type)             :: modeldb
+  character(:),       allocatable :: filename
 
-  type(namelist_collection_type), save :: configuration
+  modeldb%mpi => global_mpi
 
-  call configuration%initialise( program_name, table_len=10 )
+  call modeldb%configuration%initialise( program_name, table_len=10 )
+
+  call modeldb%fields%add_empty_field_collection("depository", table_len=100)
+  call modeldb%fields%add_empty_field_collection("dump_fields", table_len=100)
+  call modeldb%fields%add_empty_field_collection("alg_fields", table_len=100)
 
   write( log_scratch_space,'(A)' )                         &
       'Application built with ' // trim(precision_real) // &
@@ -50,25 +53,25 @@ program io_dev
   call init_comm( "io_dev", global_mpi )
   call get_initial_filename( filename )
   call init_config( filename, io_dev_required_namelists, &
-                    configuration )
+                    modeldb%configuration )
   call init_logger( global_mpi%get_comm(), program_name )
   call init_timers( program_name )
   call init_collections()
-  call init_time( model_clock )
+  call init_time( modeldb%clock )
   deallocate( filename )
 
   call log_event( 'Initialising '//program_name//' ...', log_level_trace )
-  call initialise( model_data, model_clock, global_mpi, &
+  call initialise( modeldb, &
                    program_name, get_calendar() )
 
   write(log_scratch_space,'("Running ", A, " ...")') program_name
   call log_event( log_scratch_space, log_level_trace )
-  do while( model_clock%tick() )
-    call step( model_data, model_clock, program_name )
+  do while( modeldb%clock%tick() )
+    call step( modeldb, program_name )
   end do
 
   call log_event( 'Finalising '//program_name//' ...', log_level_trace )
-  call finalise( model_data )
+  call finalise( modeldb )
 
   call final_collections()
   call final_timers( program_name )

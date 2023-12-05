@@ -3,20 +3,21 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
-!> @brief Sets up file configuration fof IO_Dev
+!> @brief Sets up file configuration for IO_Dev
 !> @details Collects file configuration information and formats it so that it
 !>          can be passed to the infrastructure
 module io_dev_init_files_mod
 
   use constants_mod,         only: i_def, &
                                    str_def, str_max_filename
+  use field_collection_mod,  only: field_collection_type
   use file_mod,              only: file_type, FILE_MODE_READ, &
                                    FILE_MODE_WRITE
   use lfric_xios_file_mod,   only: lfric_xios_file_type, OPERATION_ONCE, &
                                    OPERATION_TIMESERIES
   use linked_list_mod,       only: linked_list_type
   use log_mod,               only: log_event, log_level_error
-  use io_dev_data_mod,       only: io_dev_data_type
+  use io_dev_modeldb_mod,    only: modeldb_type
   use driver_model_data_mod, only: model_data_type
 
   ! Configuration modules
@@ -45,14 +46,13 @@ module io_dev_init_files_mod
 
   contains
 
-  subroutine init_io_dev_files(files_list, model_data)
+  subroutine init_io_dev_files(files_list, model_fields)
 
     implicit none
 
     type(linked_list_type),                   intent(out) :: files_list
-    class(model_data_type), optional, target, intent(in)  :: model_data
+    class(model_data_type), optional, target, intent(in)  :: model_fields
 
-    type(io_dev_data_type), pointer  :: io_dev_data => null()
     character(len=str_max_filename)  :: checkpoint_write_fname, &
                                         checkpoint_read_fname,  &
                                         dump_fname,             &
@@ -60,20 +60,16 @@ module io_dev_init_files_mod
     integer(i_def)                   :: ts_start, ts_end
     integer(i_def)                   :: rc
 
+    type(field_collection_type), pointer :: depository
+    type(field_collection_type), pointer :: dump_fields
+    type(field_collection_type), pointer :: alg_fields
+    depository  => model_fields%get_field_collection("depository")
+    dump_fields => model_fields%get_field_collection("dump_fields")
+    alg_fields  => model_fields%get_field_collection("alg_fields")
+
     ! Get time configuration in integer form
     read(timestep_start,*,iostat=rc)  ts_start
     read(timestep_end,*,iostat=rc)  ts_end
-
-    ! Make sure model data is of the correct type
-    if (present(model_data)) then
-      select type(model_data)
-      type is (io_dev_data_type)
-        io_dev_data => model_data
-      end select
-    else
-      call log_event( "Model data required for IO_Dev file initialisation", &
-                      log_level_error )
-    end if
 
     if ( use_xios_io) then
 
@@ -83,7 +79,7 @@ module io_dev_init_files_mod
                                 io_mode=FILE_MODE_WRITE,  &
                                 freq=1,                   &
                                 operation=OPERATION_ONCE, &
-                                fields_in_file=io_dev_data%dump_fields ) )
+                                fields_in_file=dump_fields ) )
 
       ! Setup temporary diagnostic file information - we need this information
       ! to be able to process the files: in the future we would wish to obtain
@@ -108,7 +104,7 @@ module io_dev_init_files_mod
                                 xios_id="io_dev_dump_out",            &
                                 io_mode=FILE_MODE_WRITE, freq=ts_end, &
                                 operation=OPERATION_ONCE,             &
-                                fields_in_file=io_dev_data%dump_fields ) )
+                                fields_in_file=dump_fields ) )
       end if
 
       ! Setup dump-reading context information
@@ -122,7 +118,7 @@ module io_dev_init_files_mod
                                 xios_id="io_dev_dump_in",       &
                                 io_mode=FILE_MODE_READ, freq=1, &
                                 operation=OPERATION_ONCE,       &
-                                fields_in_file=io_dev_data%dump_fields ) )
+                                fields_in_file=dump_fields ) )
       end if
 
       ! Setup checkpoint writing context information
@@ -137,7 +133,7 @@ module io_dev_init_files_mod
                                 io_mode=FILE_MODE_WRITE,           &
                                 freq=ts_end - (ts_start - 1),      &
                                 operation=OPERATION_ONCE,          &
-                                fields_in_file=io_dev_data%core_fields ) )
+                                fields_in_file=depository ) )
       end if
 
       ! Setup checkpoint reading context information
@@ -151,7 +147,7 @@ module io_dev_init_files_mod
                                 xios_id="io_dev_checkpoint_read", &
                                 io_mode=FILE_MODE_READ, freq=1,   &
                                 operation=OPERATION_ONCE,         &
-                                fields_in_file=io_dev_data%core_fields ) )
+                                fields_in_file=depository ) )
       end if
 
       ! Setup time-varying input files

@@ -44,7 +44,7 @@
     <field_definition prec="2" >
 
       <!-- Core field group -->
-      <field_group id="core_fields" freq_op="1ts" operation="instant" enabled=".TRUE.">
+      <field_group id="depository" freq_op="1ts" operation="instant" enabled=".TRUE.">
         <field id="W0_field" name="W0_field" long_name="Field on W0 function space" unit="1" grid_ref="node_grid" />
         <field id="W2H_field" name="W2H_field" long_name="Field on W2-horizontal function space" unit="1" grid_ref="half_level_edge_grid" />
         <field id="W2V_field" name="W2V_field" long_name="Field on W2-vertical function space" unit="1" grid_ref="full_level_face_grid" />
@@ -69,7 +69,7 @@
 
       <!-- File definition for output dump fields -->
       <file id="io_dev_diag" name="io_dev_diag" mode="write" output_freq="1ts" convention="UGRID" enabled=".TRUE." timeseries="both" ts_prefix="time_">
-        <field_group group_ref="core_fields" />
+        <field_group group_ref="depository" />
       </file>
 
     </file_definition>

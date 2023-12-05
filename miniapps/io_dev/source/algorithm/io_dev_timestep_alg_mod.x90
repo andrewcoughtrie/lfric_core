@@ -24,14 +24,14 @@ contains
 
 !> @details An algorithm for updating fields with a time-based scaling factor
 !>
-!> @param[inout] core_fields The core model field collection
+!> @param[inout] depository The core model field collection
 !> @param[in]    clock       The model clock object
 !>
-subroutine io_dev_timestep_alg(core_fields, clock)
+subroutine io_dev_timestep_alg(depository, clock)
 
     implicit none
 
-    type(field_collection_type), intent(inout) :: core_fields
+    type(field_collection_type), intent(inout) :: depository
     class(clock_type),           intent(in)    :: clock
 
     type(field_collection_iterator_type) :: iter
@@ -43,7 +43,7 @@ subroutine io_dev_timestep_alg(core_fields, clock)
     ! Set up scaling factor for field using clock
     ts_scale_factor = 1.0_r_def / sqrt( real(clock%get_seconds_per_step(), r_def) )
 
-    call iter%initialise(core_fields)
+    call iter%initialise(depository)
     do
       if ( .not.iter%has_next() ) exit
       fld => iter%next()

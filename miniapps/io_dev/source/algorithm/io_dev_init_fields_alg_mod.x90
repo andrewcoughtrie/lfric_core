@@ -24,14 +24,14 @@ module io_dev_init_fields_alg_mod
 
 contains
   !> @details An algorithm for initialising IO_Dev fields analytically
-  !> @param[in,out] core_fields The core model field collection
+  !> @param[in,out] depository The core model field collection
   !> @param[in]     chi         A size 3 array of fields holding the mesh coordinates
   !> @param[in]     panel_id    Field holding the IDs of mesh panels
-subroutine io_dev_init_fields_alg(core_fields, chi, panel_id)
+subroutine io_dev_init_fields_alg(depository, chi, panel_id)
 
     implicit none
 
-    type(field_collection_type), intent(inout) :: core_fields
+    type(field_collection_type), intent(inout) :: depository
     type(field_type),            intent(in)    :: chi(3)
     type(field_type),            intent(in)    :: panel_id
 
@@ -41,7 +41,7 @@ subroutine io_dev_init_fields_alg(core_fields, chi, panel_id)
     type(field_type), pointer :: fld_actual => null()
     type(integer_field_type), pointer :: integer_fld_actual => null()
 
-    call iter%initialise(core_fields)
+    call iter%initialise(depository)
     do
       if ( .not.iter%has_next() ) exit
       fld => iter%next()

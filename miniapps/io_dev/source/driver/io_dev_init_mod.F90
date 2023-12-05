@@ -50,7 +50,7 @@ module io_dev_init_mod
   !> @details Sets up fields used for inputting and outputting IO_Dev data
   !> @param[in]  mesh                    The current 3D mesh
   !> @param[in]  twod_mesh               The current 2D mesh
-  !> @param[out] core_fields             The core field collection
+  !> @param[out] depository             The core field collection
   !> @param[out] dump_fields             Collection of fields to be written-to/read-from
   !>                                     dump files
   !> @param[out] alg_fields              Collection of fields to be passed to PSyCloned
@@ -59,7 +59,7 @@ module io_dev_init_mod
   !> @param[in]  alt_mesh                Alternative 3D mesh
   subroutine setup_io_dev_fields( mesh,                &
                                   twod_mesh,           &
-                                  core_fields,         &
+                                  depository,         &
                                   dump_fields,         &
                                   alg_fields,          &
                                   variable_times_list, &
@@ -70,7 +70,7 @@ module io_dev_init_mod
     ! Arguments
     type(mesh_type), pointer,    intent(in)    :: mesh
     type(mesh_type), pointer,    intent(in)    :: twod_mesh
-    type(field_collection_type), intent(out)   :: core_fields
+    type(field_collection_type), intent(out)   :: depository
     type(field_collection_type), intent(out)   :: dump_fields
     type(field_collection_type), intent(out)   :: alg_fields
     type(linked_list_type),      intent(inout) :: variable_times_list
@@ -92,28 +92,28 @@ module io_dev_init_mod
     ! Create core fields to send/recieve data from file and set I/O behaviours
     !----------------------------------------------------------------------------
     ! Create the core and dump field collections.
-    call core_fields%initialise( name='core_fields', table_len=1 )
+    call depository%initialise( name='depository', table_len=1 )
     call dump_fields%initialise( name='dump_fields', table_len=1 )
     call alg_fields%initialise( name='alg_fields', table_len=1 )
 
     if ( field_kind == field_kind_real ) then
       ! W0 (node) field
-      call create_real_field( core_fields, "W0_field", mesh, twod_mesh, W0 )
+      call create_real_field( depository, "W0_field", mesh, twod_mesh, W0 )
 
       ! W2 (edge) fields
-      call create_real_field( core_fields, "W2H_field", mesh, twod_mesh, W2H )
-      call create_real_field( core_fields, "W2V_field", mesh, twod_mesh, W2V )
+      call create_real_field( depository, "W2H_field", mesh, twod_mesh, W2H )
+      call create_real_field( depository, "W2V_field", mesh, twod_mesh, W2V )
 
       ! W3 (face) fields
-      call create_real_field( core_fields, "W3_field",         &
+      call create_real_field( depository, "W3_field",         &
                               mesh, twod_mesh, W3 )
-      call create_real_field( core_fields, "W3_2D_field",      &
+      call create_real_field( depository, "W3_2D_field",      &
                               mesh, twod_mesh, W3, twod=.true. )
-      call create_real_field( core_fields, "multi_data_field", &
+      call create_real_field( depository, "multi_data_field", &
                               mesh, twod_mesh, W3, ndata=n_multi_data, twod=.true. )
 
       if (present(alt_mesh)) then
-        call create_real_field( core_fields, "alt_W3_field", alt_mesh, twod_mesh, W3 )
+        call create_real_field( depository, "alt_W3_field", alt_mesh, twod_mesh, W3 )
       end if
 
       !----------------------------------------------------------------------------
@@ -128,19 +128,19 @@ module io_dev_init_mod
                                       interp_flag = interp_flag,           &
                                       pop_freq = ancil_update_freq )
 
-        call core_fields%remove_field( "W3_2D_field" )
-        call create_real_field( core_fields, "W3_2D_field", mesh, twod_mesh, W3, &
+        call depository%remove_field( "W3_2D_field" )
+        call create_real_field( depository, "W3_2D_field", mesh, twod_mesh, W3, &
                            time_axis=seconds_axis, twod=.true. )
 
-        call core_fields%remove_field( "W3_field" )
-        call create_real_field( core_fields, "W3_field", mesh, twod_mesh, W3, &
+        call depository%remove_field( "W3_field" )
+        call create_real_field( depository, "W3_field", mesh, twod_mesh, W3, &
                            time_axis=seconds_axis )
 
-        call core_fields%remove_field( "multi_data_field" )
-        call create_real_field( core_fields, "multi_data_field", mesh, twod_mesh, W3, &
+        call depository%remove_field( "multi_data_field" )
+        call create_real_field( depository, "multi_data_field", mesh, twod_mesh, W3, &
                            ndata=5, time_axis=seconds_axis, twod=.true. )
 
-        call create_real_field( core_fields, "seconds_field", mesh, twod_mesh, W3, &
+        call create_real_field( depository, "seconds_field", mesh, twod_mesh, W3, &
                                 time_axis=seconds_axis, twod=.true. )
 
         call variable_times_list%insert_item(seconds_axis)
@@ -149,77 +149,77 @@ module io_dev_init_mod
 
       ! Add fields to dump_fields collection - fields for which read and write
       ! routines will be tested
-      call core_fields%get_field( 'W0_field', tmp_field_ptr )
+      call depository%get_field( 'W0_field', tmp_field_ptr )
       tmp_ptr => tmp_field_ptr
       call dump_fields%add_reference_to_field( tmp_ptr )
 
-      call core_fields%get_field( 'W2H_field', tmp_field_ptr )
+      call depository%get_field( 'W2H_field', tmp_field_ptr )
       tmp_ptr => tmp_field_ptr
       call dump_fields%add_reference_to_field( tmp_ptr )
 
-      call core_fields%get_field( 'W3_field', tmp_field_ptr )
+      call depository%get_field( 'W3_field', tmp_field_ptr )
       tmp_ptr => tmp_field_ptr
       call dump_fields%add_reference_to_field( tmp_ptr )
 
-      call core_fields%get_field( 'W3_2D_field', tmp_field_ptr )
+      call depository%get_field( 'W3_2D_field', tmp_field_ptr )
       tmp_ptr => tmp_field_ptr
       call dump_fields%add_reference_to_field( tmp_ptr )
 
-      call core_fields%get_field( 'multi_data_field', tmp_field_ptr )
+      call depository%get_field( 'multi_data_field', tmp_field_ptr )
       tmp_ptr => tmp_field_ptr
       call dump_fields%add_reference_to_field( tmp_ptr )
 
       ! Add fields to alg_fields collection - fields which can be psycloned
-      call core_fields%get_field( 'W0_field', tmp_field_ptr )
+      call depository%get_field( 'W0_field', tmp_field_ptr )
       tmp_ptr => tmp_field_ptr
       call alg_fields%add_reference_to_field( tmp_ptr )
 
-      call core_fields%get_field( 'W2H_field', tmp_field_ptr )
+      call depository%get_field( 'W2H_field', tmp_field_ptr )
       tmp_ptr => tmp_field_ptr
       call alg_fields%add_reference_to_field( tmp_ptr )
 
-      call core_fields%get_field( 'W2V_field', tmp_field_ptr )
+      call depository%get_field( 'W2V_field', tmp_field_ptr )
       tmp_ptr => tmp_field_ptr
       call alg_fields%add_reference_to_field( tmp_ptr )
 
-      call core_fields%get_field( 'W3_field', tmp_field_ptr )
+      call depository%get_field( 'W3_field', tmp_field_ptr )
       tmp_ptr => tmp_field_ptr
       call alg_fields%add_reference_to_field( tmp_ptr )
 
-      call core_fields%get_field( 'W3_2D_field', tmp_field_ptr )
+      call depository%get_field( 'W3_2D_field', tmp_field_ptr )
       tmp_ptr => tmp_field_ptr
       call alg_fields%add_reference_to_field( tmp_ptr )
 
 
     else if ( field_kind == field_kind_integer ) then
       ! W0 (node) field
-      call create_integer_field( core_fields, "W0_field", mesh, twod_mesh, W0 )
+      call create_integer_field( depository, "W0_field", mesh, twod_mesh, W0 )
 
       ! W2 (edge) fields
-      call create_integer_field( core_fields, "W2H_field", mesh, twod_mesh, W2H )
-      call create_integer_field( core_fields, "W2V_field", mesh, twod_mesh, W2V )
+      call create_integer_field( depository, "W2H_field", mesh, twod_mesh, W2H )
+      call create_integer_field( depository, "W2V_field", mesh, twod_mesh, W2V )
 
       ! W3 (face) fields
-      call create_integer_field( core_fields, "W3_field",         &
+      call create_integer_field( depository, "W3_field",         &
                                  mesh, twod_mesh, W3 )
-      call create_integer_field( core_fields, "W3_2D_field",      &
+      call create_integer_field( depository, "W3_2D_field",      &
                                  mesh, twod_mesh, W3, twod=.true. )
 
       ! Add fields to dump_fields collection - fields for which read and write
       ! routines will be tested
-      call core_fields%get_field( 'W0_field', tmp_integer_field_ptr )
+      call depository%get_field( 'W0_field', tmp_integer_field_ptr )
       tmp_ptr => tmp_integer_field_ptr
       call dump_fields%add_reference_to_field( tmp_ptr )
 
-      call core_fields%get_field( 'W2H_field', tmp_integer_field_ptr )
+      call depository%get_field( 'W2H_field', tmp_integer_field_ptr )
       tmp_ptr => tmp_integer_field_ptr
       call dump_fields%add_reference_to_field( tmp_ptr )
 
-      call core_fields%get_field( 'W3_field', tmp_integer_field_ptr )
+      call depository%get_field( 'W3_field', tmp_integer_field_ptr )
       tmp_ptr => tmp_integer_field_ptr
       call dump_fields%add_reference_to_field( tmp_ptr )
 
-      call core_fields%get_field( 'W3_2D_field', tmp_integer_field_ptr )
+      call depository%get_field( 'W3_2D_field', tmp_integer_field_ptr )
       tmp_ptr => tmp_integer_field_ptr
       call dump_fields%add_reference_to_field( tmp_ptr )
 
@@ -237,7 +237,7 @@ module io_dev_init_mod
 
   !> @brief Creates real fields, assigns their IO behaviours and adds them
   !>        to the model data.
-  !> @param[in,out] core_fields  The core field collection
+  !> @param[in,out] depository  The core field collection
   !> @param[in]    field_name   The name of the field to be created
   !> @param[in]    mesh         The current 3D mesh
   !> @param[in]    twod_mesh    The current 2D mesh
@@ -246,7 +246,7 @@ module io_dev_init_mod
   !> @param[in,out] time_axis    The time axis to be used if the created field is
   !>                            time-varying
   !> @param[in]    twod         Flag used if field is 2D
-  subroutine create_real_field( core_fields,  &
+  subroutine create_real_field( depository,  &
                                 field_name,   &
                                 mesh,         &
                                 twod_mesh,    &
@@ -258,7 +258,7 @@ module io_dev_init_mod
     implicit none
 
     ! Arguments
-    type(field_collection_type),    intent(inout) :: core_fields
+    type(field_collection_type),    intent(inout) :: depository
     character(len=*),               intent(in)    :: field_name
     type(mesh_type),      pointer,  intent(in)    :: mesh
     type(mesh_type),      pointer,  intent(in)    :: twod_mesh
@@ -310,7 +310,7 @@ module io_dev_init_mod
     call new_field%set_read_behaviour( tmp_read_ptr )
 
     ! Add field to core group
-    call core_fields%add_field( new_field )
+    call depository%add_field( new_field )
 
     ! If field is time-varying, also create field storing raw data to be
     ! interpolated
@@ -333,14 +333,14 @@ module io_dev_init_mod
 
   !> @brief Creates integer fields, assigns their IO behaviours and adds
   !>        them to the model data.
-  !> @param[in,out] core_fields The core field collection
+  !> @param[in,out] depository The core field collection
   !> @param[in]    field_name   The name of the field to be created
   !> @param[in]    mesh         The current 3D mesh
   !> @param[in]    twod_mesh    The current 2D mesh
   !> @param[in]    fs_id        The identifier for the field's function space
   !> @param[in]    ndata        The size of the field's multi-data axis
   !> @param[in]    twod         Flag used if field is 2D
-  subroutine create_integer_field( core_fields,  &
+  subroutine create_integer_field( depository,  &
                                    field_name,   &
                                    mesh,         &
                                    twod_mesh,    &
@@ -351,7 +351,7 @@ module io_dev_init_mod
     implicit none
 
     ! Arguments
-    type(field_collection_type),    intent(inout) :: core_fields
+    type(field_collection_type),    intent(inout) :: depository
     character(len=*),               intent(in)    :: field_name
     type(mesh_type),      pointer,  intent(in)    :: mesh
     type(mesh_type),      pointer,  intent(in)    :: twod_mesh
@@ -402,7 +402,7 @@ module io_dev_init_mod
     call new_field%set_read_behaviour( tmp_read_ptr )
 
     ! Add field to core group
-    call core_fields%add_field( new_field )
+    call depository%add_field( new_field )
 
   end subroutine create_integer_field
 
