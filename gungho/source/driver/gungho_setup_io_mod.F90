@@ -125,8 +125,10 @@ module gungho_setup_io_mod
                                        easyaerosol_cdnc,          &
                                        easyaerosol_sw,            &
                                        easyaerosol_lw
-  use chemistry_config_mod,      only: chem_scheme, chem_scheme_strattrop, &
-                                       chem_scheme_strat_test
+  use chemistry_config_mod,      only: chem_scheme,               &
+                                       chem_scheme_strattrop,     &
+                                       chem_scheme_strat_test,    &
+                                       chem_scheme_offline_ox
 #endif
 
   implicit none
@@ -567,35 +569,37 @@ module gungho_setup_io_mod
       end if
 
       ! Setup Offline oxidants ancillary files
-      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
-                               trim(h2o2_limit_ancil_path)
-      call files_list%insert_item( lfric_xios_file_type( ancil_fname,                &
+      if ( chem_scheme == chem_scheme_offline_ox ) then
+        write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                                 trim(h2o2_limit_ancil_path)
+        call files_list%insert_item( lfric_xios_file_type( ancil_fname,              &
                                                          xios_id="h2o2_limit_ancil", &
                                                          io_mode=FILE_MODE_READ ) )
 
-      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
-                               trim(ho2_ancil_path)
-      call files_list%insert_item( lfric_xios_file_type( ancil_fname,         &
+        write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                                 trim(ho2_ancil_path)
+        call files_list%insert_item( lfric_xios_file_type( ancil_fname,       &
                                                          xios_id="ho2_ancil", &
                                                          io_mode=FILE_MODE_READ ) )
 
-      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
-                               trim(no3_ancil_path)
-      call files_list%insert_item( lfric_xios_file_type( ancil_fname,         &
+        write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                                 trim(no3_ancil_path)
+        call files_list%insert_item( lfric_xios_file_type( ancil_fname,       &
                                                          xios_id="no3_ancil", &
                                                          io_mode=FILE_MODE_READ ) )
 
-      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
-                               trim(o3_ancil_path)
-      call files_list%insert_item( lfric_xios_file_type( ancil_fname,        &
+        write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                                 trim(o3_ancil_path)
+        call files_list%insert_item( lfric_xios_file_type( ancil_fname,      &
                                                          xios_id="o3_ancil", &
                                                          io_mode=FILE_MODE_READ ) )
 
-      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
-                               trim(oh_ancil_path)
-      call files_list%insert_item( lfric_xios_file_type( ancil_fname,        &
+        write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                                 trim(oh_ancil_path)
+        call files_list%insert_item( lfric_xios_file_type( ancil_fname,      &
                                                          xios_id="oh_ancil", &
                                                          io_mode=FILE_MODE_READ ) )
+      end if  ! Offline oxidants scheme
 
     end if !ukca ancils
 

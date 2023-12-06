@@ -30,8 +30,89 @@ implicit none
 
 type, public, extends(kernel_type) :: aerosol_ukca_kernel_type
   private
-  type(arg_type) :: meta_args(170) = (/            &
+  type(arg_type) :: meta_args(247) = (/            &
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! o3p
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! o1d
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! o3
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! n
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! no
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! no3
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! lumped_n
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! no2
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! n2o5
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! ho2no2
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! hono2
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! h2o2
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! ch4
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! co
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! hcho
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! meoo
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! meooh
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! h
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! oh
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! ho2
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! cl
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! cl2o2
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! clo
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! oclo
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! br
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! lumped_br
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! bro
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! brcl
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! brono2
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! n2o
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! lumped_cl
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! hcl
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! hocl
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! hbr
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! hobr
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! clono2
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! cfcl3
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! cf2cl2
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! mebr
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! hono
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! c2h6
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! etoo
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! etooh
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! mecho
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! meco3
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! pan
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! c3h8
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! n_proo
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! i_proo
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! n_prooh
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! i_prooh
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! etcho
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! etco3
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! me2co
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! mecoch2oo
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! mecoch2ooh
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! ppan
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! meono2
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! c5h8
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! iso2
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! isooh
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! ison
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! macr
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! macro2
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! macrooh
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! mpan
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! hacet
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! mgly
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! nald
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! hcooh
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! meco3h
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! meco2h
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! h2
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! meoh
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! msa
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! nh3
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! cs2
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! csul
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! h2s
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! so3
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! passive_o3
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! age_of_air
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! dms
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! so2
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! h2so4
@@ -115,11 +196,6 @@ type, public, extends(kernel_type) :: aerosol_ukca_kernel_type
        arg_type( GH_SCALAR, GH_INTEGER, GH_READ ),          & ! previous_time_minute
        arg_type( GH_SCALAR, GH_INTEGER, GH_READ ),          & ! previous_time_second
        arg_type( GH_SCALAR, GH_INTEGER, GH_READ ),          & ! previous_time_daynum
-       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! o3
-       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! no3
-       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! oh
-       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! ho2
-       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! h2o2_limit
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! theta_wth
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! exner_in_w3
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! exner_in_wth
@@ -171,24 +247,10 @@ type, public, extends(kernel_type) :: aerosol_ukca_kernel_type
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_5 ), & ! ent_we_lim_dsc
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_5 ), & ! ent_t_frac_dsc
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_5 ), & ! ent_zrzi_dsc
+       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! h2o2_limit
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! dms_conc_ocean
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_6 ), & ! dust_flux
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_4 ), & ! surf_wetness
-       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! emiss_bc_biomass
-       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! emiss_om_biomass
-       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! emiss_so2_nat
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_bc_biofuel
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_bc_fossil
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_dms_land
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_monoterp
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_om_biofuel
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_om_fossil
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_so2_low
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_so2_high
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_bc_biomass_high
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_bc_biomass_low
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_om_biomass_high
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_om_biomass_low
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_c2h6
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_c3h8
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_c5h8
@@ -197,10 +259,25 @@ type, public, extends(kernel_type) :: aerosol_ukca_kernel_type
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_hcho
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_me2co
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_mecho
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_meoh
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_nh3
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_no
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_meoh
-       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA )                     & !emiss_no_aircrft
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_bc_biofuel
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_bc_biomass_high
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_bc_biomass_low
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_bc_fossil
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_dms_land
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_monoterp
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_om_biofuel
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_om_biomass_high
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_om_biomass_low
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_om_fossil
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_so2_high
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_so2_low
+       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! emiss_no_aircrft
+       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! emiss_bc_biomass
+       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! emiss_om_biomass
+       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA )       & ! emiss_so2_nat
        /)
   integer :: operates_on = CELL_COLUMN
 contains
@@ -223,7 +300,88 @@ contains
 !>          Mass mixing ratios are in kg per kg of air, number mixing ratio
 !>          for the aerosol modes are in particles per molecule of air.
 !> @param[in]     nlayers             Number of layers
+!> @param[in,out] o3p                 Oxygen_ground_state m.m.r
+!> @param[in,out] o1d                 Oxygen_excited_state m.m.r
+!> @param[in,out] o3                  Ozone m.m.r.
+!> @param[in,out] n                   Nitrogen_radical m.m.r
+!> @param[in,out] no                  Nitric_oxide m.m.r
+!> @param[in,out] no3                 Nitrate m.m.r.
+!> @param[in,out] lumped_n            Lumped N species as Nitrogen_dioxide m.m.r
+!> @param[in,out] no2                 Nitrogen_dioxide m.m.r
+!> @param[in,out] n2o5                Dinitrogen_pentoxide m.m.r
+!> @param[in,out] ho2no2              Peroxynitric_acid m.m.r
+!> @param[in,out] hono2               Nitric_acid m.m.r
 !> @param[in,out] h2o2                Hydrogen peroxide m.m.r.
+!> @param[in,out] ch4                 Methane m.m.r
+!> @param[in,out] co                  Carbon_monoxide m.m.r
+!> @param[in,out] hcho                Formaldehyde m.m.r
+!> @param[in,out] meoo                Methyl_peroxy_radical m.m.r
+!> @param[in,out] meooh               Methyl_hydroperoxide m.m.r
+!> @param[in,out] oh                  Hydroxyl radical m.m.r.
+!> @param[in,out] ho2                 Hydroperoxyl radical m.m.r.
+!> @param[in,out] h                   Hydrogen_radical m.m.r
+!> @param[in,out] cl                  Chloride_radical m.m.r
+!> @param[in,out] cl2o2               Chlorine_monoxide_dimer m.m.r
+!> @param[in,out] clo                 Chlorine_monoxide m.m.r
+!> @param[in,out] oclo                Chlorine_dioxide m.m.r
+!> @param[in,out] br                  Bromine m.m.r
+!> @param[in,out] lumped_br           Lumped Br species as Bromine_monoxide m.m.r
+!> @param[in,out] bro                 Bromine_monoxide m.m.r
+!> @param[in,out] brcl                Bromine_chloride m.m.r
+!> @param[in,out] brono2              Bromine_nitrate m.m.r
+!> @param[in,out] n2o                 Nitrous_oxide m.m.r
+!> @param[in,out] lumped_cl           Lumped Cl spc as Hydrogen_chloride m.m.r
+!> @param[in,out] hcl                 Hydrogen_chloride m.m.r
+!> @param[in,out] hocl                Hydrochlorous_acid m.m.r
+!> @param[in,out] hbr                 Hydrogen_bromide m.m.r
+!> @param[in,out] hobr                Hydrobromous_acid m.m.r
+!> @param[in,out] clono2              Chlorine_nitrate m.m.r
+!> @param[in,out] cfcl3               CFC11 m.m.r
+!> @param[in,out] cf2cl2              CFC12 m.m.r
+!> @param[in,out] mebr                Methyl_bromide m.m.r
+!> @param[in,out] hono                Nitrous_acid m.m.r
+!> @param[in,out] c2h6                Ethane m.m.r
+!> @param[in,out] etoo                Ethyl_peroxy_radical m.m.r
+!> @param[in,out] etooh               Ethyl_hydroperoxide m.m.r
+!> @param[in,out] mecho               Acetaldehyde m.m.r
+!> @param[in,out] meco3               Peroxy_acetic_acide m.m.r
+!> @param[in,out] pan                 Peroxy_acetyl_nitrate m.m.r
+!> @param[in,out] c3h8                Propane m.m.r
+!> @param[in,out] n_proo              N-propyl_peroxy_radical m.m.r
+!> @param[in,out] i_proo              I-propyl_peroxy_radical m.m.r
+!> @param[in,out] n_prooh             N-propyl_alcohol m.m.r
+!> @param[in,out] i_prooh             I-propyl_alcohol m.m.r
+!> @param[in,out] etcho               Propionaldehyde m.m.r
+!> @param[in,out] etco3               Ethyl_carbonate m.m.r
+!> @param[in,out] me2co               Acetone m.m.r
+!> @param[in,out] mecoch2oo           Acetone_peroxy_radical m.m.r
+!> @param[in,out] mecoch2ooh          Acetone_hydroperoxide m.m.r
+!> @param[in,out] ppan                Peroxypropionyl_nitrate m.m.r
+!> @param[in,out] meono2              Methyl_nitrate m.m.r
+!> @param[in,out] c5h8                Isoprene m.m.r
+!> @param[in,out] iso2                Isoprene_peroxy_radical m.m.r
+!> @param[in,out] isooh               Isoprene_hydroperoxide m.m.r
+!> @param[in,out] ison                Isoprene_peroxy_acetyl_nitrate m.m.r
+!> @param[in,out] macr                Methacrolein m.m.r
+!> @param[in,out] macro2              Lumped_mvk_macr_hydroperoxy_radical m.m.r
+!> @param[in,out] macrooh             Lumped_mvk_macr_hydroperoxide m.m.r
+!> @param[in,out] mpan                Methacryolyl_peroxynitrate m.m.r
+!> @param[in,out] hacet               Hydroxy_acetone m.m.r
+!> @param[in,out] mgly                Methylglyoxal m.m.r
+!> @param[in,out] nald                Nitroxy_acetaldehyde m.m.r
+!> @param[in,out] hcooh               Formic_acid m.m.r
+!> @param[in,out] meco3h              Peroxy_acetic_acid m.m.r
+!> @param[in,out] meco2h              Acetic_acid m.m.r
+!> @param[in,out] h2                  Hydrogen m.m.r
+!> @param[in,out] meoh                Methanol m.m.r
+!> @param[in,out] msa                 Methyl_sulphonic_acid m.m.r
+!> @param[in,out] nh3                 Ammonia m.m.r
+!> @param[in,out] cs2                 Carbon_disulphide m.m.r
+!> @param[in,out] csul                Carbonyl_sulphide m.m.r
+!> @param[in,out] h2s                 Hydrogen_sulphide m.m.r
+!> @param[in,out] so3                 Sulphur_trioxide m.m.r
+!> @param[in,out] passive_o3          Passive ozone tracer m.m.r
+!> @param[in,out] age_of_air          Age of air tracer (s)
 !> @param[in,out] dms                 Dimethyl sulfide m.m.r.
 !> @param[in,out] so2                 Sulfur dioxide m.m.r.
 !> @param[in,out] h2so4               Sulfuric acid m.m.r.
@@ -257,6 +415,41 @@ contains
 !> @param[in,out] n_cor_ins           Aerosol field: n.m.r. of insoluble coarse mode
 !> @param[in,out] cor_ins_du          Aerosol field: m.m.r. of dust in insoluble coarse mode
 !> @param[in,out] cloud_drop_no_conc  Cloud Droplet Number Concentration
+!> @param[in,out] drydp_ait_sol       Dry modal diam for aitken soluble mode (m)
+!> @param[in,out] drydp_acc_sol       Dry modal diam for accum soluble mode (m)
+!> @param[in,out] drydp_cor_sol       Dry modal diam for coarse soluble mode (m)
+!> @param[in,out] drydp_ait_ins       Dry modal diam for aitken insoluble mode (m)
+!> @param[in,out] drydp_acc_ins       Dry modal diam for accum insoluble mode (m)
+!> @param[in,out] drydp_cor_ins       Dry modal diam for coarse insoluble mode (m)
+!> @param[in,out] wetdp_ait_sol       Wet modal diam for aitken soluble mode (m)
+!> @param[in,out] wetdp_acc_sol       Wet modal diam for accum soluble mode (m)
+!> @param[in,out] wetdp_cor_sol       Wet modal diam for coarse soluble mode (m)
+!> @param[in,out] rhopar_ait_sol      Particle density - aitken soluble mode (kg m-3)
+!> @param[in,out] rhopar_acc_sol      Particle density - accum soluble mode (kg m-3)
+!> @param[in,out] rhopar_cor_sol      Particle density - coarse soluble mode (kg m-3)
+!> @param[in,out] rhopar_ait_ins      Particle density - aitken insoluble mode (kg m-3)
+!> @param[in,out] rhopar_acc_ins      Particle density - accum insoluble mode (kg m-3)
+!> @param[in,out] rhopar_cor_ins      Particle density - coarse soluble mode (kg m-3)
+!> @param[in,out] pvol_wat_ait_sol    Partial vol. of water in aitken soluble mode (m3)
+!> @param[in,out] pvol_wat_acc_sol    Partial vol. of water in accum soluble mode (m3)
+!> @param[in,out] pvol_wat_cor_sol    Partial vol. of water in coarse soluble mode (m3)
+!> @param[in,out] pvol_su_ait_sol     Partial vol. of h2so4 in aitken soluble mode (m3)
+!> @param[in,out] pvol_bc_ait_sol     Partial vol. of black carbon in aitken soluble mode (m3)
+!> @param[in,out] pvol_om_ait_sol     Partial vol. of organic matter in aitken soluble mode (m3)
+!> @param[in,out] pvol_su_acc_sol     Partial vol. of h2so4 in accum soluble mode (m3)
+!> @param[in,out] pvol_bc_acc_sol     Partial vol. of black carbon in accum soluble mode (m3)
+!> @param[in,out] pvol_om_acc_sol     Partial vol. of organic matter in accum soluble mode (m3)
+!> @param[in,out] pvol_ss_acc_sol     Partial vol. of seasalt in accum soluble mode (m3)
+!> @param[in,out] pvol_du_acc_sol     Partial vol. of dust in accum soluble mode (m3)
+!> @param[in,out] pvol_su_cor_sol     Partial vol. of h2so4 in coarse soluble mode (m3)
+!> @param[in,out] pvol_bc_cor_sol     Partial vol. of black carbon in coarse soluble mode (m3)
+!> @param[in,out] pvol_om_cor_sol     Partial vol. of organic matter in coarse soluble mode (m3)
+!> @param[in,out] pvol_ss_cor_sol     Partial vol. of seasalt in coarse soluble mode (m3)
+!> @param[in,out] pvol_du_cor_sol     Partial vol. of dust in coarse soluble mode (m3)
+!> @param[in,out] pvol_bc_ait_ins     Partial vol. of black carbon in aitken insoluble mode (m3)
+!> @param[in,out] pvol_om_ait_ins     Partial vol. of organic matter in aitken insoluble mode (m3)
+!> @param[in,out] pvol_du_acc_ins     Partial vol. of dust in accum insoluble mode (m3)
+!> @param[in,out] pvol_du_cor_ins     Partial vol. of dust in coarse insoluble mode (m3)
 !> @param[in]     timestep_number     Time step number
 !> @param[in]     current_time_year   Current model year
 !> @param[in]     current_time_month  Current model month
@@ -272,11 +465,6 @@ contains
 !> @param[in]     previous_time_minute Model minute at previous time step
 !> @param[in]     previous_time_second Model second at previous time step
 !> @param[in]     previous_time_daynum Model day number at previous time step
-!> @param[in]     o3                  Ozone m.m.r.
-!> @param[in]     no3                 Nitrate m.m.r.
-!> @param[in]     oh                  Hydroxyl radical m.m.r.
-!> @param[in]     ho2                 Hydroperoxyl radical m.m.r.
-!> @param[in]     h2o2_limit          Hydrogen peroxide m.m.r. upper limit
 !> @param[in]     theta_wth           Potential temperature field (K)
 !> @param[in]     exner_in_w3         Exner pressure in w3 space
 !> @param[in]     exner_in_wth        Exner pressure in theta space
@@ -328,24 +516,10 @@ contains
 !> @param[in]     ent_we_lim_dsc      Rho * entrainment rate at DSC inversion (kg m-2 s-1)
 !> @param[in]     ent_t_frac_dsc      Fraction of time DSC inversion is above level
 !> @param[in]     ent_zrzi_dsc        Level height as fraction of DSC inversion height above DSC ML base
+!> @param[in]     h2o2_limit          Hydrogen peroxide m.m.r. upper limit
 !> @param[in]     dms_conc_ocean      DMS concentration in seawater (nmol l-1)
 !> @param[in]     dust_flux           Dust emission fluxes in CLASSIC size divisions (kg m-2 s-1)
 !> @param[in,out] surf_wetness        Surface wetness prognostic (dimensionless)
-!> @param[in]     emiss_bc_biomass    Black C emissions from biomass burning (kg m-2 s-1)
-!> @param[in]     emiss_om_biomass    Organic matter emissions from biomass burning expressed as C (kg m-2 s-1)
-!> @param[in]     emiss_so2_nat       SO2 natural emissions expressed as S (kg m-2 s-1)
-!> @param[in]     emiss_bc_biofuel    Black C biofuel emissions (kg m-2 s-1)
-!> @param[in]     emiss_bc_fossil     Black C fossil fuel emissions (kg m-2 s-1)
-!> @param[in]     emiss_dms_land      DMS emissions from land surface (kg m-2 s-1)
-!> @param[in]     emiss_monoterp      Monoterpene emissions expressed as C
-!> @param[in]     emiss_om_biofuel    Organic matter biofuel emissions expressed as C (kg m-2 s-1)
-!> @param[in]     emiss_om_fossil     Organic matter fossil fuel emissions expressed as C (kg m-2 s-1)
-!> @param[in]     emiss_so2_low       Low-level SO2 emissions expressed as S (kg m-2 s-1)
-!> @param[in]     emiss_so2_high      High-level SO2 emissions expressed as S (kg m-2 s-1)
-!> @param[in]     emiss_bc_biomass_high Black C emissions from biomass burning (kg m-2 s-1)
-!> @param[in]     emiss_bc_biomass_low  Black C emissions from biomass burning (kg m-2 s-1)
-!> @param[in]     emiss_om_biomass_high Organic matter emissions from biomass burning expressed as C (kg m-2 s-1)
-!> @param[in]     emiss_om_biomass_low  Organic matter emissions from biomass burning expressed as C (kg m-2 s-1)
 !> @param[in]     emiss_c2h6          C2H6 emissions (kg m-2 s-1)
 !> @param[in]     emiss_c3h8          C3H8 emissions (kg m-2 s-1)
 !> @param[in]     emiss_c5h8          Biogenic C5H8 emissions (kg m-2 s-1)
@@ -354,10 +528,25 @@ contains
 !> @param[in]     emiss_hcho          HCHO emissions (kg m-2 s-1)
 !> @param[in]     emiss_me2co         Me2CO emissions (kg m-2 s-1)
 !> @param[in]     emiss_mecho         MeCHO emissions (kg m-2 s-1)
+!> @param[in]     emiss_meoh          Biogenic methanol (CH3OH) emissions (kg m-2 s-1)
 !> @param[in]     emiss_nh3           Ammonia gas emissions (kg m-2 s-1)
 !> @param[in]     emiss_no            NOx emissions (kg m-2 s-1)
-!> @param[in]     emiss_meoh          Biogenic methanol (CH3OH) emissions (kg m-2 s-1)
+!> @param[in]     emiss_bc_biofuel    Black C biofuel emissions (kg m-2 s-1)
+!> @param[in]     emiss_bc_biomass_high Black C emissions from biomass burning (kg m-2 s-1)
+!> @param[in]     emiss_bc_biomass_low  Black C emissions from biomass burning (kg m-2 s-1)
+!> @param[in]     emiss_bc_fossil     Black C fossil fuel emissions (kg m-2 s-1)
+!> @param[in]     emiss_dms_land      DMS emissions from land surface (kg m-2 s-1)
+!> @param[in]     emiss_monoterp      Monoterpene emissions expressed as C
+!> @param[in]     emiss_om_biofuel    Organic matter biofuel emissions expressed as C (kg m-2 s-1)
+!> @param[in]     emiss_om_biomass_high Organic matter emissions from biomass burning expressed as C (kg m-2 s-1)
+!> @param[in]     emiss_om_biomass_low  Organic matter emissions from biomass burning expressed as C (kg m-2 s-1)
+!> @param[in]     emiss_om_fossil     Organic matter fossil fuel emissions expressed as C (kg m-2 s-1)
+!> @param[in]     emiss_so2_high      High-level SO2 emissions expressed as S (kg m-2 s-1)
+!> @param[in]     emiss_so2_low       Low-level SO2 emissions expressed as S (kg m-2 s-1)
 !> @param[in]     emiss_no_aircrft    NOx aircraft emissions (kg m-2 s-1)
+!> @param[in]     emiss_bc_biomass    Black C emissions from biomass burning (kg m-2 s-1)
+!> @param[in]     emiss_om_biomass    Organic matter emissions from biomass burning expressed as C (kg m-2 s-1)
+!> @param[in]     emiss_so2_nat       SO2 natural emissions expressed as S (kg m-2 s-1)
 !> @param[in]     ndf_wth             Number of DOFs per cell for potential temperature space
 !> @param[in]     undf_wth            Number of unique DOFs for potential temperature space
 !> @param[in]     map_wth             Dofmap for the cell at the base of the column for potential temperature space
@@ -384,7 +573,88 @@ contains
 !> @param[in]     map_dust            Dofmap for cell for dust divisions
 
 subroutine aerosol_ukca_code( nlayers,                                         &
+                              o3p,                                             &
+                              o1d,                                             &
+                              o3,                                              &
+                              n,                                               &
+                              no,                                              &
+                              no3,                                             &
+                              lumped_n,                                        &
+                              no2,                                             &
+                              n2o5,                                            &
+                              ho2no2,                                          &
+                              hono2,                                           &
                               h2o2,                                            &
+                              ch4,                                             &
+                              co,                                              &
+                              hcho,                                            &
+                              meoo,                                            &
+                              meooh,                                           &
+                              h,                                               &
+                              oh,                                              &
+                              ho2,                                             &
+                              cl,                                              &
+                              cl2o2,                                           &
+                              clo,                                             &
+                              oclo,                                            &
+                              br,                                              &
+                              lumped_br,                                       &
+                              bro,                                             &
+                              brcl,                                            &
+                              brono2,                                          &
+                              n2o,                                             &
+                              lumped_cl,                                       &
+                              hcl,                                             &
+                              hocl,                                            &
+                              hbr,                                             &
+                              hobr,                                            &
+                              clono2,                                          &
+                              cfcl3,                                           &
+                              cf2cl2,                                          &
+                              mebr,                                            &
+                              hono,                                            &
+                              c2h6,                                            &
+                              etoo,                                            &
+                              etooh,                                           &
+                              mecho,                                           &
+                              meco3,                                           &
+                              pan,                                             &
+                              c3h8,                                            &
+                              n_proo,                                          &
+                              i_proo,                                          &
+                              n_prooh,                                         &
+                              i_prooh,                                         &
+                              etcho,                                           &
+                              etco3,                                           &
+                              me2co,                                           &
+                              mecoch2oo,                                       &
+                              mecoch2ooh,                                      &
+                              ppan,                                            &
+                              meono2,                                          &
+                              c5h8,                                            &
+                              iso2,                                            &
+                              isooh,                                           &
+                              ison,                                            &
+                              macr,                                            &
+                              macro2,                                          &
+                              macrooh,                                         &
+                              mpan,                                            &
+                              hacet,                                           &
+                              mgly,                                            &
+                              nald,                                            &
+                              hcooh,                                           &
+                              meco3h,                                          &
+                              meco2h,                                          &
+                              h2,                                              &
+                              meoh,                                            &
+                              msa,                                             &
+                              nh3,                                             &
+                              cs2,                                             &
+                              csul,                                            &
+                              h2s,                                             &
+                              so3,                                             &
+                              passive_o3,                                      &
+                              age_of_air,                                      &
                               dms,                                             &
                               so2,                                             &
                               h2so4,                                           &
@@ -468,11 +738,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
                               previous_time_minute,                            &
                               previous_time_second,                            &
                               previous_time_daynum,                            &
-                              o3,                                              &
-                              no3,                                             &
-                              oh,                                              &
-                              ho2,                                             &
-                              h2o2_limit,                                      &
                               theta_wth,                                       &
                               exner_in_w3,                                     &
                               exner_in_wth,                                    &
@@ -524,24 +789,10 @@ subroutine aerosol_ukca_code( nlayers,                                         &
                               ent_we_lim_dsc,                                  &
                               ent_t_frac_dsc,                                  &
                               ent_zrzi_dsc,                                    &
+                              h2o2_limit,                                      &
                               dms_conc_ocean,                                  &
                               dust_flux,                                       &
                               surf_wetness,                                    &
-                              emiss_bc_biomass,                                &
-                              emiss_om_biomass,                                &
-                              emiss_so2_nat,                                   &
-                              emiss_bc_biofuel,                                &
-                              emiss_bc_fossil,                                 &
-                              emiss_dms_land,                                  &
-                              emiss_monoterp,                                  &
-                              emiss_om_biofuel,                                &
-                              emiss_om_fossil,                                 &
-                              emiss_so2_low,                                   &
-                              emiss_so2_high,                                  &
-                              emiss_bc_biomass_high,                           &
-                              emiss_bc_biomass_low,                            &
-                              emiss_om_biomass_high,                           &
-                              emiss_om_biomass_low,                            &
                               emiss_c2h6,                                      &
                               emiss_c3h8,                                      &
                               emiss_c5h8,                                      &
@@ -550,10 +801,25 @@ subroutine aerosol_ukca_code( nlayers,                                         &
                               emiss_hcho,                                      &
                               emiss_me2co,                                     &
                               emiss_mecho,                                     &
+                              emiss_meoh,                                      &
                               emiss_nh3,                                       &
                               emiss_no,                                        &
-                              emiss_meoh,                                      &
+                              emiss_bc_biofuel,                                &
+                              emiss_bc_biomass_high,                           &
+                              emiss_bc_biomass_low,                            &
+                              emiss_bc_fossil,                                 &
+                              emiss_dms_land,                                  &
+                              emiss_monoterp,                                  &
+                              emiss_om_biofuel,                                &
+                              emiss_om_biomass_high,                           &
+                              emiss_om_biomass_low,                            &
+                              emiss_om_fossil,                                 &
+                              emiss_so2_high,                                  &
+                              emiss_so2_low,                                   &
                               emiss_no_aircrft,                                &
+                              emiss_bc_biomass,                                &
+                              emiss_om_biomass,                                &
+                              emiss_so2_nat,                                   &
                               ndf_wth, undf_wth, map_wth,                      &
                               ndf_w3, undf_w3, map_w3,                         &
                               ndf_tile, undf_tile, map_tile,                   &
@@ -585,6 +851,88 @@ subroutine aerosol_ukca_code( nlayers,                                         &
                               env_names_landpft_real,                          &
                               emiss_names_flat,                                &
                               emiss_names_fullht,                              &
+                              fldname_o3p,                                     &
+                              fldname_o3,                                      &
+                              fldname_n,                                       &
+                              fldname_no,                                      &
+                              fldname_no3,                                     &
+                              fldname_lumped_n,                                &
+                              fldname_n2o5,                                    &
+                              fldname_ho2no2,                                  &
+                              fldname_hono2,                                   &
+                              fldname_ch4,                                     &
+                              fldname_co,                                      &
+                              fldname_hcho,                                    &
+                              fldname_meooh,                                   &
+                              fldname_h,                                       &
+                              fldname_ch2o,                                    &
+                              fldname_oh,                                      &
+                              fldname_ho2,                                     &
+                              fldname_cl,                                      &
+                              fldname_cl2o2,                                   &
+                              fldname_clo,                                     &
+                              fldname_oclo,                                    &
+                              fldname_br,                                      &
+                              fldname_lumped_br,                               &
+                              fldname_brcl,                                    &
+                              fldname_brono2,                                  &
+                              fldname_n2o,                                     &
+                              fldname_lumped_cl,                               &
+                              fldname_hocl,                                    &
+                              fldname_hbr,                                     &
+                              fldname_hobr,                                    &
+                              fldname_clono2,                                  &
+                              fldname_cfcl3,                                   &
+                              fldname_cf2cl2,                                  &
+                              fldname_mebr,                                    &
+                              fldname_hono,                                    &
+                              fldname_c2h6,                                    &
+                              fldname_etooh,                                   &
+                              fldname_mecho,                                   &
+                              fldname_pan,                                     &
+                              fldname_c3h8,                                    &
+                              fldname_n_prooh,                                 &
+                              fldname_i_prooh,                                 &
+                              fldname_etcho,                                   &
+                              fldname_me2co,                                   &
+                              fldname_mecoch2ooh,                              &
+                              fldname_ppan,                                    &
+                              fldname_meono2,                                  &
+                              fldname_c5h8,                                    &
+                              fldname_isooh,                                   &
+                              fldname_ison,                                    &
+                              fldname_macr,                                    &
+                              fldname_macrooh,                                 &
+                              fldname_mpan,                                    &
+                              fldname_hacet,                                   &
+                              fldname_mgly,                                    &
+                              fldname_nald,                                    &
+                              fldname_hcooh,                                   &
+                              fldname_meco3h,                                  &
+                              fldname_meco2h,                                  &
+                              fldname_h2,                                      &
+                              fldname_meoh,                                    &
+                              fldname_msa,                                     &
+                              fldname_nh3,                                     &
+                              fldname_cs2,                                     &
+                              fldname_csul,                                    &
+                              fldname_h2s,                                     &
+                              fldname_so3,                                     &
+                              fldname_passive_o3,                              &
+                              fldname_age_of_air,                              &
+                              fldname_no2,                                     &
+                              fldname_hcl,                                     &
+                              fldname_bro,                                     &
+                              fldname_o1d,                                     &
+                              fldname_meoo,                                    &
+                              fldname_meco3,                                   &
+                              fldname_etoo,                                    &
+                              fldname_iso2,                                    &
+                              fldname_n_proo,                                  &
+                              fldname_i_proo,                                  &
+                              fldname_etco3,                                   &
+                              fldname_mecoch2oo,                               &
+                              fldname_macro2,                                  &
                               fldname_h2o2,                                    &
                               fldname_dms,                                     &
                               fldname_so2,                                     &
@@ -786,7 +1134,88 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   integer(kind=i_def), intent(in) :: undf_dust
   integer(kind=i_def), dimension(ndf_dust), intent(in) :: map_dust
 
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: o3p
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: o1d
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: o3
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: n
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: no
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: no3
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: no2
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: lumped_n
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: n2o5
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: ho2no2
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: hono2
   real(kind=r_def), intent(in out), dimension(undf_wth) :: h2o2
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: ch4
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: co
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: hcho
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: meoo
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: meooh
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: h
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: oh
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: ho2
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: cl
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: cl2o2
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: clo
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: oclo
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: br
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: lumped_br
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: bro
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: brcl
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: brono2
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: n2o
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: lumped_cl
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: hcl
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: hocl
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: hbr
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: hobr
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: clono2
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: cfcl3
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: cf2cl2
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: mebr
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: hono
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: c2h6
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: etoo
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: etooh
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: mecho
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: meco3
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: pan
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: c3h8
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: n_proo
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: i_proo
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: n_prooh
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: i_prooh
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: etcho
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: etco3
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: me2co
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: mecoch2oo
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: mecoch2ooh
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: ppan
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: meono2
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: c5h8
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: iso2
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: isooh
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: ison
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: macr
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: macro2
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: macrooh
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: mpan
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: hacet
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: mgly
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: nald
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: hcooh
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: meco3h
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: meco2h
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: h2
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: meoh
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: msa
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: nh3
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: cs2
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: csul
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: h2s
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: so3
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: passive_o3
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: age_of_air
   real(kind=r_def), intent(in out), dimension(undf_wth) :: dms
   real(kind=r_def), intent(in out), dimension(undf_wth) :: so2
   real(kind=r_def), intent(in out), dimension(undf_wth) :: h2so4
@@ -872,11 +1301,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   integer(kind=i_def), intent(in) :: previous_time_second
   integer(kind=i_def), intent(in) :: previous_time_daynum
 
-  real(kind=r_def), intent(in), dimension(undf_wth) :: o3
-  real(kind=r_def), intent(in), dimension(undf_wth) :: no3
-  real(kind=r_def), intent(in), dimension(undf_wth) :: oh
-  real(kind=r_def), intent(in), dimension(undf_wth) :: ho2
-  real(kind=r_def), intent(in), dimension(undf_wth) :: h2o2_limit
   real(kind=r_def), intent(in), dimension(undf_wth) :: theta_wth
   real(kind=r_def), intent(in), dimension(undf_w3) :: exner_in_w3
   real(kind=r_def), intent(in), dimension(undf_wth) :: exner_in_wth
@@ -929,24 +1353,10 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   real(kind=r_def), intent(in), dimension(undf_ent) :: ent_we_lim_dsc
   real(kind=r_def), intent(in), dimension(undf_ent) :: ent_t_frac_dsc
   real(kind=r_def), intent(in), dimension(undf_ent) :: ent_zrzi_dsc
+  real(kind=r_def), intent(in), dimension(undf_wth) :: h2o2_limit
   real(kind=r_def), intent(in), dimension(undf_2d) :: dms_conc_ocean
   real(kind=r_def), intent(in), dimension(undf_dust) :: dust_flux
   real(kind=r_def), intent(inout), dimension(undf_2d) :: surf_wetness
-  real(kind=r_def), intent(in), dimension(undf_wth) :: emiss_bc_biomass
-  real(kind=r_def), intent(in), dimension(undf_wth) :: emiss_om_biomass
-  real(kind=r_def), intent(in), dimension(undf_wth) :: emiss_so2_nat
-  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_bc_biofuel
-  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_bc_fossil
-  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_dms_land
-  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_monoterp
-  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_om_biofuel
-  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_om_fossil
-  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_so2_low
-  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_so2_high
-  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_bc_biomass_high
-  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_bc_biomass_low
-  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_om_biomass_high
-  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_om_biomass_low
   real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_c2h6
   real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_c3h8
   real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_c5h8
@@ -955,10 +1365,26 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_hcho
   real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_me2co
   real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_mecho
+  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_meoh
   real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_nh3
   real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_no
-  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_meoh
+  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_bc_biofuel
+  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_bc_biomass_high
+  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_bc_biomass_low
+  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_bc_fossil
+  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_dms_land
+  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_monoterp
+  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_om_biofuel
+  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_om_biomass_high
+  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_om_biomass_low
+  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_om_fossil
+  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_so2_high
+  real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_so2_low
   real(kind=r_def), intent(in), dimension(undf_wth) :: emiss_no_aircrft
+  real(kind=r_def), intent(in), dimension(undf_wth) :: emiss_bc_biomass
+  real(kind=r_def), intent(in), dimension(undf_wth) :: emiss_om_biomass
+  real(kind=r_def), intent(in), dimension(undf_wth) :: emiss_so2_nat
+
 
   ! Local variables for the kernel
 
@@ -1063,9 +1489,244 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   do i = 1, n_fields
     select case(tracer_names(i))
+    case(fldname_o3p)
+      tracer( :, i ) =                                                         &
+        real( o3p( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_o3)
+      tracer( :, i ) =                                                         &
+        real( o3( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_n)
+      tracer( :, i ) =                                                         &
+        real( n( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_no)
+      tracer( :, i ) =                                                         &
+        real( no( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_no3)
+      tracer( :, i ) =                                                         &
+        real( no3( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_lumped_n)
+      tracer( :, i ) =                                                         &
+        real( lumped_n( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_n2o5)
+      tracer( :, i ) =                                                         &
+        real( n2o5( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_ho2no2)
+      tracer( :, i ) =                                                         &
+        real( ho2no2( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_hono2)
+      tracer( :, i ) =                                                         &
+        real( hono2( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
     case(fldname_h2o2)
       tracer( :, i ) =                                                         &
         real( h2o2( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_ch4)
+      tracer( :, i ) =                                                         &
+        real( ch4( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_co)
+      tracer( :, i ) =                                                         &
+        real( co( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_hcho)
+      tracer( :, i ) =                                                         &
+        real( hcho( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_meoo)
+      tracer( :, i ) =                                                         &
+        real( meoo( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_meooh)
+      tracer( :, i ) =                                                         &
+        real( meooh( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_h)
+      tracer( :, i ) =                                                         &
+        real( h( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_ch2o)
+      ! Copy water mixing ratio in H2O tracer in chemistry
+      tracer( :, i ) =                                                         &
+        real( m_v_n( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_oh)
+      tracer( :, i ) =                                                         &
+        real( oh( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_ho2)
+      tracer( :, i ) =                                                         &
+        real( ho2( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_cl)
+      tracer( :, i ) =                                                         &
+        real( cl( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_cl2o2)
+      tracer( :, i ) =                                                         &
+        real( cl2o2( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_clo)
+      tracer( :, i ) =                                                         &
+        real( clo( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_oclo)
+      tracer( :, i ) =                                                         &
+        real( oclo( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_br)
+      tracer( :, i ) =                                                         &
+        real( br( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_lumped_br)
+      tracer( :, i ) =                                                         &
+        real( lumped_br( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_brcl)
+      tracer( :, i ) =                                                         &
+        real( brcl( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_brono2)
+      tracer( :, i ) =                                                         &
+        real( brono2( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_n2o)
+      tracer( :, i ) =                                                         &
+        real( n2o( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_lumped_cl)
+      tracer( :, i ) =                                                         &
+        real( lumped_cl( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_hocl)
+      tracer( :, i ) =                                                         &
+        real( hocl( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_hbr)
+      tracer( :, i ) =                                                         &
+        real( hbr( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_hobr)
+      tracer( :, i ) =                                                         &
+        real( hobr( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_clono2)
+      tracer( :, i ) =                                                         &
+        real( clono2( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_cfcl3)
+      tracer( :, i ) =                                                         &
+        real( cfcl3( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_cf2cl2)
+      tracer( :, i ) =                                                         &
+        real( cf2cl2( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_mebr)
+      tracer( :, i ) =                                                         &
+        real( mebr( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_hono)
+      tracer( :, i ) =                                                         &
+        real( hono( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_c2h6)
+      tracer( :, i ) =                                                         &
+        real( c2h6( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_etoo)
+      tracer( :, i ) =                                                         &
+        real( etoo( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_etooh)
+      tracer( :, i ) =                                                         &
+        real( etooh( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_mecho)
+      tracer( :, i ) =                                                         &
+        real( mecho( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_meco3)
+      tracer( :, i ) =                                                         &
+        real( meco3( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_pan)
+      tracer( :, i ) =                                                         &
+        real( pan( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_c3h8)
+      tracer( :, i ) =                                                         &
+        real( c3h8( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_n_proo)
+      tracer( :, i ) =                                                         &
+        real( n_proo( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_i_proo)
+      tracer( :, i ) =                                                         &
+        real( i_proo( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_n_prooh)
+      tracer( :, i ) =                                                         &
+        real( n_prooh( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_i_prooh)
+      tracer( :, i ) =                                                         &
+        real( i_prooh( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_etcho)
+      tracer( :, i ) =                                                         &
+        real( etcho( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_etco3)
+      tracer( :, i ) =                                                         &
+        real( etco3( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_me2co)
+      tracer( :, i ) =                                                         &
+        real( me2co( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_mecoch2oo)
+      tracer( :, i ) =                                                         &
+        real( mecoch2oo( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_mecoch2ooh)
+      tracer( :, i ) =                                                         &
+        real( mecoch2ooh( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_ppan)
+      tracer( :, i ) =                                                         &
+        real( ppan( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_meono2)
+      tracer( :, i ) =                                                         &
+        real( meono2( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_c5h8)
+      tracer( :, i ) =                                                         &
+        real( c5h8( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_iso2)
+      tracer( :, i ) =                                                         &
+        real( iso2( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_isooh)
+      tracer( :, i ) =                                                         &
+        real( isooh( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_ison)
+      tracer( :, i ) =                                                         &
+        real( ison( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_macr)
+      tracer( :, i ) =                                                         &
+        real( macr( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_macrooh)
+      tracer( :, i ) =                                                         &
+        real( macrooh( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_macro2)
+      tracer( :, i ) =                                                         &
+        real( macro2( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_mpan)
+      tracer( :, i ) =                                                         &
+        real( mpan( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_hacet)
+      tracer( :, i ) =                                                         &
+        real( hacet( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_mgly)
+      tracer( :, i ) =                                                         &
+        real( mgly( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_nald)
+      tracer( :, i ) =                                                         &
+        real( nald( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_hcooh)
+      tracer( :, i ) =                                                         &
+        real( hcooh( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_meco3h)
+      tracer( :, i ) =                                                         &
+        real( meco3h( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_meco2h)
+      tracer( :, i ) =                                                         &
+        real( meco2h( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_h2)
+      tracer( :, i ) =                                                         &
+        real( h2( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_meoh)
+      tracer( :, i ) =                                                         &
+        real( meoh( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_msa)
+      tracer( :, i ) =                                                         &
+        real( msa( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_nh3)
+      tracer( :, i ) =                                                         &
+        real( nh3( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_cs2)
+      tracer( :, i ) =                                                         &
+        real( cs2( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_csul)
+      tracer( :, i ) =                                                         &
+        real( csul( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_h2s)
+      tracer( :, i ) =                                                         &
+        real( h2s( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_so3)
+      tracer( :, i ) =                                                         &
+        real( so3( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_passive_o3)
+      tracer( :, i ) =                                                         &
+        real( passive_o3( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_age_of_air)
+      tracer( :, i ) =                                                         &
+        real( age_of_air( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
     case(fldname_dms)
       tracer( :, i ) =                                                         &
         real( dms( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
@@ -1289,6 +1950,46 @@ subroutine aerosol_ukca_code( nlayers,                                         &
     case(fldname_pvol_du_cor_ins)
       ntp( :, i ) =                                                            &
         real( pvol_du_cor_ins( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_no2)
+      ntp( :, i ) =                                                            &
+        real( no2( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_hcl)
+      ntp( :, i ) =                                                            &
+        real( hcl( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_bro)
+      ntp( :, i ) =                                                            &
+        real( bro( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_o1d)
+      ntp( :, i ) =                                                            &
+        real( o1d( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    ! The next set can be tracers or ntp depending on l_ukca_ro2_ntp
+    case(fldname_meoo)
+      ntp( :, i ) =                                                            &
+        real( meoo( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_meco3)
+      ntp( :, i ) =                                                            &
+        real( meco3( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_etoo)
+      ntp( :, i ) =                                                            &
+        real( etoo( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_iso2)
+      ntp( :, i ) =                                                            &
+        real( iso2( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_n_proo)
+      ntp( :, i ) =                                                            &
+        real( n_proo( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_i_proo)
+      ntp( :, i ) =                                                            &
+        real( i_proo( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_etco3)
+      ntp( :, i ) =                                                            &
+        real( etco3( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_mecoch2oo)
+      ntp( :, i) =                                                             &
+        real( mecoch2oo( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
+    case(fldname_macro2)
+      ntp( :, i ) =                                                            &
+        real( macro2( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
     case default
       write( log_scratch_space, '(A,A)' )                                      &
         'Missing required UKCA NTP: ', ntp_names(i)
@@ -1932,30 +2633,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   do i = 1, size(emiss_names_flat)
     select case(emiss_names_flat(i))
-    case('emissions_BC_biofuel')
-      emissions_flat(i) = real( emiss_bc_biofuel(map_2d(1)), r_um )
-    case('emissions_BC_fossil')
-      emissions_flat(i) = real( emiss_bc_fossil(map_2d(1)), r_um )
-    case('emissions_OM_biofuel')
-      emissions_flat(i) = real( emiss_om_biofuel(map_2d(1)), r_um )
-    case('emissions_OM_fossil')
-      emissions_flat(i) = real( emiss_om_fossil(map_2d(1)), r_um )
-    case('emissions_Monoterp')
-      emissions_flat(i) = real( emiss_monoterp(map_2d(1)), r_um )
-    case('emissions_DMS')
-      emissions_flat(i) = real( emiss_dms_land(map_2d(1)), r_um )
-    case('emissions_SO2_low')
-      emissions_flat(i) = real( emiss_so2_low(map_2d(1)), r_um )
-    case('emissions_SO2_high')
-      emissions_flat(i) = real( emiss_so2_high(map_2d(1)), r_um )
-    case('emissions_BC_biomass_high')
-      emissions_flat(i) = real( emiss_bc_biomass_high(map_2d(1)), r_um )
-    case('emissions_BC_biomass_low')
-      emissions_flat(i) = real( emiss_bc_biomass_low(map_2d(1)), r_um )
-    case('emissions_OM_biomass_high')
-      emissions_flat(i) = real( emiss_om_biomass_high(map_2d(1)), r_um )
-    case('emissions_OM_biomass_low')
-      emissions_flat(i) = real( emiss_om_biomass_low(map_2d(1)), r_um )
     case('emissions_C2H6')
       emissions_flat(i) = real( emiss_c2h6(map_2d(1)), r_um )
     case('emissions_C3H8')
@@ -1972,12 +2649,36 @@ subroutine aerosol_ukca_code( nlayers,                                         &
       emissions_flat(i) = real( emiss_me2co(map_2d(1)), r_um )
     case('emissions_MeCHO')
       emissions_flat(i) = real( emiss_mecho(map_2d(1)), r_um )
+    case('emissions_MeOH')
+      emissions_flat(i) = real( emiss_meoh(map_2d(1)), r_um )
     case('emissions_NH3')
       emissions_flat(i) = real( emiss_nh3(map_2d(1)), r_um )
     case('emissions_NO')
       emissions_flat(i) = real( emiss_no(map_2d(1)), r_um )
-    case('emissions_MeOH')
-      emissions_flat(i) = real( emiss_meoh(map_2d(1)), r_um )
+    case('emissions_BC_biofuel')
+      emissions_flat(i) = real( emiss_bc_biofuel(map_2d(1)), r_um )
+    case('emissions_BC_fossil')
+      emissions_flat(i) = real( emiss_bc_fossil(map_2d(1)), r_um )
+    case('emissions_BC_biomass_high')
+      emissions_flat(i) = real( emiss_bc_biomass_high(map_2d(1)), r_um )
+    case('emissions_BC_biomass_low')
+      emissions_flat(i) = real( emiss_bc_biomass_low(map_2d(1)), r_um )
+    case('emissions_DMS')
+      emissions_flat(i) = real( emiss_dms_land(map_2d(1)), r_um )
+    case('emissions_Monoterp')
+      emissions_flat(i) = real( emiss_monoterp(map_2d(1)), r_um )
+    case('emissions_OM_biofuel')
+      emissions_flat(i) = real( emiss_om_biofuel(map_2d(1)), r_um )
+    case('emissions_OM_biomass_high')
+      emissions_flat(i) = real( emiss_om_biomass_high(map_2d(1)), r_um )
+    case('emissions_OM_biomass_low')
+      emissions_flat(i) = real( emiss_om_biomass_low(map_2d(1)), r_um )
+    case('emissions_OM_fossil')
+      emissions_flat(i) = real( emiss_om_fossil(map_2d(1)), r_um )
+    case('emissions_SO2_high')
+      emissions_flat(i) = real( emiss_so2_high(map_2d(1)), r_um )
+    case('emissions_SO2_low')
+      emissions_flat(i) = real( emiss_so2_low(map_2d(1)), r_um )
     case default
       write( log_scratch_space, '(A,A)' )                                      &
         'Missing required UKCA emission field: ', emiss_names_flat(i)
@@ -1993,6 +2694,9 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   do i = 1, size(emiss_names_fullht)
     select case(emiss_names_fullht(i))
+    case('emissions_NO_aircrft')
+      emissions_fullht( :, i ) =                                               &
+        real( emiss_no_aircrft( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
     case('emissions_BC_biomass')
       emissions_fullht( :, i ) =                                               &
         real( emiss_bc_biomass( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
@@ -2002,9 +2706,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
     case('emissions_SO2_nat')
       emissions_fullht( :, i ) =                                               &
         real( emiss_so2_nat( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
-    case('emissions_NO_aircrft')
-      emissions_fullht( :, i ) =                                               &
-        real( emiss_no_aircrft( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
     case default
       write( log_scratch_space, '(A,A)' )                                      &
         'Missing required UKCA emission field: ', emiss_names_fullht(i)
@@ -2088,10 +2789,320 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   do i = 1, size(tracer_names)
     select case(tracer_names(i))
+    case(fldname_o3p)
+      o3p( map_wth(1) + 1 : map_wth(1) + nlayers ) =                           &
+        real( tracer( :, i ), r_def )
+      o3p( map_wth(1) + 0 ) = o3p( map_wth(1) + 1 )
+    case(fldname_o3)
+      o3( map_wth(1) + 1 : map_wth(1) + nlayers ) =                            &
+        real( tracer( :, i ), r_def )
+      o3( map_wth(1) + 0 ) = o3( map_wth(1) + 1 )
+    case(fldname_n)
+      n( map_wth(1) + 1 : map_wth(1) + nlayers ) =                             &
+        real( tracer( :, i ), r_def )
+      n( map_wth(1) + 0 ) = n( map_wth(1) + 1 )
+    case(fldname_no)
+      no( map_wth(1) + 1 : map_wth(1) + nlayers ) =                            &
+        real( tracer( :, i ), r_def )
+      no( map_wth(1) + 0 ) = no( map_wth(1) + 1 )
+    case(fldname_no3)
+      no3( map_wth(1) + 1 : map_wth(1) + nlayers ) =                           &
+        real( tracer( :, i ), r_def )
+      no3( map_wth(1) + 0 ) = no3( map_wth(1) + 1 )
+    case(fldname_lumped_n)
+      lumped_n( map_wth(1) + 1 : map_wth(1) + nlayers ) =                      &
+        real( tracer( :, i ), r_def )
+      lumped_n( map_wth(1) + 0 ) = lumped_n( map_wth(1) + 1 )
+    case(fldname_n2o5)
+      n2o5( map_wth(1) + 1 : map_wth(1) + nlayers ) =                          &
+        real( tracer( :, i ), r_def )
+      n2o5( map_wth(1) + 0 ) = n2o5( map_wth(1) + 1 )
+    case(fldname_ho2no2)
+      ho2no2( map_wth(1) + 1 : map_wth(1) + nlayers ) =                        &
+        real( tracer( :, i ), r_def )
+      ho2no2( map_wth(1) + 0 ) = ho2no2( map_wth(1) + 1 )
+    case(fldname_hono2)
+      hono2( map_wth(1) + 1 : map_wth(1) + nlayers ) =                         &
+        real( tracer( :, i ), r_def )
+      hono2( map_wth(1) + 0 ) = hono2( map_wth(1) + 1 )
     case(fldname_h2o2)
       h2o2( map_wth(1) + 1 : map_wth(1) + nlayers ) =                          &
         real( tracer( :, i ), r_def )
       h2o2( map_wth(1) + 0 ) = h2o2( map_wth(1) + 1 )
+    case(fldname_ch4)
+      ch4( map_wth(1) + 1 : map_wth(1) + nlayers ) =                           &
+        real( tracer( :, i ), r_def )
+      ch4( map_wth(1) + 0 ) = ch4( map_wth(1) + 1 )
+    case(fldname_co)
+      co( map_wth(1) + 1 : map_wth(1) + nlayers ) =                            &
+        real( tracer( :, i ), r_def )
+      co( map_wth(1) + 0 ) = co( map_wth(1) + 1 )
+    case(fldname_hcho)
+      hcho( map_wth(1) + 1 : map_wth(1) + nlayers ) =                          &
+        real( tracer( :, i ), r_def )
+      hcho( map_wth(1) + 0 ) = hcho( map_wth(1) + 1 )
+    case(fldname_meoo)
+      meoo( map_wth(1) + 1 : map_wth(1) + nlayers ) =                          &
+        real( tracer( :, i ), r_def )
+      meoo( map_wth(1) + 0 ) = meoo( map_wth(1) + 1 )
+    case(fldname_meooh)
+      meooh( map_wth(1) + 1 : map_wth(1) + nlayers ) =                         &
+        real( tracer( :, i ), r_def )
+      meooh( map_wth(1) + 0 ) = meooh( map_wth(1) + 1 )
+    case(fldname_h)
+      h( map_wth(1) + 1 : map_wth(1) + nlayers ) =                             &
+        real( tracer( :, i ), r_def )
+      h( map_wth(1) + 0 ) = h( map_wth(1) + 1 )
+    case(fldname_ch2o)
+      ! DO nothing - UKCA water tracer not directly fed back to Q/m_v_n
+    case(fldname_oh)
+      oh( map_wth(1) + 1 : map_wth(1) + nlayers ) =                            &
+        real( tracer( :, i ), r_def )
+      oh( map_wth(1) + 0 ) = oh( map_wth(1) + 1 )
+    case(fldname_ho2)
+      ho2( map_wth(1) + 1 : map_wth(1) + nlayers ) =                           &
+        real( tracer( :, i ), r_def )
+      ho2( map_wth(1) + 0 ) = ho2( map_wth(1) + 1 )
+    case(fldname_cl)
+      cl( map_wth(1) + 1 : map_wth(1) + nlayers ) =                            &
+        real( tracer( :, i ), r_def )
+      cl( map_wth(1) + 0 ) = cl( map_wth(1) + 1 )
+    case(fldname_cl2o2)
+      cl2o2( map_wth(1) + 1 : map_wth(1) + nlayers ) =                         &
+        real( tracer( :, i ), r_def )
+      cl2o2( map_wth(1) + 0 ) = cl2o2( map_wth(1) + 1 )
+    case(fldname_clo)
+      clo( map_wth(1) + 1 : map_wth(1) + nlayers ) =                           &
+        real( tracer( :, i ), r_def )
+      clo( map_wth(1) + 0 ) = clo( map_wth(1) + 1 )
+    case(fldname_oclo)
+      oclo( map_wth(1) + 1 : map_wth(1) + nlayers ) =                          &
+        real( tracer( :, i ), r_def )
+      oclo( map_wth(1) + 0 ) = oclo( map_wth(1) + 1 )
+    case(fldname_br)
+      br( map_wth(1) + 1 : map_wth(1) + nlayers ) =                            &
+        real( tracer( :, i ), r_def )
+      br( map_wth(1) + 0 ) = br( map_wth(1) + 1 )
+    case(fldname_lumped_br)
+      lumped_br( map_wth(1) + 1 : map_wth(1) + nlayers ) =                     &
+        real( tracer( :, i ), r_def )
+      lumped_br( map_wth(1) + 0 ) = lumped_br( map_wth(1) + 1 )
+    case(fldname_brcl)
+      brcl( map_wth(1) + 1 : map_wth(1) + nlayers ) =                          &
+        real( tracer( :, i ), r_def )
+      brcl( map_wth(1) + 0 ) = brcl( map_wth(1) + 1 )
+    case(fldname_brono2)
+      brono2( map_wth(1) + 1 : map_wth(1) + nlayers ) =                        &
+        real( tracer( :, i ), r_def )
+      brono2( map_wth(1) + 0 ) = brono2( map_wth(1) + 1 )
+    case(fldname_n2o)
+      n2o( map_wth(1) + 1 : map_wth(1) + nlayers ) =                           &
+        real( tracer( :, i ), r_def )
+      n2o( map_wth(1) + 0 ) = n2o( map_wth(1) + 1 )
+    case(fldname_lumped_cl)
+      lumped_cl( map_wth(1) + 1 : map_wth(1) + nlayers ) =                     &
+        real( tracer( :, i ), r_def )
+      lumped_cl( map_wth(1) + 0 ) = lumped_cl( map_wth(1) + 1 )
+    case(fldname_hocl)
+      hocl( map_wth(1) + 1 : map_wth(1) + nlayers ) =                          &
+        real( tracer( :, i ), r_def )
+      hocl( map_wth(1) + 0 ) = hocl( map_wth(1) + 1 )
+    case(fldname_hbr)
+      hbr( map_wth(1) + 1 : map_wth(1) + nlayers ) =                           &
+        real( tracer( :, i ), r_def )
+      hbr( map_wth(1) + 0 ) = hbr( map_wth(1) + 1 )
+    case(fldname_hobr)
+      hobr( map_wth(1) + 1 : map_wth(1) + nlayers ) =                          &
+        real( tracer( :, i ), r_def )
+      hobr( map_wth(1) + 0 ) = hobr( map_wth(1) + 1 )
+    case(fldname_clono2)
+      clono2( map_wth(1) + 1 : map_wth(1) + nlayers ) =                        &
+        real( tracer( :, i ), r_def )
+      clono2( map_wth(1) + 0 ) = clono2( map_wth(1) + 1 )
+    case(fldname_cfcl3)
+      cfcl3( map_wth(1) + 1 : map_wth(1) + nlayers ) =                         &
+        real( tracer( :, i ), r_def )
+      cfcl3( map_wth(1) + 0 ) = cfcl3( map_wth(1) + 1 )
+    case(fldname_cf2cl2)
+      cf2cl2( map_wth(1) + 1 : map_wth(1) + nlayers ) =                        &
+        real( tracer( :, i ), r_def )
+      cf2cl2( map_wth(1) + 0 ) = cf2cl2( map_wth(1) + 1 )
+    case(fldname_mebr)
+      mebr( map_wth(1) + 1 : map_wth(1) + nlayers ) =                          &
+        real( tracer( :, i ), r_def )
+      mebr( map_wth(1) + 0 ) = mebr( map_wth(1) + 1 )
+    case(fldname_hono)
+      hono( map_wth(1) + 1 : map_wth(1) + nlayers ) =                          &
+        real( tracer( :, i ), r_def )
+      hono( map_wth(1) + 0 ) = hono( map_wth(1) + 1 )
+    case(fldname_c2h6)
+      c2h6( map_wth(1) + 1 : map_wth(1) + nlayers ) =                          &
+        real( tracer( :, i ), r_def )
+      c2h6( map_wth(1) + 0 ) = c2h6( map_wth(1) + 1 )
+    case(fldname_etoo)
+      etoo( map_wth(1) + 1 : map_wth(1) + nlayers ) =                          &
+        real( tracer( :, i ), r_def )
+      etoo( map_wth(1) + 0 ) = etoo( map_wth(1) + 1 )
+    case(fldname_etooh)
+      etooh( map_wth(1) + 1 : map_wth(1) + nlayers ) =                         &
+        real( tracer( :, i ), r_def )
+      etooh( map_wth(1) + 0 ) = etooh( map_wth(1) + 1 )
+    case(fldname_mecho)
+      mecho( map_wth(1) + 1 : map_wth(1) + nlayers ) =                         &
+        real( tracer( :, i ), r_def )
+      mecho( map_wth(1) + 0 ) = mecho( map_wth(1) + 1 )
+    case(fldname_meco3)
+      meco3( map_wth(1) + 1 : map_wth(1) + nlayers ) =                         &
+        real( tracer( :, i ), r_def )
+      meco3( map_wth(1) + 0 ) = meco3( map_wth(1) + 1 )
+    case(fldname_pan)
+      pan( map_wth(1) + 1 : map_wth(1) + nlayers ) =                           &
+        real( tracer( :, i ), r_def )
+      pan( map_wth(1) + 0 ) = pan( map_wth(1) + 1 )
+    case(fldname_c3h8)
+      c3h8( map_wth(1) + 1 : map_wth(1) + nlayers ) =                          &
+        real( tracer( :, i ), r_def )
+      c3h8( map_wth(1) + 0 ) = c3h8( map_wth(1) + 1 )
+    case(fldname_n_proo)
+      n_proo( map_wth(1) + 1 : map_wth(1) + nlayers ) =                        &
+        real( tracer( :, i ), r_def )
+      n_proo( map_wth(1) + 0 ) = n_proo( map_wth(1) + 1 )
+    case(fldname_i_proo)
+      i_proo( map_wth(1) + 1 : map_wth(1) + nlayers ) =                        &
+        real( tracer( :, i ), r_def )
+      i_proo( map_wth(1) + 0 ) = i_proo( map_wth(1) + 1 )
+    case(fldname_n_prooh)
+      n_prooh( map_wth(1) + 1 : map_wth(1) + nlayers ) =                       &
+        real( tracer( :, i ), r_def )
+      n_prooh( map_wth(1) + 0 ) = n_prooh( map_wth(1) + 1 )
+    case(fldname_i_prooh)
+      i_prooh( map_wth(1) + 1 : map_wth(1) + nlayers ) =                       &
+        real( tracer( :, i ), r_def )
+      i_prooh( map_wth(1) + 0 ) = i_prooh( map_wth(1) + 1 )
+    case(fldname_etcho)
+      etcho( map_wth(1) + 1 : map_wth(1) + nlayers ) =                         &
+        real( tracer( :, i ), r_def )
+      etcho( map_wth(1) + 0 ) = etcho( map_wth(1) + 1 )
+    case(fldname_etco3)
+      etco3( map_wth(1) + 1 : map_wth(1) + nlayers ) =                         &
+        real( tracer( :, i ), r_def )
+      etco3( map_wth(1) + 0 ) = etco3( map_wth(1) + 1 )
+    case(fldname_me2co)
+      me2co( map_wth(1) + 1 : map_wth(1) + nlayers ) =                         &
+        real( tracer( :, i ), r_def )
+      me2co( map_wth(1) + 0 ) = me2co( map_wth(1) + 1 )
+    case(fldname_mecoch2oo)
+      mecoch2oo( map_wth(1) + 1 : map_wth(1) + nlayers ) =                     &
+        real( tracer( :, i ), r_def )
+      mecoch2oo( map_wth(1) + 0 ) = mecoch2oo( map_wth(1) + 1 )
+    case(fldname_mecoch2ooh)
+      mecoch2ooh( map_wth(1) + 1 : map_wth(1) + nlayers ) =                    &
+        real( tracer( :, i ), r_def )
+      mecoch2ooh( map_wth(1) + 0 ) = mecoch2ooh( map_wth(1) + 1 )
+    case(fldname_ppan)
+      ppan( map_wth(1) + 1 : map_wth(1) + nlayers ) =                          &
+        real( tracer( :, i ), r_def )
+      ppan( map_wth(1) + 0 ) = ppan( map_wth(1) + 1 )
+    case(fldname_meono2)
+      meono2( map_wth(1) + 1 : map_wth(1) + nlayers ) =                        &
+        real( tracer( :, i ), r_def )
+      meono2( map_wth(1) + 0 ) = meono2( map_wth(1) + 1 )
+    case(fldname_c5h8)
+      c5h8( map_wth(1) + 1 : map_wth(1) + nlayers ) =                          &
+        real( tracer( :, i ), r_def )
+      c5h8( map_wth(1) + 0 ) = c5h8( map_wth(1) + 1 )
+    case(fldname_iso2)
+      iso2( map_wth(1) + 1 : map_wth(1) + nlayers ) =                          &
+        real( tracer( :, i ), r_def )
+      iso2( map_wth(1) + 0 ) = iso2( map_wth(1) + 1 )
+    case(fldname_isooh)
+      isooh( map_wth(1) + 1 : map_wth(1) + nlayers ) =                         &
+        real( tracer( :, i ), r_def )
+      isooh( map_wth(1) + 0 ) = isooh( map_wth(1) + 1 )
+    case(fldname_ison)
+      ison( map_wth(1) + 1 : map_wth(1) + nlayers ) =                          &
+        real( tracer( :, i ), r_def )
+      ison( map_wth(1) + 0 ) = ison( map_wth(1) + 1 )
+    case(fldname_macr)
+      macr( map_wth(1) + 1 : map_wth(1) + nlayers ) =                          &
+        real( tracer( :, i ), r_def )
+      macr( map_wth(1) + 0 ) = macr( map_wth(1) + 1 )
+    case(fldname_macrooh)
+      macrooh( map_wth(1) + 1 : map_wth(1) + nlayers ) =                       &
+        real( tracer( :, i ), r_def )
+      macrooh( map_wth(1) + 0 ) = macrooh( map_wth(1) + 1 )
+    case(fldname_macro2)
+      macro2( map_wth(1) + 1 : map_wth(1) + nlayers ) =                        &
+        real( tracer( :, i ), r_def )
+      macro2( map_wth(1) + 0 ) = macro2( map_wth(1) + 1 )
+    case(fldname_mpan)
+      mpan( map_wth(1) + 1 : map_wth(1) + nlayers ) =                          &
+        real( tracer( :, i ), r_def )
+      mpan( map_wth(1) + 0 ) = mpan( map_wth(1) + 1 )
+    case(fldname_hacet)
+      hacet( map_wth(1) + 1 : map_wth(1) + nlayers ) =                         &
+        real( tracer( :, i ), r_def )
+      hacet( map_wth(1) + 0 ) = hacet( map_wth(1) + 1 )
+    case(fldname_mgly)
+      mgly( map_wth(1) + 1 : map_wth(1) + nlayers ) =                          &
+        real( tracer( :, i ), r_def )
+      mgly( map_wth(1) + 0 ) = mgly( map_wth(1) + 1 )
+    case(fldname_nald)
+      nald( map_wth(1) + 1 : map_wth(1) + nlayers ) =                          &
+        real( tracer( :, i ), r_def )
+      nald( map_wth(1) + 0 ) = nald( map_wth(1) + 1 )
+    case(fldname_hcooh)
+      hcooh( map_wth(1) + 1 : map_wth(1) + nlayers ) =                         &
+        real( tracer( :, i ), r_def )
+      hcooh( map_wth(1) + 0 ) = hcooh( map_wth(1) + 1 )
+    case(fldname_meco3h)
+      meco3h( map_wth(1) + 1 : map_wth(1) + nlayers ) =                        &
+        real( tracer( :, i ), r_def )
+      meco3h( map_wth(1) + 0 ) = meco3h( map_wth(1) + 1 )
+    case(fldname_meco2h)
+      meco2h( map_wth(1) + 1 : map_wth(1) + nlayers ) =                        &
+        real( tracer( :, i ), r_def )
+      meco2h( map_wth(1) + 0 ) = meco2h( map_wth(1) + 1 )
+    case(fldname_h2)
+      h2( map_wth(1) + 1 : map_wth(1) + nlayers ) =                            &
+        real( tracer( :, i ), r_def )
+      h2( map_wth(1) + 0 ) = h2( map_wth(1) + 1 )
+    case(fldname_meoh)
+      meoh( map_wth(1) + 1 : map_wth(1) + nlayers ) =                          &
+        real( tracer( :, i ), r_def )
+      meoh( map_wth(1) + 0 ) = meoh( map_wth(1) + 1 )
+    case(fldname_msa)
+      msa( map_wth(1) + 1 : map_wth(1) + nlayers ) =                           &
+        real( tracer( :, i ), r_def )
+      msa( map_wth(1) + 0 ) = msa( map_wth(1) + 1 )
+    case(fldname_nh3)
+      nh3( map_wth(1) + 1 : map_wth(1) + nlayers ) =                           &
+        real( tracer( :, i ), r_def )
+      nh3( map_wth(1) + 0 ) = nh3( map_wth(1) + 1 )
+    case(fldname_cs2)
+      cs2( map_wth(1) + 1 : map_wth(1) + nlayers ) =                           &
+        real( tracer( :, i ), r_def )
+      cs2( map_wth(1) + 0 ) = cs2( map_wth(1) + 1 )
+    case(fldname_csul)
+      csul( map_wth(1) + 1 : map_wth(1) + nlayers ) =                           &
+        real( tracer( :, i ), r_def )
+      csul( map_wth(1) + 0 ) = csul( map_wth(1) + 1 )
+    case(fldname_h2s)
+      h2s( map_wth(1) + 1 : map_wth(1) + nlayers ) =                           &
+        real( tracer( :, i ), r_def )
+      h2s( map_wth(1) + 0 ) = h2s( map_wth(1) + 1 )
+    case(fldname_so3)
+      so3( map_wth(1) + 1 : map_wth(1) + nlayers ) =                           &
+        real( tracer( :, i ), r_def )
+      so3( map_wth(1) + 0 ) = so3( map_wth(1) + 1 )
+    case(fldname_passive_o3)
+      passive_o3( map_wth(1) + 1 : map_wth(1) + nlayers ) =                    &
+        real( tracer( :, i ), r_def )
+      passive_o3( map_wth(1) + 0 ) = passive_o3( map_wth(1) + 1 )
+    case(fldname_age_of_air)
+      age_of_air( map_wth(1) + 1 : map_wth(1) + nlayers ) =                    &
+        real( tracer( :, i ), r_def )
+      age_of_air( map_wth(1) + 0 ) = age_of_air( map_wth(1) + 1 )
     case(fldname_dms)
       dms( map_wth(1) + 1 : map_wth(1) + nlayers ) =                           &
         real( tracer( :, i ), r_def )
@@ -2375,6 +3386,59 @@ subroutine aerosol_ukca_code( nlayers,                                         &
       pvol_du_cor_ins( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
         real( ntp( :, i ), r_def )
       pvol_du_cor_ins( map_wth(1) + 0 ) = pvol_du_cor_ins( map_wth(1) + 1 )
+    case(fldname_no2)
+      no2( map_wth(1) + 1 : map_wth(1) + nlayers ) =                           &
+        real( ntp( :, i ), r_def )
+      no2( map_wth(1) + 0 ) = no2( map_wth(1) + 1 )
+    case(fldname_bro)
+      bro( map_wth(1) + 1 : map_wth(1) + nlayers ) =                           &
+        real( ntp( :, i ), r_def )
+      bro( map_wth(1) + 0 ) = bro( map_wth(1) + 1 )
+    case(fldname_hcl)
+      hcl( map_wth(1) + 1 : map_wth(1) + nlayers ) =                           &
+        real( ntp( :, i ), r_def )
+      hcl( map_wth(1) + 0 ) = hcl( map_wth(1) + 1 )
+    case(fldname_o1d)
+      o1d( map_wth(1) + 1 : map_wth(1) + nlayers ) =                           &
+        real( ntp( :, i ), r_def )
+      o1d( map_wth(1) + 0 ) = o1d( map_wth(1) + 1 )
+     ! These fields are ntp if l_ukca_ro2_ntp=true, else tracers.
+    case(fldname_meoo)
+      meoo( map_wth(1) + 1 : map_wth(1) + nlayers ) =                          &
+        real( ntp( :, i ), r_def )
+      meoo( map_wth(1) + 0 ) = meoo( map_wth(1) + 1 )
+    case(fldname_etoo)
+      etoo( map_wth(1) + 1 : map_wth(1) + nlayers ) =                          &
+        real( ntp( :, i ), r_def )
+      etoo( map_wth(1) + 0 ) = etoo( map_wth(1) + 1 )
+    case(fldname_meco3)
+      meco3( map_wth(1) + 1 : map_wth(1) + nlayers ) =                         &
+        real( ntp( :, i ), r_def )
+      meco3( map_wth(1) + 0 ) = meco3( map_wth(1) + 1 )
+    case(fldname_n_proo)
+      n_proo( map_wth(1) + 1 : map_wth(1) + nlayers ) =                        &
+        real( ntp( :, i ), r_def )
+      n_proo( map_wth(1) + 0 ) = n_proo( map_wth(1) + 1 )
+    case(fldname_i_proo)
+      i_proo( map_wth(1) + 1 : map_wth(1) + nlayers ) =                        &
+        real( ntp( :, i ), r_def )
+      i_proo( map_wth(1) + 0 ) = i_proo( map_wth(1) + 1 )
+    case(fldname_etco3)
+      etco3( map_wth(1) + 1 : map_wth(1) + nlayers ) =                         &
+        real( ntp( :, i ), r_def )
+      etco3( map_wth(1) + 0 ) = etco3( map_wth(1) + 1 )
+    case(fldname_mecoch2oo)
+      mecoch2oo( map_wth(1) + 1 : map_wth(1) + nlayers ) =                     &
+        real( ntp( :, i ), r_def )
+      mecoch2oo( map_wth(1) + 0 ) = mecoch2oo( map_wth(1) + 1 )
+    case(fldname_macro2)
+      macro2( map_wth(1) + 1 : map_wth(1) + nlayers ) =                        &
+        real( ntp( :, i ), r_def )
+      macro2( map_wth(1) + 0 ) = macro2( map_wth(1) + 1 )
+    case(fldname_iso2)
+      iso2( map_wth(1) + 1 : map_wth(1) + nlayers ) =                          &
+        real( ntp( :, i ), r_def )
+      iso2( map_wth(1) + 0 ) = iso2( map_wth(1) + 1 )
     end select
   end do
 

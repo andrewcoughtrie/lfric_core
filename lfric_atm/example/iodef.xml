@@ -143,13 +143,95 @@
         <field id="chemistry__emiss_no" name="emissions_NO" long_name="NOx surface emissions" unit="kg m-2 s-1" domain_ref="face" /> 
         <field id="chemistry__emiss_meoh" name="emissions_MeOH" long_name="Biogenic surface methanol (CH3OH) emissions" unit="kg m-2 s-1" domain_ref="face" /> 
         <field id="chemistry__emiss_no_aircrft" name="emissions_NO_aircrft" long_name="NOx aircraft emissions" unit="kg m-2 s-1" grid_ref="full_level_face_grid" /> 
-	<field id="chemistry__h2o2" name="h2o2" long_name="hydrogen_peroxide_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
-	<field id="chemistry__dms" name="dms" long_name="dimethyl_sulfide_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
-	<field id="chemistry__so2" name="so2" long_name="sulfur_dioxide_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
-	<field id="chemistry__h2so4" name="h2so4" long_name="sulfuric_acid_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
-	<field id="chemistry__dmso" name="dmso" long_name="dimethyl_sulfoxide_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
-	<field id="chemistry__monoterpene" name="monoterpene" long_name="monoterpene_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
-	<field id="chemistry__secondary_organic" name="secondary_organic" long_name="secondary_organic_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__o3p" name="o3p" long_name="mass_fraction_of_oxygen_ground_state_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__o1d" name="o1d" long_name="mass_fraction_of_oxygen_excited_state_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__o3" name="o3" long_name="mass_fraction_of_ozone_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__n" name="n" long_name="mass_fraction_of_nitrogen_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__no" name="no" long_name="mass_fraction_of_nitric_oxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__no3" name="no3" long_name="mass_fraction_of_nitrate_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__lumped_n" name="lumped_n" long_name="mass_fraction_of_lumped_n_as_nitrogen_dioxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__no2" name="no2" long_name="mass_fraction_of_nitrogen_dioxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__n2o5" name="n2o5" long_name="mass_fraction_of_dinitrogen_pentoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__ho2no2" name="ho2no2" long_name="mass_fraction_of_peroxynitric_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__hono2" name="hono2" long_name="mass_fraction_of_nitric_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__h2o2" name="h2o2" long_name="mass_fraction_of_hydrogen_peroxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__ch4" name="ch4" long_name="mass_fraction_of_methane_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__co" name="co" long_name="mass_fraction_of_carbon_monoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__hcho" name="hcho" long_name="mass_fraction_of_formaldehyde_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__meoo" name="meoo" long_name="mass_fraction_of_methyl_peroxy_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__meooh" name="meooh" long_name="mass_fraction_of_methyl_hydroperoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__h" name="h" long_name="mass_fraction_of_hydrogen_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__oh" name="oh" long_name="mass_fraction_of_hydroxyl_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__ho2" name="ho2" long_name="mass_fraction_of_hydroxy_peroxyl_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__cl" name="cl" long_name="mass_fraction_of_chloride_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__cl2o2" name="cl2o2" long_name="mass_fraction_of_chlorine_monoxide_dimer_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__clo" name="clo" long_name="mass_fraction_of_chlorine_monoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__oclo" name="oclo" long_name="mass_fraction_of_chlorine_dioxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__br" name="br" long_name="mass_fraction_of_bromine_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__lumped_br" name="lumped_br" long_name="mass_fraction_of_lumped_br_as_bromine_monoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__bro" name="bro" long_name="mass_fraction_of_bromine_monoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__brcl" name="brcl" long_name="mass_fraction_of_bromine_chloride_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__brono2" name="brono2" long_name="mass_fraction_of_bromine_nitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__n2o" name="n2o" long_name="mass_fraction_of_nitrous_oxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__lumped_cl" name="lumped_cl" long_name="mass_fraction_of_lumped_cl_as_hydrogen_chloride_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__hcl" name="hcl" long_name="mass_fraction_of_hydrogen_chloride_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__hocl" name="hocl" long_name="mass_fraction_of_hydrochlorous_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__hbr" name="hbr" long_name="mass_fraction_of_hydrogen_bromide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__hobr" name="hobr" long_name="mass_fraction_of_hydrobromous_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__clono2" name="clono2" long_name="mass_fraction_of_chlorine_nitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__cfcl3" name="cfcl3" long_name="mass_fraction_of_cfc11_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__cf2cl2" name="cf2cl2" long_name="mass_fraction_of_cfc12_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__mebr" name="mebr" long_name="mass_fraction_of_methyl_bromide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__hono" name="hono" long_name="mass_fraction_of_nitrous_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__c2h6" name="c2h6" long_name="mass_fraction_of_ethane_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__etoo" name="etoo" long_name="mass_fraction_of_ethyl_peroxy_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__etooh" name="etooh" long_name="mass_fraction_of_ethyl_hydroperoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__mecho" name="mecho" long_name="mass_fraction_of_acetaldehyde_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__meco3" name="meco3" long_name="mass_fraction_of_peroxy_acetic_acide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__pan" name="pan" long_name="mass_fraction_of_peroxy_acetyl_nitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__c3h8" name="c3h8" long_name="mass_fraction_of_propane_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__n_proo" name="n_proo" long_name="mass_fraction_of_n-propyl_peroxy_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__i_proo" name="i_proo" long_name="mass_fraction_of_i-propyl_peroxy_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__n_prooh" name="n_prooh" long_name="mass_fraction_of_n-propyl_alcohol_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__i_prooh" name="i_prooh" long_name="mass_fraction_of_i-propyl_alcohol_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__etcho" name="etcho" long_name="mass_fraction_of_propionaldehyde_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__etco3" name="etco3" long_name="mass_fraction_of_ethyl_carbonate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__me2co" name="me2co" long_name="mass_fraction_of_acetone_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__mecoch2oo" name="mecoch2oo" long_name="mass_fraction_of_acetone_peroxy_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__mecoch2ooh" name="mecoch2ooh" long_name="mass_fraction_of_acetone_hydroperoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__ppan" name="ppan" long_name="mass_fraction_of_peroxypropionyl_nitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__meono2" name="meono2" long_name="mass_fraction_of_methyl_nitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__c5h8" name="c5h8" long_name="mass_fraction_of_isoprene_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__iso2" name="iso2" long_name="mass_fraction_of_isoprene_peroxy_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__isooh" name="isooh" long_name="mass_fraction_of_isoprene_hydroperoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__ison" name="ison" long_name="mass_fraction_of_isoprene_peroxy_acetyl_nitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__macr" name="macr" long_name="mass_fraction_of_methacrolein_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__macro2" name="macro2" long_name="mass_fraction_of_lumped_mvk_macr_hydroperoxy_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__macrooh" name="macrooh" long_name="mass_fraction_of_lumped_mvk_macr_hydroperoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__mpan" name="mpan" long_name="mass_fraction_of_methacryolyl_peroxynitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__hacet" name="hacet" long_name="mass_fraction_of_hydroxy_acetone_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__mgly" name="mgly" long_name="mass_fraction_of_methylglyoxal_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__nald" name="nald" long_name="mass_fraction_of_nitroxy_acetaldehyde_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__hcooh" name="hcooh" long_name="mass_fraction_of_formic_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__meco3h" name="meco3h" long_name="mass_fraction_of_peroxy_acetic_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__meco2h" name="meco2h" long_name="mass_fraction_of_acetic_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__h2" name="h2" long_name="mass_fraction_of_hydrogen_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__meoh" name="meoh" long_name="mass_fraction_of_methanol_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__msa" name="msa" long_name="mass_fraction_of_methyl_sulphonic_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__nh3" name="nh3" long_name="mass_fraction_of_ammonia_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__cs2" name="cs2" long_name="mass_fraction_of_carbon_disulphide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__csul" name="csul" long_name="mass_fraction_of_carbonyl_sulphide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__h2s" name="h2s" long_name="mass_fraction_of_hydrogen_sulphide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__so3" name="so3" long_name="mass_fraction_of_sulphur_trioxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__passive_o3" name="passive_o3" long_name="mass_fraction_of_passive_ozone_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__age_of_air" name="age_of_air" long_name="mass_fraction_of_age_of_air_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="chemistry__photol_rate" name="photol_rate" long_name="sample_photolysis_rate" unit="s-1" grid_ref="full_level_face_grid" />
+	<field id="chemistry__dms" name="dms" long_name="mass_fraction_of_dimethyl_sulfide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+	<field id="chemistry__so2" name="so2" long_name="mass_fraction_of_sulfur_dioxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+	<field id="chemistry__h2so4" name="h2so4" long_name="mass_fraction_of_sulfuric_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+	<field id="chemistry__dmso" name="dmso" long_name="mass_fraction_of_dimethyl_sulfoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+	<field id="chemistry__monoterpene" name="monoterpene" long_name="mass_fractio_of_monoterpene_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+	<field id="chemistry__secondary_organic" name="secondary_organic" long_name="mass_fraction_of_secondary_organic_aerosols_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
 	<!-- aerosol diagnostics -->
         <field id="aerosol__dust_flux" name="dust_flux" long_name="dust_emissions_flux_in_size_bins" unit="kg m-2 s-1" domain_ref="face" axis_ref="dust_divisions" />
         <field id="aerosol__n_nuc_sol" name="n_nuc_sol" long_name="nucleation_soluble_mode_number" unit="1" grid_ref="full_level_face_grid" />
@@ -860,7 +942,89 @@
         <field field_ref="chemistry__emiss_no"/>
         <field field_ref="chemistry__emiss_meoh"/>
         <field field_ref="chemistry__emiss_no_aircrft"/>
-	<field field_ref="chemistry__h2o2" />
+        <field field_ref="chemistry__o3p"/>
+        <field field_ref="chemistry__o1d"/>
+        <field field_ref="chemistry__o3"/>
+        <field field_ref="chemistry__n"/>
+        <field field_ref="chemistry__no"/>
+        <field field_ref="chemistry__no3"/>
+        <field field_ref="chemistry__lumped_n"/>
+        <field field_ref="chemistry__no2"/>
+        <field field_ref="chemistry__n2o5"/>
+        <field field_ref="chemistry__ho2no2"/>
+        <field field_ref="chemistry__hono2"/>
+        <field field_ref="chemistry__ch4"/>
+        <field field_ref="chemistry__co"/>
+        <field field_ref="chemistry__hcho"/>
+        <field field_ref="chemistry__meoo"/>
+        <field field_ref="chemistry__meooh"/>
+        <field field_ref="chemistry__h"/>
+        <field field_ref="chemistry__oh"/>
+        <field field_ref="chemistry__ho2"/>
+        <field field_ref="chemistry__cl"/>
+        <field field_ref="chemistry__cl2o2"/>
+        <field field_ref="chemistry__clo"/>
+        <field field_ref="chemistry__oclo"/>
+        <field field_ref="chemistry__br"/>
+        <field field_ref="chemistry__lumped_br"/>
+        <field field_ref="chemistry__bro"/>
+        <field field_ref="chemistry__brcl"/>
+        <field field_ref="chemistry__brono2"/>
+        <field field_ref="chemistry__n2o"/>
+        <field field_ref="chemistry__lumped_cl"/>
+        <field field_ref="chemistry__hcl"/>
+        <field field_ref="chemistry__hocl"/>
+        <field field_ref="chemistry__hbr"/>
+        <field field_ref="chemistry__hobr"/>
+        <field field_ref="chemistry__clono2"/>
+        <field field_ref="chemistry__cfcl3"/>
+        <field field_ref="chemistry__cf2cl2"/>
+        <field field_ref="chemistry__mebr"/>
+        <field field_ref="chemistry__hono"/>
+        <field field_ref="chemistry__c2h6"/>
+        <field field_ref="chemistry__etoo"/>
+        <field field_ref="chemistry__etooh"/>
+        <field field_ref="chemistry__mecho"/>
+        <field field_ref="chemistry__meco3"/>
+        <field field_ref="chemistry__pan"/>
+        <field field_ref="chemistry__c3h8"/>
+        <field field_ref="chemistry__n_proo"/>
+        <field field_ref="chemistry__i_proo"/>
+        <field field_ref="chemistry__n_prooh"/>
+        <field field_ref="chemistry__i_prooh"/>
+        <field field_ref="chemistry__etcho"/>
+        <field field_ref="chemistry__etco3"/>
+        <field field_ref="chemistry__me2co"/>
+        <field field_ref="chemistry__mecoch2oo"/>
+        <field field_ref="chemistry__mecoch2ooh"/>
+        <field field_ref="chemistry__ppan"/>
+        <field field_ref="chemistry__meono2"/>
+        <field field_ref="chemistry__c5h8"/>
+        <field field_ref="chemistry__iso2"/>
+        <field field_ref="chemistry__isooh"/>
+        <field field_ref="chemistry__ison"/>
+        <field field_ref="chemistry__macr"/>
+        <field field_ref="chemistry__macro2"/>
+        <field field_ref="chemistry__macrooh"/>
+        <field field_ref="chemistry__mpan"/>
+        <field field_ref="chemistry__hacet"/>
+        <field field_ref="chemistry__mgly"/>
+        <field field_ref="chemistry__nald"/>
+        <field field_ref="chemistry__hcooh"/>
+        <field field_ref="chemistry__meco3h"/>
+        <field field_ref="chemistry__meco2h"/>
+        <field field_ref="chemistry__h2"/>
+        <field field_ref="chemistry__meoh"/>
+        <field field_ref="chemistry__msa"/>
+        <field field_ref="chemistry__nh3"/>
+        <field field_ref="chemistry__cs2"/>
+        <field field_ref="chemistry__csul"/>
+        <field field_ref="chemistry__h2s"/>
+        <field field_ref="chemistry__so3"/>
+        <field field_ref="chemistry__passive_o3"/>
+        <field field_ref="chemistry__age_of_air"/>
+        <field field_ref="chemistry__photol_rate"/>
+        <field field_ref="chemistry__h2o2"/>
 	<field field_ref="chemistry__dms" />
 	<field field_ref="chemistry__so2" />
 	<field field_ref="chemistry__h2so4" />
@@ -963,7 +1127,81 @@
 	<field id="read_snow_layer_liq_mass" name="tile_snow_layer_liq_mass" long_name="snow_layer_liquid_mass_on_tiles" unit="kg m-2" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
 	<field id="read_snow_layer_temp" name="tile_snow_layer_temp" long_name="snow_layer_temperature_on_tiles" unit="K" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
 	<field id="read_snow_layer_rgrain" name="tile_snow_layer_rgrain" long_name="snow_layer_grain_size_on_tiles" unit="microns" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
-      </file>
+	<field id="read_ozone" name="ozone" long_name="mass_fraction_of_ozone_in_air" standard_name="mass_fraction_of_ozone_in_air" unit="1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_o3p" name="o3p" long_name="mass_fraction_of_oxygen_ground_state_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_o1d" name="o1d" long_name="mass_fraction_of_oxygen_excited_state_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_o3" name="o3" long_name="mass_fraction_of_ozone_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_n" name="n" long_name="mass_fraction_of_nitrogen_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_no" name="no" long_name="mass_fraction_of_nitric_oxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_lumped_n" name="lumped_n" long_name="mass_fraction_of_lumped_n_as_nitrogen_dioxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_no2" name="no2" long_name="mass_fraction_of_nitrogen_dioxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_no3" name="no3" long_name="mass_fraction_of_nitrate_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_n2o5" name="n2o5" long_name="mass_fraction_of_dinitrogen_pentoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_ho2no2" name="ho2no2" long_name="mass_fraction_of_peroxynitric_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_hono2" name="hono2" long_name="mass_fraction_of_nitric_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_h2o2" name="h2o2" long_name="mass_fraction_of_hydrogen_peroxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_ch4" name="ch4" long_name="mass_fraction_of_methane_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_co" name="co" long_name="mass_fraction_of_carbon_monoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_hcho" name="hcho" long_name="mass_fraction_of_formaldehyde_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_meooh" name="meooh" long_name="mass_fraction_of_methyl_hydroperoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_h" name="h" long_name="mass_fraction_of_hydrogen_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_oh" name="oh" long_name="mass_fraction_of_hydroxyl_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_ho2" name="ho2" long_name="mass_fraction_of_hydroxy_peroxyl_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_cl" name="cl" long_name="mass_fraction_of_chloride_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_cl2o2" name="cl2o2" long_name="mass_fraction_of_chlorine_monoxide_dimer_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_clo" name="clo" long_name="mass_fraction_of_chlorine_monoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_oclo" name="oclo" long_name="mass_fraction_of_chlorine_dioxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_br" name="br" long_name="mass_fraction_of_bromine_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_lumped_br" name="lumped_br" long_name="mass_fraction_of_lumped_br_as_bromine_monoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_bro" name="bro" long_name="mass_fraction_of_bromine_monoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_brcl" name="brcl" long_name="mass_fraction_of_bromine_chloride_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_brono2" name="brono2" long_name="mass_fraction_of_bromine_nitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_n2o" name="n2o" long_name="mass_fraction_of_nitrous_oxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_hocl" name="hocl" long_name="mass_fraction_of_hydrochlorous_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_lumped_cl" name="lumped_cl" long_name="mass_fraction_of_lumped_cl_as_hydrogen_chloride_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_hcl" name="hcl" long_name="mass_fraction_of_hydrogen_chloride_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_hbr" name="hbr" long_name="mass_fraction_of_hydrogen_bromide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_hobr" name="hobr" long_name="mass_fraction_of_hydrobromous_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_clono2" name="clono2" long_name="mass_fraction_of_chlorine_nitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_cfcl3" name="cfcl3" long_name="mass_fraction_of_cfc11_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_cf2cl2" name="cf2cl2" long_name="mass_fraction_of_cfc12_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_mebr" name="mebr" long_name="mass_fraction_of_methyl_bromide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_hono" name="hono" long_name="mass_fraction_of_nitrous_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_c2h6" name="c2h6" long_name="mass_fraction_of_ethane_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_etooh" name="etooh" long_name="mass_fraction_of_ethyl_hydroperoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_mecho" name="mecho" long_name="mass_fraction_of_acetaldehyde_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_pan" name="pan" long_name="mass_fraction_of_peroxy_acetyl_nitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_c3h8" name="c3h8" long_name="mass_fraction_of_propane_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_n_prooh" name="n_prooh" long_name="mass_fraction_of_n-propyl_alcohol_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_i_prooh" name="i_prooh" long_name="mass_fraction_of_i-propyl_alcohol_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_etcho" name="etcho" long_name="mass_fraction_of_propionaldehyde_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_me2co" name="me2co" long_name="mass_fraction_of_acetone_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_mecoch2ooh" name="mecoch2ooh" long_name="mass_fraction_of_acetone_hydroperoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_ppan" name="ppan" long_name="mass_fraction_of_peroxypropionyl_nitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_meono2" name="meono2" long_name="mass_fraction_of_methyl_nitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_c5h8" name="c5h8" long_name="mass_fraction_of_isoprene_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_isooh" name="isooh" long_name="mass_fraction_of_isoprene_hydroperoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_ison" name="ison" long_name="mass_fraction_of_isoprene_peroxy_acetyl_nitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_macr" name="macr" long_name="mass_fraction_of_methacrolein_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_macrooh" name="macrooh" long_name="mass_fraction_of_lumped_mvk_macr_hydroperoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_mpan" name="mpan" long_name="mass_fraction_of_methacryolyl_peroxynitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_hacet" name="hacet" long_name="mass_fraction_of_hydroxy_acetone_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_mgly" name="mgly" long_name="mass_fraction_of_methylglyoxal_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_nald" name="nald" long_name="mass_fraction_of_nitroxy_acetaldehyde_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_hcooh" name="hcooh" long_name="mass_fraction_of_formic_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_meco3h" name="meco3h" long_name="mass_fraction_of_peroxy_acetic_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_meco2h" name="meco2h" long_name="mass_fraction_of_acetic_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_h2" name="h2" long_name="mass_fraction_of_hydrogen_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_meoh" name="meoh" long_name="mass_fraction_of_methanol_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_msa" name="msa" long_name="mass_fraction_of_methyl_sulphonic_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_nh3" name="nh3" long_name="mass_fraction_of_ammonia_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_cs2" name="cs2" long_name="mass_fraction_of_carbon_disulphide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_csul" name="csul" long_name="mass_fraction_of_carbonyl_sulphide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_h2s" name="h2s" long_name="mass_fraction_of_hydrogen_sulphide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_so3" name="so3" long_name="mass_fraction_of_sulphur_trioxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_passive_o3" name="passive_o3" long_name="mass_fraction_of_passive_ozone_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_age_of_air" name="age_of_air" long_name="mass_fraction_of_age_of_air_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+       </file>
 
       <!-- Ancillary files to read -->
       <file id="orography_ancil" name="orography_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
@@ -1064,6 +1302,66 @@
       </file>
 
     <!-- UKCA emission files -->
+     <file id="emiss_c2h6_ancil" name="emiss_c2h6_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_c2h6_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+      <field id="emiss_c2h6_data" name="emissions_C2H6" long_name="C2H6 surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+      </file>
+
+     <file id="emiss_c3h8_ancil" name="emiss_c3h8_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_c3h8_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+      <field id="emiss_c3h8_data" name="emissions_C3H8" long_name="C3H8 surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+      </file>
+
+     <file id="emiss_c5h8_ancil" name="emiss_c5h8_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_c5h8_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+      <field id="emiss_c5h8_data" name="emissions_C5H8" long_name="Biogenic surface C5H8 emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+      </file>
+
+     <file id="emiss_ch4_ancil" name="emiss_ch4_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_ch4_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+      <field id="emiss_ch4_data" name="emissions_CH4" long_name="CH4 surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+      </file>
+
+     <file id="emiss_co_ancil" name="emiss_co_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_co_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+      <field id="emiss_co_data" name="emissions_CO" long_name="CO surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+      </file>
+
+     <file id="emiss_hcho_ancil" name="emiss_hcho_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_hcho_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+      <field id="emiss_hcho_data" name="emissions_HCHO" long_name="HCHO surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+      </file>
+
+     <file id="emiss_me2co_ancil" name="emiss_me2co_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_me2co_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+      <field id="emiss_me2co_data" name="emissions_Me2CO" long_name="Me2CO surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+      </file>
+
+     <file id="emiss_mecho_ancil" name="emiss_mecho_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_mecho_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+      <field id="emiss_mecho_data" name="emissions_MeCHO" long_name="MeCHO surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+      </file>
+
+     <file id="emiss_nh3_ancil" name="emiss_nh3_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_nh3_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+      <field id="emiss_nh3_data" name="emissions_NH3" long_name="ammonia gas emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+      </file>
+
+     <file id="emiss_no_ancil" name="emiss_no_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_no_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+      <field id="emiss_no_data" name="emissions_NO" long_name="NOx surface emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+      </file>
+
+     <file id="emiss_meoh_ancil" name="emiss_meoh_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_meoh_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+      <field id="emiss_meoh_data" name="emissions_MeOH" long_name="Biogenic surface methanol (CH3OH) emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+      </file>
+
+     <file id="emiss_no_aircrft_ancil" name="emiss_no_aircrft_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_no_aircrft_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+      <field id="emiss_no_aircrft_data" name="emissions_NO_aircrft" long_name="NOx aircraft emissions" unit="kg m-2 s-1" operation="instant" grid_ref="3D_monthly_grid"/>
+      </file>
+
       <file id="emiss_bc_biofuel_ancil" name="emiss_bc_biofuel_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
        <field id="em_bc_bf_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
        <field id="emiss_bc_biofuel_data" name="emissions_BC_biofuel" long_name="BC biofuel surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>

@@ -385,6 +385,16 @@
                     },
 		    plotstr="plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR"
                    )',
+   'run_application("lfric_atm", "clim_gal9_chem",
+                     resolutions=[("C12",1800.0)],
+                     env={"crun":2, "nrun":72,
+                          "directives":{"C12":{"mpi_parts":6,
+                                               "threads":1,
+                                               "wallclock":"00:10:00"},
+                                       },
+                         },
+                     plotstr="plot_map.py -encorr $NODAL_DATA_DIR/lfric_gal_diagnostics.nc  $PLOT_DIR"
+                     )',
    'check_compilers("lfric_atm", "nwp_gal9_mg_copy", "full-debug",
                     resolution=("C48_MG",1800.0))',
    'publish_commit'
@@ -544,17 +554,6 @@
                          },
                      plotstr="plot_map.py $NODAL_DATA_DIR/lfric_gal_diagnostics.nc  $PLOT_DIR"
                      )',
-   'run_application("lfric_atm", "clim_gal9_chem", checkkgo=False,
-                     resolutions=[("C12",1800.0)],
-                     env={"crun":2, "nrun":72,
-                          "directives":{"C12":{"mpi_parts":6,
-                                               "threads":1,
-                                               "wallclock":"00:10:00"},
-                                       },
-                         },
-                     plotstr="plot_map.py -encorr $NODAL_DATA_DIR/lfric_gal_diagnostics.nc  $PLOT_DIR"
-                     )',
-
   ],
   'c224-test': [
     'run_application("lfric_atm", "nwp_gal9_c224", checkkgo=False,

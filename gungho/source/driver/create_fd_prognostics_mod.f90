@@ -35,6 +35,9 @@ module create_fd_prognostics_mod
   use jules_control_init_mod,         only : n_land_tile, n_sea_ice_tile
   use jules_physics_init_mod,         only : snow_lev_tile
   use derived_config_mod,             only : l_esm_couple
+  use chemistry_config_mod,           only : chem_scheme,                 &
+                                             chem_scheme_strat_test,      &
+                                             chem_scheme_strattrop
 
   implicit none
   private
@@ -308,6 +311,171 @@ contains
                              fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=snow_lev_tile)
     end if
+
+    ! Chemistry fields
+    if ( chem_scheme == chem_scheme_strat_test .or. &
+         chem_scheme == chem_scheme_strattrop ) then
+      call setup_ancil_field('o3p', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('o1d', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('o3', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('lumped_n', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('n', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('no', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('no3', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('no2', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('n2o5', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('ho2no2', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('hono2', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('h2o2', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('ch4', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('co', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('hcho', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('meoo', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('meooh', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('h', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('oh', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('ho2', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('cl', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('cl2o2', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('clo', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('oclo', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('br', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('lumped_br', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('bro', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('brcl', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('brono2', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('n2o', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('lumped_cl', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('hcl', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('hocl', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('hbr', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('hobr', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('clono2', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('cfcl3', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('cf2cl2', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('mebr', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('hono', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('c2h6', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('etoo', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('etooh', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('mecho', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('meco3', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('pan', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('c3h8', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('n_proo', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('i_proo', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('n_prooh', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('i_prooh', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('etcho', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('etco3', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('me2co', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('mecoch2oo', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('mecoch2ooh', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('ppan', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('meono2', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('c5h8', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('isooh', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('ison', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('macr', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('macrooh', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('mpan', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('hacet', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('mgly', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('nald', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('hcooh', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('meco3h', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('meco2h', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('h2', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('meoh', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('msa', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('nh3', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('cs2', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('csul', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('h2s', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('so3', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('passive_o3', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+      call setup_ancil_field('age_of_air', depository, &
+                             fd_field_collection, mesh, twod_mesh)
+    end if  ! Chemistry fields
 
     call log_event( 'Physics: Finite diff prognostics created', LOG_LEVEL_INFO )
 

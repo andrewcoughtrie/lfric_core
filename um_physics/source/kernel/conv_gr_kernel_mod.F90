@@ -33,7 +33,7 @@ module conv_gr_kernel_mod
   !>
   type, public, extends(kernel_type) :: conv_gr_kernel_type
     private
-    type(arg_type) :: meta_args(136) = (/                                         &
+    type(arg_type) :: meta_args(214) = (/                                         &
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                                &! outer
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! rho_in_w3
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! rho_in_wth
@@ -94,7 +94,85 @@ module conv_gr_kernel_mod
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! dcfl_conv
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! dcff_conv
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! dbcf_conv
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! o3p
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! o1d
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! o3
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! n
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! no
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! no3
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! lumped_n
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! n2o5
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! ho2no2
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! hono2
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! h2o2
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! ch4
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! co
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! hcho
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! meoo
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! meooh
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! h
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! oh
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! ho2
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! cl
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! cl2o2
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! clo
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! oclo
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! br
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! lumped_br
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! brcl
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! brono2
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! n2o
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! lumped_cl
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! hocl
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! hbr
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! hobr
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! clono2
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! cfcl3
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! cf2cl2
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! mebr
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! hono
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! c2h6
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! etoo
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! etooh
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! mecho
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! meco3
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! pan
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! c3h8
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! n_proo
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! i_proo
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! n_prooh
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! i_prooh
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! etcho
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! etco3
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! me2co
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! mecoch2oo
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! mecoch2ooh
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! ppan
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! meono2
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! c5h8
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! iso2
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! isooh
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! ison
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! macr
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! macro2
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! macrooh
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! mpan
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! hacet
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! mgly
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! nald
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! hcooh
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! meco3h
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! meco2h
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! h2
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! meoh
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! msa
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! nh3
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! cs2
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! csul
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! h2s
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! so3
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! passive_o3
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! age_of_air
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! dms
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! so2
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! h2so4
@@ -245,7 +323,85 @@ contains
   !> @param[in,out] dcfl_conv            Increment to liquid cloud fraction from convection
   !> @param[in,out] dcff_conv            Increment to ice cloud fraction from convection
   !> @param[in,out] dbcf_conv            Increment to bulk cloud fraction from convection
+  !> @param[in,out] o3p                  oxygen_ground_state m.m.r
+  !> @param[in,out] o1d                  oxygen_excited_state m.m.r
+  !> @param[in,out] o3                   ozone m.m.r
+  !> @param[in,out] n                    nitrogen_radical m.m.r
+  !> @param[in,out] no                   nitric_oxide m.m.r
+  !> @param[in,out] no3                  nitrate_radical m.m.r
+  !> @param[in,out] lumped_n             lumped_n_as_nitrogen_dioxide m.m.r
+  !> @param[in,out] n2o5                 dinitrogen_pentoxide m.m.r
+  !> @param[in,out] ho2no2               peroxynitric_acid m.m.r
+  !> @param[in,out] hono2                nitric_acid m.m.r
   !> @param[in,out] h2o2                 Hydrogen peroxide m.m.r.
+  !> @param[in,out] ch4                  methane m.m.r
+  !> @param[in,out] co                   carbon_monoxide m.m.r
+  !> @param[in,out] hcho                 formaldehyde m.m.r
+  !> @param[in,out] meoo                 methyl_peroxy_radical m.m.r
+  !> @param[in,out] meooh                methyl_hydroperoxide m.m.r
+  !> @param[in,out] h                    hydrogen_radical m.m.r
+  !> @param[in,out] oh                   hydroxyl_radical m.m.r
+  !> @param[in,out] ho2                  hydroxy_peroxyl_radical m.m.r
+  !> @param[in,out] cl                   chloride_radical m.m.r
+  !> @param[in,out] cl2o2                chlorine_monoxide_dimer m.m.r
+  !> @param[in,out] clo                  chlorine_monoxide m.m.r
+  !> @param[in,out] oclo                 chlorine_dioxide m.m.r
+  !> @param[in,out] br                   bromine m.m.r
+  !> @param[in,out] lumped_br            lumped_br_as_bromine_monoxide m.m.r
+  !> @param[in,out] brcl                 bromine_chloride m.m.r
+  !> @param[in,out] brono2               bromine_nitrate m.m.r
+  !> @param[in,out] n2o                  nitrous_oxide m.m.r
+  !> @param[in,out] lumped_cl            lumped_cl_as_hydrogen_chloride m.m.r
+  !> @param[in,out] hocl                 hydrochlorous_acid m.m.r
+  !> @param[in,out] hbr                  hydrogen_bromide m.m.r
+  !> @param[in,out] hobr                 hydrobromous_acid m.m.r
+  !> @param[in,out] clono2               chlorine_nitrate m.m.r
+  !> @param[in,out] cfcl3                cfc11 m.m.r
+  !> @param[in,out] cf2cl2               cfc12 m.m.r
+  !> @param[in,out] mebr                 methyl_bromide m.m.r
+  !> @param[in,out] hono                 nitrous_acid m.m.r
+  !> @param[in,out] c2h6                 ethane m.m.r
+  !> @param[in,out] etoo                 ethyl_peroxy_radical m.m.r
+  !> @param[in,out] etooh                ethyl_hydroperoxide m.m.r
+  !> @param[in,out] mecho                acetaldehyde m.m.r
+  !> @param[in,out] meco3                peroxy_acetic_acide m.m.r
+  !> @param[in,out] pan                  peroxy_acetyl_nitrate m.m.r
+  !> @param[in,out] c3h8                 propane m.m.r
+  !> @param[in,out] n_proo               n-propyl_peroxy_radical m.m.r
+  !> @param[in,out] i_proo               i-propyl_peroxy_radical m.m.r
+  !> @param[in,out] n_prooh              n-propyl_alcohol m.m.r
+  !> @param[in,out] i_prooh              i-propyl_alcohol m.m.r
+  !> @param[in,out] etcho                propionaldehyde m.m.r
+  !> @param[in,out] etco3                ethyl_carbonate m.m.r
+  !> @param[in,out] me2co                acetone m.m.r
+  !> @param[in,out] mecoch2oo            acetone_peroxy_radical m.m.r
+  !> @param[in,out] mecoch2ooh           acetone_hydroperoxide m.m.r
+  !> @param[in,out] ppan                 peroxypropionyl_nitrate m.m.r
+  !> @param[in,out] meono2               methyl_nitrate m.m.r
+  !> @param[in,out] c5h8                 isoprene m.m.r
+  !> @param[in,out] iso2                 isoprene_peroxy_radical m.m.r
+  !> @param[in,out] isooh                isoprene_hydroperoxide m.m.r
+  !> @param[in,out] ison                 isoprene_peroxy_acetyl_nitrate m.m.r
+  !> @param[in,out] macr                 methacrolein m.m.r
+  !> @param[in,out] macro2               lumped_mvk_macr_hydroperoxy_radical m.m.r
+  !> @param[in,out] macrooh              lumped_mvk_macr_hydroperoxide m.m.r
+  !> @param[in,out] mpan                 methacryolyl_peroxynitrate m.m.r
+  !> @param[in,out] hacet                hydroxy_acetone m.m.r
+  !> @param[in,out] mgly                 methylglyoxal m.m.r
+  !> @param[in,out] nald                 nitroxy_acetaldehyde m.m.r
+  !> @param[in,out] hcooh                formic_acid m.m.r
+  !> @param[in,out] meco3h               peroxy_acetic_acid m.m.r
+  !> @param[in,out] meco2h               acetic_acid m.m.r
+  !> @param[in,out] h2                   hydrogen m.m.r
+  !> @param[in,out] meoh                 methanol m.m.r
+  !> @param[in,out] msa                  methyl_sulphonic_acid m.m.r
+  !> @param[in,out] nh3                  ammonia m.m.r
+  !> @param[in,out] cs2                  carbon_disulphide m.m.r
+  !> @param[in,out] csul                 carbonyl_sulphide m.m.r
+  !> @param[in,out] h2s                  hydrogen_sulphide m.m.r
+  !> @param[in,out] so3                  sulphur_trioxide m.m.r
+  !> @param[in,out] passive_o3           passive_ozone m.m.r
+  !> @param[in,out] age_of_air           age_of_air m.m.r
   !> @param[in,out] dms                  Dimethyl sulfide m.m.r.
   !> @param[in,out] so2                  Sulfur dioxide m.m.r.
   !> @param[in,out] h2so4                Sulfuric acid m.m.r.
@@ -394,7 +550,85 @@ contains
                           dcfl_conv,                         &
                           dcff_conv,                         &
                           dbcf_conv,                         &
+                          o3p,                               &
+                          o1d,                               &
+                          o3,                                &
+                          n,                                 &
+                          no,                                &
+                          no3,                               &
+                          lumped_n,                          &
+                          n2o5,                              &
+                          ho2no2,                            &
+                          hono2,                             &
                           h2o2,                              &
+                          ch4,                               &
+                          co,                                &
+                          hcho,                              &
+                          meoo,                              &
+                          meooh,                             &
+                          h,                                 &
+                          oh,                                &
+                          ho2,                               &
+                          cl,                                &
+                          cl2o2,                             &
+                          clo,                               &
+                          oclo,                              &
+                          br,                                &
+                          lumped_br,                         &
+                          brcl,                              &
+                          brono2,                            &
+                          n2o,                               &
+                          lumped_cl,                         &
+                          hocl,                              &
+                          hbr,                               &
+                          hobr,                              &
+                          clono2,                            &
+                          cfcl3,                             &
+                          cf2cl2,                            &
+                          mebr,                              &
+                          hono,                              &
+                          c2h6,                              &
+                          etoo,                              &
+                          etooh,                             &
+                          mecho,                             &
+                          meco3,                             &
+                          pan,                               &
+                          c3h8,                              &
+                          n_proo,                            &
+                          i_proo,                            &
+                          n_prooh,                           &
+                          i_prooh,                           &
+                          etcho,                             &
+                          etco3,                             &
+                          me2co,                             &
+                          mecoch2oo,                         &
+                          mecoch2ooh,                        &
+                          ppan,                              &
+                          meono2,                            &
+                          c5h8,                              &
+                          iso2,                              &
+                          isooh,                             &
+                          ison,                              &
+                          macr,                              &
+                          macro2,                            &
+                          macrooh,                           &
+                          mpan,                              &
+                          hacet,                             &
+                          mgly,                              &
+                          nald,                              &
+                          hcooh,                             &
+                          meco3h,                            &
+                          meco2h,                            &
+                          h2,                                &
+                          meoh,                              &
+                          msa,                               &
+                          nh3,                               &
+                          cs2,                               &
+                          csul,                              &
+                          h2s,                               &
+                          so3,                               &
+                          passive_o3,                        &
+                          age_of_air,                        &
                           dms,                               &
                           so2,                               &
                           h2so4,                             &
@@ -489,7 +723,86 @@ contains
 
     use jules_control_init_mod, only: n_land_tile
 
-    use um_ukca_init_mod, only: fldname_h2o2,                                  &
+    use um_ukca_init_mod, only: fldname_o3p,                                   &
+                                fldname_o1d,                                   &
+                                fldname_o3,                                    &
+                                fldname_n,                                     &
+                                fldname_no,                                    &
+                                fldname_no3,                                   &
+                                fldname_lumped_n,                              &
+                                fldname_n2o5,                                  &
+                                fldname_ho2no2,                                &
+                                fldname_hono2,                                 &
+                                fldname_h2o2,                                  &
+                                fldname_ch4,                                   &
+                                fldname_co,                                    &
+                                fldname_hcho,                                  &
+                                fldname_meoo,                                  &
+                                fldname_meooh,                                 &
+                                fldname_h,                                     &
+                                fldname_ch2o,                                  &
+                                fldname_oh,                                    &
+                                fldname_ho2,                                   &
+                                fldname_cl,                                    &
+                                fldname_cl2o2,                                 &
+                                fldname_clo,                                   &
+                                fldname_oclo,                                  &
+                                fldname_br,                                    &
+                                fldname_lumped_br,                             &
+                                fldname_brcl,                                  &
+                                fldname_brono2,                                &
+                                fldname_n2o,                                   &
+                                fldname_lumped_cl,                             &
+                                fldname_hocl,                                  &
+                                fldname_hbr,                                   &
+                                fldname_hobr,                                  &
+                                fldname_clono2,                                &
+                                fldname_cfcl3,                                 &
+                                fldname_cf2cl2,                                &
+                                fldname_mebr,                                  &
+                                fldname_hono,                                  &
+                                fldname_c2h6,                                  &
+                                fldname_etoo,                                  &
+                                fldname_etooh,                                 &
+                                fldname_mecho,                                 &
+                                fldname_meco3,                                 &
+                                fldname_pan,                                   &
+                                fldname_c3h8,                                  &
+                                fldname_n_proo,                                &
+                                fldname_i_proo,                                &
+                                fldname_n_prooh,                               &
+                                fldname_i_prooh,                               &
+                                fldname_etcho,                                 &
+                                fldname_etco3,                                 &
+                                fldname_me2co,                                 &
+                                fldname_mecoch2oo,                             &
+                                fldname_mecoch2ooh,                            &
+                                fldname_ppan,                                  &
+                                fldname_meono2,                                &
+                                fldname_c5h8,                                  &
+                                fldname_iso2,                                  &
+                                fldname_isooh,                                 &
+                                fldname_ison,                                  &
+                                fldname_macr,                                  &
+                                fldname_macro2,                                &
+                                fldname_macrooh,                               &
+                                fldname_mpan,                                  &
+                                fldname_hacet,                                 &
+                                fldname_mgly,                                  &
+                                fldname_nald,                                  &
+                                fldname_hcooh,                                 &
+                                fldname_meco3h,                                &
+                                fldname_meco2h,                                &
+                                fldname_h2,                                    &
+                                fldname_meoh,                                  &
+                                fldname_msa,                                   &
+                                fldname_nh3,                                   &
+                                fldname_cs2,                                   &
+                                fldname_csul,                                  &
+                                fldname_h2s,                                   &
+                                fldname_so3,                                   &
+                                fldname_passive_o3,                            &
+                                fldname_age_of_air,                            &
                                 fldname_dms,                                   &
                                 fldname_so2,                                   &
                                 fldname_h2so4,                                 &
@@ -618,8 +931,85 @@ contains
 
     real(kind=r_def), dimension(undf_2d), intent(inout) :: cape_diluted,  &
                                    conv_rain, conv_snow, cca_2d, dd_mf_cb
-
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: o3p
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: o1d
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: o3
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: n
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: no
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: no3
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: lumped_n
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: n2o5
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: ho2no2
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: hono2
     real(kind=r_def), intent(in out), dimension(undf_wth) :: h2o2
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: ch4
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: co
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: hcho
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: meoo
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: meooh
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: h
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: oh
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: ho2
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: cl
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: cl2o2
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: clo
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: oclo
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: br
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: lumped_br
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: brcl
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: brono2
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: n2o
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: lumped_cl
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: hocl
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: hbr
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: hobr
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: clono2
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: cfcl3
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: cf2cl2
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: mebr
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: hono
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: c2h6
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: etoo
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: etooh
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: mecho
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: meco3
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: pan
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: c3h8
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: n_proo
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: i_proo
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: n_prooh
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: i_prooh
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: etcho
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: etco3
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: me2co
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: mecoch2oo
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: mecoch2ooh
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: ppan
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: meono2
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: c5h8
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: iso2
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: isooh
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: ison
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: macr
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: macro2
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: macrooh
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: mpan
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: hacet
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: mgly
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: nald
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: hcooh
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: meco3h
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: meco2h
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: h2
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: meoh
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: msa
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: nh3
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: cs2
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: csul
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: h2s
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: so3
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: passive_o3
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: age_of_air
     real(kind=r_def), intent(in out), dimension(undf_wth) :: dms
     real(kind=r_def), intent(in out), dimension(undf_wth) :: so2
     real(kind=r_def), intent(in out), dimension(undf_wth) :: h2so4
@@ -1011,9 +1401,245 @@ contains
 
       do i = 1, ntra_fld
         select case(ukca_tracer_names(i))
+        case(fldname_o3p)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( o3p( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_o1d)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( o1d( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_o3)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( o3( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_n)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( n( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_no)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( no( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_no3)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( no3( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_lumped_n)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( lumped_n( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_n2o5)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( n2o5( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_ho2no2)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( ho2no2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_hono2)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( hono2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
         case(fldname_h2o2)
           tot_tracer( 1, 1, :, i ) =                                           &
             real( h2o2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_ch4)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( ch4( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_co)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( co( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_hcho)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( hcho( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_meoo)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( meoo( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_meooh)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( meooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_h)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( h( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_ch2o)
+          ! Do nothing- H2O tracer from chemistry not transported.
+        case(fldname_oh)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( oh( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_ho2)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( ho2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_cl)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( cl( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_cl2o2)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( cl2o2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_clo)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( clo( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_oclo)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( oclo( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_br)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( br( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_lumped_br)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( lumped_br( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_brcl)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( brcl( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_brono2)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( brono2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_n2o)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( n2o( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_lumped_cl)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( lumped_cl( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_hocl)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( hocl( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_hbr)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( hbr( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_hobr)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( hobr( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_clono2)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( clono2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_cfcl3)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( cfcl3( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_cf2cl2)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( cf2cl2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_mebr)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( mebr( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_hono)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( hono( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_c2h6)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( c2h6( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_etoo)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( etoo( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_etooh)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( etooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_mecho)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( mecho( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_meco3)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( meco3( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_pan)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( pan( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_c3h8)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( c3h8( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_n_proo)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( n_proo( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_i_proo)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( i_proo( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_n_prooh)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( n_prooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_i_prooh)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( i_prooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_etcho)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( etcho( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_etco3)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( etco3( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_me2co)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( me2co( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_mecoch2oo)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( mecoch2oo( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_mecoch2ooh)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( mecoch2ooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_ppan)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( ppan( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_meono2)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( meono2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_c5h8)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( c5h8( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_iso2)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( iso2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_isooh)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( isooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_ison)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( ison( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_macr)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( macr( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_macro2)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( macro2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_macrooh)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( macrooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_mpan)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( mpan( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_hacet)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( hacet( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_mgly)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( mgly( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_nald)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( nald( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_hcooh)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( hcooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_meco3h)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( meco3h( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_meco2h)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( meco2h( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_h2)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( h2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_meoh)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( meoh( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_msa)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( msa( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_nh3)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( nh3( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_cs2)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( cs2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_csul)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( csul( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_h2s)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( h2s( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_so3)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( so3( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_passive_o3)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( passive_o3( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+        case(fldname_age_of_air)
+          tot_tracer( 1, 1, :, i ) =                                           &
+            real( age_of_air( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
         case(fldname_dms)
           tot_tracer( 1, 1, :, i ) =                                           &
             real( dms( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
@@ -1750,10 +2376,323 @@ contains
     if ( outer == outer_iterations .AND. l_tracer ) then
       do i = 1, ntra_fld
         select case(ukca_tracer_names(i))
+         case(fldname_o3p)
+          o3p( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          o3p( map_wth(1) + 0 ) = o3p( map_wth(1) + 1 )
+         case(fldname_o1d)
+          o1d( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          o1d( map_wth(1) + 0 ) = o1d( map_wth(1) + 1 )
+         case(fldname_o3)
+          o3( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          o3( map_wth(1) + 0 ) = o3( map_wth(1) + 1 )
+         case(fldname_n)
+          n( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          n( map_wth(1) + 0 ) = n( map_wth(1) + 1 )
+         case(fldname_no)
+          no( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          no( map_wth(1) + 0 ) = no( map_wth(1) + 1 )
+         case(fldname_no3)
+          no3( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          no3( map_wth(1) + 0 ) = no3( map_wth(1) + 1 )
+         case(fldname_lumped_n)
+          lumped_n( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          lumped_n( map_wth(1) + 0 ) = lumped_n( map_wth(1) + 1 )
+         case(fldname_n2o5)
+          n2o5( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          n2o5( map_wth(1) + 0 ) = n2o5( map_wth(1) + 1 )
+         case(fldname_ho2no2)
+          ho2no2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          ho2no2( map_wth(1) + 0 ) = ho2no2( map_wth(1) + 1 )
+         case(fldname_hono2)
+          hono2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          hono2( map_wth(1) + 0 ) = hono2( map_wth(1) + 1 )
         case(fldname_h2o2)
           h2o2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
             real( tot_tracer( 1, 1, :, i ), r_def )
           h2o2( map_wth(1) + 0 ) = h2o2( map_wth(1) + 1 )
+         case(fldname_ch4)
+          ch4( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          ch4( map_wth(1) + 0 ) = ch4( map_wth(1) + 1 )
+         case(fldname_co)
+          co( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          co( map_wth(1) + 0 ) = co( map_wth(1) + 1 )
+         case(fldname_hcho)
+          hcho( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          hcho( map_wth(1) + 0 ) = hcho( map_wth(1) + 1 )
+         case(fldname_meoo)
+          meoo( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          meoo( map_wth(1) + 0 ) = meoo( map_wth(1) + 1 )
+         case(fldname_meooh)
+          meooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                    &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          meooh( map_wth(1) + 0 ) = meooh( map_wth(1) + 1 )
+         case(fldname_h)
+          h( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          h( map_wth(1) + 0 ) = h( map_wth(1) + 1 )
+         case(fldname_ch2o)
+         case(fldname_oh)
+          oh( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          oh( map_wth(1) + 0 ) = oh( map_wth(1) + 1 )
+         case(fldname_ho2)
+          ho2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          ho2( map_wth(1) + 0 ) = ho2( map_wth(1) + 1 )
+         case(fldname_cl)
+          cl( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          cl( map_wth(1) + 0 ) = cl( map_wth(1) + 1 )
+         case(fldname_cl2o2)
+          cl2o2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                   &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          cl2o2( map_wth(1) + 0 ) = cl2o2( map_wth(1) + 1 )
+         case(fldname_clo)
+          clo( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          clo( map_wth(1) + 0 ) = clo( map_wth(1) + 1 )
+         case(fldname_oclo)
+          oclo( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          oclo( map_wth(1) + 0 ) = oclo( map_wth(1) + 1 )
+         case(fldname_br)
+          br( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          br( map_wth(1) + 0 ) = br( map_wth(1) + 1 )
+         case(fldname_lumped_br)
+          lumped_br( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          lumped_br( map_wth(1) + 0 ) = lumped_br( map_wth(1) + 1 )
+         case(fldname_brcl)
+          brcl( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          brcl( map_wth(1) + 0 ) = brcl( map_wth(1) + 1 )
+         case(fldname_brono2)
+          brono2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          brono2( map_wth(1) + 0 ) = brono2( map_wth(1) + 1 )
+         case(fldname_n2o)
+          n2o( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          n2o( map_wth(1) + 0 ) = n2o( map_wth(1) + 1 )
+         case(fldname_lumped_cl)
+          lumped_cl( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          lumped_cl( map_wth(1) + 0 ) = lumped_cl( map_wth(1) + 1 )
+         case(fldname_hocl)
+          hocl( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          hocl( map_wth(1) + 0 ) = hocl( map_wth(1) + 1 )
+         case(fldname_hbr)
+          hbr( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          hbr( map_wth(1) + 0 ) = hbr( map_wth(1) + 1 )
+         case(fldname_hobr)
+          hobr( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          hobr( map_wth(1) + 0 ) = hobr( map_wth(1) + 1 )
+         case(fldname_clono2)
+          clono2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          clono2( map_wth(1) + 0 ) = clono2( map_wth(1) + 1 )
+         case(fldname_cfcl3)
+          cfcl3( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          cfcl3( map_wth(1) + 0 ) = cfcl3( map_wth(1) + 1 )
+         case(fldname_cf2cl2)
+          cf2cl2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          cf2cl2( map_wth(1) + 0 ) = cf2cl2( map_wth(1) + 1 )
+         case(fldname_mebr)
+          mebr( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          mebr( map_wth(1) + 0 ) = mebr( map_wth(1) + 1 )
+         case(fldname_hono)
+          hono( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          hono( map_wth(1) + 0 ) = hono( map_wth(1) + 1 )
+         case(fldname_c2h6)
+          c2h6( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          c2h6( map_wth(1) + 0 ) = c2h6( map_wth(1) + 1 )
+         case(fldname_etoo)
+          etoo( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          etoo( map_wth(1) + 0 ) = etoo( map_wth(1) + 1 )
+         case(fldname_etooh)
+          etooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          etooh( map_wth(1) + 0 ) = etooh( map_wth(1) + 1 )
+         case(fldname_mecho)
+          mecho( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          mecho( map_wth(1) + 0 ) = mecho( map_wth(1) + 1 )
+         case(fldname_meco3)
+          meco3( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          meco3( map_wth(1) + 0 ) = meco3( map_wth(1) + 1 )
+         case(fldname_pan)
+          pan( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          pan( map_wth(1) + 0 ) = pan( map_wth(1) + 1 )
+         case(fldname_c3h8)
+          c3h8( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          c3h8( map_wth(1) + 0 ) = c3h8( map_wth(1) + 1 )
+         case(fldname_n_proo)
+          n_proo( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          n_proo( map_wth(1) + 0 ) = n_proo( map_wth(1) + 1 )
+         case(fldname_i_proo)
+          i_proo( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          i_proo( map_wth(1) + 0 ) = i_proo( map_wth(1) + 1 )
+         case(fldname_n_prooh)
+          n_prooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          n_prooh( map_wth(1) + 0 ) = n_prooh( map_wth(1) + 1 )
+         case(fldname_i_prooh)
+          i_prooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          i_prooh( map_wth(1) + 0 ) = i_prooh( map_wth(1) + 1 )
+         case(fldname_etcho)
+          etcho( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          etcho( map_wth(1) + 0 ) = etcho( map_wth(1) + 1 )
+         case(fldname_etco3)
+          etco3( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          etco3( map_wth(1) + 0 ) = etco3( map_wth(1) + 1 )
+         case(fldname_me2co)
+          me2co( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          me2co( map_wth(1) + 0 ) = me2co( map_wth(1) + 1 )
+         case(fldname_mecoch2oo)
+          mecoch2oo( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          mecoch2oo( map_wth(1) + 0 ) = mecoch2oo( map_wth(1) + 1 )
+         case(fldname_mecoch2ooh)
+          mecoch2ooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          mecoch2ooh( map_wth(1) + 0 ) = mecoch2ooh( map_wth(1) + 1 )
+         case(fldname_ppan)
+          ppan( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          ppan( map_wth(1) + 0 ) = ppan( map_wth(1) + 1 )
+         case(fldname_meono2)
+          meono2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          meono2( map_wth(1) + 0 ) = meono2( map_wth(1) + 1 )
+         case(fldname_c5h8)
+          c5h8( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          c5h8( map_wth(1) + 0 ) = c5h8( map_wth(1) + 1 )
+         case(fldname_iso2)
+          iso2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          iso2( map_wth(1) + 0 ) = iso2( map_wth(1) + 1 )
+         case(fldname_isooh)
+          isooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          isooh( map_wth(1) + 0 ) = isooh( map_wth(1) + 1 )
+         case(fldname_ison)
+          ison( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          ison( map_wth(1) + 0 ) = ison( map_wth(1) + 1 )
+         case(fldname_macr)
+          macr( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          macr( map_wth(1) + 0 ) = macr( map_wth(1) + 1 )
+         case(fldname_macro2)
+          macro2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          macro2( map_wth(1) + 0 ) = macro2( map_wth(1) + 1 )
+         case(fldname_macrooh)
+          macrooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          macrooh( map_wth(1) + 0 ) = macrooh( map_wth(1) + 1 )
+         case(fldname_mpan)
+          mpan( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          mpan( map_wth(1) + 0 ) = mpan( map_wth(1) + 1 )
+         case(fldname_hacet)
+          hacet( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          hacet( map_wth(1) + 0 ) = hacet( map_wth(1) + 1 )
+         case(fldname_mgly)
+          mgly( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          mgly( map_wth(1) + 0 ) = mgly( map_wth(1) + 1 )
+         case(fldname_nald)
+          nald( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          nald( map_wth(1) + 0 ) = nald( map_wth(1) + 1 )
+         case(fldname_hcooh)
+          hcooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          hcooh( map_wth(1) + 0 ) = hcooh( map_wth(1) + 1 )
+         case(fldname_meco3h)
+          meco3h( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          meco3h( map_wth(1) + 0 ) = meco3h( map_wth(1) + 1 )
+         case(fldname_meco2h)
+          meco2h( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          meco2h( map_wth(1) + 0 ) = meco2h( map_wth(1) + 1 )
+         case(fldname_h2)
+          h2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          h2( map_wth(1) + 0 ) = h2( map_wth(1) + 1 )
+         case(fldname_meoh)
+          meoh( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          meoh( map_wth(1) + 0 ) = meoh( map_wth(1) + 1 )
+         case(fldname_msa)
+          msa( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          msa( map_wth(1) + 0 ) = msa( map_wth(1) + 1 )
+         case(fldname_nh3)
+          nh3( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          nh3( map_wth(1) + 0 ) = nh3( map_wth(1) + 1 )
+         case(fldname_cs2)
+          cs2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          cs2( map_wth(1) + 0 ) = cs2( map_wth(1) + 1 )
+         case(fldname_csul)
+          csul( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          csul( map_wth(1) + 0 ) = csul( map_wth(1) + 1 )
+         case(fldname_h2s)
+          h2s( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          h2s( map_wth(1) + 0 ) = h2s( map_wth(1) + 1 )
+         case(fldname_so3)
+          so3( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          so3( map_wth(1) + 0 ) = so3( map_wth(1) + 1 )
+         case(fldname_passive_o3)
+          passive_o3( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          passive_o3( map_wth(1) + 0 ) = passive_o3( map_wth(1) + 1 )
+         case(fldname_age_of_air)
+          age_of_air( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
+            real( tot_tracer( 1, 1, :, i ), r_def )
+          age_of_air( map_wth(1) + 0 ) = age_of_air( map_wth(1) + 1 )
         case(fldname_dms)
           dms( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                      &
             real( tot_tracer( 1, 1, :, i ), r_def )

@@ -69,9 +69,11 @@ module create_physics_prognostics_mod
   use microphysics_config_mod,        only : turb_gen_mixph
   use derived_config_mod,             only : l_esm_couple
   use esm_couple_config_mod,          only : l_esm_couple_test
-  use chemistry_config_mod,           only : chem_scheme,                       &
-                                             chem_scheme_strattrop,             &
-                                             chem_scheme_strat_test
+  use chemistry_config_mod,           only : chem_scheme, chem_scheme_none,    &
+                                             chem_scheme_strattrop,            &
+                                             chem_scheme_strat_test,           &
+                                             chem_scheme_offline_ox,           &
+                                             l_ukca_ro2_ntp
 
 #ifdef UM_PHYSICS
   use multidata_field_dimensions_mod, only :                                    &
@@ -109,6 +111,7 @@ contains
     logical(l_def) :: checkpoint_couple
     logical(l_def) :: advection_flag
     logical(l_def) :: advection_flag_dust
+    logical(l_def) :: is_empty
 #endif
 
     class(clock_type), pointer :: clock
@@ -922,48 +925,16 @@ contains
     ! Fields owned by the chemistry scheme
     !========================================================================
 
-    ! 3D fields, might need checkpointing and advecting
-    if ( aerosol == aerosol_um .and. glomap_mode == glomap_mode_ukca ) then
-      checkpoint_flag = .true.
-      advection_flag = .true.
-    else
-      checkpoint_flag = .false.
-      advection_flag = .false.
-    end if
-    call processor%apply(make_spec('h2o2', main%chemistry,                      &
-        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
-    call processor%apply(make_spec('dms', main%chemistry,                       &
-        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
-    call processor%apply(make_spec('so2', main%chemistry,                       &
-        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
-    call processor%apply(make_spec('h2so4', main%chemistry,                     &
-        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
-    call processor%apply(make_spec('dmso', main%chemistry,                      &
-        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
-    call processor%apply(make_spec('monoterpene', main%chemistry,               &
-        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
-    call processor%apply(make_spec('secondary_organic', main%chemistry,         &
-        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
-
-    ! 3D fields, might need checkpointing
-    ! Not advected in Offline Oxidants chemistry scheme
-    if ( aerosol == aerosol_um .and.                                            &
-         ( glomap_mode == glomap_mode_ukca .or.                                 &
+    ! Chemistry emissions - only accessed if the UKCA (algorithm &) kernel is
+    ! called. This occurs when 'glomap_mode' aerosol scheme is chosen,
+    ! irrespective of the chemistry scheme since currently there is no option
+    ! to use chemistry scheme without aerosols.
+    ! The emissions are never advected but checkpointed for chem_scheme_strattrop
+    if ( aerosol == aerosol_um .and.            &
+         ( glomap_mode == glomap_mode_ukca .or. &
            glomap_mode == glomap_mode_dust_and_clim ) ) then
-      call processor%apply(make_spec('o3', main%chemistry,                      &
-          ckp=checkpoint_flag))
-      call processor%apply(make_spec('no3', main%chemistry,                     &
-          ckp=checkpoint_flag))
-      call processor%apply(make_spec('oh', main%chemistry,                      &
-          ckp=checkpoint_flag))
-      call processor%apply(make_spec('ho2', main%chemistry,                     &
-          ckp=checkpoint_flag))
-      call processor%apply(make_spec('h2o2_limit', main%chemistry,              &
-          ckp=checkpoint_flag))
 
-      ! Chemistry Emissions - need to define as long as ukca alg routine is
-      ! called, but checkpointed only if chemistry is active, never advected
-      if ( chem_scheme == chem_scheme_strattrop .or.                            &
+      if ( chem_scheme == chem_scheme_strattrop .or.                           &
          chem_scheme == chem_scheme_strat_test ) then
         checkpoint_flag = .true.
       else
@@ -998,6 +969,259 @@ contains
 
     endif  ! glomap = ukca
 
+    ! Chemistry tracers and prognostic fields - need to be always active since
+    ! they are accessed in ukca and conv_gr kernels, but checkpointed or
+    ! advected only when chemistry is active and created with empty data when
+    ! not used.
+    if ( chem_scheme == chem_scheme_strattrop .or.                             &
+         chem_scheme == chem_scheme_strat_test ) then
+      advection_flag  = .true.
+      checkpoint_flag = .true.
+      is_empty        = .false.
+    else
+      advection_flag  = .false.
+      checkpoint_flag = .false.
+      is_empty        = .true.
+    end if
+
+    call processor%apply(make_spec('o3p', main%chemistry, empty=is_empty,      &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('n', main%chemistry, empty=is_empty,        &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('no', main%chemistry, empty=is_empty,       &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('lumped_n', main%chemistry, empty=is_empty, &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('n2o5', main%chemistry, empty=is_empty,     &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('ho2no2', main%chemistry, empty=is_empty,   &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('hono2', main%chemistry, empty=is_empty,    &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('ch4', main%chemistry, empty=is_empty,      &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('co', main%chemistry, empty=is_empty,       &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('hcho', main%chemistry, empty=is_empty,     &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('meooh', main%chemistry, empty=is_empty,    &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('h', main%chemistry, empty=is_empty,        &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('cl', main%chemistry, empty=is_empty,       &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('cl2o2', main%chemistry, empty=is_empty,    &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('clo', main%chemistry, empty=is_empty,      &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('oclo', main%chemistry, empty=is_empty,     &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('br', main%chemistry, empty=is_empty,       &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('lumped_br', main%chemistry, empty=is_empty,&
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('brcl', main%chemistry, empty=is_empty,     &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('brono2', main%chemistry, empty=is_empty,   &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('n2o', main%chemistry, empty=is_empty,      &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('lumped_cl', main%chemistry, empty=is_empty,&
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('hocl', main%chemistry, empty=is_empty,     &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('hbr', main%chemistry, empty=is_empty,      &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('hobr', main%chemistry, empty=is_empty,     &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('clono2', main%chemistry, empty=is_empty,   &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('cfcl3', main%chemistry, empty=is_empty,    &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('cf2cl2', main%chemistry, empty=is_empty,   &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('mebr', main%chemistry, empty=is_empty,     &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('hono', main%chemistry, empty=is_empty,     &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('c2h6', main%chemistry, empty=is_empty,     &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('etooh', main%chemistry, empty=is_empty,    &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('mecho', main%chemistry, empty=is_empty,    &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('pan', main%chemistry, empty=is_empty,      &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('c3h8', main%chemistry, empty=is_empty,     &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('n_prooh', main%chemistry, empty=is_empty,  &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('i_prooh', main%chemistry, empty=is_empty,  &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('etcho', main%chemistry, empty=is_empty,    &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('me2co', main%chemistry, empty=is_empty,    &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('mecoch2ooh', main%chemistry,               &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('ppan', main%chemistry, empty=is_empty,     &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('meono2', main%chemistry, empty=is_empty,   &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('c5h8', main%chemistry, empty=is_empty,     &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('isooh', main%chemistry, empty=is_empty,    &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('ison', main%chemistry, empty=is_empty,     &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('macr', main%chemistry, empty=is_empty,     &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('macrooh', main%chemistry, empty=is_empty,  &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('mpan', main%chemistry, empty=is_empty,     &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('hacet', main%chemistry, empty=is_empty,    &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('mgly', main%chemistry, empty=is_empty,     &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('nald', main%chemistry, empty=is_empty,     &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('hcooh', main%chemistry, empty=is_empty,    &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('meco3h', main%chemistry, empty=is_empty,   &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('meco2h', main%chemistry, empty=is_empty,   &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('h2', main%chemistry, empty=is_empty,       &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('meoh', main%chemistry, empty=is_empty,     &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('msa', main%chemistry, empty=is_empty,      &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('nh3', main%chemistry, empty=is_empty,      &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('cs2', main%chemistry, empty=is_empty,      &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('csul', main%chemistry, empty=is_empty,     &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('h2s', main%chemistry, empty=is_empty,      &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('so3', main%chemistry, empty=is_empty,      &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('passive_o3', main%chemistry,               &
+      empty=is_empty,                                                          &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('age_of_air', main%chemistry,               &
+      empty=is_empty,                                                          &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+
+    ! RO2 class of species, not advected if l_ukca_ro2_ntp = true
+    if ( chem_scheme == chem_scheme_strattrop  .or.  &
+         chem_scheme == chem_scheme_strat_test ) then
+      checkpoint_flag = .true.
+      is_empty = .false.
+      if ( l_ukca_ro2_ntp ) then
+        advection_flag = .false.
+      else
+        advection_flag = .true.
+      end if
+    else
+      checkpoint_flag = .false.
+      advection_flag  = .false.
+      is_empty        = .true.
+    end if
+    call processor%apply(make_spec('meoo', main%chemistry, empty=is_empty,     &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('etoo', main%chemistry, empty=is_empty,     &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('meco3', main%chemistry, empty=is_empty,    &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('n_proo', main%chemistry, empty=is_empty,   &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('i_proo', main%chemistry, empty=is_empty,   &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('etco3', main%chemistry, empty=is_empty,    &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('mecoch2oo', main%chemistry, empty=is_empty,&
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+
+    ! Fields that are never advected ('lumped' versions of no2,bro,hcl are)
+    advection_flag = .false.
+    call processor%apply(make_spec('o1d', main%chemistry, empty=is_empty,      &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('no2', main%chemistry, empty=is_empty,      &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('bro', main%chemistry, empty=is_empty,      &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('hcl', main%chemistry, empty=is_empty,      &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('iso2', main%chemistry, empty=is_empty,     &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('macro2', main%chemistry, empty=is_empty,   &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+
+    ! Species which are active in all chemistry schemes, but some not advected
+    ! for Offline oxidants
+    advection_flag = .false.
+    checkpoint_flag = .false.
+    is_empty = .true.
+    if ( chem_scheme == chem_scheme_offline_ox .or.       &
+         chem_scheme == chem_scheme_strattrop  .or.       &
+         chem_scheme == chem_scheme_strat_test ) then
+      checkpoint_flag = .true.
+      advection_flag  = .true.
+      is_empty        = .false.
+    end if
+    ! H2O2 - advected under all schemes
+    call processor%apply(make_spec('h2o2', main%chemistry, empty=is_empty,     &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+
+    if ( chem_scheme == chem_scheme_offline_ox ) then
+      advection_flag = .false.
+    end if
+    call processor%apply(make_spec('o3', main%chemistry, empty=is_empty,       &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+     call processor%apply(make_spec('no3', main%chemistry, empty=is_empty,     &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('oh', main%chemistry, empty=is_empty,       &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('ho2', main%chemistry, empty=is_empty,      &
+      adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+
+    ! Aerosol precursors - always active but checkpointed and advected only for
+    ! glomap_mode_ukca aerosol scheme
+    if ( aerosol == aerosol_um .and.           &
+         ( glomap_mode == glomap_mode_ukca .or.  &
+           glomap_mode == glomap_mode_dust_and_clim ) ) then
+      checkpoint_flag = .true.
+      advection_flag = .true.
+      is_empty       = .false.
+
+      ! Upper limit for H2O2 (ancillary field) only active for glomap_mode and
+      !  checkpointed for offline oxidants, never advected
+      call processor%apply(make_spec('h2o2_limit', main%chemistry,             &
+                           ckp=(chem_scheme == chem_scheme_offline_ox) ) )
+    else
+      checkpoint_flag = .false.
+      advection_flag = .false.
+      is_empty       = .true.
+    end if
+
+    call processor%apply(make_spec('dms', main%chemistry, empty=is_empty,      &
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('so2', main%chemistry, empty=is_empty,      &
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('h2so4', main%chemistry, empty=is_empty,    &
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('dmso', main%chemistry, empty=is_empty,     &
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('monoterpene', main%chemistry,              &
+        empty=is_empty,                                                        &
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+    call processor%apply(make_spec('secondary_organic', main%chemistry,        &
+        empty=is_empty,                                                        &
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
+
     !========================================================================
     ! Fields owned by the aerosol scheme
     !========================================================================
@@ -1012,16 +1236,16 @@ contains
       checkpoint_GC3 = .false.
       checkpoint_GC5 = .false.
     end if
-    if ( aerosol == aerosol_um .and.                                            &
-         ( glomap_mode == glomap_mode_ukca .or.                                 &
+    if ( aerosol == aerosol_um .and.            &
+         ( glomap_mode == glomap_mode_ukca .or. &
            glomap_mode == glomap_mode_dust_and_clim ) ) then
+      call processor%apply(make_spec('dms_conc_ocean', main%aerosol,           &
+           ckp=checkpoint_flag))
       call processor%apply(make_spec('emiss_bc_biofuel', main%aerosol,          &
            ckp=checkpoint_flag))
       call processor%apply(make_spec('emiss_bc_fossil', main%aerosol,           &
            ckp=checkpoint_flag))
       call processor%apply(make_spec('emiss_dms_land', main%aerosol,            &
-          ckp=checkpoint_flag))
-      call processor%apply(make_spec('dms_conc_ocean', main%aerosol,            &
           ckp=checkpoint_flag))
       call processor%apply(make_spec('emiss_monoterp', main%aerosol,            &
           ckp=checkpoint_flag))

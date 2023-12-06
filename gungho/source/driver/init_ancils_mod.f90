@@ -54,7 +54,8 @@ module init_ancils_mod
   use derived_config_mod,             only : l_esm_couple
   use chemistry_config_mod,           only : chem_scheme,                      &
                                              chem_scheme_strattrop,            &
-                                             chem_scheme_strat_test
+                                             chem_scheme_strat_test,           &
+                                             chem_scheme_offline_ox
 
   implicit none
 
@@ -540,6 +541,7 @@ contains
       end if
 
       !=====  OFFLINE OXIDANT ANCILS  =====
+      if ( chem_scheme == chem_scheme_offline_ox ) then
       call h2o2_limit_time_axis%initialise("h2o2_limit_time",         &
                                          file_id="h2o2_limit_ancil",  &
                                          interp_flag=interp_flag,     &
@@ -577,8 +579,9 @@ contains
                            mesh, twod_mesh, time_axis=oh_time_axis)
       call ancil_times_list%insert_item(oh_time_axis)
 
-    endif  ! ancil_updating, glomap_ukca
 
+      end if  ! Offline Oxidants
+    endif  ! ancil_updating, glomap_ukca
     ! ====== Easy aerosols ======
     ! CDNC
     if ( easyaerosol_cdnc .and. ancil_option == ancil_option_updating )  then

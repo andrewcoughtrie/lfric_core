@@ -34,7 +34,8 @@ module um_ukca_init_mod
   use section_choice_config_mod, only: aerosol, aerosol_um
   use chemistry_config_mod,      only: chem_scheme, chem_scheme_offline_ox,    &
                                        chem_scheme_strattrop, chem_scheme_none,&
-                                       chem_scheme_strat_test
+                                       chem_scheme_strat_test,                 &
+                                       l_ukca_ro2_ntp
 
   ! UM modules used
   use nlsizes_namelist_mod, only: bl_levels, row_length, rows, model_levels
@@ -104,6 +105,95 @@ module um_ukca_init_mod
   ! --------------------------------------------------------------------------
 
   ! -- UKCA field names - Tracers --
+  character(len=*), parameter, public :: fldname_o3 = 'O3'
+  character(len=*), parameter, public :: fldname_no3 = 'NO3'
+  character(len=*), parameter, public :: fldname_oh = 'OH'
+  character(len=*), parameter, public :: fldname_ho2 = 'HO2'
+
+  character(len=*), parameter, public :: fldname_o3p = 'O(3P)'
+  character(len=*), parameter, public :: fldname_o1d = 'O(1D)'
+  character(len=*), parameter, public :: fldname_n = 'N'
+  character(len=*), parameter, public :: fldname_no = 'NO'
+  character(len=*), parameter, public :: fldname_no2 = 'NO2'
+  character(len=*), parameter, public :: fldname_n2o5 = 'N2O5'
+  character(len=*), parameter, public :: fldname_ho2no2 = 'HO2NO2'
+  character(len=*), parameter, public :: fldname_hono2 = 'HONO2'
+  character(len=*), parameter, public :: fldname_ch4 = 'CH4'
+  character(len=*), parameter, public :: fldname_co = 'CO'
+  character(len=*), parameter, public :: fldname_hcho = 'HCHO'
+  character(len=*), parameter, public :: fldname_meoo = 'MeOO'
+  character(len=*), parameter, public :: fldname_meooh = 'MeOOH'
+  character(len=*), parameter, public :: fldname_h = 'H'
+  character(len=*), parameter, public :: fldname_ch2o = 'H2O'
+  character(len=*), parameter, public :: fldname_cl = 'Cl'
+  character(len=*), parameter, public :: fldname_cl2o2 = 'Cl2O2'
+  character(len=*), parameter, public :: fldname_clo = 'ClO'
+  character(len=*), parameter, public :: fldname_oclo = 'OClO'
+  character(len=*), parameter, public :: fldname_br = 'Br'
+  character(len=*), parameter, public :: fldname_bro = 'BrO'
+  character(len=*), parameter, public :: fldname_brcl = 'BrCl'
+  character(len=*), parameter, public :: fldname_brono2 = 'BrONO2'
+  character(len=*), parameter, public :: fldname_n2o = 'N2O'
+  character(len=*), parameter, public :: fldname_hcl = 'HCl'
+  character(len=*), parameter, public :: fldname_hocl = 'HOCl'
+  character(len=*), parameter, public :: fldname_hbr = 'HBr'
+  character(len=*), parameter, public :: fldname_hobr = 'HOBr'
+  character(len=*), parameter, public :: fldname_clono2 = 'ClONO2'
+  character(len=*), parameter, public :: fldname_cfcl3 = 'CFCl3'
+  character(len=*), parameter, public :: fldname_cf2cl2 = 'CF2Cl2'
+  character(len=*), parameter, public :: fldname_mebr = 'MeBr'
+  character(len=*), parameter, public :: fldname_hono = 'HONO'
+  character(len=*), parameter, public :: fldname_c2h6 = 'C2H6'
+  character(len=*), parameter, public :: fldname_etoo = 'EtOO'
+  character(len=*), parameter, public :: fldname_etooh = 'EtOOH'
+  character(len=*), parameter, public :: fldname_mecho = 'MeCHO'
+  character(len=*), parameter, public :: fldname_meco3 = 'MeCO3'
+  character(len=*), parameter, public :: fldname_pan = 'PAN'
+  character(len=*), parameter, public :: fldname_c3h8 = 'C3H8'
+  character(len=*), parameter, public :: fldname_n_proo = 'n-PrOO'
+  character(len=*), parameter, public :: fldname_i_proo = 'i-PrOO'
+  character(len=*), parameter, public :: fldname_n_prooh = 'n-PrOOH'
+  character(len=*), parameter, public :: fldname_i_prooh = 'i-PrOOH'
+  character(len=*), parameter, public :: fldname_etcho = 'EtCHO'
+  character(len=*), parameter, public :: fldname_etco3 = 'EtCO3'
+  character(len=*), parameter, public :: fldname_me2co = 'Me2CO'
+  character(len=*), parameter, public :: fldname_mecoch2oo = 'MeCOCH2OO'
+  character(len=*), parameter, public :: fldname_mecoch2ooh = 'MeCOCH2OOH'
+  character(len=*), parameter, public :: fldname_ppan = 'PPAN'
+  character(len=*), parameter, public :: fldname_meono2 = 'MeONO2'
+  character(len=*), parameter, public :: fldname_c5h8 = 'C5H8'
+  character(len=*), parameter, public :: fldname_iso2 = 'ISO2'
+  character(len=*), parameter, public :: fldname_isooh = 'ISOOH'
+  character(len=*), parameter, public :: fldname_ison = 'ISON'
+  character(len=*), parameter, public :: fldname_macr = 'MACR'
+  character(len=*), parameter, public :: fldname_macro2 = 'MACRO2'
+  character(len=*), parameter, public :: fldname_macrooh = 'MACROOH'
+  character(len=*), parameter, public :: fldname_mpan = 'MPAN'
+  character(len=*), parameter, public :: fldname_hacet = 'HACET'
+  character(len=*), parameter, public :: fldname_mgly = 'MGLY'
+  character(len=*), parameter, public :: fldname_nald = 'NALD'
+  character(len=*), parameter, public :: fldname_hcooh = 'HCOOH'
+  character(len=*), parameter, public :: fldname_meco3h = 'MeCO3H'
+  character(len=*), parameter, public :: fldname_meco2h = 'MeCO2H'
+  character(len=*), parameter, public :: fldname_h2 = 'H2'
+  character(len=*), parameter, public :: fldname_meoh = 'MeOH'
+  character(len=*), parameter, public :: fldname_msa = 'MSA'
+  character(len=*), parameter, public :: fldname_nh3 = 'NH3'
+  character(len=*), parameter, public :: fldname_cs2 = 'CS2'
+  character(len=*), parameter, public :: fldname_csul = 'COS'
+  character(len=*), parameter, public :: fldname_h2s = 'H2S'
+  character(len=*), parameter, public :: fldname_so3 = 'SO3'
+  character(len=*), parameter, public :: fldname_passive_o3 = 'PASSIVE O3'
+  character(len=*), parameter, public :: fldname_age_of_air = 'AGE OF AIR'
+  character(len=*), parameter, public :: fldname_co2 = 'CO2'
+  character(len=*), parameter, public :: fldname_o2 = 'O2'
+  character(len=*), parameter, public :: fldname_n2 = 'N2'
+
+  ! Lumped tracers - names contain the species these are represented as
+  character(len=*), parameter, public :: fldname_lumped_n = 'NO2'
+  character(len=*), parameter, public :: fldname_lumped_cl = 'HCl'
+  character(len=*), parameter, public :: fldname_lumped_br = 'BrO'
+
   character(len=*), parameter, public :: fldname_h2o2 = 'H2O2'
   character(len=*), parameter, public :: fldname_dms = 'DMS'
   character(len=*), parameter, public :: fldname_so2 = 'SO2'
@@ -578,6 +668,7 @@ contains
            l_ukca_ddep_lev1=.false.,                                           &
            l_ukca_ddepo3_ocean=.false.,                                        &
            l_ukca_dry_dep_so2wet=.true.,                                       &
+           l_ukca_ro2_ntp = l_ukca_ro2_ntp,                                    &
            ! UKCA emissions configuration options
            mode_parfrac=2.5_r_um,                                              &
            l_ukca_enable_seadms_ems=.true.,                                    &
@@ -705,18 +796,18 @@ contains
     ! Element 1 is the emission name
     ! Element 2 is the long name
     character(len=ukca_maxlen_emiss_long_name) :: emname_map(num_tot,2)
-    data emname_map(1,:) /'NO', 'NOx surf emissions'/
-    data emname_map(2,:) /'CH4', 'CH4 surf emissions'/
-    data emname_map(3,:) /'CO', 'CO surf emissions'/
-    data emname_map(4,:) /'HCHO', 'HCHO surf emissions'/
-    data emname_map(5,:) /'C2H6', 'C2H6 surf emissions'/
-    data emname_map(6,:) /'C3H8', 'C3H8 surf emissions'/
-    data emname_map(7,:) /'Me2CO', 'Me2CO surf emsisions'/
+    data emname_map(1,:) /'C2H6', 'C2H6 surf emissions'/
+    data emname_map(2,:) /'C3H8', 'C3H8 surf emissions'/
+    data emname_map(3,:) /'C5H8', 'Biogenic C5H8 surf emissions'/
+    data emname_map(4,:) /'CH4', 'CH4 surf emissions'/
+    data emname_map(5,:) /'CO', 'CO surf emissions'/
+    data emname_map(6,:) /'HCHO', 'HCHO surf emissions'/
+    data emname_map(7,:) /'Me2CO', 'Me2CO surf emissions'/
     data emname_map(8,:) /'MeCHO', 'MeCHO surf emissions'/
-    data emname_map(9,:) /'C5H8', 'Biogenic C5H8 surf emissions'/
-    data emname_map(10,:) /'NH3', 'NH3 surf emissions'/
-    data emname_map(11,:) /'MeOH',        &
+    data emname_map(9,:) /'MeOH',        &
                            'Biogenic surface methanol (CH3OH) emissions'/
+    data emname_map(10,:) /'NH3', 'NH3 surf emissions'/
+    data emname_map(11,:) /'NO', 'NOx surf emissions'/
     data emname_map(12,:) /'BC_biofuel', 'BC biofuel surf emissions'/
     data emname_map(13,:) /'BC_fossil', 'BC fossil fuel surf emissions'/
     data emname_map(14,:) /'DMS', 'DMS emissions expressed as sulfur'/
@@ -726,18 +817,18 @@ contains
                            'OC biofuel surf emissions expressed as carbon'/
     data emname_map(17,:) /'OM_fossil',   &
                           'OC fossil fuel surf emissions expressed as carbon'/
-    data emname_map(18,:) /'SO2_low',     &
-                           'SO2 low level emissions'/
-    data emname_map(19,:) /'SO2_high',    &
+    data emname_map(18,:) /'SO2_high',    &
                            'SO2 high level emissions expressed as sulfur'/
+    data emname_map(19,:) /'SO2_low',     &
+                           'SO2 low level emissions'/
     ! could be 2D or could be 3D
     data emname_map(20,:) /'BC_biomass', 'BC biomass emissions'/
     data emname_map(21,:) /'OM_biomass', &
                            'OC biomass emissions expressed as carbon'/
     ! 3-D emissions
-    data emname_map(22,:) /'SO2_nat',    &
+    data emname_map(22,:) /'NO_aircrft', 'NOx aircraft emissions'/
+    data emname_map(23,:) /'SO2_nat',    &
                            'SO2 natural emissions'/
-    data emname_map(23,:) /'NO_aircrft', 'NOx aircraft emissions'/
 
     ! End of Header
 
@@ -746,11 +837,13 @@ contains
     if (emissions == emissions_GC3) then
       num_2d=19
       num_3d=4
-      emname_map(18,2) = trim(emname_map(18,2)) // ' expressed as sulfur'
-      emname_map(22,2) = trim(emname_map(22,2)) // ' expressed as sulfur'
+      ! SO2_low and SO2_nat expressed as S in GC3 emissions
+      emname_map(19,2) = trim(emname_map(19,2)) // ' expressed as sulfur'
+      emname_map(23,2) = trim(emname_map(23,2)) // ' expressed as sulfur'
     else if (emissions == emissions_GC5) then
       num_2d=21
       num_3d=2
+      ! BC_biomass and OM_biomass have _low and _high variants in GC5 set
       anc_per_emiss(20) = 2
       anc_per_emiss(21) = 2
     end if
