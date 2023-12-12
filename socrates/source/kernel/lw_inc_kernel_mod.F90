@@ -168,6 +168,7 @@ subroutine lw_inc_code(nlayers, n_profile,                                     &
   use aerosol_config_mod, only: sulphuric_strat_climatology
   use jules_control_init_mod, only: n_surf_tile
   use socrates_init_mod, only: n_lwinc_band, &
+    i_scatter_method_lwinc, &
     i_cloud_representation, i_overlap, i_inhom_inc, i_drop_re
   use socrates_runes, only: runes, StrDiag, ip_source_thermal
   use gas_calc_all_mod, only: co2_mix_ratio_now,    &
@@ -326,6 +327,7 @@ subroutine lw_inc_code(nlayers, n_profile,                                     &
         rand_seed              = rand_seed(twod_1:twod_last),                &
         layer_heat_capacity_1d = layer_heat_capacity(wth_1:wth_last),        &
         l_mixing_ratio         = .true.,                                     &
+        i_scatter_method       = i_scatter_method_lwinc,                     &
         i_cloud_representation = i_cloud_representation,                     &
         i_overlap              = i_overlap,                                  &
         i_inhom                = i_inhom_inc,                                &

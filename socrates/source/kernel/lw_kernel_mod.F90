@@ -232,6 +232,7 @@ subroutine lw_code(nlayers, n_profile,                                         &
        easyaerosol_lw
   use jules_control_init_mod, only: n_surf_tile
   use socrates_init_mod, only: n_lw_band, &
+    i_scatter_method_lw, &
     i_cloud_representation, i_overlap, i_inhom, i_drop_re
   use um_physics_init_mod, only: n_aer_mode_lw, mode_dimen, lw_band_mode
   use socrates_runes, only: runes, StrDiag, ip_source_thermal
@@ -483,6 +484,7 @@ subroutine lw_code(nlayers, n_profile,                                         &
         rand_seed              = rand_seed(twod_1:twod_last),                &
         layer_heat_capacity_1d = layer_heat_capacity(wth_1:wth_last),        &
         l_mixing_ratio         = .true.,                                     &
+        i_scatter_method       = i_scatter_method_lw,                        &
         i_cloud_representation = i_cloud_representation,                     &
         i_overlap              = i_overlap,                                  &
         i_inhom                = i_inhom,                                    &

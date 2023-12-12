@@ -37,6 +37,7 @@ real(r_def), allocatable, target :: &
 real(r_def), allocatable, target :: &
   lwinc_wavelength_short(:), lwinc_wavelength_long(:)
 
+integer(i_def) :: i_scatter_method_lw, i_scatter_method_lwinc
 integer(i_def) :: i_cloud_representation, i_overlap, i_inhom, i_inhom_inc
 integer(i_def) :: i_drop_re
 logical(l_def) :: l_orog
@@ -53,6 +54,7 @@ public :: socrates_init, &
   swinc_wavelength_short, swinc_wavelength_long, swinc_weight_blue, &
   n_lwinc_band, lwinc_n_band_exclude, lwinc_index_exclude, &
   lwinc_wavelength_short, lwinc_wavelength_long, &
+  i_scatter_method_lw, i_scatter_method_lwinc, &
   i_cloud_representation, i_overlap, i_inhom, i_inhom_inc, i_drop_re, l_orog
 
 contains
@@ -62,6 +64,12 @@ subroutine socrates_init()
   use cosp_config_mod, only: l_cosp
   use radiation_config_mod, only: &
     spectral_file_sw, spectral_file_lw, mcica_data_file, &
+    scatter_method_lw, &
+    scatter_method_lw_full, scatter_method_lw_none, &
+    scatter_method_lw_approx, scatter_method_lw_hybrid, &
+    scatter_method_lwinc, &
+    scatter_method_lwinc_full, scatter_method_lwinc_none, &
+    scatter_method_lwinc_approx, scatter_method_lwinc_hybrid, &
     l_h2o_sw, l_co2_sw, l_o3_sw, l_n2o_sw, l_ch4_sw, l_o2_sw, &
     l_h2o_lw, l_co2_lw, l_o3_lw, l_n2o_lw, l_ch4_lw, &
     l_cfc11_lw, l_cfc12_lw, l_cfc113_lw, l_hcfc22_lw, l_hfc134a_lw, &
@@ -86,6 +94,7 @@ subroutine socrates_init()
     topography, topography_flat
   use rad_ccf, only: set_socrates_constants
   use socrates_runes, only: &
+    ip_scatter_full, ip_scatter_none, ip_scatter_approx, ip_scatter_hybrid, &
     ip_cloud_representation_off, ip_cloud_representation_ice_water, &
     ip_cloud_representation_combine_ice_water, &
     ip_cloud_representation_csiw, ip_cloud_representation_split_ice_water, &
@@ -208,6 +217,34 @@ subroutine socrates_init()
     call set_mcica(mcica_data_file, 'sw', 'lw')
     call log_event( 'Read MCICA data file.', LOG_LEVEL_INFO )
   end if
+
+  ! LW scattering method
+  select case (scatter_method_lw)
+  case (scatter_method_lw_full)
+    i_scatter_method_lw = ip_scatter_full
+  case (scatter_method_lw_none)
+    i_scatter_method_lw = ip_scatter_none
+  case (scatter_method_lw_approx)
+    i_scatter_method_lw = ip_scatter_approx
+  case (scatter_method_lw_hybrid)
+    i_scatter_method_lw = ip_scatter_hybrid
+  case default
+    i_scatter_method_lw = ip_scatter_full
+  end select
+
+  ! LW increment scattering method
+  select case (scatter_method_lwinc)
+  case (scatter_method_lwinc_full)
+    i_scatter_method_lwinc = ip_scatter_full
+  case (scatter_method_lwinc_none)
+    i_scatter_method_lwinc = ip_scatter_none
+  case (scatter_method_lwinc_approx)
+    i_scatter_method_lwinc = ip_scatter_approx
+  case (scatter_method_lwinc_hybrid)
+    i_scatter_method_lwinc = ip_scatter_hybrid
+  case default
+    i_scatter_method_lwinc = ip_scatter_full
+  end select
 
   ! Properties of clouds
   select case (cloud_representation)

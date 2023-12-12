@@ -22,7 +22,7 @@ module rad_ccf
   implicit none
   private
   public :: k_boltzmann, n_avogadro, stefan_boltzmann, pi, seconds_per_day, &
-            mol_weight_air, n2_mass_frac, repsilon, rho_water, &
+            mol_weight_air, repsilon, rho_water, &
             h_planck, c_light
   public :: set_socrates_constants
 
@@ -39,9 +39,6 @@ module rad_ccf
   real(RealK), parameter :: mol_weight_air &
                               = real(relative_molecular_mass_dry_air, RealK)
 
-  ! Mass fraction of nitrogen
-  real(RealK), protected :: n2_mass_frac
-
   ! Ratio of molecular weights of water and dry air
   real(RealK), protected :: repsilon
 
@@ -50,12 +47,10 @@ contains
 subroutine set_socrates_constants()
 
   use planet_constants_mod, only: lfric_repsilon => repsilon
-  use well_mixed_gases_config_mod, only: n2_mix_ratio
 
   implicit none
 
   repsilon = real(lfric_repsilon, RealK)
-  n2_mass_frac = real(n2_mix_ratio, RealK)
 
 end subroutine set_socrates_constants
 
