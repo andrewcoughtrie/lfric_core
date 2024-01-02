@@ -22,7 +22,7 @@ endif
 F_MOD_DESTINATION_ARG = -module$(SPACE)
 F_MOD_SOURCE_ARG      = -I
 OPENMP_ARG            = -qopenmp
-FORTRAN_RUNTIME       = 
+FORTRAN_RUNTIME       =
 
 FFLAGS_NO_OPTIMISATION    = -O0
 FFLAGS_SAFE_OPTIMISATION  = -O2 -fp-model strict
@@ -46,13 +46,27 @@ else
 FFLAGS_RUNTIME            = -check all -fpe0
 endif
 
+# Certain compile options cause XIOS failures on the Cray xc40 in
+# those fast-debug jobs that write diagnostic. Therefore, we remove
+# them for that platform. Note: the full-debug test can still use
+# these options as it avoids such XIOS use.
+ifdef CRAY_ENVIRONMENT
+# On the Cray xc40 plaforms these options are switched off for fast-debug
+FFLAGS_FASTD_INIT         =
+FFLAGS_FASTD_RUNTIME      =
+else
+# Otherwise, use the same as the default full-debug settings
+FFLAGS_FASTD_INIT         = $(FFLAGS_INIT)
+FFLAGS_FASTD_RUNTIME      = $(FFLAGS_RUNTIME)
+endif
+
 # Option for checking code meets Fortran standard - currently 2008
 FFLAGS_FORTRAN_STANDARD   = -stand f08
 
 #########################################################################
 # Application and file-specific options referenced in
-# build/compile_options.mk files 
-# 
+# build/compile_options.mk files
+#
 # These variables need explanatory comments and need to be exported
 #
 # -qoverride-limits applied to PSy-layer code due to Intel compiler bug

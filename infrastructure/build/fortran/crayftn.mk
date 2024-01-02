@@ -30,6 +30,9 @@ FFLAGS_DEBUG              = -Gfast
 FFLAGS_WARNINGS           = -m 0 -M E664,E7208,E7212
 FFLAGS_UNIT_WARNINGS      = -m 0
 FFLAGS_RUNTIME            = -R bcdps -Ktrap=fp
+# fast-debug flag set separately as Intel compiler needs platform-specific control on them
+FFLAGS_FASTD_RUNTIME      = $(FFLAGS_RUNTIME)
+
 # Option for checking code meets Fortran standards
 FFLAGS_FORTRAN_STANDARD   = -en
 

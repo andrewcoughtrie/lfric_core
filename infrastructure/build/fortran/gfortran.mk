@@ -35,6 +35,10 @@ FFLAGS_UNIT_WARNINGS      = -Wall -Wconversion -Wunused-variable \
 FFLAGS_INIT               = -finit-integer=31173 -finit-real=snan \
                             -finit-logical=true -finit-character=85
 FFLAGS_RUNTIME            = -fcheck=all -ffpe-trap=invalid,zero,overflow,underflow
+# fast-debug flags set separately as Intel compiler needs platform-specific control on them
+FFLAGS_FASTD_INIT         = $(FFLAGS_INIT)
+FFLAGS_FASTD_RUNTIME      = $(FFLAGS_RUNTIME)
+
 # Option for checking code meets Fortran standard - currently 2008
 FFLAGS_FORTRAN_STANDARD   = -std=f2008
 
