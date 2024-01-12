@@ -22,7 +22,7 @@ def do_plot(datapath, plotfield, plotpath='.'):
     lfric = lfric[:, :, 0]
 
     plt.figure(figsize=(15, 10))
-    for n, time in enumerate([0, 9, 18, 27, 36, 45]):
+    for n, time in enumerate([0, 5, 10, 20, 30, 35]):
         plt.subplot(2, 3, n+1)
         try:
            # first try wtheta fields
@@ -80,7 +80,8 @@ if __name__ == "__main__":
     do_plot(datapath, 'combined_cloud_amount', plotpath)
     do_time_plot(datapath, 'sw_down_surf', plotpath)
     do_time_plot(datapath, 'lw_up_toa', plotpath)
-    do_time_plot(datapath, 'trop_level', plotpath)
+    do_time_plot(datapath, 'ls_prec', plotpath)
+    do_time_plot(datapath, 'conv_rain', plotpath)
     if extra_plots_ukca:
         do_plot(datapath, 'h2o2', plotpath)
         do_plot(datapath, 'dms', plotpath)

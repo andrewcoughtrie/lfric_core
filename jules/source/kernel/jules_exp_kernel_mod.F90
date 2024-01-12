@@ -872,6 +872,9 @@ contains
       l_spec_z0 = .true.
       z0m_specified = z0m_specified_nml
       z0h_specified = z0h_specified_nml
+      do i = 1, seg_len
+        z0msea_2d(map_2d(1,i)) = z0m_specified(i,1)
+      end do
     else
       l_spec_z0 = .false.
     end if

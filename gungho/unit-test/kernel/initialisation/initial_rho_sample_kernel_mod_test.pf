@@ -77,7 +77,7 @@ contains
                                        y1=0.0_r_def, z1=0.0_r_def,   &
                                        r2=0.0_r_def, x2=0.0_r_def,   &
                                        y2=0.0_r_def, z2=0.0_r_def)
-    call feign_idealised_config( test=test_constant_field )
+    call feign_idealised_config( test=test_constant_field, f_lon_deg=0.0_r_def )
 
     call init_chi_transforms()
 

@@ -101,8 +101,8 @@ contains
     call init_turbulence_fields_alg(turbulence_fields)
     call init_convection_fields_alg(convection_fields)
     call init_cloud_fields_alg(cloud_fields)
+    call init_surface_fields_alg(surface_fields)
     if (surface == surface_jules) then
-      call init_surface_fields_alg(surface_fields)
       call init_soil_fields_alg(soil_fields)
       call init_snow_fields_alg(snow_fields)
     end if

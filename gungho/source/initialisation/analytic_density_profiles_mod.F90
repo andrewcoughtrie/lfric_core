@@ -16,8 +16,6 @@ use log_mod,                    only : log_event,                &
 use coord_transform_mod,        only : xyz2llr, central_angle
 use idealised_config_mod,       only : test_cold_bubble_x,           &
                                        test_cold_bubble_y,           &
-                                       test_dry_cbl,                 &
-                                       test_snow,                    &
                                        test_warm_bubble,             &
                                        test_warm_bubble_3d,          &
                                        test_gaussian_hill,           &
@@ -38,7 +36,6 @@ use idealised_config_mod,       only : test_cold_bubble_x,           &
                                        test_isot_cold_atm,           &
                                        test_isot_dry_atm,            &
                                        test_const_lapse_rate,        &
-                                       test_shallow_conv,            &
                                        test_cos_phi,                 &
                                        test_cosine_bubble,           &
                                        test_eternal_fountain,        &
@@ -174,10 +171,9 @@ function analytic_density(chi, choice, time) result(density)
 
   select case( choice )
 
-  case ( test_dry_cbl, test_gravity_wave, &
+  case ( test_gravity_wave, &
          test_isentropic, test_isot_atm, test_isot_dry_atm, &
-         test_isot_cold_atm, test_const_lapse_rate, &
-         test_shallow_conv, test_snow )
+         test_isot_cold_atm, test_const_lapse_rate )
     call reference_profile(pressure, density, temperature, chi, choice)
 
   case ( test_cold_bubble_x, test_cold_bubble_y )

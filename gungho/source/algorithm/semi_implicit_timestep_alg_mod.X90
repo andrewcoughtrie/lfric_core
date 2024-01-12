@@ -270,10 +270,13 @@ contains
     !--------------------------------------------------------------------
     call create_si_operators( mesh )
 
-    call gungho_transport_control_alg_init( mesh )
 
-    ! Construct semi-implicit solver
-    call semi_implicit_solver_alg_init( state )
+    if (use_wavedynamics) then
+      call gungho_transport_control_alg_init( mesh )
+
+      ! Construct semi-implicit solver
+      call semi_implicit_solver_alg_init( state )
+    end if
 
     call log_event( "semi_implicit_timestep: initialised timestepping algorithm", LOG_LEVEL_INFO )
 

@@ -23,9 +23,6 @@ use idealised_config_mod,  only: test_cold_bubble_x,           &
                                  test_solid_body_rotation,     &
                                  test_solid_body_rotation_alt, &
                                  test_deep_baroclinic_wave,    &
-                                 test_dry_cbl,                 &
-                                 test_snow,                    &
-                                 test_shallow_conv,            &
                                  test_cos_phi,                 &
                                  test_cosine_bubble,           &
                                  test_div_free_reversible,     &

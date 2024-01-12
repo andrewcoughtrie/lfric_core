@@ -91,7 +91,7 @@ contains
     call feign_initial_pressure_config( method = method_balanced,             &
                                         surface_pressure = surface_pressure )
 
-    call feign_idealised_config( test=test_cold_bubble_x )
+    call feign_idealised_config( test=test_cold_bubble_x, f_lon_deg=0.0_r_def )
     call feign_planet_config( gravity=gravity, radius=radius, omega=omega, &
                               rd=rd, cp=cp, p_zero=p_zero,                 &
                               scaling_factor=scaling )

@@ -30,9 +30,6 @@ use idealised_config_mod,       only : test_cold_bubble_x,           &
                                        test_isot_cold_atm,           &
                                        test_isot_dry_atm,            &
                                        test_const_lapse_rate,        &
-                                       test_dry_cbl,                 &
-                                       test_snow,                    &
-                                       test_shallow_conv,            &
                                        test_cos_phi,                 &
                                        test_cosine_bubble,           &
                                        test_specified_profiles,      &
@@ -194,8 +191,6 @@ contains
       call deep_baroclinic_wave(long, lat, radius-scaled_radius, &
                                 pressure, temperature, density, &
                                 u, v, w, mr_v)
-    case(test_dry_cbl, test_shallow_conv, test_snow)
-      call reference_profile(pressure, density, temperature, chi, choice)
 
     case( test_cos_phi )
       pressure = density_max*cos(lat)**4

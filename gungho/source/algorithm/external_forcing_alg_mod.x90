@@ -24,6 +24,8 @@ module external_forcing_alg_mod
                                              diffusion_coefficient
   use log_mod,                         only: log_event, log_scratch_space,       &
                                              LOG_LEVEL_INFO, LOG_LEVEL_ERROR
+  use lfric_xios_write_mod,            only: write_field_generic
+  use field_parent_mod,                only: write_interface
 
   use held_suarez_fv_kernel_mod,       only: held_suarez_fv_kernel_type
   use held_suarez_fv_wind_kernel_mod,  only: held_suarez_fv_wind_kernel_type
@@ -46,7 +48,8 @@ module external_forcing_alg_mod
                                              get_height
   use mesh_mod,                        only: mesh_type
 
-  use io_config_mod,                   only: subroutine_timers
+  use io_config_mod,                   only: subroutine_timers, write_diag, &
+                                             use_xios_io
   use physical_op_constants_mod,       only: get_dx_at_w2
   use planet_config_mod,               only: kappa
 
@@ -111,6 +114,7 @@ contains
     real( kind=r_def )    :: diffusion_coefficient_scaled, dx_sum, dx_size
 
     type( mesh_type ),  pointer :: mesh => null()
+    procedure(write_interface), pointer :: write_behaviour => null()
 
     if ( subroutine_timers ) call timer("external_forcing_alg")
 
@@ -183,6 +187,12 @@ contains
       end select
 
       theta_forcing_done = .true. ! Collect this increment later on
+
+      if (write_diag .and. use_xios_io) then
+        write_behaviour => write_field_generic
+        call dtheta_forcing%set_write_behaviour(write_behaviour)
+        call dtheta_forcing%write_field('forcing__dtheta_force')
+      end if
 
       nullify( chi, panel_id )
 

@@ -11,9 +11,15 @@ module um_domain_init_mod
   use extrusion_config_mod,        only : domain_top, number_of_layers
   use nlsizes_namelist_mod,        only : bl_levels
   use planet_config_mod,           only : radius
+  use cloud_config_mod,            only : use_fsd_eff_res
+  use section_choice_config_mod,   only : microphysics,      &
+                                          microphysics_um,   &
+                                          radiation,         &
+                                          radiation_socrates
 
   ! Other modules used
   use constants_mod,               only : i_um, r_um, rmdi, i_def, r_def
+  use conversions_mod,             only : pi_over_180
   use field_mod,                   only : field_type
   use mesh_mod,                    only: mesh_type
   use local_mesh_mod,              only: local_mesh_type
@@ -38,6 +44,7 @@ contains
     use bl_option_mod,               only: nl_bl_levels
     use cderived_mod,                only: delta_lambda, delta_phi
     use level_heights_mod,           only: eta_theta_levels
+    use fsd_parameters_mod,          only: fsd_eff_lam, fsd_eff_phi
 
     use physical_op_constants_mod,   only : get_delta_at_wtheta
 
@@ -77,6 +84,19 @@ contains
 
     delta_lambda = sum_delta / ( sum_ones * radius )
     delta_phi    = delta_lambda
+
+    if ( microphysics == microphysics_um                                    &
+         .or. radiation == radiation_socrates ) then
+      if (use_fsd_eff_res) then
+        ! In UM GA8, the fixed effective resolution was N96: 1.875 x 1.25 degrees
+        ! here use 1.875 degrees in both directions.
+        fsd_eff_lam    = 1.875_r_um * pi_over_180
+        fsd_eff_phi    = 1.875_r_um * pi_over_180
+      else
+        fsd_eff_lam    = delta_lambda
+        fsd_eff_phi    = delta_phi
+      end if
+    end if
 
     k = 1
     do while ( k < bl_levels .and. &

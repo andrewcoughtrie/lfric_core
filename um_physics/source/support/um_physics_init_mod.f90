@@ -39,6 +39,7 @@ module um_physics_init_mod
                                         flux_bc_opt_in => flux_bc_opt,         &
                                         flux_bc_opt_interactive,               &
                                         flux_bc_opt_specified_scalars,         &
+                                        flux_bc_opt_specified_scalars_tstar,   &
                                         fric_heating_in => fric_heating,       &
                                         free_atm_mix, free_atm_mix_to_sharp,   &
                                         free_atm_mix_ntml_corrected,           &
@@ -70,7 +71,7 @@ module um_physics_init_mod
                                         falliceshear_method_real,             &
                                         falliceshear_method_constant,         &
                                         subgrid_qv, ice_width_in => ice_width,&
-                                        use_fsd_eff_res, ez_subcrit, ez_max,  &
+                                        ez_subcrit, ez_max,  &
                                         two_d_fsd_factor_in => two_d_fsd_factor
 
   use convection_config_mod,     only : cv_scheme,                    &
@@ -152,7 +153,6 @@ module um_physics_init_mod
                                    log_scratch_space, &
                                    LOG_LEVEL_ERROR,   &
                                    LOG_LEVEL_INFO
-  use conversions_mod,      only : pi_over_180
 
   use mr_indices_mod,       only : nummr_to_transport
 
@@ -204,7 +204,8 @@ contains
          var_diags_opt, i_interp_local, i_interp_local_gradients,          &
          split_tke_and_inv, l_noice_in_turb, l_use_var_fixes,              &
          i_interp_local_cf_dbdz, tke_diag_fac, a_ent_2, dec_thres_cloud,   &
-         dec_thres_cu, near_neut_z_on_l, blend_gridindep_fa
+         dec_thres_cu, near_neut_z_on_l, blend_gridindep_fa,               &
+         specified_fluxes_tstar
     use cloud_inputs_mod, only: i_cld_vn, forced_cu, i_rhcpt, i_cld_area,  &
          rhcrit, ice_fraction_method,falliceshear_method, cff_spread_rate, &
          l_subgrid_qv, ice_width, min_liq_overlap, i_eacf, not_mixph,      &
@@ -253,7 +254,7 @@ contains
          dust_parameters_unload
     use electric_inputs_mod, only: electric_method, no_lightning, em_mccaul, &
          k1, k2, gwp_thresh, tiwp_thresh, storm_definition, graupel_and_ice
-    use fsd_parameters_mod, only: fsd_eff_lam, fsd_eff_phi, f_cons
+    use fsd_parameters_mod, only: f_cons
     use glomap_clim_option_mod, only: i_glomap_clim_setup,                     &
                                       l_glomap_clim_aie2,                      &
                                       i_glomap_clim_tune_bc
@@ -452,6 +453,8 @@ contains
           flux_bc_opt = interactive_fluxes
         case(flux_bc_opt_specified_scalars)
           flux_bc_opt = specified_fluxes_only
+        case(flux_bc_opt_specified_scalars_tstar)
+          flux_bc_opt = specified_fluxes_tstar
       end select
 
       flux_grad = off
@@ -1090,15 +1093,6 @@ contains
       ! ... contained in rad_input_mod
       two_d_fsd_factor = two_d_fsd_factor_in
       ! ... contained in fsd_parameters_mod
-      if (use_fsd_eff_res) then
-        ! In UM GA8, the fixed effective resolution was N96: 1.875 x 1.25 degrees
-        ! here use 1.875 degrees in both directions.
-        fsd_eff_lam    = 1.875_r_um * pi_over_180
-        fsd_eff_phi    = 1.875_r_um * pi_over_180
-      else
-        fsd_eff_lam    = delta_lambda
-        fsd_eff_phi    = delta_phi
-      end if
 
       if ( cld_fsd_hill ) then
         ! Parameters for fractional standard deviation (fsd) of condensate taken

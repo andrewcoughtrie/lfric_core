@@ -91,7 +91,7 @@ contains
              rehabilitate=.true.,               &
              vorticity_in_w1=.false. )
 
-    call feign_idealised_config( test=test_slotted_cylinder )
+    call feign_idealised_config( test=test_slotted_cylinder, f_lon_deg=0.0_r_def )
 
     call feign_initial_tracer_field_config( field_background=field_background, &
                                             field_max=field_max,               &

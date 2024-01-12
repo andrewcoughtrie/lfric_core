@@ -118,33 +118,45 @@ end if
 ! For W3 ndf = 1, loop k = 0, nlayers - 1
 top_df = nlayers + ndf - 2
 
-! Loop through output points
-do k = 0, top_df
+! If the profile size specified every level, just copy the data across
+if (top_df+1 == profile_size) then
 
-  kp = map(1) + k
+  do k = 0, top_df
+    kp = map(1) + k
+    field(kp) = profile_data(k+1)
+  end do
 
-  ! If output point is outside the range of the input coordinate, use
-  ! constant extrapolation
-  if ( height(kp) <= coord_lowest ) then
-    field(kp) = data_at_lowest
-  else if ( height(kp) >= coord_highest ) then
-    field(kp) = data_at_highest
-  else
-    ! Locate the position of the output point on the input coordinate
-    do input_pt = 1, profile_size - 1
-      cell_check = (profile_heights(input_pt + 1) - height(kp)) * &
-                   (height(kp) - profile_heights(input_pt))
-      ! Exit search if output point k lies between input_pt and input_pt+1
-      if (cell_check >= 0.0_r_def) exit
-    end do
-    ! Linearly interpolate the input data to the output point
-    interp_weight = ( height(kp) - profile_heights(input_pt) ) / &
-                    ( profile_heights(input_pt+1) - profile_heights(input_pt) )
-    field(kp) = (1.0_r_def - interp_weight) * profile_data(input_pt) + &
+else
+
+  ! Loop through output points
+  do k = 0, top_df
+
+    kp = map(1) + k
+
+    ! If output point is outside the range of the input coordinate, use
+    ! constant extrapolation
+    if ( height(kp) <= coord_lowest ) then
+      field(kp) = data_at_lowest
+    else if ( height(kp) >= coord_highest ) then
+      field(kp) = data_at_highest
+    else
+      ! Locate the position of the output point on the input coordinate
+      do input_pt = 1, profile_size - 1
+        cell_check = (profile_heights(input_pt + 1) - height(kp)) * &
+                     (height(kp) - profile_heights(input_pt))
+        ! Exit search if output point k lies between input_pt and input_pt+1
+        if (cell_check >= 0.0_r_def) exit
+      end do
+      ! Linearly interpolate the input data to the output point
+      interp_weight = ( height(kp) - profile_heights(input_pt) ) / &
+                     ( profile_heights(input_pt+1) - profile_heights(input_pt) )
+      field(kp) = (1.0_r_def - interp_weight) * profile_data(input_pt) + &
                                       interp_weight * profile_data(input_pt+1)
-  end if
+    end if
 
-end do
+  end do
+
+end if
 
 end subroutine profile_interp_code
 

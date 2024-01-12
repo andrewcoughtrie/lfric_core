@@ -39,6 +39,7 @@ module geometric_constants_mod
   ! Configuration
   use base_mesh_config_mod,               only: f_lat, geometry, &
                                                 geometry_spherical
+  use idealised_config_mod,               only: f_lon
   use finite_element_config_mod,          only: element_order
   use transport_config_mod,               only: extended_mesh
   use planet_config_mod,                  only: scaled_radius
@@ -249,7 +250,7 @@ contains
                                                    panel_id_in(i) )  )
         else
           call invoke( setval_c(lat_w3, f_lat),  &
-                       setval_c(long_w3, 0.0_r_def) )
+                       setval_c(long_w3, f_lon) )
         end if
 
         ! for w2_k0_fs (only lat)

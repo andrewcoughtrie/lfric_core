@@ -63,7 +63,7 @@ module create_physics_prognostics_mod
                                              scheme_pc2
   use microphysics_config_mod,        only : microphysics_casim
 
-  use jules_surface_config_mod,       only : srf_ex_cnv_gust
+  use jules_surface_config_mod,       only : srf_ex_cnv_gust, l_vary_z0m_soil
   use surface_config_mod,             only : albedo_obs, sea_alb_var_chl
   use spectral_gwd_config_mod,        only : add_cgw
   use microphysics_config_mod,        only : turb_gen_mixph
@@ -825,7 +825,7 @@ contains
     call processor%apply(make_spec('soil_albedo', main%soil,                    &
         ckp=checkpoint_flag))
     call processor%apply(make_spec('soil_roughness', main%soil,                 &
-        ckp=checkpoint_flag))
+        ckp=(checkpoint_flag .and. l_vary_z0m_soil)))
     call processor%apply(make_spec('soil_thermal_cond', main%soil,              &
         ckp=checkpoint_flag))
     call processor%apply(make_spec('mean_topog_index', main%soil,               &

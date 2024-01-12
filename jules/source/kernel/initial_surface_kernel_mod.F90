@@ -19,15 +19,16 @@ module initial_surface_kernel_mod
   use constants_mod, only: r_def, i_def
   use kernel_mod,    only: kernel_type
 
-  use idealised_config_mod,   only: test, test_snow
   use jules_control_init_mod, only: n_land_tile, &
        n_sea_tile, n_sea_ice_tile, &
        first_sea_tile, first_sea_ice_tile, n_surf_tile
-  use surface_config_mod,     only: surf_tile_fracs
+  use ideal_surface_config_mod, only: surf_tile_fracs, surf_tile_temps, &
+       canopy_height_in => canopy_height, leaf_area_index_in => leaf_area_index
   use jules_surface_types_mod, only: npft
   use nvegparm, only: emis_nvg
   use pftparm, only: emis_pft
   use jules_sea_seaice_mod, only: emis_sea, emis_sice
+  use section_choice_config_mod, only: surface, surface_jules
 
   implicit none
 
@@ -92,64 +93,37 @@ contains
     ! Internal variables
     integer(kind=i_def) :: i
 
-    ! Set from a namelist variable for SCM or when no ancil read
     do i = 1, n_surf_tile
       tile_fraction(map_tile(1)+i-1) = surf_tile_fracs(i)
+      tile_temperature(map_tile(1)+i-1) = surf_tile_temps(i)
     end do
 
-    ! Fixed values for SCM testing or if no ancil is read in
-    ! N.B. the number of values here matches npft set in jules_control_init
-    leaf_area_index(map_pft(1)+0) = 5.0_r_def
-    leaf_area_index(map_pft(1)+1) = 4.0_r_def
-    leaf_area_index(map_pft(1)+2) = 2.0_r_def
-    leaf_area_index(map_pft(1)+3) = 4.0_r_def
-    leaf_area_index(map_pft(1)+4) = 1.0_r_def
+    if (surface == surface_jules) then
 
-    canopy_height(map_pft(1)+0) = 19.01_r_def
-    canopy_height(map_pft(1)+1) = 16.38_r_def
-    canopy_height(map_pft(1)+2) =  1.46_r_def
-    canopy_height(map_pft(1)+3) =  1.26_r_def
-    canopy_height(map_pft(1)+4) =  1.59_r_def
-
-    ! Prognostic set to fixed value for SCM testing or when no values are
-    ! provided by um2lfric dump
-    if (test == test_snow) then ! Testing with snow present
-
-      do i = 1, n_land_tile
-        tile_temperature(map_tile(1)+i-1) = 270.0_r_def
+      ! Set from a namelist variable when no ancil read
+      do i = 1, npft
+        leaf_area_index(map_pft(1)+i-1) = leaf_area_index_in(i)
+        canopy_height(map_pft(1)+i-1) = canopy_height_in(i)
       end do
 
-    else ! All other tests without snow
-
+      ! Initialise grey_albedos for all tiles
       do i = 1, n_land_tile
-        tile_temperature(map_tile(1)+i-1) = 295.0_r_def
+        if (i <= npft) then
+          tile_lw_grey_albedo(map_tile(1)+i-1) = 1.0_r_def - real(emis_pft(i), r_def)
+        else
+          tile_lw_grey_albedo(map_tile(1)+i-1) = 1.0_r_def - real(emis_nvg(i-npft), r_def)
+        endif
+      end do
+
+      do i = first_sea_tile, first_sea_tile + n_sea_tile - 1
+        tile_lw_grey_albedo(map_tile(1)+i-1) = 1.0_r_def - real(emis_sea, r_def)
+      end do
+
+      do i = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
+        tile_lw_grey_albedo(map_tile(1)+i-1) = 1.0_r_def - real(emis_sice, r_def)
       end do
 
     end if
-
-    tile_temperature(map_tile(1)+first_sea_tile-1) = 300.0_r_def
-
-    do i = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
-      tile_temperature(map_tile(1)+i-1) = 265.0_r_def
-    end do
-
-    ! Initialise grey_albedos for all tiles
-
-    do i = 1, n_land_tile
-      if (i <= npft) then
-        tile_lw_grey_albedo(map_tile(1)+i-1) = 1.0_r_def - real(emis_pft(i), r_def)
-      else
-        tile_lw_grey_albedo(map_tile(1)+i-1) = 1.0_r_def - real(emis_nvg(i-npft), r_def)
-      endif
-    end do
-
-    do i = first_sea_tile, first_sea_tile + n_sea_tile - 1
-      tile_lw_grey_albedo(map_tile(1)+i-1) = 1.0_r_def - real(emis_sea, r_def)
-    end do
-
-    do i = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
-      tile_lw_grey_albedo(map_tile(1)+i-1) = 1.0_r_def - real(emis_sice, r_def)
-    end do
 
   end subroutine initial_surface_code
 

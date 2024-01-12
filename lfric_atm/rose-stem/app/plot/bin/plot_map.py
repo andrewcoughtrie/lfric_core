@@ -188,7 +188,6 @@ if __name__ == "__main__":
     do_plot(datapath, sw_down_surf,    plotpath)
     do_plot(datapath, lw_down_surf,    plotpath)
     do_plot(datapath, lw_up_toa,       plotpath)
-    do_plot(datapath, trop_level,      plotpath)
     if slope_plots:
         do_plot(datapath, slope_angle, plotpath)
         do_plot(datapath, slope_aspect, plotpath)

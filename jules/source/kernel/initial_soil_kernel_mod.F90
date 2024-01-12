@@ -18,7 +18,9 @@ module initial_soil_kernel_mod
   use constants_mod, only: r_def, i_def
   use kernel_mod,    only: kernel_type
 
-  use idealised_config_mod, only: test, test_snow
+  use nlsizes_namelist_mod, only: sm_levels
+  use ideal_surface_config_mod, only: soil_temperature_in => soil_temperature, &
+       soil_moisture_in => soil_moisture
 
   implicit none
 
@@ -27,9 +29,7 @@ module initial_soil_kernel_mod
   !> Kernel metadata for Psyclone
   type, public, extends(kernel_type) :: initial_soil_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                                    &
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+    type(arg_type) :: meta_args(2) = (/                                    &
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1)  &
          /)
@@ -45,16 +45,12 @@ contains
   !> @param[in]     nlayers                The number of layers
   !> @param[in,out] soil_temperature       Soil temperature (K)
   !> @param[in,out] soil_moisture          Soil moisture content (kg m-2)
-  !> @param[in,out] unfrozen_soil_moisture Unfrozen soil moisture proportion
-  !> @param[in,out] frozen_soil_moisture   Frozen soil moisture proportion
   !> @param[in]     ndf_soil               Number of DOFs per cell for soil levels
   !> @param[in]     undf_soil              Number of total DOFs for soil levels
   !> @param[in]     map_soil               Dofmap for cell for soil levels
   subroutine initial_soil_code(nlayers,                       &
                                soil_temperature,              &
                                soil_moisture,                 &
-                               unfrozen_soil_moisture,        &
-                               frozen_soil_moisture,          &
                                ndf_soil, undf_soil, map_soil)
 
     implicit none
@@ -66,58 +62,15 @@ contains
 
     real(kind=r_def), intent(inout) :: soil_temperature(undf_soil)
     real(kind=r_def), intent(inout) :: soil_moisture(undf_soil)
-    real(kind=r_def), intent(inout) :: unfrozen_soil_moisture(undf_soil)
-    real(kind=r_def), intent(inout) :: frozen_soil_moisture(undf_soil)
 
-    ! Prognostics set to fixed value for SCM testing or when no values are
-    ! provided by um2lfric dump
-    ! N.B. the number of values here matches sm_levels set in
-    ! jules_control_init
-    if (test == test_snow) then ! Testing with snow present
+    integer(i_def) :: k
 
-      soil_temperature(map_soil(1)+0) = 270.0_r_def
-      soil_temperature(map_soil(1)+1) = 270.0_r_def
-      soil_temperature(map_soil(1)+2) = 275.0_r_def
-      soil_temperature(map_soil(1)+3) = 275.0_r_def
+    ! Copy idealised namelist values into initial prognostic fields
 
-      soil_moisture(map_soil(1)+0) = 40.0_r_def
-      soil_moisture(map_soil(1)+1) = 90.0_r_def
-      soil_moisture(map_soil(1)+2) = 150.0_r_def
-      soil_moisture(map_soil(1)+3) = 460.0_r_def
-
-      unfrozen_soil_moisture(map_soil(1)+0) = 0.46896_r_def
-      unfrozen_soil_moisture(map_soil(1)+1) = 0.46911_r_def
-      unfrozen_soil_moisture(map_soil(1)+2) = 0.51408_r_def
-      unfrozen_soil_moisture(map_soil(1)+3) = 0.51096_r_def
-
-      frozen_soil_moisture(map_soil(1)+0) = 0.42210_r_def
-      frozen_soil_moisture(map_soil(1)+1) = 0.33285_r_def
-      frozen_soil_moisture(map_soil(1)+2) = 0.0_r_def
-      frozen_soil_moisture(map_soil(1)+3) = 0.0_r_def
-
-    else ! All other tests without snow
-
-      soil_temperature(map_soil(1)+0) = 285.0_r_def
-      soil_temperature(map_soil(1)+1) = 280.0_r_def
-      soil_temperature(map_soil(1)+2) = 275.0_r_def
-      soil_temperature(map_soil(1)+3) = 275.0_r_def
-
-      soil_moisture(map_soil(1)+0) = 40.0_r_def
-      soil_moisture(map_soil(1)+1) = 90.0_r_def
-      soil_moisture(map_soil(1)+2) = 150.0_r_def
-      soil_moisture(map_soil(1)+3) = 460.0_r_def
-
-      unfrozen_soil_moisture(map_soil(1)+0) = 0.89107_r_def
-      unfrozen_soil_moisture(map_soil(1)+1) = 0.80196_r_def
-      unfrozen_soil_moisture(map_soil(1)+2) = 0.51408_r_def
-      unfrozen_soil_moisture(map_soil(1)+3) = 0.51236_r_def
-
-      frozen_soil_moisture(map_soil(1)+0) = 0.0_r_def
-      frozen_soil_moisture(map_soil(1)+1) = 0.0_r_def
-      frozen_soil_moisture(map_soil(1)+2) = 0.0_r_def
-      frozen_soil_moisture(map_soil(1)+3) = 0.0_r_def
-
-    end if
+    do k = 1, sm_levels
+      soil_temperature(map_soil(1)+k-1) = soil_temperature_in(k)
+      soil_moisture(map_soil(1)+k-1) = soil_moisture_in(k)
+    end do
 
   end subroutine initial_soil_code
 

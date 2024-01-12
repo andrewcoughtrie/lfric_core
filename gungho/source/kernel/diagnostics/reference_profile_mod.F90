@@ -19,8 +19,6 @@ use idealised_config_mod,           only : test_cold_bubble_x,    &
                                            test_cold_bubble_y,    &
                                            test_const_lapse_rate, &
                                            test_cosine_hill,      &
-                                           test_dry_cbl,          &
-                                           test_snow,             &
                                            test_gravity_wave,     &
                                            test_isentropic,       &
                                            test_isot_atm,         &
@@ -28,8 +26,7 @@ use idealised_config_mod,           only : test_cold_bubble_x,    &
                                            test_isot_dry_atm,     &
                                            test_warm_bubble,      &
                                            test_warm_bubble_3d,   &
-                                           test_yz_cosine_hill,   &
-                                           test_shallow_conv
+                                           test_yz_cosine_hill
 use initial_pressure_config_mod,    only : surface_pressure
 use initial_temperature_config_mod, only : bvf_square, theta_surf
 use planet_config_mod,              only : scaled_radius, gravity, Cp, Rd, &
@@ -132,30 +129,6 @@ else                     ! PLANAR DOMAIN
                   **(1.0_r_def-gravity/(Cp*lapse_rate)))
       exner_s = exner_surf * ((1.0_r_def - lapse_rate/theta_surf * z) &
                   **(gravity/(Cp*lapse_rate)))
-    case( test_dry_cbl, test_snow )   ! Dry convective boundary layer
-      if (z<=1000.0_r_def) then
-        ! Isentropic
-        theta_s = theta_surf
-        exner_s = exner_surf - gravity/(Cp*theta_surf)*z
-      else if (z>1000.0_r_def) then
-        ! Isothermal
-        nsq_over_g = bvf_square/gravity
-        theta_s = theta_surf * exp ( nsq_over_g * z )
-        exner_s = exner_surf - gravity**2/(Cp * theta_surf * bvf_square)   &
-                     * (1.0_r_def - exp ( - nsq_over_g * z ))
-      end if
-    case( test_shallow_conv )   ! shallow convection
-      if (z<=500.0_r_def) then
-        ! Isentropic
-        theta_s = theta_surf
-        exner_s = exner_surf - gravity/(Cp*theta_surf)*z
-      else if (z>500.0_r_def) then
-        ! Isothermal
-        nsq_over_g = bvf_square/gravity
-        theta_s = theta_surf * exp ( nsq_over_g * z )
-        exner_s = exner_surf - gravity**2 / (Cp * theta_surf * bvf_square) &
-                  * (1.0_r_def - exp ( - nsq_over_g * z ))
-      end if
     !> @todo No values for the following idealised tests were provided and
     !>       this risked unexpected divide by zero errors. These errors are
     !>       avoided by setting to one. This keeps the trunk working but
