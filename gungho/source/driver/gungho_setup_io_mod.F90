@@ -79,6 +79,8 @@ module gungho_setup_io_mod
                                        surface_frac_ancil_path,   &
                                        start_dump_filename,       &
                                        start_dump_directory,      &
+                                       iau_path,                  &
+                                       iau_surf_path,             &
                                        lbc_filename,              &
                                        lbc_directory,             &
                                        ls_filename,               &
@@ -110,6 +112,8 @@ module gungho_setup_io_mod
   use orography_config_mod,      only: orog_init_option,          &
                                        orog_init_option_ancil,    &
                                        orog_init_option_start_dump
+  use section_choice_config_mod, only: iau,                       &
+                                       iau_surf
   use time_config_mod,           only: timestep_start,            &
                                        timestep_end
   use derived_config_mod,        only: l_esm_couple
@@ -154,6 +158,8 @@ module gungho_setup_io_mod
                                        checkpoint_read_fname,  &
                                        dump_fname,             &
                                        ancil_fname,            &
+                                       iau_fname,              &
+                                       iau_surf_fname,         &
                                        lbc_fname,              &
                                        ls_fname
 #ifdef UM_PHYSICS
@@ -639,6 +645,7 @@ module gungho_setup_io_mod
       call files_list%insert_item( lfric_xios_file_type( ancil_fname,           &
            xios_id="easy_extinction_lw_ancil", io_mode=FILE_MODE_READ ) )
    endif
+
 #endif
 
     ! Setup orography ancillary file
@@ -657,6 +664,22 @@ module gungho_setup_io_mod
       call files_list%insert_item( lfric_xios_file_type( ancil_fname,               &
                                                          xios_id="orography_mean_ancil", &
                                                          io_mode=FILE_MODE_READ ) )
+    end if
+
+    ! Setup the IAU file
+    if ( iau ) then
+      write(iau_fname,'(A)') trim(iau_path)
+      call files_list%insert_item( lfric_xios_file_type( iau_fname,     &
+                                                         xios_id="iau", &
+                                                         io_mode=FILE_MODE_READ ))
+    end if
+
+    ! Setup the IAU surface inc file
+    if ( iau_surf )  then
+      write(iau_surf_fname,'(A)') trim(iau_surf_path)
+      call files_list%insert_item( lfric_xios_file_type( iau_surf_fname,     &
+                                                         xios_id="iau_surf", &
+                                                         io_mode=FILE_MODE_READ ))
     end if
 
     ! Setup the lbc file

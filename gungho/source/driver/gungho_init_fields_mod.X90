@@ -29,6 +29,8 @@ module gungho_init_fields_mod
   use mesh_mod,                           only : mesh_type
   use files_config_mod,                   only : checkpoint_stem_name
   use formulation_config_mod,             only : use_physics
+  use section_choice_config_mod,          only : iau,                         &
+                                                 iau_surf
   use initialization_config_mod,          only : init_option,                 &
                                                  init_option_analytic,        &
                                                  init_option_fd_start_dump,   &
@@ -52,6 +54,7 @@ module gungho_init_fields_mod
   use lfric_xios_write_mod,               only : write_checkpoint, &
                                                  write_state
   use boundaries_config_mod,              only : limited_area
+  use create_iau_mod,                     only : create_iau_fields
   use create_lbcs_mod,                    only : create_lbc_fields
   use create_gungho_prognostics_mod,      only : create_gungho_prognostics
   use create_physics_prognostics_mod,     only : create_physics_prognostics
@@ -205,6 +208,11 @@ subroutine create_model_data( modeldb,      &
       modeldb%model_axes%lbc_times_list       &
     )
 
+    if ( iau ) call create_iau_fields( mesh, twod_mesh,                      &
+                                       depository,                           &
+                                       modeldb%model_data%prognostic_fields, &
+                                       modeldb )
+
     ! Create prognostics used by physics
     if (use_physics) then
       call field_mapper%init( depository,                               &
@@ -277,6 +285,7 @@ subroutine create_model_data( modeldb,      &
     type( field_type ), pointer :: ageofair => null()
 
     type( field_collection_type ), pointer :: depository => null()
+    type( field_collection_type ), pointer :: field_collection_ptr => null()
 
     real(r_def), pointer :: temperature_correction_rate
     real(r_def), pointer :: total_dry_mass
@@ -541,6 +550,18 @@ subroutine create_model_data( modeldb,      &
 
     end if
 
+    if ( iau ) then
+      call log_event( 'IAU: read file in initialise', LOG_LEVEL_INFO )
+      field_collection_ptr => modeldb%fields%get_field_collection("iau_fields")
+      call read_state( field_collection_ptr )
+    end if
+
+    if ( iau_surf ) then
+      call log_event( 'IAU: read surf inc file in initialise', LOG_LEVEL_INFO )
+      field_collection_ptr => modeldb%fields%get_field_collection("iau_surf_fields")
+      call read_state( field_collection_ptr )
+    end if
+
   end subroutine initialise_model_data
 
   !----------------------------------------------------------------------------
@@ -594,6 +615,7 @@ subroutine create_model_data( modeldb,      &
       type(modeldb_type), intent(inout) :: modeldb
 
       type(field_collection_type), pointer :: depository => null()
+      type(field_collection_type), pointer :: field_collection_ptr => null()
       type(field_collection_type), pointer :: moisture_fields => null()
 
       depository => modeldb%fields%get_field_collection("depository")
@@ -627,6 +649,17 @@ subroutine create_model_data( modeldb,      &
          call modeldb%model_data%cpl_rcv%clear()
       endif
 #endif
+
+      if ( iau ) then
+        field_collection_ptr => modeldb%fields%get_field_collection("iau_fields")
+        call field_collection_ptr%clear()
+      end if
+
+      if ( iau_surf ) then
+        field_collection_ptr => modeldb%fields%get_field_collection("iau_surf_fields")
+        call field_collection_ptr%clear()
+      end if
+
       call modeldb%model_data%lbc_fields%clear()
       call modeldb%model_data%ls_fields%clear()
 

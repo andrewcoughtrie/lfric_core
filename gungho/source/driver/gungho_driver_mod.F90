@@ -18,6 +18,7 @@ module gungho_driver_mod
   use field_collection_mod,       only : field_collection_type
   use gungho_diagnostics_driver_mod, &
                                   only : gungho_diagnostics_driver
+  use iau_time_control_mod,       only : calc_iau_ts_end
   use gungho_init_fields_mod,     only : create_model_data, &
                                          initialise_model_data, &
                                          output_model_data, &
@@ -49,12 +50,21 @@ module gungho_driver_mod
   use mpi_mod,                    only : mpi_type
   use multires_coupling_config_mod, &
                                   only : aerosol_mesh_name
+  use section_choice_config_mod,  only : iau, &
+                                         iau_surf
+
 #ifdef UM_PHYSICS
   use variable_fields_mod,        only : update_variable_fields
   use lfric_xios_time_axis_mod,   only : regridder
   use intermesh_mappings_alg_mod, only : map_scalar_field
   use update_ancils_alg_mod,      only : update_ancils_alg
   use gas_calc_all_mod,           only : gas_calc_all
+  use update_iau_inc_alg_mod,     only : update_iau_alg
+  use update_iau_surf_alg_mod,    only : add_surf_inc_alg
+  use iau_config_mod,             only : iau_mode, &
+                                         iau_mode_instantaneous, &
+                                         iau_mode_time_window, &
+                                         iau_ts_start
 #endif
 #ifdef COUPLED
   use esm_couple_config_mod,      only : l_esm_couple_test
@@ -89,6 +99,11 @@ contains
     type(mesh_type),        pointer :: twod_mesh         => null()
     type(mesh_type),        pointer :: aerosol_mesh      => null()
     type(mesh_type),        pointer :: aerosol_twod_mesh => null()
+
+#ifdef UM_PHYSICS
+    ! For clearing IAU fields after use
+    type( field_collection_type ), pointer :: field_collection_ptr => null()
+#endif
 
     ! Initialise infrastructure and setup constants
     call initialise_infrastructure( modeldb, &
@@ -144,6 +159,29 @@ contains
     call log_event(log_scratch_space, LOG_LEVEL_INFO)
 #endif
 
+#ifdef UM_PHYSICS
+    ! If IAU is active and increments need to be added instantaneously, to the initial
+    ! state, then do this now
+    if ( ( iau ) .and. ( iau_mode == iau_mode_instantaneous ) ) then
+
+      call update_iau_alg( modeldb, twod_mesh )
+      field_collection_ptr => modeldb%fields%get_field_collection("iau_fields")
+      call field_collection_ptr%clear()
+
+    end if
+
+    if ( iau_surf ) then
+      field_collection_ptr => modeldb%fields%get_field_collection("iau_surf_fields")
+      call add_surf_inc_alg( field_collection_ptr,              &
+                             modeldb%model_data%surface_fields, &
+                             modeldb%model_data%soil_fields,    &
+                             modeldb%model_data%snow_fields )
+
+      call field_collection_ptr%clear()
+
+    end if
+#endif
+
     nullify(mesh, twod_mesh, aerosol_mesh, aerosol_twod_mesh)
 
   end subroutine initialise
@@ -168,6 +206,9 @@ contains
 
 #ifdef UM_PHYSICS
     procedure(regridder), pointer :: regrid_operation => null()
+
+    ! For clearing IAU fields after use
+    type( field_collection_type ), pointer :: field_collection_ptr => null()
 
     regrid_operation => map_scalar_field
 #endif
@@ -205,6 +246,26 @@ contains
       call update_lbcs_file_alg( modeldb%model_axes%lbc_times_list, &
                                  modeldb%clock, modeldb%model_data%lbc_fields )
     endif
+
+#ifdef UM_PHYSICS
+    ! If IAU is active and increments need to be added over a time window, then do this
+    ! at the start of every ts within the required time window
+    if ( ( iau ) .and. ( iau_mode == iau_mode_time_window ) ) then
+
+      if ( ( modeldb%clock%get_step() >= iau_ts_start ) .and.                 &
+           ( modeldb%clock%get_step() <= calc_iau_ts_end( modeldb%clock ) ) ) then
+
+        call update_iau_alg( modeldb, twod_mesh )
+
+      else if ( modeldb%clock%get_step() > calc_iau_ts_end( modeldb%clock ) ) then
+
+        field_collection_ptr => modeldb%fields%get_field_collection("iau_fields")
+        call field_collection_ptr%clear()
+
+      end if
+
+    end if
+#endif
 
     ! Perform a timestep
     call gungho_step( mesh, twod_mesh, modeldb, modeldb%clock )
