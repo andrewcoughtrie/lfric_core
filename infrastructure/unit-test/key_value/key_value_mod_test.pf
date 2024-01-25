@@ -9,12 +9,14 @@ module key_value_mod_test
 
   use, intrinsic :: iso_fortran_env, only: int32, int64, real32, real64
 
-  use key_value_mod, only: i32_key_value_type,         i64_key_value_type,     &
+  use key_value_mod, only: key_value_type,                                     &
+                           i32_key_value_type,         i64_key_value_type,     &
                            i32_arr_key_value_type,     i64_arr_key_value_type, &
                            r32_key_value_type,         r64_key_value_type,     &
                            r32_arr_key_value_type,     r64_arr_key_value_type, &
                            logical_key_value_type,     str_key_value_type,     &
-                           logical_arr_key_value_type, str_arr_key_value_type
+                           logical_arr_key_value_type, str_arr_key_value_type, &
+                           abstract_key_value_type,    abstract_value_type
 
   use pFUnit_mod
 
@@ -22,8 +24,12 @@ module key_value_mod_test
 
   private
 
-  public :: test_integer, test_real, test_logical, test_string
+  public :: test_integer, test_real, test_logical, test_string, test_abstract
 
+  type, extends(abstract_value_type) :: test_type
+    integer, public :: int_number
+  contains
+  end type test_type
 
 contains
 
@@ -206,6 +212,34 @@ contains
     @assertEqual( two, test_unit_str_arr%value(1) )
 
   end subroutine test_string
+
+  @test
+  subroutine test_abstract()
+
+    implicit none
+
+    type(test_type) :: test_object
+    character(*), parameter :: key = 'test_obj'
+
+    type(abstract_key_value_type) :: test_unit_abstract
+
+    ! Initialise an object that inherits from the abstract key_value_type
+    test_object%int_number = 17
+
+    ! Create a key value pair that holds "test_object" as an abstract object
+    call test_unit_abstract%initialise( key, test_object )
+
+    ! Test that we can extract the correct key from the key-value pair
+    @assertEqual( key, test_unit_abstract%get_key() )
+
+    ! Test that we can extract the correct abstract object by making it
+    ! concrete with a "select type" and testing the value we put in the object
+    select type (value => test_unit_abstract%value)
+    type is (test_type)
+      @assertEqual( 17, value%int_number )
+    end select
+
+  end subroutine test_abstract
 
 end module key_value_mod_test
 

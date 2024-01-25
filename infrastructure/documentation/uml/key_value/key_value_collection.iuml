@@ -31,4 +31,5 @@ class key_value_collection_mod::key_value_collection_type {
   -get_r64_arr_value(   <<in>>key:string<<len=*>>, <<out>>value:real[:]    <<kind=real64, pointer>> )
   -get_str_arr_value(   <<in>>key:string<<len=*>>, <<out>>value:string[:]  <<len=*, pointer>> )
   -get_logical_arr_value( <<in>>key:string<<len=*>>, <<out>>value:logical[:] <<pointer>> )
+  -get_abstract_value(   <<in>>key:string<<len=*>>, <<out>>value:abstract_value_type <<abstract, pointer>> )
 }

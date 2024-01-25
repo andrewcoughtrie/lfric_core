@@ -15,6 +15,7 @@
 !>     - i32_arr_key_value_type,     i64_arr_key_value_type
 !>     - r32_arr_key_value_type,     r64_arr_key_value_type
 !>     - logical_arr_key_value_type, str_arr_key_value_type
+!>     - abstract_key_value_type
 !>
 !> Concrete types can only be initialised once, however the value is directly
 !> accessible without a getter/setter.
@@ -32,13 +33,14 @@ module key_value_mod
 
   private
 
-  public :: key_value_type
+  public :: key_value_type,         abstract_value_type
   public :: i32_key_value_type,     i64_key_value_type
   public :: i32_arr_key_value_type, i64_arr_key_value_type
   public :: r32_key_value_type,     r64_key_value_type
   public :: r32_arr_key_value_type, r64_arr_key_value_type
   public :: logical_key_value_type, logical_arr_key_value_type
   public :: str_key_value_type,     str_arr_key_value_type
+  public :: abstract_key_value_type
   public :: create_key_value
 
   !=========================================
@@ -53,6 +55,13 @@ module key_value_mod
     procedure :: key_value_initialise
     procedure :: get_key => get_key_value_key
   end type key_value_type
+
+  !=======================================================================
+  ! Abstract type that is the parent to any object held in key-value pair
+  !=======================================================================
+  type, abstract :: abstract_value_type
+  contains
+  end type abstract_value_type
 
 
   !===============================================
@@ -176,6 +185,15 @@ module key_value_mod
     procedure :: initialise => init_str_arr_key_value
   end type str_arr_key_value_type
 
+  !===============================================
+  ! abstract_key_value_type: abstract object key_value pair
+  !===============================================
+  type, extends(key_value_type) :: abstract_key_value_type
+    class(abstract_value_type), allocatable :: value
+  contains
+    procedure :: initialise => init_abstract_key_value
+  end type abstract_key_value_type
+
 contains
 
 
@@ -205,6 +223,7 @@ function create_key_value( key, value ) result(instance)
   type(i64_key_value_type) :: concrete_i64
   type(r32_key_value_type) :: concrete_r32
   type(r64_key_value_type) :: concrete_r64
+  type(abstract_key_value_type) :: abstract_object
 
   select type (value)
 
@@ -223,6 +242,10 @@ function create_key_value( key, value ) result(instance)
   type is (real(real64))
     call concrete_r64%initialise( key, value )
     allocate( instance, source=concrete_r64 )
+
+  class is (abstract_value_type)
+    call abstract_object%initialise( key, value )
+    allocate( instance, source=abstract_object )
 
   class default
     write( log_scratch_space, &
@@ -498,5 +521,24 @@ subroutine init_str_arr_key_value( self, key, value )
 
   return
 end subroutine init_str_arr_key_value
+
+!> @brief Initialiser for abstract-object key-value pair object
+!> @param [in] key      String used for key
+!> @param [in] value    Abstract object value
+subroutine init_abstract_key_value( self, key, value )
+
+  implicit none
+
+  class(abstract_key_value_type), intent(inout) :: self
+
+  character(*), intent(in) :: key
+  class(abstract_value_type), intent(in) :: value
+
+  call self%key_value_initialise( key )
+
+  allocate(self%value, source=value)
+
+  return
+end subroutine init_abstract_key_value
 
 end module key_value_mod

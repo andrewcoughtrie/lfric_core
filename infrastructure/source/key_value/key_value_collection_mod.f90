@@ -23,6 +23,7 @@ module key_value_collection_mod
                                   r32_arr_key_value_type, r64_arr_key_value_type, &
                                   logical_key_value_type, logical_arr_key_value_type, &
                                   str_key_value_type, str_arr_key_value_type, &
+                                  abstract_key_value_type, abstract_value_type,&
                                   create_key_value
   use log_mod,              only: log_event, log_scratch_space, &
                                   LOG_LEVEL_ERROR
@@ -69,6 +70,7 @@ module key_value_collection_mod
     procedure, private :: get_r64_arr_value
     procedure, private :: get_logical_arr_value
     procedure, private :: get_str_arr_value
+    procedure, private :: get_abstract_value
     generic            :: get_value => get_i32_value,         &
                                        get_i64_value,         &
                                        get_r32_value,         &
@@ -80,7 +82,8 @@ module key_value_collection_mod
                                        get_r32_arr_value,     &
                                        get_r64_arr_value,     &
                                        get_logical_arr_value, &
-                                       get_str_arr_value
+                                       get_str_arr_value,     &
+                                       get_abstract_value
     procedure, public  :: get_length
     procedure, public  :: get_name
     procedure, public  :: get_table_len
@@ -752,6 +755,49 @@ subroutine get_str_arr_value(self, key, value)
   end do
 
 end subroutine get_str_arr_value
+
+!> Access a value that is an object derived from the abstract from the key-value pair collection
+!> @param [in] key The key of the key-value pair being requested
+!> @param [out] value Pointer to the abstract object
+subroutine get_abstract_value(self, key, value)
+
+  implicit none
+
+  class(key_value_collection_type),    intent(in)  :: self
+  character(*),                        intent(in)  :: key
+  class(abstract_value_type), pointer, intent(out) :: value
+
+  ! Pointer to linked list - used for looping through the list
+  type(linked_list_item_type), pointer :: loop => null()
+
+
+  ! start at the head of the collection linked list
+  loop => self%key_value_list(self%get_hash(key))%get_head()
+
+  do
+    ! If list is empty or we're at the end of list and we didn't find the
+    ! key-value pair, then fail with an error
+    if ( .not. associated(loop) ) then
+      write(log_scratch_space, '(4A)') &
+         'ERROR: get_value: No abstract object for key:', &
+         trim(key), ' in collection: ', trim(self%name)
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+    ! otherwise search list for the key we want
+
+    ! 'cast' to the data type
+    select type(listitem => loop%payload)
+      class is (abstract_key_value_type)
+      if ( trim(key) == trim(listitem%get_key()) ) then
+          value => listitem%value
+          exit
+      end if
+    end select
+
+    loop => loop%next
+  end do
+
+end subroutine get_abstract_value
 
 !> Returns the number of entries in the collection
 !> @return  length The number of entries in the hash table

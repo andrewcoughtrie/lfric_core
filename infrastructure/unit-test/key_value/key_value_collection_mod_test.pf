@@ -18,12 +18,20 @@ module key_value_collection_mod_test
                            r32_key_value_type,         r64_key_value_type,     &
                            r32_arr_key_value_type,     r64_arr_key_value_type, &
                            logical_key_value_type,     str_key_value_type,     &
-                           logical_arr_key_value_type, str_arr_key_value_type
+                           logical_arr_key_value_type, str_arr_key_value_type, &
+                           abstract_key_value_type,                            &
+                           abstract_value_type
     use pFUnit_Mod
 
   implicit none
 
   private
+
+  type, extends(abstract_value_type) :: test_type
+    integer, public :: int_number
+  contains
+  end type test_type
+
   public :: test_all
 
   @TestCase
@@ -58,20 +66,23 @@ contains
     type(r64_arr_key_value_type)     :: r64_arr_key_value
     type(logical_arr_key_value_type) :: logical_arr_key_value
     type(str_arr_key_value_type)     :: string_arr_key_value
+    type(abstract_key_value_type)    :: abstract_key_value
 
-    integer(int32),          pointer :: i32_val
-    integer(int64),          pointer :: i64_val
-    real(real32),            pointer :: r32_val
-    real(real64),            pointer :: r64_val, r64_val2
-    logical,                 pointer :: logical_val
-    character(str_longlong), pointer :: string_val
-    integer(int32),          pointer :: i32_arr_val(:)
-    integer(int64),          pointer :: i64_arr_val(:)
-    real(real32),            pointer :: r32_arr_val(:)
-    real(real64),            pointer :: r64_arr_val(:)
-    logical,                 pointer :: logical_arr_val(:)
-    character(str_def),      pointer :: string_arr_val(:)
+    integer(int32),             pointer :: i32_val
+    integer(int64),             pointer :: i64_val
+    real(real32),               pointer :: r32_val
+    real(real64),               pointer :: r64_val, r64_val2
+    logical,                    pointer :: logical_val
+    character(str_longlong),    pointer :: string_val
+    integer(int32),             pointer :: i32_arr_val(:)
+    integer(int64),             pointer :: i64_arr_val(:)
+    real(real32),               pointer :: r32_arr_val(:)
+    real(real64),               pointer :: r64_arr_val(:)
+    logical,                    pointer :: logical_arr_val(:)
+    character(str_def),         pointer :: string_arr_val(:)
+    class(abstract_value_type), pointer :: abstract_val
 
+    type(test_type) :: test_object
     integer(i_def) :: length, table_length
     logical(l_def) :: exists
     character(str_longlong) :: name_str
@@ -88,6 +99,9 @@ contains
     !Check the table length is as expected
     table_length = key_value_collection%get_table_len()
     @assertEqual(4_i_def, table_length)
+
+    ! Initialise an object that inherits from the abstract key_value_type
+    test_object%int_number = 17
 
     !Add all different types of key-value pair to a single collection
     call i32_key_value%initialise("key_for_int32", 320_int32)
@@ -114,6 +128,8 @@ contains
     call key_value_collection%add_key_value(logical_arr_key_value)
     call string_arr_key_value%initialise("key_for_string_arr", ["one", "two"])
     call key_value_collection%add_key_value(string_arr_key_value)
+    call abstract_key_value%initialise("key_for_abstract_obj", test_object )
+    call key_value_collection%add_key_value(abstract_key_value)
 
     ! Extract the value of all keys and check they're correct
     call key_value_collection%get_value("key_for_int32", i32_val)
@@ -146,6 +162,11 @@ contains
     @assertEqual("one", string_arr_val(1))
     @assertEqual("two", string_arr_val(2))
     @assertEqual(2, size(string_arr_val))
+    call key_value_collection%get_value("key_for_abstract_obj", abstract_val)
+    select type(abstract_val)
+      type is (test_type)
+      @assertEqual( 17, abstract_val%int_number )
+    end select
 
     !Change a value locally, and check the value in the collection is updated
     r64_val = 12800.0_real64
@@ -154,7 +175,7 @@ contains
 
     !Check length of table
     length = key_value_collection%get_length()
-    @assertEqual(12_i_def, length)
+    @assertEqual(13_i_def, length)
 
     !Remove an item from the collection, check it's gone and check length again
     exists = key_value_collection%key_value_exists("key_for_int32")
@@ -163,7 +184,7 @@ contains
     exists = key_value_collection%key_value_exists("key_for_int32")
     @assertFalse(exists)
     length = key_value_collection%get_length()
-    @assertEqual(11_i_def, length)
+    @assertEqual(12_i_def, length)
 
     !Tidy up collection to prevent data bleeding into other tests
     call key_value_collection%clear()
