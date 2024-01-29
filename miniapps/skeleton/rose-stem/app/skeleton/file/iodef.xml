@@ -45,7 +45,6 @@
 
    <file_definition
       type="one_file"
-      par_access="collective"
       time_counter="none">
 
      <file id="lfric_diag" name="skeleton_diag" output_freq="1ts" convention="UGRID" enabled=".TRUE.">

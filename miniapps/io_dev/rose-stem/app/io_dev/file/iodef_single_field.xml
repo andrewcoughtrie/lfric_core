@@ -59,7 +59,6 @@
 
     <file_definition
       type="one_file"
-      par_access="collective"
       time_counter="none">
 
       <!-- File definition for output dump fields -->

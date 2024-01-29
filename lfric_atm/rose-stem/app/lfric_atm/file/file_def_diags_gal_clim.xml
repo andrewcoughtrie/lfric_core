@@ -1,4 +1,4 @@
-<file_definition type="one_file" par_access="collective" time_counter="none">
+<file_definition>
 
   <!-- Main diagnostic output file for global runs -->
   <file id="lfric_gal_diagnostics" name="lfric_gal_diagnostics" output_freq="18h" convention="UGRID" enabled=".TRUE.">

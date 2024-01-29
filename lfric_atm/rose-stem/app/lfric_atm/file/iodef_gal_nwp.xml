@@ -37,7 +37,7 @@
     <file_definition src="./file_def_initial_diags.xml"/>
 
     <!-- Local file definitions -->
-    <file_definition type="one_file" par_access="collective" time_counter="none">
+    <file_definition type="one_file" time_counter="none">
 
       <!-- File definition for writing an FD dump -->
       <file id="lfric_fd_dump" name="lfric_fd_dump" output_freq="1ts" convention="UGRID" enabled=".FALSE." >

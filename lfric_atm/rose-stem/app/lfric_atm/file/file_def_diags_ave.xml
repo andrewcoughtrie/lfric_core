@@ -1,4 +1,4 @@
-<file_definition type="one_file" par_access="collective" time_counter="none">
+<file_definition>
 
   <!-- Diagnostic averages output file -->
   <file id="lfric_averages" name="lfric_averages" output_freq="12h" convention="UGRID" enabled=".TRUE.">

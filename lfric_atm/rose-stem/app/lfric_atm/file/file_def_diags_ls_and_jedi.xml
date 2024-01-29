@@ -1,4 +1,4 @@
-<file_definition type="one_file" par_access="collective" time_counter="none">
+<file_definition>
 	
   <!-- Diagnostic output file for jedi_lfric_tests and linear_model application runs -->
   <file id="ls_and_jedi_trajectory" name="ls_and_jedi_trajectory" output_freq="1h" time_counter_name="time" time_counter="exclusive" split_freq="7h" split_end_offset="0h" split_freq_format="%y%mo%d%h" convention="UGRID" enabled=".TRUE.">

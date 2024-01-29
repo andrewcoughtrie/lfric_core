@@ -1,4 +1,4 @@
-<file_definition type="one_file" par_access="collective" time_counter="none">
+<file_definition>
   <!--  IAU files  -->
   <file id="iau" name="iau" mode="read" output_freq="1ts" convention="UGRID" enabled=".FALSE.">
     <field_group freq_op="1ts" operation="instant" read_access=".TRUE.">

@@ -1,4 +1,4 @@
-<file_definition type="one_file" par_access="collective" time_counter="none">
+<file_definition>
 
   <!-- Initial fields to actually output by default -->
   <file id="lfric_initial" name="lfric_initial" output_freq="1ts" convention="UGRID" enabled=".TRUE.">

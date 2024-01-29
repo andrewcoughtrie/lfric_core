@@ -1,4 +1,4 @@
-<file_definition type="one_file" par_access="collective" time_counter="none">
+<file_definition>
 
   <!-- LBC files -->
   <file id="lbc" name="lbc" mode="read" output_freq="1h" convention="UGRID" cyclic="true" enabled=".FALSE.">

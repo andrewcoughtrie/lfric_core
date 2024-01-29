@@ -50,7 +50,7 @@
 
     </field_definition>
 
-    <file_definition type="one_file" par_access="collective" time_counter="none">
+    <file_definition type="one_file" time_counter="none">
 
       <file id="read_model_data" name="read_model_data" output_freq="1ts" convention="UGRID" enabled=".FALSE." mode="read">
         <field_group id="read_fields"/>
