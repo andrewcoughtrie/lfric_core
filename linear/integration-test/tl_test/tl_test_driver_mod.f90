@@ -138,6 +138,9 @@ contains
     ! Initialise the linearisation state
     call linear_init_ls( mesh, twod_mesh, modeldb )
 
+    ! Finalise model
+    call finalise_model(modeldb)
+
   end subroutine initialise
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -286,8 +289,7 @@ contains
     type(modeldb_type), intent(inout) :: modeldb
 
     call test_rk_alg( modeldb, &
-                      mesh,    &
-                      twod_mesh )
+                      mesh)
 
   end subroutine run_rk_alg
 
@@ -378,11 +380,6 @@ contains
     type(modeldb_type), intent(inout) :: modeldb
 
     call log_event( 'Finalising '//program_name//' ...', LOG_LEVEL_ALWAYS )
-
-    ! Model configuration finalisation
-    call finalise_model( modeldb,               &
-                         modeldb%configuration, &
-                         program_name )
 
     ! Destroy the fields stored in model_data
     call finalise_model_data( modeldb )

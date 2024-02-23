@@ -38,13 +38,15 @@ module gungho_step_mod
   use model_clock_mod,                only : model_clock_type
   use mr_indices_mod,                 only : nummr
   use section_choice_config_mod,      only : cloud, cloud_um
-  use semi_implicit_timestep_alg_mod, only : semi_implicit_alg_step
   use sum_fluxes_alg_mod,             only : sum_fluxes_alg
-  use moist_dyn_mod,                  only : num_moist_factors
   use moisture_conservation_alg_mod,  only : moisture_conservation_alg
   use moisture_fluxes_alg_mod,        only : moisture_fluxes_alg
   use planet_config_mod,              only : radius
-  use rk_alg_timestep_mod,            only : rk_alg_step
+  use timestep_method_mod,        only : timestep_method_type, &
+                                         get_timestep_method_from_collection
+  use rk_alg_timestep_mod,        only : rk_timestep_type
+  use semi_implicit_timestep_alg_mod,    &
+                                  only : semi_implicit_timestep_type
   use timestepping_config_mod,        only : method, &
                                              method_semi_implicit, &
                                              method_rk,            &
@@ -80,31 +82,14 @@ module gungho_step_mod
     class(model_clock_type), intent(in)     :: model_clock
 
     type( field_collection_type ), pointer :: prognostic_fields => null()
-    type( field_collection_type ), pointer :: diagnostic_fields => null()
     type( field_collection_type ), pointer :: moisture_fields => null()
     type( field_array_type ),      pointer :: mr_array
     type( field_type ),            pointer :: mr(:) => null()
-    type( field_array_type ),      pointer :: moist_dyn_array
-    type( field_type ),            pointer :: moist_dyn(:) => null()
-    type( field_collection_type ), pointer :: adv_tracer_all_outer => null()
-    type( field_collection_type ), pointer :: adv_tracer_last_outer => null()
-    type( field_collection_type ), pointer :: con_tracer_all_outer => null()
-    type( field_collection_type ), pointer :: con_tracer_last_outer => null()
     type( field_collection_type ), pointer :: derived_fields => null()
     type( field_collection_type ), pointer :: radiation_fields => null()
     type( field_collection_type ), pointer :: microphysics_fields => null()
-    type( field_collection_type ), pointer :: electric_fields => null()
-    type( field_collection_type ), pointer :: orography_fields => null()
     type( field_collection_type ), pointer :: turbulence_fields => null()
     type( field_collection_type ), pointer :: convection_fields => null()
-    type( field_collection_type ), pointer :: cloud_fields => null()
-    type( field_collection_type ), pointer :: surface_fields => null()
-    type( field_collection_type ), pointer :: soil_fields => null()
-    type( field_collection_type ), pointer :: snow_fields => null()
-    type( field_collection_type ), pointer :: chemistry_fields => null()
-    type( field_collection_type ), pointer :: aerosol_fields => null()
-    type( field_collection_type ), pointer :: stph_fields => null()
-    type( field_collection_type ), pointer :: lbc_fields => null()
 
     type( field_type), pointer :: theta => null()
     type( field_type), pointer :: u => null()
@@ -114,13 +99,16 @@ module gungho_step_mod
     type( field_type), pointer :: accumulated_fluxes => null()
     type( field_type), pointer :: temp_correction_field => null()
 
+
+
+    class(timestep_method_type), pointer :: timestep_method => null()
+
     real(r_def), pointer :: temperature_correction_rate
     real(r_def), pointer :: total_dry_mass
     real(r_def), pointer :: total_energy
     real(r_def), pointer :: total_energy_previous
 
     real( r_def )    :: dt
-    real( r_def )    :: dtemp_encorr
     logical( l_def ) :: use_moisture
 
     write( log_scratch_space, '("/", A, "\ ")' ) repeat( "*", 76 )
@@ -140,31 +128,14 @@ module gungho_step_mod
 
     ! Get pointers to field collections for use downstream
     prognostic_fields => modeldb%model_data%prognostic_fields
-    diagnostic_fields => modeldb%model_data%diagnostic_fields
     moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
     call moisture_fields%get_field("mr", mr_array)
     mr => mr_array%bundle
-    call moisture_fields%get_field("moist_dyn", moist_dyn_array)
-    moist_dyn => moist_dyn_array%bundle
-    adv_tracer_all_outer => modeldb%model_data%adv_tracer_all_outer
-    adv_tracer_last_outer => modeldb%model_data%adv_tracer_last_outer
-    con_tracer_all_outer => modeldb%model_data%con_tracer_all_outer
-    con_tracer_last_outer => modeldb%model_data%con_tracer_last_outer
     derived_fields => modeldb%model_data%derived_fields
     radiation_fields => modeldb%model_data%radiation_fields
     microphysics_fields => modeldb%model_data%microphysics_fields
-    electric_fields => modeldb%model_data%electric_fields
-    orography_fields => modeldb%model_data%orography_fields
     turbulence_fields => modeldb%model_data%turbulence_fields
     convection_fields => modeldb%model_data%convection_fields
-    cloud_fields => modeldb%model_data%cloud_fields
-    surface_fields => modeldb%model_data%surface_fields
-    soil_fields => modeldb%model_data%soil_fields
-    snow_fields => modeldb%model_data%snow_fields
-    chemistry_fields => modeldb%model_data%chemistry_fields
-    aerosol_fields => modeldb%model_data%aerosol_fields
-    stph_fields => modeldb%model_data%stph_fields
-    lbc_fields => modeldb%model_data%lbc_fields
 
     ! Get pointers to fields in the prognostic/diagnostic field collections
     ! for use downstream
@@ -176,35 +147,11 @@ module gungho_step_mod
     ! Get timestep parameters from clock
     dt = real(model_clock%get_seconds_per_step(), r_def)
 
-    ! Get temperature increment for energy correction
-    dtemp_encorr = dt * temperature_correction_rate
-
-    select case( method )
-      case( method_semi_implicit )  ! Semi-Implicit
-        call semi_implicit_alg_step(u, rho, theta, exner, mr, moist_dyn,       &
-                                    adv_tracer_all_outer,                      &
-                                    adv_tracer_last_outer,                     &
-                                    con_tracer_all_outer,                      &
-                                    con_tracer_last_outer,                     &
-                                    derived_fields, radiation_fields,          &
-                                    microphysics_fields, electric_fields,      &
-                                    orography_fields,                          &
-                                    turbulence_fields, convection_fields,      &
-                                    cloud_fields, surface_fields,              &
-                                    soil_fields, snow_fields,                  &
-                                    chemistry_fields, aerosol_fields,          &
-                                    stph_fields,                               &
-                                    lbc_fields, model_clock, dtemp_encorr,     &
-                                    mesh, twod_mesh)
-      case( method_rk )             ! RK
-        call rk_alg_step(u, rho, theta, moist_dyn, exner, mr, model_clock )
-      case( method_no_timestepping )
-        write( log_scratch_space, &
-           '(A, A)' ) 'CAUTION: Running with no timestepping. ' // &
-                      ' Prognostic fields not evolved'
-        call log_event( log_scratch_space, LOG_LEVEL_INFO )
-
-    end select
+    ! Obtain the chosen timestep method (typically, Runge-Kutta or
+    ! semi-implicit) and run the timestep
+    timestep_method => get_timestep_method_from_collection( &
+                              modeldb%values, 'timestep_method')
+    call timestep_method%step( modeldb )
 
     if ( encorr_usage /= encorr_usage_none ) then
       call derived_fields%get_field('accumulated_fluxes', accumulated_fluxes)

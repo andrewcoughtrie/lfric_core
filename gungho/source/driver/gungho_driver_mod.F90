@@ -367,7 +367,6 @@ contains
 
     ! Model configuration finalisation
     call finalise_model( modeldb,               &
-                         modeldb%configuration, &
                          program_name )
 
     ! Destroy the fields stored in model_data

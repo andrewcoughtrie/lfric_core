@@ -32,9 +32,10 @@ module tl_test_semi_imp_alg_mod
   use tl_si_timestep_alg_mod,         only: tl_semi_implicit_alg_init, &
                                             tl_semi_implicit_alg_step, &
                                             tl_semi_implicit_alg_final
-  use semi_implicit_timestep_alg_mod, only: semi_implicit_alg_init, &
-                                            semi_implicit_alg_step, &
-                                            semi_implicit_alg_final
+  use semi_implicit_timestep_alg_mod, only: semi_implicit_timestep_type
+  use semi_implicit_solver_alg_mod,   only: semi_implicit_solver_alg_final
+  use si_operators_alg_mod,           only: final_si_operators
+  use timestep_method_mod,            only: timestep_method_type
   use moist_dyn_factors_alg_mod,      only: moist_dyn_factors_alg
   use tl_moist_dyn_factors_alg_mod,                                  &
                                       only: tl_moist_dyn_factors_alg
@@ -62,6 +63,8 @@ module tl_test_semi_imp_alg_mod
     type(mesh_type), pointer, intent(in) :: twod_mesh
 
     type(modeldb_type), target, intent(in) :: modeldb
+
+    class(timestep_method_type), pointer :: semi_implicit_timestep_method => null()
 
     character(str_def) :: label = "semi_imp_alg"
 
@@ -104,14 +107,14 @@ module tl_test_semi_imp_alg_mod
     type(field_type), pointer :: moist_dyn(:) => null()
 
     type(field_type), dimension(num_moist_factors) :: p_moist_dyn
-    type(field_type), dimension(num_moist_factors) :: n_moist_dyn
+    type(field_type), dimension(num_moist_factors) :: b_moist_dyn
 
     type(field_type), dimension(nummr) :: p_mr
-    type(field_type), dimension(nummr) :: n_mr
+    type(field_type), dimension(nummr) :: b_mr
     type(field_type), dimension(nummr) :: r_mr
     type(field_type), dimension(nummr) :: diff_mr
     type(field_type) :: p_u, p_rho, p_theta, p_exner
-    type(field_type) :: n_u, n_rho, n_theta, n_exner
+    type(field_type) :: b_u, b_rho, b_theta, b_exner
     type(field_type) :: r_u, r_rho, r_theta, r_exner
     type(field_type) :: diff_u, diff_rho, diff_theta, diff_exner
 
@@ -189,13 +192,13 @@ module tl_test_semi_imp_alg_mod
     call p_theta%initialise( vector_space = &
       function_space_collection%get_fs(mesh, element_order, Wtheta) )
 
-    call n_u%initialise( vector_space = &
+    call b_u%initialise( vector_space = &
       function_space_collection%get_fs(mesh, element_order, W2) )
-    call n_rho%initialise( vector_space = &
+    call b_rho%initialise( vector_space = &
       function_space_collection%get_fs(mesh, element_order, W3) )
-    call n_exner%initialise( vector_space = &
+    call b_exner%initialise( vector_space = &
       function_space_collection%get_fs(mesh, element_order, W3) )
-    call n_theta%initialise( vector_space = &
+    call b_theta%initialise( vector_space = &
       function_space_collection%get_fs(mesh, element_order, Wtheta) )
 
     call r_u%initialise( vector_space = &
@@ -217,11 +220,11 @@ module tl_test_semi_imp_alg_mod
       function_space_collection%get_fs(mesh, element_order, Wtheta) )
 
     call clone_bundle(moist_dyn, p_moist_dyn, num_moist_factors)
-    call clone_bundle(moist_dyn, n_moist_dyn, num_moist_factors)
+    call clone_bundle(moist_dyn, b_moist_dyn, num_moist_factors)
 
     call clone_bundle(mr, p_mr, nummr)
     call clone_bundle(mr, r_mr, nummr)
-    call clone_bundle(mr, n_mr, nummr)
+    call clone_bundle(mr, b_mr, nummr)
     call clone_bundle(mr, diff_mr, nummr)
 
     call invoke( assign_field_random_kernel_type( r_u, 1.0_r_def ) ,     &
@@ -245,24 +248,30 @@ module tl_test_semi_imp_alg_mod
       call invoke( setval_X( mr(i), ls_mr(i) ) )
     end do
 
-    call semi_implicit_alg_final()
+    ! Clean up solvers left over from previous tests, as semi-implicit
+    ! method will create new solvers which cause double-allocates
+    call final_si_operators()
+    call semi_implicit_solver_alg_final()
 
-    call semi_implicit_alg_init(mesh, u, rho, theta, exner, mr)
+    ! Set initial conditions equal to the linearisation state. This
+    ! will be used to calculate the evolved baseline b_x = N(ls_x)
+    allocate( semi_implicit_timestep_method, source=semi_implicit_timestep_type(modeldb) )
+    call semi_implicit_timestep_method%step( modeldb )
+    call semi_implicit_timestep_method%finalise()
+    deallocate( semi_implicit_timestep_method )
 
-    call semi_implicit_alg_step(u, rho, theta, exner, mr, moist_dyn,         &
-                                adv_tracer_all_outer, adv_tracer_last_outer, &
-                                con_tracer_all_outer, con_tracer_last_outer, &
-                                derived_fields, radiation_fields,            &
-                                microphysics_fields, electric_fields,        &
-                                orography_fields,                            &
-                                turbulence_fields, convection_fields,        &
-                                cloud_fields, surface_fields,                &
-                                soil_fields, snow_fields,                    &
-                                chemistry_fields,                            &
-                                aerosol_fields, stph_fields, lbc_fields,     &
-                                modeldb%clock, dtemp_encorr, mesh, twod_mesh)
+    ! Save results from timestep execution
+    call invoke( setval_X( b_u, u ),                     &
+                 setval_X( b_theta, theta ),             &
+                 setval_X( b_rho, rho ),                 &
+                 setval_X( b_exner, exner ) )
 
-    call semi_implicit_alg_final()
+    do i = 1, num_moist_factors
+      call invoke( setval_X( b_moist_dyn(i), moist_dyn(i) ) )
+    end do
+    do i = 1, nummr
+      call invoke( setval_X( b_mr(i), mr(i) ) )
+    end do
 
     gamma_u = 1.e4_r_def
     gamma_theta = 1.e2_r_def
@@ -283,48 +292,41 @@ module tl_test_semi_imp_alg_mod
       gamma_exner = gamma_exner / 2.0_r_def
       gamma_mr = gamma_mr / 2.0_r_def
 
+      ! Compute perturbation fields, and also add them to nonlinear fields
+      ! to set initial conditions equal to the perturbed linearisation
+      ! state. This will be used to calculate x=N(ls_x + gamma r_x)
       call invoke( a_times_X( p_u, gamma_u, r_u ),              &
                    a_times_X( p_theta, gamma_theta, r_theta ),  &
                    a_times_X( p_rho, gamma_rho, r_rho ),        &
                    a_times_X( p_exner, gamma_exner, r_exner ),  &
-                   setval_X( n_u, ls_u ),                     &
-                   setval_X( n_theta, ls_theta ),             &
-                   setval_X( n_rho, ls_rho ),                 &
-                   setval_X( n_exner, ls_exner ),             &
-                   inc_X_plus_Y( n_u, p_u ),                  &
-                   inc_X_plus_Y( n_theta, p_theta ),          &
-                   inc_X_plus_Y( n_rho, p_rho ),              &
-                   inc_X_plus_Y( n_exner, p_exner ) )
+                   setval_X( u, ls_u ),                     &
+                   setval_X( theta, ls_theta ),             &
+                   setval_X( rho, ls_rho ),                 &
+                   setval_X( exner, ls_exner ),             &
+                   inc_X_plus_Y( u, p_u ),                  &
+                   inc_X_plus_Y( theta, p_theta ),          &
+                   inc_X_plus_Y( rho, p_rho ),              &
+                   inc_X_plus_Y( exner, p_exner ) )
 
       do i = 1, nummr
         call invoke( &
           a_times_X( p_mr(i), gamma_mr, r_mr(i) ), &
-          setval_X( n_mr(i), ls_mr(i) ),                       &
-          inc_X_plus_Y( n_mr(i), p_mr(i) ) )
+          setval_X( mr(i), ls_mr(i) ),                       &
+          inc_X_plus_Y( mr(i), p_mr(i) ) )
       end do
 
-      call moist_dyn_factors_alg(n_moist_dyn, n_mr)
+      call moist_dyn_factors_alg(moist_dyn, mr)
 
       call tl_moist_dyn_factors_alg(p_moist_dyn, p_mr )
 
-      call semi_implicit_alg_init(mesh, n_u, n_rho, n_theta, n_exner, n_mr)
+      ! Evolve u, theta, rho, exner and moist_dyn
+      allocate( semi_implicit_timestep_method, source=semi_implicit_timestep_type(modeldb) )
+      call semi_implicit_timestep_method%step( modeldb )
+      call semi_implicit_timestep_method%finalise()
+      deallocate( semi_implicit_timestep_method )
 
-      call semi_implicit_alg_step(n_u, n_rho, n_theta, n_exner, n_mr,         &
-                                  n_moist_dyn,                                &
-                                  adv_tracer_all_outer, adv_tracer_last_outer,&
-                                  con_tracer_all_outer, con_tracer_last_outer,&
-                                  derived_fields, radiation_fields,           &
-                                  microphysics_fields, electric_fields,       &
-                                  orography_fields,                           &
-                                  turbulence_fields, convection_fields,       &
-                                  cloud_fields, surface_fields,               &
-                                  soil_fields, snow_fields,                   &
-                                  chemistry_fields,                           &
-                                  aerosol_fields, stph_fields, lbc_fields,    &
-                                  modeldb%clock, dtemp_encorr, mesh, twod_mesh)
-
-      call semi_implicit_alg_final()
-
+      ! Evolve the perturbation fields with the linear timestep. This
+      ! gives p_x=L(gamma r_x)
       call tl_semi_implicit_alg_init(mesh, p_u, p_rho, p_theta, p_exner,     &
                                      p_mr, ls_u, ls_rho, ls_theta, ls_exner, &
                                      ls_mr, ls_moist_dyn)
@@ -338,23 +340,25 @@ module tl_test_semi_imp_alg_mod
 
       call tl_semi_implicit_alg_final()
 
-      call invoke( X_minus_Y( diff_u, n_u, u ),                      &
+      ! Analyse the results: calculate the differences diff_x = x -
+      ! b_x - p_x = N(ls_x + gamma_x) - N(ls_x) - L(gamma r_x)
+      call invoke( X_minus_Y( diff_u, u, b_u ),                      &
                    inc_X_minus_Y( diff_u, p_u ),                     &
                    X_innerproduct_X( norm_u, diff_u ) )
-      call invoke( X_minus_Y( diff_rho, n_rho, rho ),                &
+      call invoke( X_minus_Y( diff_rho, rho, b_rho ),                &
                    inc_X_minus_Y( diff_rho, p_rho ),                 &
                    X_innerproduct_X( norm_rho, diff_rho ) )
-      call invoke( X_minus_Y( diff_exner, n_exner, exner ),          &
+      call invoke( X_minus_Y( diff_exner, exner, b_exner ),          &
                    inc_X_minus_Y( diff_exner, p_exner ),             &
                    X_innerproduct_X( norm_exner, diff_exner ) )
-      call invoke( X_minus_Y( diff_theta, n_theta, theta ),          &
+      call invoke( X_minus_Y( diff_theta, theta, b_theta ),          &
                    inc_X_minus_Y( diff_theta, p_theta ),             &
                    X_innerproduct_X( norm_theta, diff_theta ) )
 
       norm_mr=0.0_r_def
       do i = 1, nummr
         call invoke( &
-          X_minus_Y( diff_mr(i), n_mr(i), mr(i) ),   &
+          X_minus_Y( diff_mr(i), mr(i), b_mr(i) ),   &
           inc_X_minus_Y( diff_mr(i), p_mr(i) ),             &
           X_innerproduct_X( norm_mr_tmp, diff_mr(i) ) )
           norm_mr = norm_mr + norm_mr_tmp

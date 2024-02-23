@@ -37,11 +37,10 @@ module tl_test_timesteps_alg_mod
   use model_clock_mod,                only: model_clock_type
   use moist_dyn_mod,                  only: num_moist_factors
   use mr_indices_mod,                 only: nummr
-  use rk_alg_timestep_mod,            only: rk_alg_final
-  use semi_implicit_timestep_alg_mod, only: semi_implicit_alg_final
+  use semi_implicit_solver_alg_mod,   only: semi_implicit_solver_alg_final
+  use si_operators_alg_mod,           only: final_si_operators
   use timestepping_config_mod,        only: dt,                   &
                                             method,               &
-                                            method_semi_implicit, &
                                             method_rk
   use time_config_mod,                only: timestep_start, timestep_end
   use tl_test_convergence_rate_check, only: convergence_rate_check
@@ -63,7 +62,7 @@ module tl_test_timesteps_alg_mod
   !> @param[in] twod_mesh     The current 2d mesh
   !> @param[in] model_clock   Time within the model.
   !>
-  subroutine test_timesteps( modeldb, &
+  subroutine test_timesteps( modeldb,    &
                              mesh,       &
                              twod_mesh,  &
                              model_clock )
@@ -77,22 +76,22 @@ module tl_test_timesteps_alg_mod
 
     character(str_def) :: label = "timesteps"
 
-    type(field_collection_type), pointer :: prognostic_fields => null()
-    type(field_collection_type), pointer :: ls_fields => null()
+    type(field_collection_type), pointer :: prognostic_fields
+    type(field_collection_type), pointer :: ls_fields
 
-    type(field_type), pointer :: ls_u => null()
-    type(field_type), pointer :: ls_rho => null()
-    type(field_type), pointer :: ls_theta => null()
-    type(field_type), pointer :: ls_exner => null()
-    type(field_type), pointer :: ls_moist_dyn(:) => null()
-    type(field_type), pointer :: ls_mr(:) => null()
+    type(field_type), pointer :: ls_u
+    type(field_type), pointer :: ls_rho
+    type(field_type), pointer :: ls_theta
+    type(field_type), pointer :: ls_exner
+    type(field_type), pointer :: ls_moist_dyn(:)
+    type(field_type), pointer :: ls_mr(:)
 
-    type(field_type), pointer :: u => null()
-    type(field_type), pointer :: rho => null()
-    type(field_type), pointer :: theta => null()
-    type(field_type), pointer :: exner => null()
-    type(field_type), pointer :: moist_dyn(:) => null()
-    type(field_type), pointer :: mr(:) => null()
+    type(field_type), pointer :: u
+    type(field_type), pointer :: rho
+    type(field_type), pointer :: theta
+    type(field_type), pointer :: exner
+    type(field_type), pointer :: moist_dyn(:)
+    type(field_type), pointer :: mr(:)
 
     type(field_type), dimension(nummr) :: p_mr
     type(field_type), dimension(nummr) :: n1_mr
@@ -105,11 +104,11 @@ module tl_test_timesteps_alg_mod
     type(field_type) :: r_u, r_rho, r_theta, r_exner
     type(field_type) :: diff_u, diff_rho, diff_theta, diff_exner
 
-    type(field_collection_type), pointer :: moisture_fields => null()
-    type(field_array_type), pointer      :: mr_array => null()
-    type(field_array_type), pointer      :: moist_dyn_array => null()
-    type(field_array_type), pointer      :: ls_mr_array => null()
-    type(field_array_type), pointer      :: ls_moist_dyn_array => null()
+    type(field_collection_type), pointer :: moisture_fields
+    type(field_array_type), pointer      :: mr_array
+    type(field_array_type), pointer      :: moist_dyn_array
+    type(field_array_type), pointer      :: ls_mr_array
+    type(field_array_type), pointer      :: ls_moist_dyn_array
 
     real(r_def) :: gamma_u, gamma_rho, gamma_exner, gamma_theta, gamma_mr
     real(r_def) :: norm_u, norm_rho, norm_exner, norm_theta, norm_mr
@@ -270,11 +269,6 @@ module tl_test_timesteps_alg_mod
                                 r_mr(i) ) )
       end do
 
-      ! Have to deallocate arrays, as they are allocated again in
-      ! initialise model (which also sets the initial data).
-      if ( method == method_rk ) call rk_alg_final()
-      if ( method == method_semi_implicit ) call semi_implicit_alg_final()
-
       ! Multiple timesteps
       do t = parse_instance(timestep_start), parse_instance(timestep_end)
 
@@ -290,6 +284,12 @@ module tl_test_timesteps_alg_mod
         enddo
         call  moist_dyn_factors_alg( moist_dyn, mr )
 
+        ! Clean up solvers and timestep method left over from running
+        ! the model to set up model state and linear state
+        call final_si_operators()
+        call semi_implicit_solver_alg_final
+        call finalise_model(modeldb)
+
         call initialise_model( mesh,  &
                                modeldb )
 
@@ -298,8 +298,7 @@ module tl_test_timesteps_alg_mod
                           modeldb,    &
                           model_clock )
 
-        if ( method == method_rk ) call rk_alg_final()
-        if ( method == method_semi_implicit ) call semi_implicit_alg_final()
+        call finalise_model(modeldb)
 
         call invoke( setval_X( n1_u, u ),         &
                      setval_X( n1_theta, theta ), &
@@ -378,8 +377,7 @@ module tl_test_timesteps_alg_mod
                           modeldb,    &
                           model_clock )
 
-        if ( method == method_rk ) call rk_alg_final()
-        if ( method == method_semi_implicit ) call semi_implicit_alg_final()
+        call finalise_model(modeldb)
 
         call invoke( setval_X( n2_u, u ),          &
                      setval_X( n2_theta, theta ),  &

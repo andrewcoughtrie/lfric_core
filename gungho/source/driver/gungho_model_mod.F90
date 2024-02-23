@@ -46,8 +46,6 @@ module gungho_model_mod
   use gungho_extrusion_mod,       only : create_extrusion
   use gungho_modeldb_mod,         only : modeldb_type
   use gungho_setup_io_mod,        only : init_gungho_files
-  use gungho_transport_control_alg_mod, &
-                                  only : gungho_transport_control_alg_final
   use init_altitude_mod,          only : init_altitude
   use inventory_by_mesh_mod,      only : inventory_by_mesh_type
   use lfric_xios_context_mod,     only : lfric_xios_context_type
@@ -71,14 +69,15 @@ module gungho_model_mod
   use namelist_collection_mod,    only : namelist_collection_type
   use namelist_mod,               only : namelist_type
   use mr_indices_mod,             only : nummr
+  use no_timestep_alg_mod,        only : no_timestep_type
   use remove_duplicates_mod,      only : remove_duplicates
-  use rk_alg_timestep_mod,        only : rk_alg_init, &
-                                         rk_alg_final
   use runtime_constants_mod,      only : create_runtime_constants, &
                                          final_runtime_constants
-  use semi_implicit_timestep_alg_mod, &
-                                  only : semi_implicit_alg_init, &
-                                         semi_implicit_alg_final
+  use timestep_method_mod,        only : timestep_method_type, &
+                                         get_timestep_method_from_collection
+  use rk_alg_timestep_mod,        only : rk_timestep_type
+  use semi_implicit_timestep_alg_mod,    &
+                                  only : semi_implicit_timestep_type
   use setup_orography_alg_mod,    only : setup_orography_alg
   use derived_config_mod,         only : l_esm_couple
 #ifdef COUPLED
@@ -286,7 +285,7 @@ contains
   !> @brief Initialises the infrastructure and sets up constants used by the
   !>        model.
   !>
-  !> @param [in,out] modeldb   The working data set for the model run
+  !> @param [in,out] modeldb   The full model database for the model run
   !> @param [in]     calendar  Calendar object
   !>
   subroutine initialise_infrastructure( modeldb, &
@@ -819,6 +818,8 @@ contains
     type( field_type), pointer :: rho => null()
     type( field_type), pointer :: exner => null()
 
+    class(timestep_method_type), pointer  :: timestep_method => null()
+
     use_moisture = ( moisture_formulation /= moisture_formulation_dry )
 
     ! Get pointers to field collections for use downstream
@@ -842,9 +843,13 @@ contains
 
     select case( method )
       case( method_semi_implicit )  ! Semi-Implicit
-        ! Initialise and output initial conditions for first timestep
-        call semi_implicit_alg_init(mesh, u, rho, theta, exner, mr)
+        ! Initialise the semi-implicit timestep method
+        allocate( timestep_method, source=semi_implicit_timestep_type(modeldb) )
+        ! Add to the model database
+        call modeldb%values%add_key_value('timestep_method', &
+                        timestep_method)
 
+        ! Output initial conditions
         if ( write_conservation_diag ) then
          call conservation_algorithm( rho,              &
                                       u,                &
@@ -857,24 +862,30 @@ contains
                                            'Before timestep' )
         end if
       case( method_rk )             ! RK
-        ! Initialise and output initial conditions for first timestep
-        call rk_alg_init(mesh, u, rho, theta, exner)
+        ! Initialise the Runge-Kutta timestep method
+        allocate( timestep_method, source=rk_timestep_type(modeldb) )
+        ! Add to the model database
+        call modeldb%values%add_key_value('timestep_method', &
+                        timestep_method)
+
+        ! Output initial conditions
         if ( write_conservation_diag ) then
-         call conservation_algorithm( rho,              &
-                                      u,                &
-                                      theta,            &
-                                      mr,               &
-                                      exner )
+          call conservation_algorithm( rho,              &
+                                       u,                &
+                                       theta,            &
+                                       mr,               &
+                                       exner )
          if ( use_moisture ) &
            call moisture_conservation_alg( rho,              &
                                            mr,               &
                                            'Before timestep' )
         end if
       case( method_no_timestepping )
-        write( log_scratch_space, &
-           '(A, A)' ) 'CAUTION: Running with no timestepping. ' // &
-                      ' Prognostic fields not evolved'
-        call log_event( log_scratch_space, LOG_LEVEL_INFO )
+        ! Initialise a null-timestep method
+        allocate( timestep_method, source=no_timestep_type(modeldb) )
+        ! Add to the model database
+        call modeldb%values%add_key_value('timestep_method', &
+                        timestep_method)
 
       case default
         call log_event("Gungho: Incorrect time stepping option chosen, "// &
@@ -917,22 +928,16 @@ contains
   !> @param[in]     program_name  An identifier given to the model run
   !>
   subroutine finalise_model( modeldb,       &
-                             configuration, &
                              program_name )
 
-    use timestepping_config_mod, only: method,                 &
-                                       method_semi_implicit,   &
-                                       method_rk
     use io_config_mod, only: write_minmax_tseries
 
     implicit none
 
     type( modeldb_type ), target,     intent(inout) :: modeldb
-    type( namelist_collection_type ), intent(inout) :: configuration
-    character(*),                     intent(in)    :: program_name
+    character(*),         optional,   intent(in)    :: program_name
 
     type( field_collection_type ), pointer :: prognostic_fields => null()
-    type( field_collection_type ), pointer :: diagnostic_fields => null()
     type( field_collection_type ), pointer :: moisture_fields => null()
     type( field_array_type ),      pointer :: mr_array
     type( field_type ),            pointer :: mr(:) => null()
@@ -943,45 +948,50 @@ contains
     type( field_type), pointer :: rho => null()
     type( field_type), pointer :: exner => null()
 
+    class(timestep_method_type), pointer :: timestep_method
+
     ! Pointer for setting I/O handlers on fields
     procedure(write_interface), pointer :: tmp_write_ptr => null()
 
-    ! Get pointers to field collections for use downstream
-    prognostic_fields => modeldb%model_data%prognostic_fields
-    diagnostic_fields => modeldb%model_data%diagnostic_fields
-    moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
-    call moisture_fields%get_field("mr", mr_array)
-    mr => mr_array%bundle
-    fd_fields => modeldb%model_data%fd_fields
+    if ( present(program_name) ) then
+      ! Get pointers to field collections for use downstream
+      prognostic_fields => modeldb%model_data%prognostic_fields
+      moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
+      call moisture_fields%get_field("mr", mr_array)
+      mr => mr_array%bundle
+      fd_fields => modeldb%model_data%fd_fields
 
-    ! Get pointers to fields in the prognostic/diagnostic field collections
-    ! for use downstream
-    call prognostic_fields%get_field('theta', theta)
-    call prognostic_fields%get_field('u', u)
-    call prognostic_fields%get_field('rho', rho)
-    call prognostic_fields%get_field('exner', exner)
+      ! Get pointers to fields in the prognostic/diagnostic field collections
+      ! for use downstream
+      call prognostic_fields%get_field('theta', theta)
+      call prognostic_fields%get_field('u', u)
+      call prognostic_fields%get_field('rho', rho)
+      call prognostic_fields%get_field('exner', exner)
 
-    ! Log fields
-    call rho%log_field(   LOG_LEVEL_DEBUG, 'rho' )
-    call theta%log_field( LOG_LEVEL_DEBUG, 'theta' )
-    call exner%log_field( LOG_LEVEL_DEBUG, 'exner' )
-    call u%log_field(     LOG_LEVEL_DEBUG, 'u' )
+      ! Log fields
+      call rho%log_field(   LOG_LEVEL_DEBUG, 'rho' )
+      call theta%log_field( LOG_LEVEL_DEBUG, 'theta' )
+      call exner%log_field( LOG_LEVEL_DEBUG, 'exner' )
+      call u%log_field(     LOG_LEVEL_DEBUG, 'u' )
 
-    ! Write checksums to file
-    if (use_moisture) then
-      call checksum_alg(program_name, rho, 'rho', theta, 'theta', u, 'u', &
-         field_bundle=mr, bundle_name='mr')
-    else
-      call checksum_alg(program_name, rho, 'rho', theta, 'theta', u, 'u')
+      ! Write checksums to file
+      if (use_moisture) then
+        call checksum_alg(program_name, rho, 'rho', theta, 'theta', u, 'u', &
+                        field_bundle=mr, bundle_name='mr')
+      else
+        call checksum_alg(program_name, rho, 'rho', theta, 'theta', u, 'u')
+      end if
+
+      if (write_minmax_tseries) call minmax_tseries_final()
     end if
 
-    if (write_minmax_tseries) call minmax_tseries_final()
-
-    if ( method == method_semi_implicit ) call semi_implicit_alg_final()
-    if ( method == method_rk )            call rk_alg_final()
-    call gungho_transport_control_alg_final()
-
-    call configuration%clear()
+    ! Finalise the timestep method
+    if ( modeldb%values%key_value_exists('timestep_method') ) then
+      timestep_method => get_timestep_method_from_collection(     &
+                    modeldb%values, "timestep_method")
+      call timestep_method%finalise()
+      call modeldb%values%remove_key_value('timestep_method')
+    end if
 
   end subroutine finalise_model
 
