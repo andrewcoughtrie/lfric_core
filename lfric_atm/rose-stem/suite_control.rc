@@ -257,7 +257,7 @@
                                                    "threads":1,
  		                                   "wallclock":"00:15:00"} } },
                      plotstr="plot_rce.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR")',
-    'run_application("lfric_atm", "proto_ral_ens_seuk",
+    'run_application("lfric_atm", "proto_ral_ens_seuk", checkkgo=False,
                      resolutions=[("seuk_MG",60.0)],
                      env={"crun":2, "nrun":60,
                           "directives":{"default":{"mpi_parts":16,

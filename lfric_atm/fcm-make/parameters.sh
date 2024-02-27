@@ -22,7 +22,7 @@ export casim_sources=
 # miniapps/lfric_coupled/rose-stem/app/fcm_make_river/rose-app.conf
 # is consistent with jules_rev below.
 #******************************************************************************
-export jules_rev=27798
+export jules_rev=27837
 export jules_sources=
 export shumlib_rev=um13.4
 export shumlib_sources=

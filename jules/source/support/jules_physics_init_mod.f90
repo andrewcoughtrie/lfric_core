@@ -17,6 +17,18 @@ module jules_physics_init_mod
                                      emis_nvg_io, gs_nvg_io,                   &
                                      infil_nvg_io, vf_nvg_io,                  &
                                      z0_nvg_io, z0hm_nvg_io
+  use jules_radiation_config_mod, only :                                       &
+                                     fixed_sea_albedo_in => fixed_sea_albedo,  &
+                                     hapke_soil => l_hapke_soil,               &
+                                     partition_albsoil => l_partition_albsoil, &
+                                     ratio_soilalb => ratio_albsoil,           &
+                                     nir_frac_albsoil => swdn_frac_albsoil
+  use jules_snow_config_mod, only :                                            &
+                                     rho_snow_fresh_in => rho_snow_fresh,      &
+                                     can_clump_pft => can_clump,               &
+                                     can_snow_pft => cansnowpft,               &
+                                     exposed_lai => n_lai_exposed,             &
+                                     unload_rate_u_pft => unload_rate_u
   use jules_surface_config_mod, only :                                         &
                                      cor_mo_iter_in => cor_mo_iter,            &
                                      cor_mo_iter_lim_oblen,                    &
@@ -46,15 +58,10 @@ module jules_physics_init_mod
                              l_moruses_storage_thin_in => l_moruses_storage_thin
   use surface_config_mod,     only : use_hydrology,                            &
                                      l_variable_rainfraction => l_var_rainfrac,&
-                                     fixed_sea_albedo_in => fixed_sea_albedo,  &
                                      non_iso_scatter, sea_alb_method,          &
                                      sea_alb_method_barker, sea_alb_method_jin,&
                                      sea_alb_method_fixed, sea_alb_var_chl,    &
                                      blue_sky_alb, sea_surf_alg, albedo_obs,   &
-                                     hapke_soil => l_hapke_soil,               &
-                                     partition_albsoil => l_partition_albsoil, &
-                                     ratio_soilalb => ratio_albsoil,           &
-                                     nir_frac_albsoil => swdn_frac_albsoil,    &
                                      sea_surf_alg_coare,                       &
                                      sea_surf_alg_surf_div,                    &
                                      alb_sice_melt, dt_ice_albedo,             &
@@ -69,7 +76,6 @@ module jules_physics_init_mod
                                      grain_growth_marshall,                    &
                                      grain_growth_taillandier, relayer_opt,    &
                                      relayer_opt_original, relayer_opt_inverse,&
-                                     rho_snow_fresh_in => rho_snow_fresh,      &
                                      dpsids_dsdz, soil_sat_down,               &
                                      alb_snocov_max,                           &
                                      alb_leaf_nir, alb_leaf_vis,               &
@@ -85,10 +91,6 @@ module jules_physics_init_mod
                                      cdn_maximum_sea => cdn_max_sea,           &
                                      u_cdn_highwind => u_cdn_hw,               &
                                      u_cdn_maximum => u_cdn_max,               &
-                                     can_clump_pft => can_clump,               &
-                                     can_snow_pft => cansnowpft,               &
-                                     exposed_lai => n_lai_exposed,             &
-                                     unload_rate_u_pft => unload_rate_u,       &
                                      f_smc_p0 => fsmc_p0,                      &
                                      l_vg_bc_switch => l_vg_soil,              &
                                      use_variable_sst, heat_cap_sea,           &
