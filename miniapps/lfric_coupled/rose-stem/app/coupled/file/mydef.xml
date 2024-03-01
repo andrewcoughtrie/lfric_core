@@ -58,6 +58,7 @@
         <field id="lf_iceheatflux" name="lf_iceheatflux" long_name="lf_iceheatflux" unit="W m-2" domain_ref="face" axis_ref="sea_ice_categories" />
         <field id="lf_sublimation" name="lf_sublimation" long_name="lf_sublimation" unit="kg m-2 s-1" domain_ref="face" axis_ref="sea_ice_categories" />
         <field id="lf_iceskint" name="lf_iceskint" long_name="lf_iceskint" unit="K" domain_ref="face" axis_ref="sea_ice_categories" />
+        <field id="lf_pensolar" name="lf_pensolar" long_name="lf_pensolar" unit="W m-2" domain_ref="face" axis_ref="sea_ice_categories" />
         <field id="lf_conductivity" name="lf_conductivity" long_name="lf_conductivity" unit="W m-2 K-1" domain_ref="face" axis_ref="sea_ice_categories" />
         <field id="lf_snow_depth" name="lf_snow_depth" long_name="snow depth on sea ice" unit="m" domain_ref="face" axis_ref="sea_ice_categories" />
         <field id="lf_pond_frac" name="lf_pond_frac" long_name="lf_pond_frac" unit="1" domain_ref="face" axis_ref="sea_ice_categories" />
@@ -172,10 +173,12 @@
 
         <!-- The prognostic fields that get updated by the coupler should also be output -->
 	<field id="surface__tile_temperature" />      <!-- For sea surface temperature -->
-	<field id="surface__tile_fraction" />         <!-- For sea ice fraction -->
+	<field id="seaice__sea_ice_fraction" />
         <field id="seaice__sea_ice_thickness" />
         <field id="seaice__sea_ice_temperature" />
         <field id="seaice__sea_ice_conductivity" />
+        <field id="seaice__sea_ice_pensolar" />
+        <field id="processed__sea_ice_pensolar" />
         <field id="seaice__melt_pond_fraction" />
         <field id="seaice__melt_pond_depth" />
 	<field id="snow__snow_mass" />                <!-- For snow on sea ice. tile_snow_mass in the code. -->

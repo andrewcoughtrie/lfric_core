@@ -43,6 +43,7 @@ contains
     type( field_type ), pointer :: lw_down_surf      => null()
     type( field_type ), pointer :: sw_down_surf      => null()
     type( field_type ), pointer :: sw_down_blue_surf => null()
+    type( field_type ), pointer :: sw_direct_blue_surf => null()
 
     type( field_type ), pointer :: sin_stellar_declination_rts => null()
     type( field_type ), pointer :: stellar_eqn_of_time_rts     => null()
@@ -75,6 +76,7 @@ contains
     call radiation_fields%get_field('lw_down_surf', lw_down_surf)
     call radiation_fields%get_field('sw_down_surf', sw_down_surf)
     call radiation_fields%get_field('sw_down_blue_surf', sw_down_blue_surf)
+    call radiation_fields%get_field('sw_direct_blue_surf', sw_direct_blue_surf)
 
     call radiation_fields%get_field('sin_stellar_declination_rts', &
                                     sin_stellar_declination_rts)
@@ -118,6 +120,7 @@ contains
                  setval_c(lw_down_surf,      380.0_r_def), &
                  setval_c(sw_down_surf,      640.0_r_def), &
                  setval_c(sw_down_blue_surf, 400.0_r_def), &
+                 setval_c(sw_direct_blue_surf, 200.0_r_def), &
                  setval_c(sin_stellar_declination_rts, 0.0_r_def), &
                  setval_c(stellar_eqn_of_time_rts, 0.0_r_def), &
                  setval_c(orographic_correction_rts, 1.0_r_def), &

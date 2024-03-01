@@ -99,6 +99,8 @@ subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
   type( field_type ), pointer :: sea_ice_thickness => null()
   type( field_type ), pointer :: melt_pond_fraction => null()
   type( field_type ), pointer :: melt_pond_depth   => null()
+  type( field_type ), pointer :: sea_ice_pensolar_frac_direct => null()
+  type( field_type ), pointer :: sea_ice_pensolar_frac_diffuse => null()
   type( field_type ), pointer :: z0msea            => null()
   type( field_type ), pointer :: urbhwr            => null()
   type( field_type ), pointer :: urbztm            => null()
@@ -189,6 +191,8 @@ subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
     call surface_fields%get_field('sea_ice_thickness', sea_ice_thickness)
     call surface_fields%get_field('melt_pond_fraction', melt_pond_fraction)
     call surface_fields%get_field('melt_pond_depth', melt_pond_depth)
+    call surface_fields%get_field('sea_ice_pensolar_frac_direct', sea_ice_pensolar_frac_direct)
+    call surface_fields%get_field('sea_ice_pensolar_frac_diffuse', sea_ice_pensolar_frac_diffuse)
     call surface_fields%get_field('z0msea', z0msea)
     call surface_fields%get_field('urbhwr', urbhwr)
     call surface_fields%get_field('urbztm', urbztm)
@@ -228,6 +232,7 @@ subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
         snow_depth, snowpack_density, snow_soot, &
         chloro_sea, sea_ice_thickness, &
         melt_pond_fraction, melt_pond_depth, &
+        sea_ice_pensolar_frac_direct, sea_ice_pensolar_frac_diffuse,  &
         u_in_w3, v_in_w3, dz_wth, z0msea, &
         cos_zenith_angle_rts, urbhwr, urbztm, urbalbwl, urbalbrd, &
         n_sw_band))
@@ -248,6 +253,7 @@ subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
           snow_depth, snowpack_density, snow_soot, &
           chloro_sea, sea_ice_thickness, &
           melt_pond_fraction, melt_pond_depth, &
+          sea_ice_pensolar_frac_direct, sea_ice_pensolar_frac_diffuse,  &
           u_in_w3, v_in_w3, dz_wth, z0msea, &
           cos_zenith_angle_rts, urbhwr, urbztm, urbalbwl, urbalbrd, &
           n_swinc_band))

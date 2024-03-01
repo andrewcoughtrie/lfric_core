@@ -157,6 +157,7 @@ contains
     type( field_type ), pointer :: lw_down_surf      => null()
     type( field_type ), pointer :: sw_down_surf      => null()
     type( field_type ), pointer :: sw_down_blue_surf => null()
+    type( field_type ), pointer :: sw_direct_blue_surf => null()
     type( field_type ), pointer :: sw_up_tile        => null()
     type( field_type ), pointer :: ozone             => null()
 
@@ -187,6 +188,9 @@ contains
     type( field_type ), pointer :: canopy_height       => null()
     type( field_type ), pointer :: sea_ice_temperature => null()
     type( field_type ), pointer :: sea_ice_conductivity => null()
+    type( field_type ), pointer :: sea_ice_pensolar    => null()
+    type( field_type ), pointer :: sea_ice_pensolar_frac_direct => null()
+    type( field_type ), pointer :: sea_ice_pensolar_frac_diffuse => null()
     type( field_type ), pointer :: tile_temperature    => null()
     type( field_type ), pointer :: tile_lw_grey_albedo => null()
     type( field_type ), pointer :: surface_conductance => null()
@@ -219,6 +223,7 @@ contains
     type( field_type ), pointer :: urbdisp             => null()
     type( field_type ), pointer :: urbemisw            => null()
     type( field_type ), pointer :: urbemisr            => null()
+    type( integer_field_type ), pointer :: ocn_cpl_point => null()
 
     type( field_type ), pointer :: sd_orog              => null()
     type( field_type ), pointer :: peak_to_trough_orog  => null()
@@ -337,6 +342,7 @@ contains
     call radiation_fields%get_field('lw_down_surf', lw_down_surf)
     call radiation_fields%get_field('sw_down_surf', sw_down_surf)
     call radiation_fields%get_field('sw_down_blue_surf', sw_down_blue_surf)
+    call radiation_fields%get_field('sw_direct_blue_surf', sw_direct_blue_surf)
     call radiation_fields%get_field('sw_up_tile', sw_up_tile)
     call radiation_fields%get_field('ozone', ozone)
 
@@ -376,6 +382,9 @@ contains
     call surface_fields%get_field('canopy_height', canopy_height)
     call surface_fields%get_field('sea_ice_temperature', sea_ice_temperature)
     call surface_fields%get_field('sea_ice_conductivity', sea_ice_conductivity)
+    call surface_fields%get_field('sea_ice_pensolar', sea_ice_pensolar)
+    call surface_fields%get_field('sea_ice_pensolar_frac_direct', sea_ice_pensolar_frac_direct)
+    call surface_fields%get_field('sea_ice_pensolar_frac_diffuse', sea_ice_pensolar_frac_diffuse)
     call surface_fields%get_field('tile_temperature', tile_temperature)
     call surface_fields%get_field('tile_lw_grey_albedo', tile_lw_grey_albedo)
     call surface_fields%get_field('surface_conductance', surface_conductance)
@@ -411,6 +420,7 @@ contains
     call surface_fields%get_field('sea_current_w2',sea_current_w2_ptr)
     call surface_fields%get_field('sea_u_current',sea_u_current_ptr)
     call surface_fields%get_field('sea_v_current',sea_v_current_ptr)
+    call surface_fields%get_field('ocn_cpl_point', ocn_cpl_point)
 
 
     ! Soil fields
@@ -514,7 +524,10 @@ contains
                                thermal_cond_wet_soil,                          &
                                sea_u_current_ptr,sea_v_current_ptr,            &
                                sea_ice_temperature,                            &
-                               sea_ice_conductivity, tile_temperature,         &
+                               sea_ice_conductivity, sea_ice_pensolar,         &
+                               sea_ice_pensolar_frac_direct,                   &
+                               sea_ice_pensolar_frac_diffuse,                  &
+                               tile_temperature,                               &
                                tile_snow_mass, n_snow_layers, snow_depth,      &
                                snow_layer_thickness, snow_layer_ice_mass,      &
                                snow_layer_liq_mass, snow_layer_temp,           &
@@ -525,7 +538,8 @@ contains
                                net_prim_prod, cos_zenith_angle, skyview,       &
                                sw_up_tile, tile_lw_grey_albedo,                &
                                sw_down_surf, lw_down_surf,                     &
-                               sw_down_blue_surf, dd_mf_cb, ozone, cf_bulk,    &
+                               sw_down_blue_surf, sw_direct_blue_surf,         &
+                               dd_mf_cb, ozone, cf_bulk,                       &
                                cf_liquid, rhokm_bl, surf_interp, rhokh_bl,     &
                                moist_flux_bl, heat_flux_bl, gradrinr,          &
                                alpha1_tile, ashtf_prime_tile, dtstar_tile,     &
@@ -538,7 +552,8 @@ contains
                                urbhwr, urbhgt, urbztm, urbdisp, urbemisw,      &
                                urbemisr, rhostar, recip_l_mo_sea,              &
                                h_blend_orog, t1_sd_2d, q1_sd_2d,               &
-                               gross_prim_prod, z0h_eff, stencil_depth)
+                               gross_prim_prod, z0h_eff, ocn_cpl_point,        &
+                               stencil_depth)
 
                 ! Calculate TL = T - (lc/cp)*mcl - ((lc+lf)/cp)*mci
     call invoke(     X_times_Y(dtl_mphys, dtheta_mphys, exner_in_wth),         &

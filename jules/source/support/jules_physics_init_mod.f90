@@ -337,6 +337,9 @@ contains
       l_sice_multilayers    = .true.
       l_sice_scattering     = .true.
       l_ssice_albedo        = .true.
+      l_sice_swpen          = .true.
+      pen_rad_frac_cice     = 0.8_r_um
+      sw_beta_cice          = 0.3_r_um
     else
       l_sice_meltponds      = .false.
       l_sice_meltponds_cice = .false.
@@ -346,14 +349,10 @@ contains
       l_sice_multilayers    = .false.
       l_sice_scattering     = .false.
       l_ssice_albedo        = .false.
+      l_sice_swpen          = .false.
+      pen_rad_frac_cice     = 0.4_r_um
+      sw_beta_cice          = 0.6_r_um
     end if
-
-    ! Currently shortwave penetrating radiation into sea ice is not
-    ! included in LFRic coupled models. These settings will need to
-    ! change when this code goes in.
-    l_sice_swpen          = .false.
-    pen_rad_frac_cice     = 0.4_r_um
-    sw_beta_cice          = 0.6_r_um
 
     ! Check the contents of the sea_seaice parameters module
     call check_jules_sea_seaice()

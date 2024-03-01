@@ -22,7 +22,7 @@
 # NFIELDS : total number of fields being exchanged.
 #
  $NFIELDS
-         71
+         76
  $END
 #
 ###############################################################################
@@ -310,6 +310,51 @@ T
 #
  MAPPING
 ##
+ rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
+#
+#######################################################
+ lf_pensolar_cat01 OQtr_cat01 466 3600 1 atmos_restart.nc   EXPOUT
+ 13824 1 1442 1207 lfric tor1 SEQ=+2
+ P  0  P  2
+#
+ MAPPING
+#
+ rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
+#
+#######################################################
+ lf_pensolar_cat02 OQtr_cat02 466 3600 1 atmos_restart.nc   EXPOUT
+ 13824 1 1442 1207 lfric tor1 SEQ=+2
+ P  0  P  2
+#
+ MAPPING
+#
+ rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
+#
+#######################################################
+ lf_pensolar_cat03 OQtr_cat03 466 3600 1 atmos_restart.nc   EXPOUT
+ 13824 1 1442 1207 lfric tor1 SEQ=+2
+ P  0  P  2
+#
+ MAPPING
+#
+ rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
+#
+#######################################################
+ lf_pensolar_cat04 OQtr_cat04 466 3600 1 atmos_restart.nc   EXPOUT
+ 13824 1 1442 1207 lfric tor1 SEQ=+2
+ P  0  P  2
+#
+ MAPPING
+#
+ rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
+#
+#######################################################
+ lf_pensolar_cat05 OQtr_cat05 466 3600 1 atmos_restart.nc   EXPOUT
+ 13824 1 1442 1207 lfric tor1 SEQ=+2
+ P  0  P  2
+#
+ MAPPING
+#
  rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
 #
 #############################################################################

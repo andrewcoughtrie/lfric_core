@@ -452,9 +452,11 @@
 	<field id="snow__snow_layer_liq_mass" name="snow_layer_liq_mass" long_name="snow_layer_liquid_mass" unit="kg m-2" domain_ref="face" axis_ref="snow_layers_and_tiles"/>
 	<field id="snow__snow_layer_rgrain" name="snow_layer_rgrain" long_name="snow_layer_grain_size" unit="microns" domain_ref="face" axis_ref="snow_layers_and_tiles"/>
         <!-- Jules sea ice diagnostics -->
+        <field id="seaice__sea_ice_fraction" name="sea_ice_fraction" long_name="sea_ice_fraction" unit="1" domain_ref="face" axis_ref="sea_ice_categories" />
         <field id="seaice__sea_ice_thickness" name="sea_ice_thickness" long_name="sea_ice_thickness" unit="m" domain_ref="face" axis_ref="sea_ice_categories" />
         <field id="seaice__sea_ice_temperature" name="sea_ice_temperature" long_name="sea_ice_temperature" unit="K" domain_ref="face" axis_ref="sea_ice_categories" />
         <field id="seaice__sea_ice_conductivity" name="sea_ice_conductivity" long_name="sea_ice_conductivity" unit="W m-2 K-1" domain_ref="face" axis_ref="sea_ice_categories" />
+        <field id="seaice__sea_ice_pensolar" name="sea_ice_pensolar" long_name="sea_ice_pensolar_per_ice_surface" unit="W m-2" domain_ref="face" axis_ref="sea_ice_categories" />
         <field id="seaice__melt_pond_fraction" name="melt_pond_fraction" long_name="sea ice melt pond fraction" unit="1" domain_ref="face" axis_ref="sea_ice_categories" />
         <field id="seaice__melt_pond_depth" name="melt_pond_depth" long_name="sea ice melt pond depth" unit="m" domain_ref="face" axis_ref="sea_ice_categories" />
 	<!-- Jules soil diagnostics -->

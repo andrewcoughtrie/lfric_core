@@ -219,7 +219,7 @@ end type  coupler_external_field_type
           if ( sname == 'lf_topmelt' .OR.     &
                sname == 'lf_iceheatflux' .OR. &
                sname == 'lf_sublimation' .OR. &
-               sname == 'ln_pensolar' ) then
+               sname == 'lf_pensolar' ) then
             call invoke(multi_extract_kernel_type(r_sea_ice_frac_onecat,           &
                                                   r_sea_ice_frac_raw, k, 1_i_def), &
                         inc_X_times_Y(sfield_onecat, r_sea_ice_frac_onecat))

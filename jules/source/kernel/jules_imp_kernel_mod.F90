@@ -40,7 +40,7 @@ module jules_imp_kernel_mod
   !>
   type, public, extends(kernel_type) :: jules_imp_kernel_type
     private
-    type(arg_type) :: meta_args(70) = (/                                         &
+    type(arg_type) :: meta_args(75) = (/                                         &
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                                &! outer
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                                &! loop
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! wetrho_in_w3
@@ -49,6 +49,9 @@ module jules_imp_kernel_mod
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! tile_fraction
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_4),&! sea_ice_thickness
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_4),&! sea_ice_temperature
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_4),&! sea_ice_pensolar
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_4),&! sea_ice_pensolar_frac_direct
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_4),&! sea_ice_pensolar_frac_diffuse
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2),&! tile_temperature
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2),&! screen_temperature
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1),&! time_since_transition
@@ -63,6 +66,8 @@ module jules_imp_kernel_mod
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! sw_up_tile
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! sw_down_surf
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! lw_down_surf
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! sw_down_blue_surf
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! sw_direct_blue_surf
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! skyview
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! tile_lw_grey_albedo
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! snowice_sublimation (kg m-2 s-1)
@@ -135,6 +140,9 @@ contains
   !> @param[in]     tile_fraction        Surface tile fractions
   !> @param[in]     sea_ice_thickness    Depth of sea-ice (m)
   !> @param[in,out] sea_ice_temperature  Bulk temperature of sea-ice (K)
+  !> @param[in,out] sea_ice_pensolar     Sea ice penetrating solar radiation (W m-2)
+  !> @param[in] sea_ice_pensolar_frac_direct   Fraction of penetrating solar (direct visible) into sea ice
+  !> @param[in] sea_ice_pensolar_frac_diffuse  Fraction of penetrating solar (diffuse visible) into sea ice
   !> @param[in,out] tile_temperature     Surface tile temperatures
   !> @param[in,out] screen_temperature   Tiled screen level liquid temperature
   !> @param[in,out] time_since_transition Time since decoupled screen transition
@@ -149,6 +157,8 @@ contains
   !> @param[in]     sw_up_tile           Upwelling SW radiation on surface tiles
   !> @param[in]     sw_down_surf         Downwelling SW radiation at surface
   !> @param[in]     lw_down_surf         Downwelling LW radiation at surface
+  !> @param[in]     sw_down_blue_surf    Photosynthetically active SW down
+  !> @param[in]     sw_direct_blue_surf  Downwelling direct visible light
   !> @param[in]     skyview              Skyview / area enhancement factor
   !> @param[in]     tile_lw_grey_albedo  Surface tile longwave grey albedo
   !> @param[in,out] snowice_sublimation  Sublimation of snow and ice
@@ -225,6 +235,9 @@ contains
                             tile_fraction,                      &
                             sea_ice_thickness,                  &
                             sea_ice_temperature,                &
+                            sea_ice_pensolar,                   &
+                            sea_ice_pensolar_frac_direct,       &
+                            sea_ice_pensolar_frac_diffuse,      &
                             tile_temperature,                   &
                             screen_temperature,                 &
                             time_since_transition,              &
@@ -239,6 +252,8 @@ contains
                             sw_up_tile,                         &
                             sw_down_surf,                       &
                             lw_down_surf,                       &
+                            sw_down_blue_surf,                  &
+                            sw_direct_blue_surf,                &
                             skyview,                            &
                             tile_lw_grey_albedo,                &
                             snowice_sublimation,                &
@@ -312,7 +327,7 @@ contains
     use gen_phys_inputs_mod, only: l_mr_physics
     use jules_deposition_mod, only: l_deposition
     use jules_irrig_mod, only: irr_crop, irr_crop_doell
-    use jules_sea_seaice_mod, only: nice, nice_use, emis_sea
+    use jules_sea_seaice_mod, only: nice, nice_use, emis_sea, l_sice_swpen
     use jules_snow_mod, only: cansnowtile, rho_snow_const, l_snowdep_surf,nsmax
     use jules_surface_types_mod, only: npft, ntype, lake, nnvg, ncpft, nnpft, &
          soil
@@ -428,12 +443,17 @@ contains
     real(kind=r_def), intent(inout)   :: canopy_evap(undf_tile)
     real(kind=r_def), intent(inout)   :: snowice_melt(undf_tile)
 
-    real(kind=r_def), intent(in) :: sea_ice_thickness(undf_sice)
+    real(kind=r_def), intent(in)    :: sea_ice_thickness(undf_sice)
     real(kind=r_def), intent(inout) :: sea_ice_temperature(undf_sice)
+    real(kind=r_def), intent(inout) :: sea_ice_pensolar(undf_sice)
+    real(kind=r_def), intent(in)    :: sea_ice_pensolar_frac_direct(undf_sice)
+    real(kind=r_def), intent(in)    :: sea_ice_pensolar_frac_diffuse(undf_sice)
 
     real(kind=r_def), intent(in) :: sw_down_surf(undf_2d)
     integer(kind=i_def), intent(in) :: ocn_cpl_point(undf_2d)
     real(kind=r_def), intent(in) :: lw_down_surf(undf_2d)
+    real(kind=r_def), intent(in) :: sw_down_blue_surf(undf_2d)
+    real(kind=r_def), intent(in) :: sw_direct_blue_surf(undf_2d)
     real(kind=r_def), intent(in) :: skyview(undf_2d)
     real(kind=r_def), intent(in) :: tile_lw_grey_albedo(undf_tile)
     real(kind=r_def), intent(in) :: dqw1_2d(undf_2d)
@@ -480,6 +500,7 @@ contains
     ! local switches and scalars
     integer(i_um) :: error_code
     logical :: l_correct
+    real(r_def) :: sw_diffuse_blue_surf
 
     ! profile fields from level 1 upwards
     real(r_um), dimension(seg_len,1) :: rhcpt, qcf_latest, co2
@@ -840,12 +861,30 @@ contains
       end do
 
       do i = 1, seg_len
+
+        ! The amount of diffuse visible light is needed for solar penetrating radiation
+        sw_diffuse_blue_surf = sw_down_blue_surf(map_2d(1,i)) - sw_direct_blue_surf(map_2d(1,i))
+
         ! Net SW on sea-ice
         i_sice = 0
         do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
           i_sice = i_sice + 1
-          fluxes%sw_sicat(i, i_sice) = real(sw_down_surf(map_2d(1,i)) - &
-                                       sw_up_tile(map_tile(1,i)+n-1), r_um)
+
+          ! Calculate penetrating solar into sea ice. We use the fraction of penetrating
+          ! solar for direct visible light as it is the same as for diffuse visible light.
+          if (l_sice_swpen .and. ocn_cpl_point(map_2d(1,i)) == 1_i_def ) then
+            sea_ice_pensolar(map_sice(1,i)+i_sice-1) = sw_direct_blue_surf(map_2d(1,i)) *    &
+                                      sea_ice_pensolar_frac_direct(map_sice(1,i)+i_sice-1) + &
+                                      sw_diffuse_blue_surf *                                 &
+                                      sea_ice_pensolar_frac_diffuse(map_sice(1,i)+i_sice-1)
+          else
+            sea_ice_pensolar(map_sice(1,i)+i_sice-1) = 0.0_r_def
+          endif
+
+          ! Net SW on sea-ice
+          fluxes%sw_sicat(i, i_sice) = real(sw_down_surf(map_2d(1,i)) -  &
+                                       sw_up_tile(map_tile(1,i)+n-1)  -  &
+                                       sea_ice_pensolar(map_sice(1,i)+i_sice-1), r_um)
         end do
       end do
 

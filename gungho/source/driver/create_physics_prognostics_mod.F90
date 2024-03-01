@@ -762,6 +762,10 @@ contains
         mult='sea_ice_categories', twod=.true., ckp=.false.))
     call processor%apply(make_spec('melt_pond_depth', main%surface, W3,         &
         mult='sea_ice_categories', twod=.true., ckp=.false.))
+    call processor%apply(make_spec('sea_ice_pensolar_frac_direct', main%surface, W3, &
+        mult='sea_ice_categories', twod=.true., ckp=.false.))
+    call processor%apply(make_spec('sea_ice_pensolar_frac_diffuse', main%surface, W3, &
+        mult='sea_ice_categories', twod=.true., ckp=.false.))
 
     ! Sea surface velocity vector components provided via the coupler.
     call processor%apply(make_spec('sea_u_current', main%surface, W3, twod=.true.,    &
@@ -805,6 +809,8 @@ contains
         mult='surface_tiles', twod=.true., ckp=checkpoint_couple))
     call processor%apply(make_spec('snowice_sublimation', main%surface, W3,     &
         mult='surface_tiles', twod=.true., ckp=checkpoint_couple))
+    call processor%apply(make_spec('sea_ice_pensolar', main%surface, W3,        &
+        mult='sea_ice_categories', twod=.true., ckp=checkpoint_couple))
 
     ! 2D fields, don't need checkpointing
     call processor%apply(make_spec('ocn_cpl_point', main%surface, W3,           &

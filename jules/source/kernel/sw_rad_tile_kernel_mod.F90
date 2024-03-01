@@ -36,7 +36,7 @@ CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName='SW_RAD_TILE_KERNEL_MOD'
 ! Contains the metadata needed by the PSy layer.
 type, extends(kernel_type) :: sw_rad_tile_kernel_type
   private
-  type(arg_type) :: meta_args(31) = (/                                &
+  type(arg_type) :: meta_args(33) = (/                                &
     arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! tile_sw_direct_albedo
     arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! tile_sw_diffuse_albedo
     arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_2), & ! tile_fraction
@@ -58,6 +58,8 @@ type, extends(kernel_type) :: sw_rad_tile_kernel_type
     arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_6), & ! sea_ice_thickness
     arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_6), & ! melt_pond_fraction
     arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_6), & ! melt_pond_depth
+    arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_6), & ! sea_ice_pensolar_frac_direct
+    arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_6), & ! sea_ice_pensolar_frac_diffuse
     arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                        & ! u_in_w3
     arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                        & ! v_in_w3
     arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    & ! dz_wth
@@ -102,6 +104,8 @@ contains
 !> @param[in]     sea_ice_thickness      Sea ice thickness (m)
 !> @param[in]     melt_pond_fraction     Sea ice melt pond fraction
 !> @param[in]     melt_pond_depth        Sea ice melt pond depth (m)
+!> @param[in,out] sea_ice_pensolar_frac_direct  Fraction of penetrating solar (direct visible) into sea ice
+!> @param[in,out] sea_ice_pensolar_frac_diffuse  Fraction of penetrating solar (diffuse visible) into sea ice
 !> @param[in]     u_in_w3                'Zonal' wind in density space
 !> @param[in]     v_in_w3                'Meridional' wind in density space
 !> @param[in]     dz_wth                 Delta z at wtheta levels
@@ -158,6 +162,8 @@ subroutine sw_rad_tile_code(nlayers, seg_len,                       &
                             sea_ice_thickness,                      &
                             melt_pond_fraction,                     &
                             melt_pond_depth,                        &
+                            sea_ice_pensolar_frac_direct,           &
+                            sea_ice_pensolar_frac_diffuse,          &
                             u_in_w3,                                &
                             v_in_w3,                                &
                             dz_wth,                                 &
@@ -292,6 +298,8 @@ subroutine sw_rad_tile_code(nlayers, seg_len,                       &
   real(r_def), intent(in)    :: sea_ice_thickness(undf_sice)
   real(r_def), intent(in)    :: melt_pond_fraction(undf_sice)
   real(r_def), intent(in)    :: melt_pond_depth(undf_sice)
+  real(r_def), intent(inout) :: sea_ice_pensolar_frac_direct(undf_sice)
+  real(r_def), intent(inout) :: sea_ice_pensolar_frac_diffuse(undf_sice)
 
   real(r_def), intent(in)    :: u_in_w3(undf_w3)
   real(r_def), intent(in)    :: v_in_w3(undf_w3)
@@ -300,7 +308,7 @@ subroutine sw_rad_tile_code(nlayers, seg_len,                       &
   !-----------------------------------------------------------------------
   ! Local variables for the kernel
   !-----------------------------------------------------------------------
-  integer(i_def) :: i, i_sice, i_band, l, n, r1, r2
+  integer(i_def) :: i, i_sice, i_band, l, n, r1, r2, r3
   integer(i_def) :: df_rtile, land_field, sea_pts
 
   ! fields on land points
@@ -686,23 +694,31 @@ subroutine sw_rad_tile_code(nlayers, seg_len,                       &
     df_rtile = first_sea_ice_tile-1 + n_surf_tile*(i_band-1)
     do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
       df_rtile = df_rtile + 1
+      i_sice = n - first_sea_ice_tile + 1
       do i = 1, seg_len
         r1 = map_tile(1,i)+n-1
         r2 = map_sw_tile(1,i)+df_rtile-1
+        r3 = map_sice(1,i)+i_sice-1
         if ( tile_fraction(r1) > 0.0_r_def ) then
           tile_sw_direct_albedo(r2) &
                = weight_blue(i_band) &
-               * real(sea_ice_albedo(i,1,1), r_def) &
+               * real(fluxes%alb_sicat(i,i_sice,1), r_def) &
                + (1.0_r_def - weight_blue(i_band)) &
-               * real(sea_ice_albedo(i,1,3), r_def)
+               * real(fluxes%alb_sicat(i,i_sice,3), r_def)
           tile_sw_diffuse_albedo(r2) &
                = weight_blue(i_band) &
-               * real(sea_ice_albedo(i,1,2), r_def) &
+               * real(fluxes%alb_sicat(i,i_sice,2), r_def) &
                + (1.0_r_def - weight_blue(i_band)) &
-               * real(sea_ice_albedo(i,1,4), r_def)
+               * real(fluxes%alb_sicat(i,i_sice,4), r_def)
+          sea_ice_pensolar_frac_direct(r3) &
+               = real(fluxes%penabs_rad_frac(i,i_sice,1), r_def)
+          sea_ice_pensolar_frac_diffuse(r3) &
+               = real(fluxes%penabs_rad_frac(i,i_sice,2), r_def)
         else
           tile_sw_direct_albedo(r2)  = 0.0_r_def
           tile_sw_diffuse_albedo(r2) = 0.0_r_def
+          sea_ice_pensolar_frac_direct(r3) = 0.0_r_def
+          sea_ice_pensolar_frac_diffuse(r3) = 0.0_r_def
         end if
       end do ! i
     end do ! n

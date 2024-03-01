@@ -175,12 +175,17 @@ contains
     type( field_type ), pointer :: lw_down_surf => null()
     type( field_type ), pointer :: sw_down_surf => null()
     type( field_type ), pointer :: sw_up_tile   => null()
+    type( field_type ), pointer :: sw_down_blue_surf => null()
+    type( field_type ), pointer :: sw_direct_blue_surf => null()
 
     type( field_type ), pointer :: tile_fraction       => null()
     type( field_type ), pointer :: leaf_area_index     => null()
     type( field_type ), pointer :: canopy_height       => null()
     type( field_type ), pointer :: sea_ice_thickness   => null()
     type( field_type ), pointer :: sea_ice_temperature => null()
+    type( field_type ), pointer :: sea_ice_pensolar    => null()
+    type( field_type ), pointer :: sea_ice_pensolar_frac_direct => null()
+    type( field_type ), pointer :: sea_ice_pensolar_frac_diffuse => null()
     type( field_type ), pointer :: tile_temperature    => null()
     type( field_type ), pointer :: tile_lw_grey_albedo => null()
     type( field_type ), pointer :: screen_temperature  => null()
@@ -334,6 +339,8 @@ contains
     call radiation_fields%get_field('lw_down_surf', lw_down_surf)
     call radiation_fields%get_field('sw_down_surf', sw_down_surf)
     call radiation_fields%get_field('sw_up_tile', sw_up_tile)
+    call radiation_fields%get_field('sw_down_blue_surf', sw_down_blue_surf)
+    call radiation_fields%get_field('sw_direct_blue_surf', sw_direct_blue_surf)
 
     ! Orography fields
     call orography_fields%get_field('peak_to_trough_orog', peak_to_trough_orog)
@@ -345,6 +352,9 @@ contains
     call surface_fields%get_field('canopy_height', canopy_height)
     call surface_fields%get_field('sea_ice_thickness', sea_ice_thickness)
     call surface_fields%get_field('sea_ice_temperature', sea_ice_temperature)
+    call surface_fields%get_field('sea_ice_pensolar', sea_ice_pensolar)
+    call surface_fields%get_field('sea_ice_pensolar_frac_direct', sea_ice_pensolar_frac_direct)
+    call surface_fields%get_field('sea_ice_pensolar_frac_diffuse', sea_ice_pensolar_frac_diffuse)
     call surface_fields%get_field('tile_temperature', tile_temperature)
     call surface_fields%get_field('tile_lw_grey_albedo', tile_lw_grey_albedo)
     call surface_fields%get_field('screen_temperature', screen_temperature)
@@ -515,6 +525,9 @@ contains
                                          exner_in_wth, height_wth,             &
                                          tile_fraction, sea_ice_thickness,     &
                                          sea_ice_temperature,                  &
+                                         sea_ice_pensolar,                     &
+                                         sea_ice_pensolar_frac_direct,         &
+                                         sea_ice_pensolar_frac_diffuse,        &
                                          tile_temperature,                     &
                                          screen_temperature,                   &
                                          time_since_transition, latitude,      &
@@ -522,7 +535,9 @@ contains
                                          snow_depth, canopy_water,             &
                                          soil_temperature, tile_heat_flux,     &
                                          tile_moisture_flux, sw_up_tile,       &
-                                         sw_down_surf, lw_down_surf, skyview,  &
+                                         sw_down_surf, lw_down_surf,           &
+                                         sw_down_blue_surf,                    &
+                                         sw_direct_blue_surf, skyview,         &
                                          tile_lw_grey_albedo,                  &
                                          snowice_sublimation, surf_heat_flux,  &
                                          canopy_evap, water_extraction,        &

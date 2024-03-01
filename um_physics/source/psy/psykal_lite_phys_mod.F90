@@ -287,19 +287,19 @@ contains
     SUBROUTINE invoke_jules_exp_kernel_type(ncells, ncells_halo, theta, exner_in_wth, u_in_w3, v_in_w3, mr_n, mr_n_1, mr_n_2, height_w3, height_wth, &
 &zh, z0msea, z0m, tile_fraction, leaf_area_index, canopy_height, peak_to_trough_orog, silhouette_area_orog, soil_albedo, &
 &soil_roughness, soil_moist_wilt, soil_moist_crit, soil_moist_sat, soil_thermal_cond, soil_suction_sat, clapp_horn_b, &
-&soil_respiration, thermal_cond_wet_soil, sea_u_current_ptr, sea_v_current_ptr, sea_ice_temperature, sea_ice_conductivity, &
-tile_temperature, tile_snow_mass, n_snow_layers, snow_depth, &
+&soil_respiration, thermal_cond_wet_soil, sea_u_current_ptr, sea_v_current_ptr, sea_ice_temperature, sea_ice_conductivity, sea_ice_pensolar, &
+&sea_ice_pensolar_frac_direct, sea_ice_pensolar_frac_diffuse, tile_temperature, tile_snow_mass, n_snow_layers, snow_depth, &
 &snow_layer_thickness, snow_layer_ice_mass, snow_layer_liq_mass, snow_layer_temp, surface_conductance, canopy_water, &
 &soil_temperature, soil_moisture, unfrozen_soil_moisture, frozen_soil_moisture, tile_heat_flux, tile_moisture_flux, net_prim_prod, &
 &cos_zenith_angle, skyview, &
 sw_up_tile, tile_lw_grey_albedo, &
-sw_down_surf, lw_down_surf, sw_down_blue_surf, dd_mf_cb, ozone, cf_bulk, cf_liquid, rhokm_bl, &
+sw_down_surf, lw_down_surf, sw_down_blue_surf, sw_direct_blue_surf, dd_mf_cb, ozone, cf_bulk, cf_liquid, rhokm_bl, &
 &surf_interp, rhokh_bl, moist_flux_bl, heat_flux_bl, gradrinr, alpha1_tile, ashtf_prime_tile, dtstar_tile, fraca_tile, z0h_tile, &
 &z0m_tile, rhokh_tile, chr1p5m_tile, resfs_tile, gc_tile, canhc_tile, tile_water_extract, blend_height_tq, z0m_eff, ustar, &
 &soil_moist_avail, snow_unload_rate, albedo_obs_scaling, soil_clay, soil_sand, dust_mrel, dust_flux, day_of_year, &
  urbwrr, urbhwr, urbhgt, urbztm, urbdisp, urbemisw, urbemisr, &
 &rhostar, recip_l_mo_sea, &
-&h_blend_orog, t1_sd_2d, q1_sd_2d, gross_prim_prod, z0h_eff, stencil_depth)
+&h_blend_orog, t1_sd_2d, q1_sd_2d, gross_prim_prod, z0h_eff, ocn_cpl_point, stencil_depth)
       USE jules_exp_kernel_mod, ONLY: jules_exp_code
       USE mesh_mod, ONLY: mesh_type
       USE stencil_dofmap_mod, ONLY: STENCIL_REGION
@@ -309,33 +309,34 @@ sw_down_surf, lw_down_surf, sw_down_blue_surf, dd_mf_cb, ozone, cf_bulk, cf_liqu
 &z0msea, z0m, tile_fraction, leaf_area_index, canopy_height, peak_to_trough_orog, silhouette_area_orog, soil_albedo, &
 &soil_roughness, soil_moist_wilt, soil_moist_crit, soil_moist_sat, soil_thermal_cond, soil_suction_sat, clapp_horn_b, &
 &soil_respiration, thermal_cond_wet_soil, sea_u_current_ptr, sea_v_current_ptr, sea_ice_temperature, sea_ice_conductivity, &
-tile_temperature, tile_snow_mass, snow_depth, snow_layer_thickness, &
+sea_ice_pensolar, sea_ice_pensolar_frac_direct, sea_ice_pensolar_frac_diffuse, tile_temperature, tile_snow_mass, snow_depth, snow_layer_thickness, &
 &snow_layer_ice_mass, snow_layer_liq_mass, snow_layer_temp, surface_conductance, canopy_water, soil_temperature, soil_moisture, &
 &unfrozen_soil_moisture, frozen_soil_moisture, tile_heat_flux, tile_moisture_flux, net_prim_prod, cos_zenith_angle, &
 skyview, sw_up_tile, tile_lw_grey_albedo,&
-&sw_down_surf, lw_down_surf, sw_down_blue_surf, dd_mf_cb, ozone, cf_bulk, cf_liquid, rhokm_bl, surf_interp, rhokh_bl, &
+&sw_down_surf, lw_down_surf, sw_down_blue_surf, sw_direct_blue_surf, dd_mf_cb, ozone, cf_bulk, cf_liquid, rhokm_bl, surf_interp, rhokh_bl, &
 &moist_flux_bl, heat_flux_bl, gradrinr, alpha1_tile, ashtf_prime_tile, dtstar_tile, fraca_tile, z0h_tile, z0m_tile, rhokh_tile, &
 &chr1p5m_tile, resfs_tile, gc_tile, canhc_tile, tile_water_extract, z0m_eff, ustar, soil_moist_avail, snow_unload_rate, &
 &albedo_obs_scaling, soil_clay, soil_sand, dust_mrel, dust_flux, &
 urbwrr, urbhwr, urbhgt, urbztm, urbdisp, urbemisw, urbemisr, &
 rhostar, recip_l_mo_sea, h_blend_orog, t1_sd_2d, q1_sd_2d, &
 &gross_prim_prod, z0h_eff
-      TYPE(integer_field_type), intent(in) :: n_snow_layers, blend_height_tq
+      TYPE(integer_field_type), intent(in) :: n_snow_layers, blend_height_tq, ocn_cpl_point
       INTEGER(KIND=i_def), intent(in) :: stencil_depth, ncells, ncells_halo, day_of_year
       INTEGER(KIND=i_def) nlayers
-      TYPE(integer_field_proxy_type) n_snow_layers_proxy, blend_height_tq_proxy
+      TYPE(integer_field_proxy_type) n_snow_layers_proxy, blend_height_tq_proxy, ocn_cpl_point_proxy
       TYPE(field_proxy_type) theta_proxy, exner_in_wth_proxy, u_in_w3_proxy, v_in_w3_proxy, mr_n_proxy, mr_n_1_proxy, &
 &mr_n_2_proxy, height_w3_proxy, height_wth_proxy, zh_proxy, z0msea_proxy, z0m_proxy, tile_fraction_proxy, leaf_area_index_proxy, &
 &canopy_height_proxy, peak_to_trough_orog_proxy, silhouette_area_orog_proxy, soil_albedo_proxy, soil_roughness_proxy, &
 &soil_moist_wilt_proxy, soil_moist_crit_proxy, soil_moist_sat_proxy, soil_thermal_cond_proxy, soil_suction_sat_proxy, &
 &clapp_horn_b_proxy, soil_respiration_proxy, thermal_cond_wet_soil_proxy, &
-sea_u_current_ptr_proxy, sea_v_current_ptr_proxy, sea_ice_temperature_proxy, sea_ice_conductivity_proxy, tile_temperature_proxy, &
+sea_u_current_ptr_proxy, sea_v_current_ptr_proxy, sea_ice_temperature_proxy, sea_ice_conductivity_proxy, &
+sea_ice_pensolar_proxy, sea_ice_pensolar_frac_direct_proxy, sea_ice_pensolar_frac_diffuse_proxy, tile_temperature_proxy, &
 &tile_snow_mass_proxy, snow_depth_proxy, snow_layer_thickness_proxy, snow_layer_ice_mass_proxy, snow_layer_liq_mass_proxy, &
 &snow_layer_temp_proxy, surface_conductance_proxy, canopy_water_proxy, soil_temperature_proxy, soil_moisture_proxy, &
 &unfrozen_soil_moisture_proxy, frozen_soil_moisture_proxy, tile_heat_flux_proxy, tile_moisture_flux_proxy, net_prim_prod_proxy, &
 &cos_zenith_angle_proxy, skyview_proxy, &
 sw_up_tile_proxy, tile_lw_grey_albedo_proxy, &
-sw_down_surf_proxy, lw_down_surf_proxy, sw_down_blue_surf_proxy, dd_mf_cb_proxy, &
+sw_down_surf_proxy, lw_down_surf_proxy, sw_down_blue_surf_proxy, sw_direct_blue_surf_proxy, dd_mf_cb_proxy, &
 &ozone_proxy, cf_bulk_proxy, cf_liquid_proxy, rhokm_bl_proxy, surf_interp_proxy, rhokh_bl_proxy, moist_flux_bl_proxy, &
 &heat_flux_bl_proxy, gradrinr_proxy, alpha1_tile_proxy, ashtf_prime_tile_proxy, dtstar_tile_proxy, fraca_tile_proxy, &
 &z0h_tile_proxy, z0m_tile_proxy, rhokh_tile_proxy, chr1p5m_tile_proxy, resfs_tile_proxy, gc_tile_proxy, canhc_tile_proxy, &
@@ -404,6 +405,9 @@ rhostar_proxy, recip_l_mo_sea_proxy, h_blend_orog_proxy, &
       sea_v_current_ptr_proxy = sea_v_current_ptr%get_proxy()
       sea_ice_temperature_proxy = sea_ice_temperature%get_proxy()
       sea_ice_conductivity_proxy = sea_ice_conductivity%get_proxy()
+      sea_ice_pensolar_proxy = sea_ice_pensolar%get_proxy()
+      sea_ice_pensolar_frac_direct_proxy = sea_ice_pensolar_frac_direct%get_proxy()
+      sea_ice_pensolar_frac_diffuse_proxy = sea_ice_pensolar_frac_diffuse%get_proxy()
       tile_temperature_proxy = tile_temperature%get_proxy()
       tile_snow_mass_proxy = tile_snow_mass%get_proxy()
       n_snow_layers_proxy = n_snow_layers%get_proxy()
@@ -428,6 +432,7 @@ rhostar_proxy, recip_l_mo_sea_proxy, h_blend_orog_proxy, &
       sw_down_surf_proxy = sw_down_surf%get_proxy()
       lw_down_surf_proxy = lw_down_surf%get_proxy()
       sw_down_blue_surf_proxy = sw_down_blue_surf%get_proxy()
+      sw_direct_blue_surf_proxy = sw_direct_blue_surf%get_proxy()
       dd_mf_cb_proxy = dd_mf_cb%get_proxy()
       ozone_proxy = ozone%get_proxy()
       cf_bulk_proxy = cf_bulk%get_proxy()
@@ -474,6 +479,7 @@ rhostar_proxy, recip_l_mo_sea_proxy, h_blend_orog_proxy, &
       q1_sd_2d_proxy = q1_sd_2d%get_proxy()
       gross_prim_prod_proxy = gross_prim_prod%get_proxy()
       z0h_eff_proxy = z0h_eff%get_proxy()
+      ocn_cpl_point_proxy = ocn_cpl_point%get_proxy()
       !
       ! Initialise number of layers
       !
@@ -606,14 +612,15 @@ rhostar_proxy, recip_l_mo_sea_proxy, h_blend_orog_proxy, &
 &clapp_horn_b_proxy%data, soil_respiration_proxy%data, thermal_cond_wet_soil_proxy%data,  &
 sea_u_current_ptr_proxy%data,sea_u_current_ptr_stencil_size,sea_u_current_ptr_stencil_dofmap, &
 sea_v_current_ptr_proxy%data,sea_v_current_ptr_stencil_size,sea_v_current_ptr_stencil_dofmap, &
-sea_ice_temperature_proxy%data, sea_ice_conductivity_proxy%data, &
+sea_ice_temperature_proxy%data, sea_ice_conductivity_proxy%data, sea_ice_pensolar_proxy%data, sea_ice_pensolar_frac_direct_proxy%data, &
+sea_ice_pensolar_frac_diffuse_proxy%data, &
 &tile_temperature_proxy%data, tile_snow_mass_proxy%data, n_snow_layers_proxy%data, snow_depth_proxy%data, &
 &snow_layer_thickness_proxy%data, snow_layer_ice_mass_proxy%data, snow_layer_liq_mass_proxy%data, snow_layer_temp_proxy%data, &
 &surface_conductance_proxy%data, canopy_water_proxy%data, soil_temperature_proxy%data, soil_moisture_proxy%data, &
 &unfrozen_soil_moisture_proxy%data, frozen_soil_moisture_proxy%data, tile_heat_flux_proxy%data, tile_moisture_flux_proxy%data, &
 &net_prim_prod_proxy%data, cos_zenith_angle_proxy%data, skyview_proxy%data, &
 sw_up_tile_proxy%data, tile_lw_grey_albedo_proxy%data, sw_down_surf_proxy%data, lw_down_surf_proxy%data, &
-&sw_down_blue_surf_proxy%data, dd_mf_cb_proxy%data, ozone_proxy%data, cf_bulk_proxy%data, cf_liquid_proxy%data, &
+&sw_down_blue_surf_proxy%data, sw_direct_blue_surf_proxy%data, dd_mf_cb_proxy%data, ozone_proxy%data, cf_bulk_proxy%data, cf_liquid_proxy%data, &
 &rhokm_bl_proxy%data, surf_interp_proxy%data, rhokh_bl_proxy%data, moist_flux_bl_proxy%data, heat_flux_bl_proxy%data, &
 &gradrinr_proxy%data, alpha1_tile_proxy%data, ashtf_prime_tile_proxy%data, dtstar_tile_proxy%data, fraca_tile_proxy%data, &
 &z0h_tile_proxy%data, z0m_tile_proxy%data, rhokh_tile_proxy%data, chr1p5m_tile_proxy%data, resfs_tile_proxy%data, &
@@ -623,7 +630,8 @@ sw_up_tile_proxy%data, tile_lw_grey_albedo_proxy%data, sw_down_surf_proxy%data, 
 urbwrr_proxy%data, urbhwr_proxy%data, urbhgt_proxy%data, urbztm_proxy%data, &
 urbdisp_proxy%data, urbemisw_proxy%data, urbemisr_proxy%data, &
 rhostar_proxy%data, recip_l_mo_sea_proxy%data, &
-&h_blend_orog_proxy%data, t1_sd_2d_proxy%data, q1_sd_2d_proxy%data, gross_prim_prod_proxy%data, z0h_eff_proxy%data, ndf_wtheta, &
+&h_blend_orog_proxy%data, t1_sd_2d_proxy%data, q1_sd_2d_proxy%data, gross_prim_prod_proxy%data, &
+z0h_eff_proxy%data, ocn_cpl_point_proxy%data, ndf_wtheta, &
 &undf_wtheta, map_wtheta, ndf_w3, undf_w3, map_w3, ndf_adspc1_zh, undf_adspc1_zh, map_adspc1_zh, &
 &ndf_adspc2_tile_fraction, undf_adspc2_tile_fraction, map_adspc2_tile_fraction, ndf_adspc3_leaf_area_index, &
 &undf_adspc3_leaf_area_index, map_adspc3_leaf_area_index, ndf_adspc4_sea_ice_temperature, undf_adspc4_sea_ice_temperature, &

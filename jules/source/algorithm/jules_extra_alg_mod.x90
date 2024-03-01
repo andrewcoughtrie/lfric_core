@@ -22,6 +22,7 @@ module jules_extra_alg_mod
                                   output_diags_for_jules_snow
   use jules_soil_diags_mod, only: initialise_diags_for_jules_soil, &
                                   output_diags_for_jules_soil
+  use jules_seaice_diags_mod, only: output_diags_for_jules_seaice
 
   implicit none
 
@@ -87,6 +88,7 @@ contains
     type( field_type ), pointer :: sea_ice_thickness      => null()
     type( field_type ), pointer :: sea_ice_temperature    => null()
     type( field_type ), pointer :: sea_ice_conductivity   => null()
+    type( field_type ), pointer :: sea_ice_pensolar       => null()
     type( field_type ), pointer :: melt_pond_fraction     => null()
     type( field_type ), pointer :: melt_pond_depth        => null()
 
@@ -165,6 +167,7 @@ contains
     call surface_fields%get_field('sea_ice_thickness', sea_ice_thickness)
     call surface_fields%get_field('sea_ice_temperature', sea_ice_temperature)
     call surface_fields%get_field('sea_ice_conductivity', sea_ice_conductivity)
+    call surface_fields%get_field('sea_ice_pensolar', sea_ice_pensolar)
     call surface_fields%get_field('melt_pond_fraction', melt_pond_fraction)
     call surface_fields%get_field('melt_pond_depth', melt_pond_depth)
 
@@ -274,11 +277,10 @@ contains
                                      grid_canopy_water,grid_throughfall)
 
       ! Output sea ice diagnostics
-      call sea_ice_thickness%write_field('seaice__sea_ice_thickness')
-      call sea_ice_temperature%write_field('seaice__sea_ice_temperature')
-      call sea_ice_conductivity%write_field('seaice__sea_ice_conductivity')
-      call melt_pond_fraction%write_field('seaice__melt_pond_fraction')
-      call melt_pond_depth%write_field('seaice__melt_pond_depth')
+      call output_diags_for_jules_seaice(tile_fraction, sea_ice_thickness,     &
+                                    sea_ice_temperature, sea_ice_conductivity, &
+                                    sea_ice_pensolar, melt_pond_fraction,      &
+                                    melt_pond_depth)
 
     end if
 

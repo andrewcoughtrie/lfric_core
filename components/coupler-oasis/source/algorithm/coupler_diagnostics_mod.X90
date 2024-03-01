@@ -374,6 +374,21 @@ module coupler_diagnostics_mod
                ! time averaging process
                inc_X_plus_Y( fld, cpl_field2_si ))
             fld_ptr1 => null()
+         case ("lf_pensolar")
+            call depository%get_field('sea_ice_pensolar', fld_ptr1)
+
+            ! Convert penetrating solar to be as a fraction of the marine
+            ! portion of the grid box
+            ! penetrating_solar_marine_fraction(cpl_field2_si) =
+            !               sea_ice_penetrating_solar(fld_ptr1) *
+            !               sea_ice_fraction_of_marine(sea_ice_frac_previous)
+            call invoke( X_times_Y( cpl_field2_si, fld_ptr1,                   &
+                                                      sea_ice_frac_previous ), &
+
+               ! Multiply by the length of the timestep as part of the
+               ! time averaging process
+               inc_X_plus_Y( fld, cpl_field2_si ))
+            fld_ptr1 => null()
          case ("lf_rsurf")
             !surface river runoff
             call depository%get_field("surface_runoff", fld_ptr1)

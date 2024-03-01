@@ -588,6 +588,9 @@ module coupler_mod
         'lf_iceheatflux',sice_space, checkpoint_restart_flag, twod=.true.)
 
    call add_cpl_field(depository, prognostic_fields, &
+        'lf_pensolar',sice_space, checkpoint_restart_flag, twod=.true.)
+
+   call add_cpl_field(depository, prognostic_fields, &
         'lf_sublimation',sice_space, checkpoint_restart_flag, twod=.true.)
 
    call add_cpl_field(depository, prognostic_fields, &
