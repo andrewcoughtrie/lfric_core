@@ -51,6 +51,7 @@ class mesh_mod::mesh_type {
   +<<create>>  mesh_constructor_unit_test_data( <<in>>mesh_cfg: integer, <<in>>local_mesh: local_mesh_type <<pointer>> ) : mesh_type
   +<<destroy>> mesh_destructor()
   +clear()
+  +debug()
 
   +get_mesh_name() : string
   +get_reference_element() : reference_element_type <<pointer>>

@@ -327,6 +327,7 @@ module mesh_mod
     procedure, public :: get_tiling
     procedure, public :: get_coloured_tiling_map
 
+    procedure, public :: debug
     procedure, public :: clear
 
     ! Destructor
@@ -2745,6 +2746,138 @@ contains
 
     return
   end subroutine clear
+
+  !-----------------------------------------------------------------------------
+  !> @brief   Subroutine for debugging mesh
+  !-----------------------------------------------------------------------------
+  !> @details Mesh details are logged for debug checking.
+  !>          This must be explicity called on a mesh as
+  !>          the output maybe large.
+  !>
+  subroutine debug(self)
+
+    use reference_element_mod, only : reference_element_type, &
+                                      W, S, E, N, B, T,       &
+                                      EB, ET, WB, WT,         &
+                                      NB, NT, SB, ST,         &
+                                      SW, SE, NW, NE,         &
+                                      SWB, SEB, NEB, NWB,     &
+                                      SWT, SET, NET, NWT
+
+    implicit none
+
+    class (mesh_type), intent(in) :: self
+
+    integer(i_def)     :: inode, icell
+    character(str_def) :: spacer, spacer_long
+
+    spacer      = '========================================='
+    spacer_long = '========================================='// &
+                  '========================================='
+
+    ! Log cell-cell connectivity
+    !=======================================================
+    call log_event('', LOG_LEVEL_DEBUG)
+    call log_event(spacer, LOG_LEVEL_DEBUG)
+    call log_event('Mesh cells adjacent to cells', LOG_LEVEL_DEBUG)
+    call log_event(spacer, LOG_LEVEL_DEBUG)
+    call log_event('Cell ID  | Cell IDs: S E N W B T', &
+                    LOG_LEVEL_DEBUG)
+    call log_event(spacer_long, LOG_LEVEL_DEBUG)
+
+    do icell=1, self%ncells
+      write(log_scratch_space,'(I6,T9,A,6I7)') &
+        icell,' | ',             &
+        self%cell_next(S,icell), &
+        self%cell_next(E,icell), &
+        self%cell_next(N,icell), &
+        self%cell_next(W,icell), &
+        self%cell_next(B,icell), &
+        self%cell_next(T,icell)
+      call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+    end do
+
+    ! Report the cell-node connectivity
+    !=======================================================
+    call log_event('', LOG_LEVEL_DEBUG)
+    call log_event(spacer, LOG_LEVEL_DEBUG)
+    call log_event('Mesh nodes on cells', LOG_LEVEL_DEBUG)
+    call log_event(spacer, LOG_LEVEL_DEBUG)
+    call log_event('Cell ID | Node IDs: SWB SEB NEB NWB SWT SET NET NWT', &
+                    LOG_LEVEL_DEBUG)
+    call log_event(spacer_long, LOG_LEVEL_DEBUG)
+
+    do icell=1, self%ncells
+      write(log_scratch_space, '(I6,T9,A,8I7)') &
+        icell, '|',                   &
+        self%vert_on_cell(SWB,icell), &
+        self%vert_on_cell(SEB,icell), &
+        self%vert_on_cell(NEB,icell), &
+        self%vert_on_cell(NWB,icell), &
+        self%vert_on_cell(SWT,icell), &
+        self%vert_on_cell(SET,icell), &
+        self%vert_on_cell(NET,icell), &
+        self%vert_on_cell(NWT,icell)
+      call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+    end do
+
+    ! Report the cell-face connectivity
+    !=======================================================
+    call log_event('', LOG_LEVEL_DEBUG)
+    call log_event(spacer, LOG_LEVEL_DEBUG)
+    call log_event('Mesh faces on cells', LOG_LEVEL_DEBUG)
+    call log_event(spacer, LOG_LEVEL_DEBUG)
+    call log_event('Cell ID | Face IDs: S E N W B T', LOG_LEVEL_DEBUG)
+    call log_event(spacer_long, LOG_LEVEL_DEBUG)
+    do icell=1, self%ncells
+      write(log_scratch_space,'(I6,T9,A,6I7)') &
+        icell, ' | ',               &
+        self%face_on_cell(S,icell), &
+        self%face_on_cell(E,icell), &
+        self%face_on_cell(N,icell), &
+        self%face_on_cell(W,icell), &
+        self%face_on_cell(B,icell), &
+        self%face_on_cell(T,icell)
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    end do
+
+    ! Report the cell-edge connectivity
+    !=======================================================
+    call log_event('', LOG_LEVEL_DEBUG)
+    call log_event(spacer, LOG_LEVEL_DEBUG)
+    call log_event('Mesh edges on cells', LOG_LEVEL_DEBUG)
+    call log_event(spacer, LOG_LEVEL_DEBUG)
+    call log_event('Cell ID | Edge IDs: SB EB NB WB SW SE NE NW ST ET NT WT', &
+                   LOG_LEVEL_DEBUG)
+    call log_event(spacer_long, LOG_LEVEL_DEBUG)
+    do icell=1, self%ncells
+      write( log_scratch_space, '(I6,T9,A,12I7)' )                  &
+          icell, ' | ',                                             &
+          self%edge_on_cell(SB,icell), self%edge_on_cell(EB,icell), &
+          self%edge_on_cell(NB,icell), self%edge_on_cell(WB,icell), &
+          self%edge_on_cell(SW,icell), self%edge_on_cell(SE,icell), &
+          self%edge_on_cell(NE,icell), self%edge_on_cell(NW,icell), &
+          self%edge_on_cell(ST,icell), self%edge_on_cell(ET,icell), &
+          self%edge_on_cell(NT,icell), self%edge_on_cell(WT,icell)
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    end do
+
+    ! Log node coordinates (cartesian)
+    !=======================================================
+    call log_event('', LOG_LEVEL_DEBUG)
+    call log_event(spacer, LOG_LEVEL_DEBUG)
+    call log_event('Mesh node coordinates (m)', LOG_LEVEL_DEBUG)
+    call log_event(spacer, LOG_LEVEL_DEBUG)
+    call log_event('Node ID |   x y z', LOG_LEVEL_DEBUG)
+    call log_event(spacer_long, LOG_LEVEL_DEBUG)
+
+    do inode=1, self%nverts
+      write(log_scratch_space, '(I6,T9,A,3ES20.10E3)') &
+          inode, '|', self%vertex_coords(:,inode)
+      call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+    end do
+
+  end subroutine debug
 
   !-----------------------------------------------------------------------------
   ! Mesh destructor

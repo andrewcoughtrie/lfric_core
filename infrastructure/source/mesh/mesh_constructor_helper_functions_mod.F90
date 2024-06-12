@@ -8,8 +8,6 @@
 module mesh_constructor_helper_functions_mod
 
 use constants_mod,  only: i_def, r_def, pi, l_def
-use log_mod,        only: log_event, log_scratch_space, &
-                          log_level, LOG_LEVEL_TRACE
 
 implicit none
 
@@ -135,9 +133,11 @@ contains
     ! index nfaces_h+1 is the bottom of the 3d cell
     !                  (set to zero as it's the surface)
     ! index nfaces_h+2 is the top of the 3d cell
-    do j=1,ncells_2d
-      cell_next(nfaces_h + 2, j) = j + ncells_2d
-    end do
+    if (nlayers > 1) then
+      do j=1, ncells_2d
+        cell_next(nfaces_h + 2, j) = j + ncells_2d
+      end do
+    end if
 
     ! Perform vertical extrusion for connectivity
     do k=1, nlayers-1
@@ -246,37 +246,6 @@ contains
         end do
 
       end do
-    end do
-
-    ! Diagnostic information from now on.
-    if (log_level() > LOG_LEVEL_TRACE) return
-
-    call log_event('grid connectivity', LOG_LEVEL_TRACE)
-    do i=1, ncells_3d
-      write(log_scratch_space,'(7i6)') i, &
-        cell_next(S,i), cell_next(E,i), &
-        cell_next(N,i), cell_next(W,i), &
-        cell_next(B,i), cell_next(T,i)
-      call log_event(log_scratch_space, LOG_LEVEL_TRACE)
-    end do
-
-    call log_event('verts on cells', LOG_LEVEL_TRACE)
-    do i=1, ncells_3d
-      write(log_scratch_space, '(9i6)') i, &
-        vert_on_cell(SWB,i), vert_on_cell(SEB,i), &
-        vert_on_cell(NEB,i), vert_on_cell(NWB,i), &
-        vert_on_cell(SWT,i), vert_on_cell(SET,i), &
-        vert_on_cell(NET,i), vert_on_cell(NWT,i)
-      call log_event(log_scratch_space, LOG_LEVEL_TRACE)
-    end do
-
-    call log_event('vert coords', LOG_LEVEL_TRACE)
-    do i=1, nverts_3d
-      write(log_scratch_space, '(i6,3ES20.10E3)') i, &
-        vertex_coords(1,i), &
-        vertex_coords(2,i), &
-        vertex_coords(3,i)
-      call log_event(log_scratch_space, LOG_LEVEL_TRACE)
     end do
 
     return
@@ -463,30 +432,6 @@ contains
           edge_id = edge_id + 1
         end if
       end do
-    end do
-
-    ! Diagnostic information from now on.
-    if (log_level() > LOG_LEVEL_TRACE) return
-
-    call log_event( 'faces on cells', LOG_LEVEL_TRACE )
-    do cell = 1, ncells_2d
-      write( log_scratch_space, '(7i6)' ) cell, &
-             face_on_cell(S,cell), face_on_cell(E,cell), &
-             face_on_cell(N,cell), face_on_cell(W,cell), &
-             face_on_cell(B,cell), face_on_cell(T,cell)
-      call log_event( log_scratch_space, LOG_LEVEL_TRACE )
-    end do
-
-    call log_event( 'edges on cells', LOG_LEVEL_TRACE )
-    do cell = 1, ncells_2d
-      write( log_scratch_space, '(13i6)' ) cell, &
-             edge_on_cell(SB,cell), edge_on_cell(EB,cell), &
-             edge_on_cell(NB,cell), edge_on_cell(WB,cell), &
-             edge_on_cell(SW,cell), edge_on_cell(SE,cell), &
-             edge_on_cell(NE,cell), edge_on_cell(NW,cell), &
-             edge_on_cell(ST,cell), edge_on_cell(ET,cell), &
-             edge_on_cell(NT,cell), edge_on_cell(WT,cell)
-      call log_event( log_scratch_space, LOG_LEVEL_TRACE )
     end do
 
     return
