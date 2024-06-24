@@ -297,14 +297,6 @@ subroutine read_field_time_var(xios_field_name, field_proxy, time_indices, time_
     do j = 0, size(time_indices)-1
       time_index = time_indices(j+1)
 
-      ! Temporary fix for out-of-bounds issues with time_indices (in the
-      ! linear tests). The linear input data only contains 2 values, but is
-      ! read into a 3-element array. The last value ends up undefined. Catch
-      ! the undefined value by looking for a value <1 or >100000 and resetting
-      ! it to 1. It's a hack, but it should be fixed properly by ticket #4348.
-      time_index = max(time_index,1)
-      if( time_index > 10000) time_index=1
-
       ! Get correct time-entry from current multi-data level
       time_slice = ndata_slice( ( time_index - 1 ) * ( domain_size * vert_levels ) + 1 :  &
                                  ( time_index ) * ( domain_size * vert_levels ) )
