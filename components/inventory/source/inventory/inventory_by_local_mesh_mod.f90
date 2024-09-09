@@ -499,7 +499,8 @@ end subroutine remove_paired_object
 !> @param[in]  fs          Function space for the field to be created
 !> @param[in]  local_mesh  The local mesh to pair the field with
 !> @param[in]  name        Optional name for the field
-subroutine add_r32_field(self, field, fs, local_mesh, name)
+!> @param[in]  halo_depth  Optional depth of halo for the field
+subroutine add_r32_field(self, field, fs, local_mesh, name, halo_depth)
 
   implicit none
 
@@ -508,6 +509,7 @@ subroutine add_r32_field(self, field, fs, local_mesh, name)
   type(function_space_type),  pointer, intent(in)    :: fs
   type(local_mesh_type),               intent(in)    :: local_mesh
   character(*),              optional, intent(in)    :: name
+  integer(kind=i_def),       optional, intent(in)    :: halo_depth
   type(id_r32_field_pair_type)                       :: paired_object
   character(str_def)                                 :: local_name
 
@@ -518,7 +520,8 @@ subroutine add_r32_field(self, field, fs, local_mesh, name)
   end if
 
   ! Set up the paired_object
-  call paired_object%initialise(fs, local_mesh%get_id(), name=local_name)
+  call paired_object%initialise(fs, local_mesh%get_id(), name=local_name, &
+                                halo_depth=halo_depth)
   call self%add_paired_object(paired_object)
   call self%get_r32_field(local_mesh, field)
 
@@ -529,7 +532,8 @@ end subroutine add_r32_field
 !> @param[in]  fs          Function space for the field to be created
 !> @param[in]  local_mesh  The local mesh to pair the field with
 !> @param[in]  name        Optional name for the field
-subroutine add_r64_field(self, field, fs, local_mesh, name)
+!> @param[in]  halo_depth  Optional depth of halo for the field
+subroutine add_r64_field(self, field, fs, local_mesh, name, halo_depth)
 
   implicit none
 
@@ -538,6 +542,7 @@ subroutine add_r64_field(self, field, fs, local_mesh, name)
   type(function_space_type),  pointer, intent(in)    :: fs
   type(local_mesh_type),               intent(in)    :: local_mesh
   character(*),              optional, intent(in)    :: name
+  integer(kind=i_def),       optional, intent(in)    :: halo_depth
   type(id_r64_field_pair_type)                       :: paired_object
   character(str_def)                                 :: local_name
 
@@ -548,7 +553,8 @@ subroutine add_r64_field(self, field, fs, local_mesh, name)
   end if
 
   ! Set up the paired_object
-  call paired_object%initialise(fs, local_mesh%get_id(), name=local_name)
+  call paired_object%initialise(fs, local_mesh%get_id(), name=local_name, &
+                                halo_depth=halo_depth)
   call self%add_paired_object(paired_object)
   call self%get_r64_field(local_mesh, field)
 
@@ -559,7 +565,8 @@ end subroutine add_r64_field
 !> @param[in]  fs          Function space for the field to be created
 !> @param[in]  local_mesh  The local mesh to pair the field with
 !> @param[in]  name        Optional name for the field
-subroutine add_integer_field(self, field, fs, local_mesh, name)
+!> @param[in]  halo_depth  Optional depth of halo for the field
+subroutine add_integer_field(self, field, fs, local_mesh, name, halo_depth)
 
   implicit none
 
@@ -568,6 +575,7 @@ subroutine add_integer_field(self, field, fs, local_mesh, name)
   type(function_space_type),  pointer, intent(in)    :: fs
   type(local_mesh_type),               intent(in)    :: local_mesh
   character(*),              optional, intent(in)    :: name
+  integer(kind=i_def),       optional, intent(in)    :: halo_depth
   type(id_integer_field_pair_type)                   :: paired_object
   character(str_def)                                 :: local_name
 
@@ -578,7 +586,8 @@ subroutine add_integer_field(self, field, fs, local_mesh, name)
   end if
 
   ! Set up the paired_object
-  call paired_object%initialise(fs, local_mesh%get_id(), name=local_name)
+  call paired_object%initialise(fs, local_mesh%get_id(), name=local_name, &
+                                halo_depth=halo_depth)
   call self%add_paired_object(paired_object)
   call self%get_integer_field(local_mesh, field)
 

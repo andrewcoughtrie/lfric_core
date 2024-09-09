@@ -3,9 +3,9 @@
 ' under which the code may be used.
 
 class id_r64_field_array_pair_mod::id_r64_field_array_pair_type {
-  -field_array_: field_r64_type
+  -field_array_: field_real64_type
 
   +initialise( <<in>> fs: function_space_type, <<in>> id: integer, <<in>> array_size: integer )
-  +copy_initialise( <<in>> field_array: field_r64_type, <<in>> id: integer ) :
-  +get_field_array( ) : field_r64_type
+  +copy_initialise( <<in>> field_array: field_real64_type, <<in>> id: integer ) :
+  +get_field_array( ) : field_real64_type
 }

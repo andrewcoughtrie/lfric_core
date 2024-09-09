@@ -16,16 +16,16 @@ class inventory_by_local_mesh_mod::inventory_by_local_mesh_type {
   +get_paired_object( <<in>> id: integer ) : id_abstract_pair_type
   +paired_object_exists( <<in>> id: integer ) : logical
   +remove_paired_object( <<in>> id: integer ) :
-  +add_field( <<out>> field: field_r32_type, <<in>> fs: function_space_type, <<in>> local_mesh: local_mesh_type, <<in, optional>> name: character, <<in, optional>> ndata_first: logical ) :
-  +add_field( <<out>> field: field_r64_type, <<in>> fs: function_space_type, <<in>> local_mesh: local_mesh_type, <<in, optional>> name: character, <<in, optional>> ndata_first: logical ) :
-  +add_field( <<out>> field: integer_field_type, <<in>> fs: function_space_type, <<in>> local_mesh: local_mesh_type, <<in, optional>> name: character, <<in, optional>> ndata_first: logical ) :
+  +add_field( <<out>> field: field_real32_type, <<in>> fs: function_space_type, <<in>> local_mesh: local_mesh_type, <<in, optional>> name: character, <<in, optional>> halo_depth: integer ) :
+  +add_field( <<out>> field: field_real64_type, <<in>> fs: function_space_type, <<in>> local_mesh: local_mesh_type, <<in, optional>> name: character, <<in, optional>> halo_depth: integer ) :
+  +add_field( <<out>> field: integer_field_type, <<in>> fs: function_space_type, <<in>> local_mesh: local_mesh_type, <<in, optional>> name: character, <<in, optional>> halo_depth: integer ) :
   +add_integer( <<in>> number: integer, <<in>> local_mesh: local_mesh_type ) :
   +add_integer_array( <<in>> numbers: integer, <<in>> local_mesh: local_mesh_type ) :
-  +copy_field( <<in>> field: field_r32_type, <<in>> local_mesh: local_mesh_type ) :
-  +copy_field( <<in>> field: field_r64_type, <<in>> local_mesh: local_mesh_type ) :
+  +copy_field( <<in>> field: field_real32_type, <<in>> local_mesh: local_mesh_type ) :
+  +copy_field( <<in>> field: field_real64_type, <<in>> local_mesh: local_mesh_type ) :
   +copy_field( <<in>> field: integer_field_type, <<in>> local_mesh: local_mesh_type ) :
-  +get_field( <<in>> local_mesh: local_mesh_type, <<out>> field: field_r32_type ) :
-  +get_field( <<in>> local_mesh: local_mesh_type, <<out>> field: field_r64_type ) :
+  +get_field( <<in>> local_mesh: local_mesh_type, <<out>> field: field_real32_type ) :
+  +get_field( <<in>> local_mesh: local_mesh_type, <<out>> field: field_real64_type ) :
   +get_field( <<in>> local_mesh: local_mesh_type, <<out>> field: integer_field_type ) :
   +get_integer( <<in>> local_mesh: local_mesh_type, <<out>> number: integer ) :
   +get_integer_array( <<in>> local_mesh: local_mesh_type, <<out>> numbers: integer ) :

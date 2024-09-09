@@ -16,35 +16,35 @@ class inventory_by_mesh_mod::inventory_by_mesh_type {
   +get_paired_object( <<in>> id: integer ) : id_abstract_pair_type
   +paired_object_exists( <<in>> id: integer ) : logical
   +remove_paired_object( <<in>> id: integer ) :
-  +add_field( <<out>> field: field_r32_type, <<in>> fs: function_space_type, <<in>> mesh: mesh_type, <<in, optional>> name: character, <<in, optional>> ndata_first: logical ) :
-  +add_field( <<out>> field: field_r64_type, <<in>> fs: function_space_type, <<in>> mesh: mesh_type, <<in, optional>> name: character, <<in, optional>> ndata_first: logical ) :
-  +add_field( <<out>> field: field_r32_type, <<in>> fs: function_space_type, <<in>> source_mesh: mesh_type, <<in>> target_mesh: mesh_type ) :
-  +add_field( <<out>> field: field_r64_type, <<in>> fs: function_space_type, <<in>> source_mesh: mesh_type, <<in>> target_mesh: mesh_type ) :
-  +add_field( <<out>> field: integer_field_type, <<in>> fs: function_space_type, <<in>> mesh: mesh_type, <<in, optional>> name: character, <<in, optional>> ndata_first: logical ) :
-  +add_field_array( <<out>> field_array: field_r32_type, <<in>> fs: function_space_type, <<in>> array_size: integer, <<in>> mesh: mesh_type ) :
-  +add_field_array( <<out>> field_array: field_r64_type, <<in>> fs: function_space_type, <<in>> array_size: integer, <<in>> mesh: mesh_type ) :
-  +add_field_array( <<out>> field_array: integer_field_type, <<in>> fs: function_space_type, <<in>> array_size: integer, <<in>> mesh: mesh_type ) :
+  +add_field( <<out>> field: field_real32_type, <<in>> fs: function_space_type, <<in>> mesh: mesh_type, <<in, optional>> name: character, <<in, optional>> halo_depth: integer ) :
+  +add_field( <<out>> field: field_real64_type, <<in>> fs: function_space_type, <<in>> mesh: mesh_type, <<in, optional>> name: character, <<in, optional>> halo_depth: integer ) :
+  +add_field( <<out>> field: field_real32_type, <<in>> fs: function_space_type, <<in>> source_mesh: mesh_type, <<in>> target_mesh: mesh_type ) :
+  +add_field( <<out>> field: field_real64_type, <<in>> fs: function_space_type, <<in>> source_mesh: mesh_type, <<in>> target_mesh: mesh_type ) :
+  +add_field( <<out>> field: integer_field_type, <<in>> fs: function_space_type, <<in>> mesh: mesh_type, <<in, optional>> name: character, <<in, optional>> halo_depth: integer ) :
+  +add_field_array( <<out>> field_array: field_real32_type, <<in>> fs: function_space_type, <<in>> array_size: integer, <<in>> mesh: mesh_type, <<in, optional>> halo_depth: integer ) :
+  +add_field_array( <<out>> field_array: field_real64_type, <<in>> fs: function_space_type, <<in>> array_size: integer, <<in>> mesh: mesh_type, <<in, optional>> halo_depth: integer ) :
+  +add_field_array( <<out>> field_array: integer_field_type, <<in>> fs: function_space_type, <<in>> array_size: integer, <<in>> mesh: mesh_type, <<in, optional>> halo_depth: integer ) :
   +add_integer( <<in>> number: integer, <<in>> mesh: mesh_type ) :
   +add_integer_array( <<in>> numbers: integer, <<in>> mesh: mesh_type ) :
   +add_operator( <<out>> operator_in: operator_real32_type, <<in>> fs_target: function_space_type, <<in>> fs_source: function_space_type, <<in>> mesh: mesh_type ) :
   +add_operator( <<out>> operator_in: operator_real64_type, <<in>> fs_target: function_space_type, <<in>> fs_source: function_space_type, <<in>> mesh: mesh_type ) :
-  +copy_field( <<in>> field: field_r32_type, <<in>> mesh: mesh_type ) :
-  +copy_field( <<in>> field: field_r64_type, <<in>> mesh: mesh_type ) :
-  +copy_field( <<in>> field: field_r32_type, <<in>> source_mesh: mesh_type, <<in>> target_mesh: mesh_type ) :
-  +copy_field( <<in>> field: field_r64_type, <<in>> source_mesh: mesh_type, <<in>> target_mesh: mesh_type ) :
+  +copy_field( <<in>> field: field_real32_type, <<in>> mesh: mesh_type ) :
+  +copy_field( <<in>> field: field_real64_type, <<in>> mesh: mesh_type ) :
+  +copy_field( <<in>> field: field_real32_type, <<in>> source_mesh: mesh_type, <<in>> target_mesh: mesh_type ) :
+  +copy_field( <<in>> field: field_real64_type, <<in>> source_mesh: mesh_type, <<in>> target_mesh: mesh_type ) :
   +copy_field( <<in>> field: integer_field_type, <<in>> mesh: mesh_type ) :
-  +copy_field_array( <<in>> field_array: field_r32_type, <<in>> mesh: mesh_type ) :
-  +copy_field_array( <<in>> field_array: field_r64_type, <<in>> mesh: mesh_type ) :
+  +copy_field_array( <<in>> field_array: field_real32_type, <<in>> mesh: mesh_type ) :
+  +copy_field_array( <<in>> field_array: field_real64_type, <<in>> mesh: mesh_type ) :
   +copy_field_array( <<in>> field_array: integer_field_type, <<in>> mesh: mesh_type ) :
   +copy_operator( <<in>> operator_in: operator_real32_type, <<in>> mesh: mesh_type ) :
   +copy_operator( <<in>> operator_in: operator_real64_type, <<in>> mesh: mesh_type ) :
-  +get_field( <<in>> mesh: mesh_type, <<out>> field: field_r32_type ) :
-  +get_field( <<in>> mesh: mesh_type, <<out>> field: field_r64_type ) :
-  +get_field( <<in>> source_mesh: mesh_type, <<in>> target_mesh: mesh_type, <<out>> field: field_r32_type ) :
-  +get_field( <<in>> source_mesh: mesh_type, <<in>> target_mesh: mesh_type, <<out>> field: field_r64_type ) :
+  +get_field( <<in>> mesh: mesh_type, <<out>> field: field_real32_type ) :
+  +get_field( <<in>> mesh: mesh_type, <<out>> field: field_real64_type ) :
+  +get_field( <<in>> source_mesh: mesh_type, <<in>> target_mesh: mesh_type, <<out>> field: field_real32_type ) :
+  +get_field( <<in>> source_mesh: mesh_type, <<in>> target_mesh: mesh_type, <<out>> field: field_real64_type ) :
   +get_field( <<in>> mesh: mesh_type, <<out>> field: integer_field_type ) :
-  +get_field_array( <<in>> mesh: mesh_type, <<out>> field_array: field_r32_type ) :
-  +get_field_array( <<in>> mesh: mesh_type, <<out>> field_array: field_r64_type ) :
+  +get_field_array( <<in>> mesh: mesh_type, <<out>> field_array: field_real32_type ) :
+  +get_field_array( <<in>> mesh: mesh_type, <<out>> field_array: field_real64_type ) :
   +get_field_array( <<in>> mesh: mesh_type, <<out>> field_array: integer_field_type ) :
   +get_integer( <<in>> mesh: mesh_type, <<out>> number: integer ) :
   +get_integer_array( <<in>> mesh: mesh_type, <<out>> numbers: integer ) :
