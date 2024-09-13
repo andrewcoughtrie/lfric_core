@@ -20,20 +20,29 @@ else
 endif
 
 
+UNIT_TEST_DATA_DIR = $(if $(wildcard $(TEST_DIR)/data), $(WORKING_DIR)/data)
+
 .PHONY: do-unit-test/%
-do-unit-test/run: $(UNIT_TEST_EXE)
+do-unit-test/run: $(UNIT_TEST_EXE) $(UNIT_TEST_DATA_DIR)
 	$(call MESSAGE,Running,$(PROGRAMS))
-	$Qcd $(TEST_DIR); \
+	$Qcd $(WORKING_DIR); \
 	    $(LAUNCHER) $(UNIT_TEST_EXE) $(DOUBLE_VERBOSE_ARG)
 
 # The addition of this target is a bit messy but it allows us to guarantee that
 # no build will happen when running from a test suite.
 #
-do-unit-test/rerun:
+do-unit-test/rerun: $(UNIT_TEST_DATA_DIR)
 	$(call MESSAGE,Running,$(PROGRAMS))
-	$Qcd $(TEST_DIR); \
+	$Qcd $(WORKING_DIR); \
 	    $(LAUNCHER) $(UNIT_TEST_EXE) $(DOUBLE_VERBOSE_ARG)
 
+$(WORKING_DIR)/data: $(TEST_DIR)/data | $(WORKING_DIR)
+	$(call MESSAGE,Copying test data,$<)
+	$Qrsync -avz $(TEST_DIR)/data $(WORKING_DIR)/
+
+$(WORKING_DIR):
+	$(call MESSAGE,Creating $@)
+	$Qmkdir -p $(WORKING_DIR)  # Ensure the target directory exists.
 
 do-unit-test/build: $(UNIT_TEST_EXE)
 
