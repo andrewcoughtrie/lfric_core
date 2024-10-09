@@ -23,6 +23,7 @@ OPERATE_ON ?= infrastructure                \
               mesh_tools                    \
               applications/skeleton         \
               applications/simple_diffusion \
+              applications/io_demo          \
               applications/io_dev
 
 export SUITE_GROUP ?= developer

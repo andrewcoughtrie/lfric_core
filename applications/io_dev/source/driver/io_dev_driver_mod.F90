@@ -44,7 +44,8 @@ module io_dev_driver_mod
                                         update_model_data,         &
                                         output_model_data,         &
                                         finalise_model_data
-  use lfric_xios_context_mod, only: lfric_xios_context_type, advance
+  use lfric_xios_context_mod,  only: lfric_xios_context_type
+  use lfric_xios_action_mod,   only: advance
 
   use namelist_collection_mod, only: namelist_collection_type
   use namelist_mod,            only: namelist_type

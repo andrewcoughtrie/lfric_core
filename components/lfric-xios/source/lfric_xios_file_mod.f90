@@ -338,6 +338,7 @@ subroutine register_with_context(self)
   select case(self%io_mode)
   case (FILE_MODE_READ)
     call xios_set_attr( self%handle, mode="read" )
+    call xios_set_attr( self%handle, type="one_file")
   case (FILE_MODE_WRITE)
     call xios_set_attr( self%handle, mode="write" )
     ! Create CF-compliant time description

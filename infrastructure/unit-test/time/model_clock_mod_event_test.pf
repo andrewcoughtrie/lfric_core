@@ -77,7 +77,8 @@ contains
     class(clock_event_test_type), intent(inout) :: this
 
     type(model_clock_type)           :: test_unit
-    type(dummy_actor_type)           :: actor_1, actor_2
+    type(dummy_actor_type), target   :: actor_1, actor_2
+    class(event_actor_type), pointer  :: actor_1_ptr, actor_2_ptr
     procedure(event_action), pointer :: action => null()
     logical                          :: running
 
@@ -85,9 +86,10 @@ contains
                                  1.0_r_second, 0.0_r_second )
 
     actor_1 = dummy_actor_type("dummy actor1", .true.)
+    actor_1_ptr => actor_1
     action => dummy_action
     ! Set up event to go until end of clock
-    call test_unit%add_event(action, actor_1)
+    call test_unit%add_event(action, actor_1_ptr)
 
     do while (test_unit%tick())
 
@@ -101,7 +103,8 @@ contains
       ! Set up event to start half way and run until the end
       if (test_unit%get_step() == 5) then
         actor_2 = dummy_actor_type("dummy actor2", .true.)
-        call test_unit%add_event(action, actor_2)
+        actor_2_ptr => actor_2
+        call test_unit%add_event(action, actor_2_ptr)
       end if
 
       if (test_unit%get_step() > 5) then

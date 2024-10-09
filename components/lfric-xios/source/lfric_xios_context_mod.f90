@@ -10,12 +10,10 @@ module lfric_xios_context_mod
   use calendar_mod,         only : calendar_type
   use clock_mod,            only : clock_type
   use constants_mod,        only : i_def, &
-                                   r_second, &
+                                   r_second, i_timestep, &
                                    l_def
   use field_mod,            only : field_type
   use file_mod,             only : file_type
-  use event_mod,            only : event_action
-  use event_actor_mod,      only : event_actor_type
   use io_context_mod,       only : io_context_type, callback_clock_arg
   use lfric_xios_file_mod,  only : lfric_xios_file_type
   use log_mod,              only : log_event, log_scratch_space,      &
@@ -28,20 +26,12 @@ module lfric_xios_context_mod
   use linked_list_mod,      only : linked_list_type, linked_list_item_type
   use model_clock_mod,      only : model_clock_type
   use timer_mod,            only : timer
-  !> TODO Remove icontext, see ticket #4313.
-  !> Use icontext is needed here as the revision of xios used by lfric_coupled
-  !> is old enough to not have xios_get_current_context forwarded through the
-  !> xios module.
-  use icontext,             only : xios_get_current_context
   use xios,                 only : xios_context,                  &
                                    xios_context_initialize,       &
                                    xios_close_context_definition, &
                                    xios_context_finalize,         &
-                                   xios_date,                     &
-                                   xios_define_calendar,          &
                                    xios_get_handle,               &
-                                   xios_set_current_context,      &
-                                   xios_update_calendar
+                                   xios_set_current_context
   use mod_wait,             only : init_wait
 
   implicit none
@@ -55,6 +45,7 @@ module lfric_xios_context_mod
 
     type(xios_context)                        :: handle
     type(linked_list_type)                    :: filelist
+    integer(i_def)                            :: context_clock_step = 1_i_def
     logical                                   :: uses_timer = .false.
     logical                                   :: xios_context_initialised = .false.
 
@@ -65,22 +56,26 @@ module lfric_xios_context_mod
     procedure, public :: get_filelist
     procedure, public :: set_current
     procedure, public :: set_timer_flag
+    procedure, public :: get_timer_flag
+    procedure, public :: tick_context_clock
+    procedure, public :: get_context_clock_step
+    procedure, public :: finalise_xios_context
     final :: finalise
   end type lfric_xios_context_type
-
-  public :: advance
 
 contains
 
   !> @brief Set up an LFRic-XIOS context object.
   !>
   !> @param [in] name Unique identifying string.
-  subroutine initialise_lfric_xios_context(this, name)
+  subroutine initialise_lfric_xios_context(this, name, start, stop)
     class(lfric_xios_context_type), intent(inout) :: this
     character(*), intent(in) :: name
+    integer(i_timestep), optional, intent(in) :: start
+    integer(i_timestep), optional, intent(in) :: stop
 
     ! Initialise the parent
-    call this%initialise_io_context(name)
+    call this%initialise_io_context(name, start, stop)
 
   end subroutine initialise_lfric_xios_context
 
@@ -94,11 +89,11 @@ contains
   !> @param [in]     before_close      Routine to be called before context closes
   !> @param [in]     alt_coords        Array of coordinate fields for alternative meshes
   !> @param [in]     alt_panel_ids     Panel ID fields for alternative meshes
-  subroutine initialise_xios_context( this, communicator,          &
+  subroutine initialise_xios_context( this, communicator,              &
                                       chi, panel_id,                   &
                                       model_clock, calendar,           &
                                       before_close,                    &
-                                      alt_coords, alt_panel_ids )
+                                      alt_coords, alt_panel_ids, start_at_zero )
 
     implicit none
 
@@ -112,17 +107,27 @@ contains
                                     intent(in)    :: before_close
     type(field_type),     optional, intent(in)    :: alt_coords(:,:)
     type(field_type),     optional, intent(in)    :: alt_panel_ids(:)
+    logical,              optional, intent(in)    :: start_at_zero
 
     type(linked_list_item_type), pointer :: loop => null()
     type(lfric_xios_file_type),  pointer :: file => null()
+    logical :: zero_start
 
-    procedure(event_action), pointer :: context_advance => null()
+    write(log_scratch_space, "(A)") "Initialising XIOS context: " // this%get_context_name()
+    call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
+    if(present(start_at_zero)) then
+      zero_start = start_at_zero
+    else
+      zero_start = .false.
+    end if
+
     call xios_context_initialize( this%get_context_name(), communicator )
     call xios_get_handle( this%get_context_name(), this%handle )
     call xios_set_current_context( this%handle )
 
     ! Run XIOS setup routines
-    call init_xios_calendar(model_clock, calendar)
+    call init_xios_calendar(model_clock, calendar, zero_start, this%context_clock_step)
     call init_xios_dimensions(chi, panel_id, alt_coords, alt_panel_ids)
     if (this%filelist%get_length() > 0) call setup_xios_files(this%filelist)
 
@@ -132,10 +137,6 @@ contains
     ! after this point
     call xios_close_context_definition()
     this%xios_context_initialised = .true.
-
-    ! Attach context advancement to the model's clock
-    context_advance => advance
-    call model_clock%add_event( context_advance, this )
 
     ! Read all files that need to be read from
     if (this%filelist%get_length() > 0) then
@@ -149,16 +150,24 @@ contains
         loop => loop%next
       end do
     end if
-    write(log_scratch_space, "(A60)") "Initialising XIOS context: " // this%get_context_name()
-    call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
   end subroutine initialise_xios_context
 
-  !> Finaliser for lfric_xios_context object.
   subroutine finalise( this )
-
     implicit none
 
     type(lfric_xios_context_type), intent(inout) :: this
+
+    call this%finalise_xios_context()
+
+  end subroutine finalise
+
+  !> Finaliser for lfric_xios_context object.
+  subroutine finalise_xios_context( this )
+
+    implicit none
+
+    class(lfric_xios_context_type), intent(inout) :: this
 
     type(linked_list_item_type), pointer :: loop => null()
     type(lfric_xios_file_type),  pointer :: file => null()
@@ -179,6 +188,8 @@ contains
 
       ! Finalise the XIOS context - all data will be written to disk and files
       ! will be closed.
+      write(log_scratch_space, "(A)") "Finalising XIOS context: " // this%get_context_name()
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
       call xios_context_finalize()
 
       ! We have closed the context on our end, but we need to make sure that XIOS
@@ -197,78 +208,12 @@ contains
           loop => loop%next
         end do
       end if
+      this%xios_context_initialised = .false.
     end if
     nullify(loop)
     nullify(file)
 
-  end subroutine finalise
-
-  !> Advances the XIOS context forward in time, performing all I/O operations
-  !> expected by XIOS at the end and beginning of the current and subsequent
-  !> timesteps.
-  !>
-  !> @param[in] context     The IO context to be advanced
-  !> @param[in] model_clock The model's clock
-  subroutine advance(context, model_clock)
-
-    implicit none
-
-    class(event_actor_type), intent(inout) :: context
-    class(clock_type),       intent(in)    :: model_clock
-
-    type(linked_list_item_type), pointer :: loop => null()
-    type(lfric_xios_file_type),  pointer :: file => null()
-    type(xios_context)                   :: xios_context_handle
-
-    ! Get the handle of the current context (Not necessarily the one passed to this routine).
-    ! This is used to reset the context on return.
-    call xios_get_current_context(xios_context_handle)
-
-    select type(context)
-      type is (lfric_xios_context_type)
-      ! Write all files that need to be written to
-      call context%set_current()
-      if (context%filelist%get_length() > 0) then
-        loop => context%filelist%get_head()
-        do while (associated(loop))
-          select type(list_item => loop%payload)
-            type is (lfric_xios_file_type)
-              file => list_item
-              if (file%mode_is_write()) call file%send_fields()
-          end select
-          loop => loop%next
-        end do
-      end if
-
-      ! Update XIOS calendar
-      if (context%uses_timer) call timer('xios_update_calendar')
-      call xios_update_calendar( model_clock%get_step() - model_clock%get_first_step() + 1 )
-      if (context%uses_timer) call timer('xios_update_calendar')
-
-      ! Read all files that need to be read from
-      if (context%filelist%get_length() > 0) then
-        loop => context%filelist%get_head()
-        do while (associated(loop))
-          select type(list_item => loop%payload)
-            type is (lfric_xios_file_type)
-              file => list_item
-              if (file%mode_is_read()) call file%recv_fields()
-          end select
-          loop => loop%next
-        end do
-      end if
-    class default
-      call log_event( "Can not advance a non lfric xios type context.", &
-                      log_level_error )
-    end select
-
-    nullify(loop)
-    nullify(file)
-
-    ! Reset the xios context to what it was before this subroutine was called.
-    call xios_set_current_context(xios_context_handle)
-
-  end subroutine advance
+  end subroutine finalise_xios_context
 
   !> Gets the file list associated with this context.
   !>
@@ -312,5 +257,38 @@ contains
     this%uses_timer = timer_flag
 
   end subroutine set_timer_flag
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Returns whether the IO context uses timers
+  !>
+  !> @return timer_flag
+  !>
+  function get_timer_flag(this) result(timer_flag)
+
+    implicit none
+
+    class(lfric_xios_context_type), target, intent(in) :: this
+    logical :: timer_flag
+
+    timer_flag = this%uses_timer
+
+  end function get_timer_flag
+
+  subroutine tick_context_clock(this)
+    implicit none
+    class(lfric_xios_context_type), intent(inout) :: this
+
+    this%context_clock_step = this%context_clock_step + 1_i_def
+
+  end subroutine tick_context_clock
+
+  function get_context_clock_step(this) result(step)
+    implicit none
+    class(lfric_xios_context_type), intent(inout) :: this
+    integer(i_def) :: step
+
+    step = this%context_clock_step
+
+  end function get_context_clock_step
 
 end module lfric_xios_context_mod

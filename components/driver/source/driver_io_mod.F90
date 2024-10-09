@@ -15,6 +15,8 @@ module driver_io_mod
   use driver_modeldb_mod,      only: modeldb_type
   use driver_model_data_mod,   only: model_data_type
   use empty_io_context_mod,    only: empty_io_context_type
+  use event_mod,               only: event_action
+  use event_actor_mod,         only: event_actor_type
   use field_collection_mod,    only: field_collection_type
   use field_mod,               only: field_type
   use inventory_by_mesh_mod,   only: inventory_by_mesh_type
@@ -28,6 +30,7 @@ module driver_io_mod
   use lfric_xios_context_mod,  only: lfric_xios_context_type
 #endif
   use linked_list_mod,         only: linked_list_type
+  use lfric_xios_action_mod,   only: advance
   use mesh_mod,                only: mesh_type
   use mesh_collection_mod,     only: mesh_collection
   use model_clock_mod,         only: model_clock_type
@@ -176,8 +179,10 @@ contains
     integer(kind=i_def)                             :: num_meshes, i, j
     type(lfric_xios_context_type)                   :: tmp_io_context
     type(lfric_xios_context_type), pointer          :: io_context
+    class(event_actor_type), pointer                 :: event_actor_ptr
 
     type(linked_list_type), pointer :: file_list
+    procedure(event_action), pointer :: context_advance
 
     call tmp_io_context%initialise(name)
     call modeldb%io_contexts%add_context(tmp_io_context)
@@ -186,6 +191,8 @@ contains
 
     ! Populate list of I/O files if procedure passed through
     if (present(populate_filelist)) then
+      ! Get the filelist in the io_context and pass it to the populating
+      ! procedure which was passed to this routine.
       file_list => io_context%get_filelist()
       call populate_filelist(file_list, modeldb)
     end if
@@ -226,6 +233,11 @@ contains
                                                modeldb%clock, modeldb%calendar, &
                                                before_close )
     end if
+
+    ! Attach context advancement to the model's clock
+    context_advance => advance
+    event_actor_ptr => io_context
+    call modeldb%clock%add_event( context_advance, event_actor_ptr )
 
     nullify(mesh, chi, panel_id, alt_chi_ptr, alt_panel_id_ptr)
 

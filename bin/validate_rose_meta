@@ -36,6 +36,7 @@ default_project_names=( lfric-xios       \
                         mesh_tools       \
                         simple_diffusion \
                         skeleton         \
+                        io_demo          \
                         io_dev           )
 
 default_app_names=( \
@@ -44,6 +45,7 @@ default_app_names=( \
     mesh_tools:mesh                   \
     simple_diffusion:simple_diffusion \
     skeleton:skeleton                 \
+    io_demo:io_demo                   \
     io_dev:io_dev                     )
 
 while getopts "?" OPTION; do
@@ -81,6 +83,7 @@ project_folder_location=(                          \
   [mesh_tools]=mesh_tools                          \
   [simple_diffusion]=applications/simple_diffusion \
   [skeleton]=applications/skeleton                 \
+  [io_demo]=applications/io_demo                   \
   [io_dev]=applications/io_dev                     )
 
 
@@ -91,6 +94,7 @@ project_primary_app=(                 \
   [mesh_tools]=mesh                   \
   [simple_diffusion]=simple_diffusion \
   [skeleton]=skeleton                 \
+  [io_demo]=io_demo                   \
   [io_dev]=io_dev                     )
 
 ##########################################################################

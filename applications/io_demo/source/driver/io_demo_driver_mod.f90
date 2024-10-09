@@ -1,0 +1,308 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2017 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Drives the execution of the io_demo miniapp.
+!>
+!>
+module io_demo_driver_mod
+
+  use add_mesh_map_mod,           only : assign_mesh_maps
+  use sci_checksum_alg_mod,       only : checksum_alg
+  use constants_mod,              only : i_def, str_def, &
+                                         r_def, r_second
+  use convert_to_upper_mod,       only : convert_to_upper
+  use create_mesh_mod,            only : create_mesh, create_extrusion
+  use driver_mesh_mod,            only : init_mesh
+  use driver_modeldb_mod,         only : modeldb_type
+  use driver_fem_mod,             only : init_fem, final_fem
+  use driver_io_mod,              only : init_io, final_io
+  use extrusion_mod,              only : extrusion_type,         &
+                                         uniform_extrusion_type, &
+                                         TWOD, PRIME_EXTRUSION
+  use field_collection_mod,       only : field_collection_type
+  use field_mod,                  only : field_type
+  use init_io_demo_mod,           only : init_io_demo
+  use inventory_by_mesh_mod,      only : inventory_by_mesh_type
+  use log_mod,                    only : log_event,         &
+                                         log_scratch_space, &
+                                         LOG_LEVEL_INFO,    &
+                                         LOG_LEVEL_ERROR,   &
+                                         LOG_LEVEL_TRACE
+  use mesh_mod,                   only : mesh_type
+  use mesh_collection_mod,        only : mesh_collection
+  use model_clock_mod,            only : model_clock_type
+  use mpi_mod,                    only : mpi_type
+  use multifile_field_setup_mod,  only : create_multifile_io_fields
+  use multifile_io_mod,           only : init_multifile_io, step_multifile_io
+  use namelist_mod,               only : namelist_type
+
+  use io_demo_alg_mod,   only : io_demo_alg
+
+  use sci_field_minmax_alg_mod,   only : log_field_minmax
+
+  !------------------------------------
+  ! Configuration modules
+  !------------------------------------
+  use base_mesh_config_mod, only: GEOMETRY_SPHERICAL, &
+                                  GEOMETRY_PLANAR
+  use io_config_mod,        only: write_diag
+
+  implicit none
+
+  private
+
+  type(inventory_by_mesh_type)          :: chi_inventory
+  type(inventory_by_mesh_type)          :: panel_id_inventory
+
+  public initialise, step, finalise
+
+contains
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Sets up required state in preparation for run.
+  !> @param [in]     program_name An identifier given to the model being run
+  !> @param [in,out] modeldb      The structure that holds model state
+    subroutine initialise( program_name, modeldb)
+
+    implicit none
+
+    character(*),         intent(in)    :: program_name
+    type(modeldb_type),   intent(inout) :: modeldb
+
+    ! Coordinate field
+    type(field_type),             pointer :: chi(:) => null()
+    type(field_type),             pointer :: panel_id => null()
+    type(mesh_type),              pointer :: mesh => null()
+
+    character(str_def), allocatable :: base_mesh_names(:)
+    character(str_def), allocatable :: twod_names(:)
+
+    class(extrusion_type),        allocatable :: extrusion
+    type(uniform_extrusion_type), allocatable :: extrusion_2d
+
+    type(namelist_type), pointer :: base_mesh_nml => null()
+    type(namelist_type), pointer :: planet_nml    => null()
+    type(namelist_type), pointer :: extrusion_nml => null()
+    type(namelist_type), pointer :: io_nml => null()
+
+    character(str_def) :: prime_mesh_name
+
+    integer(i_def) :: stencil_depth
+    integer(i_def) :: geometry
+    integer(i_def) :: method
+    integer(i_def) :: number_of_layers
+    real(r_def)    :: domain_bottom
+    real(r_def)    :: domain_top
+    real(r_def)    :: scaled_radius
+    logical        :: check_partitions
+    logical        :: multifile_io
+
+    integer(i_def), parameter :: one_layer = 1_i_def
+    integer(i_def) :: i
+
+    !=======================================================================
+    ! Extract configuration variables
+    !=======================================================================
+    base_mesh_nml => modeldb%configuration%get_namelist('base_mesh')
+    planet_nml    => modeldb%configuration%get_namelist('planet')
+    extrusion_nml => modeldb%configuration%get_namelist('extrusion')
+    io_nml        => modeldb%configuration%get_namelist('io')
+
+    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
+    call base_mesh_nml%get_value( 'geometry', geometry )
+    call extrusion_nml%get_value( 'method', method )
+    call extrusion_nml%get_value( 'domain_top', domain_top )
+    call extrusion_nml%get_value( 'number_of_layers', number_of_layers )
+    call planet_nml%get_value( 'scaled_radius', scaled_radius )
+    call io_nml%get_value( 'multifile_io', multifile_io)
+
+    base_mesh_nml => null()
+    planet_nml    => null()
+    extrusion_nml => null()
+    io_nml        => null()
+
+    !=======================================================================
+    ! Mesh
+    !=======================================================================
+
+    !-------------------------------------------------------------------------
+    ! Determine the required meshes
+    !-------------------------------------------------------------------------
+
+    ! Meshes that require a prime/2d extrusion
+    ! ---------------------------------------------------------
+    allocate(base_mesh_names(1))
+    base_mesh_names(1) = prime_mesh_name
+
+    !-------------------------------------------------------------------------
+    ! Generate required extrusions
+    !-------------------------------------------------------------------------
+
+    ! Extrusions for prime/2d meshes
+    ! ---------------------------------------------------------
+    select case (geometry)
+    case (GEOMETRY_PLANAR)
+      domain_bottom = 0.0_r_def
+    case (GEOMETRY_SPHERICAL)
+      domain_bottom = scaled_radius
+    case default
+      call log_event("Invalid geometry for mesh initialisation", &
+                      LOG_LEVEL_ERROR)
+    end select
+
+    allocate( extrusion, source=create_extrusion( method,           &
+                                                  domain_top,       &
+                                                  domain_bottom,    &
+                                                  number_of_layers, &
+                                                  PRIME_EXTRUSION ) )
+
+    extrusion_2d = uniform_extrusion_type( domain_bottom, &
+                                           domain_bottom, &
+                                           one_layer, TWOD )
+
+    !-------------------------------------------------------------------------
+    ! Initialise mesh objects and assign InterGrid maps
+    !-------------------------------------------------------------------------
+
+    ! Initialise prime/2d meshes
+    ! ---------------------------------------------------------
+    stencil_depth = 1
+    check_partitions = .false.
+    call init_mesh( modeldb%configuration,       &
+                    modeldb%mpi%get_comm_rank(), &
+                    modeldb%mpi%get_comm_size(), &
+                    base_mesh_names, extrusion,  &
+                    stencil_depth, check_partitions )
+
+    allocate( twod_names, source=base_mesh_names )
+    do i=1, size(twod_names)
+      twod_names(i) = trim(twod_names(i))//'_2d'
+    end do
+    call create_mesh( base_mesh_names, extrusion_2d, &
+                      alt_name=twod_names )
+    call assign_mesh_maps(twod_names)
+
+    !=======================================================================
+    ! Build the FEM function spaces and coordinate fields
+    !=======================================================================
+    call init_fem( mesh_collection, chi_inventory, panel_id_inventory )
+
+    !=======================================================================
+    ! Setup multifile reading
+    !=======================================================================
+    if(multifile_io) then
+      call create_multifile_io_fields(modeldb)
+      call init_multifile_io(modeldb)
+    end if
+
+    !=======================================================================
+    ! Setup general I/O system.
+    !=======================================================================
+    ! Initialise I/O context
+    call init_io( program_name, modeldb, chi_inventory, panel_id_inventory )
+
+
+    !=======================================================================
+    ! Create and initialise prognostic fields
+    !=======================================================================
+    mesh => mesh_collection%get_mesh(prime_mesh_name)
+    call chi_inventory%get_field_array(mesh, chi)
+    call panel_id_inventory%get_field(mesh, panel_id)
+    call init_io_demo( mesh, chi, panel_id, modeldb )
+
+    nullify(mesh, chi, panel_id)
+    deallocate(base_mesh_names)
+
+  end subroutine initialise
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Performs a time step.
+  !> @param [in]     program_name An identifier given to the model being run
+  !> @param [in,out] modeldb      The structure that holds model state
+  subroutine step( program_name, modeldb )
+
+    implicit none
+
+    character(*),       intent(in)    :: program_name
+    type(modeldb_type), intent(inout) :: modeldb
+    type( field_collection_type ), pointer :: depository
+    type( field_collection_type ), pointer :: multifile_col
+    type( field_type ),            pointer :: diffusion_field
+    type( field_type ),            pointer :: multifile_field
+    type(namelist_type), pointer :: io_nml => null()
+    logical :: multifile_io
+
+    io_nml => modeldb%configuration%get_namelist('io')
+    call io_nml%get_value( 'multifile_io', multifile_io)
+    if( multifile_io ) then
+      call step_multifile_io(modeldb, chi_inventory, panel_id_inventory)
+      multifile_col => modeldb%fields%get_field_collection("multifile_io_fields")
+      call multifile_col%get_field("multifile_field", multifile_field)
+      call log_field_minmax(LOG_LEVEL_INFO, "multifile field", multifile_field)
+    end if
+
+    depository => modeldb%fields%get_field_collection("depository")
+    call depository%get_field("diffusion_field", diffusion_field)
+
+    ! Call an algorithm
+    call log_event(program_name//": Calculating diffusion", LOG_LEVEL_INFO)
+    call io_demo_alg(diffusion_field)
+
+    if (write_diag) then
+        ! Write out output file
+        call log_event(program_name//": Writing diagnostic output", LOG_LEVEL_INFO)
+        call diffusion_field%write_field('diffusion_field')
+    end if
+
+  end subroutine step
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Tidies up after a run.
+  !> @param [in]     program_name An identifier given to the model being run
+  !> @param [in,out] modeldb      The structure that holds model state
+  subroutine finalise( program_name, modeldb )
+
+    implicit none
+
+    character(*),       intent(in)    :: program_name
+    type(modeldb_type), intent(inout) :: modeldb
+    type( field_collection_type ), pointer :: depository
+    type( field_type ),            pointer :: diffusion_field
+    type( field_collection_type ), pointer :: multifile_col
+    type( field_type ),            pointer :: multifile_field
+
+    type(namelist_type), pointer :: io_nml
+    logical :: multifile_io
+    !-------------------------------------------------------------------------
+    ! Checksum output
+    !-------------------------------------------------------------------------
+    depository => modeldb%fields%get_field_collection("depository")
+    call depository%get_field("diffusion_field", diffusion_field)
+
+    io_nml => modeldb%configuration%get_namelist('io')
+    call io_nml%get_value( 'multifile_io', multifile_io)
+
+    if( multifile_io ) then
+      multifile_col => modeldb%fields%get_field_collection("multifile_io_fields")
+      call multifile_col%get_field("multifile_field", multifile_field)
+      call checksum_alg(program_name, &
+                  diffusion_field, 'diffusion_field', &
+                  multifile_field, 'multifile_field')
+    else
+      call checksum_alg(program_name, &
+                        diffusion_field, 'diffusion_field')
+    end if
+
+    call log_event( program_name//': model completed', LOG_LEVEL_TRACE )
+
+    !-------------------------------------------------------------------------
+    ! Driver layer finalise
+    !-------------------------------------------------------------------------
+    ! Finalise IO
+    call final_io(modeldb)
+    call final_fem()
+
+  end subroutine finalise
+
+end module io_demo_driver_mod

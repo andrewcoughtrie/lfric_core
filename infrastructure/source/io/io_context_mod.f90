@@ -7,7 +7,7 @@
 !>
 module io_context_mod
 
-  use constants_mod,   only : str_def
+  use constants_mod,   only : str_def, i_timestep
   use clock_mod,       only : clock_type
   use event_actor_mod, only : event_actor_type
   use linked_list_mod, only : linked_list_type
@@ -68,13 +68,15 @@ contains
 
   !> @brief Initialise the abstract I/O context
   !> @param name The name of the I/O context
-  subroutine initialise_io_context(this, name)
+  subroutine initialise_io_context(this, name, start, stop)
     implicit none
     class(io_context_type), intent(inout) :: this
     character(*), intent(in) :: name
+    integer(i_timestep), optional, intent(in) :: start
+    integer(i_timestep), optional, intent(in) :: stop
 
     this%context_name = trim(name)
-    call this%init_event_actor(name)
+    call this%init_event_actor(name, start, stop)
 
   end subroutine initialise_io_context
 

@@ -157,7 +157,7 @@ contains
       ! If the list is empty or we reach the end of the list and didn't find the
       ! context, fail with an error
       if( .not. associated(loop) ) then
-        write(log_scratch_space, '(4A)') 'Get field: No lfric_xios_context [', &
+        write(log_scratch_space, '(4A)') 'Get io_context: No lfric_xios_context [', &
                 trim(context_name), '] in context collection: ', trim(this%name)
         call log_event(log_scratch_space, LOG_LEVEL_ERROR)
       end if

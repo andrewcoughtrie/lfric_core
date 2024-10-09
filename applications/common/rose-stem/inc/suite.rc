@@ -735,6 +735,7 @@ mv $CYLC_TASK_WORK_DIR/lfric_averages.nc $DESTINATION_DIRECTORY/"+pathFragment+"
 
 {%-                   endif %} {# configuration_label #}
 
+            BIG_DATA_DIR      = {{TARGET_BIG_DATA_DIR}}
             MESH_DIR          = $OUTPUT_ROOT/{{mesh_label}}/meshes
             APP_NAME          = {{appName}}
             RUN_METHOD        = {{get_target_property(PRIMARY_TARGET, 'queue.run.launcher')}}

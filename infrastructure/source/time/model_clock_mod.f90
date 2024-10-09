@@ -11,7 +11,8 @@ module model_clock_mod
   use constants_mod,   only : i_timestep, i_def, r_def, r_second
   use event_mod,       only : event_type, event_action
   use event_actor_mod, only : event_actor_type
-  use log_mod,         only : log_event, log_level_error, log_scratch_space, &
+  use linked_list_mod, only : linked_list_type, linked_list_item_type
+  use log_mod,         only : log_event, log_level_error, log_level_info, log_scratch_space, &
                               log_set_timestep, log_forget_timestep
 
   implicit none
@@ -37,7 +38,7 @@ module model_clock_mod
     real(r_def)         :: spinup_fraction
     logical             :: initialisation_phase
     logical             :: starting
-    type(event_type)    :: ts_events(3)
+    type(linked_list_type) :: ts_events
   contains
     private
     procedure, public :: tick
@@ -51,6 +52,7 @@ module model_clock_mod
     procedure, public :: is_running
     procedure, public :: is_spinning_up
     procedure, public :: add_event
+    procedure, public :: remove_event
     procedure :: calculate_spinup_fraction
   end type model_clock_type
 
@@ -111,34 +113,54 @@ contains
     new_clock%current_step = new_clock%first_step
     new_clock%initialisation_phase = (new_clock%current_step == 1_i_timestep)
     new_clock%starting = .true.
+    new_clock%ts_events = linked_list_type()
 
   end function model_clock_constructor
 
-  !> Link a timestep event to the clock tick
-  !>
+  !> @brief Link a timestep event to the clock tick
+  !> @param[in] new_action The action to apply to the actor
+  !> @param[in] new_actor The actor upon which the action is applied
   subroutine add_event( this, new_action, new_actor )
 
     implicit none
 
     class(model_clock_type),          intent(inout) :: this
     procedure(event_action), pointer, intent(in)    :: new_action
-    class(event_actor_type), target,  intent(in)    :: new_actor
+    class(event_actor_type), pointer, intent(in)    :: new_actor
 
-    integer(i_def) :: i
-
-    ! Loop through events array to find a free slot
-    do i = 1, size(this%ts_events)
-      if (.not. this%ts_events(i)%is_active()) then
-        this%ts_events(i) = event_type(new_action, new_actor)
-        return
-      end if
-    end do
-
-    ! If we are still running, call error
-    call log_event( "Not enough space to register new event with model clock", &
-                    log_level_error)
+    ! Add event to list
+    call this%ts_events%insert_item( event_type(new_action, new_actor) )
 
   end subroutine add_event
+
+  !> @brief Remove and event from the event loop
+  !> @param[in] actor_name The name of the event actor to be removed
+  subroutine remove_event(this, actor_name)
+    implicit none
+    class(model_clock_type),          intent(inout) :: this
+    character(*), intent(in) :: actor_name
+    type(linked_list_item_type), pointer :: loop
+
+    loop => this%ts_events%get_head()
+    do
+      ! If list is empty or we're at the end then exit
+      if (.not. associated(loop)) then
+        write(log_scratch_space, '(3A)') 'remove_event: No event [', &
+            trim(actor_name), '] in event loop of model clock'
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR)
+      end if
+      ! extract payload object and remove from list
+      select type(event_object => loop%payload)
+      type is (event_type)
+        if (trim(event_object%actor_name()) == trim(actor_name) ) then
+          call this%ts_events%remove_item(loop)
+          exit
+        end if
+      end select
+      loop => loop%next
+    end do
+
+  end subroutine
 
   !> Gets the first step in the current run.
   !>
@@ -216,7 +238,7 @@ contains
 
   !> Gets the current timestep.
   !>
-  !> @return Timestep between first and last.
+  !> @return Current timestep
   !>
   function get_step( this )
 
@@ -225,6 +247,7 @@ contains
     class(model_clock_type), intent(in) :: this
     integer(i_timestep) :: get_step
 
+    ! Timestep between first and last.
     get_step = min(this%current_step, this%last_step)
 
   end function get_step
@@ -322,8 +345,8 @@ contains
     implicit none
 
     class(model_clock_type), intent(inout) :: this
-    integer(i_def)    :: i
     logical           :: tick, init_flag
+    type(linked_list_item_type), pointer :: loop
 
     init_flag = .false.
 
@@ -337,10 +360,20 @@ contains
 
     ! Run timestep events only after initialisation - will be changed in #3321
     if (.not. init_flag) then
-      do i = 1, size(this%ts_events)
-        if (this%ts_events(i)%is_active()) then
-          call this%ts_events(i)%happens(this)
+      loop => this%ts_events%get_head()
+      do
+        ! If list is empty of we're at the end then exit
+        if (.not. associated(loop)) then
+          exit
         end if
+        ! extract payload object
+        select type(event_object => loop%payload)
+          type is (event_type)
+            if (event_object%is_active()) then
+              call event_object%happens(this)
+            end if
+        end select
+        loop => loop%next
       end do
     end if
 
