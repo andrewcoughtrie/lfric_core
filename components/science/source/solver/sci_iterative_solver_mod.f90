@@ -429,6 +429,19 @@ module sci_iterative_solver_mod
      end subroutine
   end interface
 
+  ! ---------- End of the extended types ------------!
+
+  ! Derived data type that contains an allocatable
+  ! abstract_vector_type. This DDT is used to avoid a CCE bug (between
+  ! version 15.0 and 18.01) that cause issue when an array of abstract
+  ! type is allocated. The workaround is to have an array of this DDT
+  ! and then allocate one at the time the abstract type. See ticket
+  ! #4451 for details.
+  type, private :: array_abstract_vector_type
+    class(abstract_vector_type), allocatable :: vt
+  end type array_abstract_vector_type
+
+
 end module sci_iterative_solver_mod
 
 !  Submodule with procedures for conjugate gradient !
@@ -827,7 +840,9 @@ contains
     class(abstract_vector_type), allocatable :: w
     class(abstract_vector_type), allocatable :: Ax
     class(abstract_vector_type), allocatable :: res
-    class(abstract_vector_type), allocatable, dimension(:) :: v
+
+    ! Use a special DDT to avoid a CCE bug.
+    type(array_abstract_vector_type), allocatable, dimension(:) :: v
 
     ! temporary scalars
     real(kind=r_def), allocatable, dimension(:)   :: u, g
@@ -869,7 +884,12 @@ contains
     call x%duplicate(s)
     call x%duplicate(w)
 
-    allocate(v(self%gcrk), source=x)
+    ! Use special DDT to avoid CCE bug.
+    allocate(v(self%gcrk))
+
+    do iv = 1, self%gcrk
+      allocate(v(iv)%vt, source=x)
+    end do
 
     allocate( h(self%gcrk+1, self%gcrk) )
     allocate( g(self%gcrk+1) )
@@ -880,15 +900,15 @@ contains
        call s%set_scalar(0.0_r_def)
        call self%prec%apply(res,s)
        beta = s%norm()
-       call v(1)%copy(s)
-       call v(1)%scale(1.0_r_def/beta)
+       call v(1)%vt%copy(s)
+       call v(1)%vt%scale(1.0_r_def/beta)
 
        g(:) = 0.0_r_def
        g(1) = beta
 
        do iv = 1, self%gcrk
 
-          call w%copy(v(iv))
+          call w%copy(v(iv)%vt)
           ! apply the operator
           call self%lin_op%apply( w, s )
           ! apply the preconditioner
@@ -896,14 +916,14 @@ contains
 
           ! compute the h values
           do ivj = 1, iv
-             h(ivj,iv) = v(ivj)%dot(w)
+             h(ivj,iv) = v(ivj)%vt%dot(w)
              ! a x y z, z = ax +y
-             call w%axpy(-h(ivj,iv), v(ivj))
+             call w%axpy(-h(ivj,iv), v(ivj)%vt)
           end do
           h(iv+1, iv) = w%norm()
           if(iv < self%gcrk) then
-             call v(iv+1)%copy(w)
-             call v(iv+1)%scale(1.0_r_def/h(iv+1,iv) )
+             call v(iv+1)%vt%copy(w)
+             call v(iv+1)%vt%scale(1.0_r_def/h(iv+1,iv) )
           end if
        end do
 
@@ -937,7 +957,7 @@ contains
        ! compute the increments and update the solution
        do iv = 1, self%gcrk
           ! y, x : y = Px
-          call s%copy(v(iv))
+          call s%copy(v(iv)%vt)
           call x%axpy(u(iv), s)
        end do
 
@@ -974,6 +994,13 @@ contains
     end if
 
     deallocate(h, g, u)
+
+    do iv = 1, self%gcrk
+      deallocate(v(iv)%vt)
+    end do
+
+    deallocate(v)
+
 
   end subroutine gmres_solve
 end submodule gmres_smod
@@ -1039,7 +1066,9 @@ contains
     class(abstract_vector_type), allocatable :: dx
     class(abstract_vector_type), allocatable :: Ax
     class(abstract_vector_type), allocatable :: res
-    class(abstract_vector_type), allocatable, dimension(:) :: v, Pv
+
+    ! Use a special DDT to avoid a CCE bug.
+    type(array_abstract_vector_type), allocatable, dimension(:) :: v, Pv
 
     ! temporary scalars
     real(kind=r_def), allocatable, dimension(:)   :: u, g
@@ -1083,12 +1112,18 @@ contains
     call s%copy(res)
 
     beta = s%norm()
-    allocate(v(self%gcrk), source=x)
 
-    call v(1)%copy(s)
-    call v(1)%scale(1.0_r_def/beta)
+    ! Use special DDT to avoid CCE bug.
+    allocate(v(self%gcrk))
+    allocate(Pv(self%gcrk))
 
-    allocate(Pv(self%gcrk), source=x)
+    do iv = 1, self%gcrk
+      allocate(Pv(iv)%vt, source=x)
+      allocate(v(iv)%vt, source=x)
+    end do
+
+    call v(1)%vt%copy(s)
+    call v(1)%vt%scale(1.0_r_def/beta)
 
     allocate( h(self%gcrk+1, self%gcrk) )
     allocate( g(self%gcrk+1) )
@@ -1101,20 +1136,20 @@ contains
     do iter = 1, self%max_iter
        do iv = 1, self%gcrk
 
-          call self%prec%apply(v(iv), Pv(iv))
+          call self%prec%apply(v(iv)%vt, Pv(iv)%vt)
           ! apply the operator
-          call self%lin_op%apply( Pv(iv), s )
+          call self%lin_op%apply( Pv(iv)%vt, s )
           call w%copy(s)
           ! compute the h values
           do ivj = 1, iv
-             h(ivj,iv) = v(ivj)%dot(w)
+             h(ivj,iv) = v(ivj)%vt%dot(w)
              ! a x y z, z = ax +y
-             call w%axpy(-h(ivj,iv), v(ivj))
+             call w%axpy(-h(ivj,iv), v(ivj)%vt)
           end do
           h(iv+1, iv) = w%norm()
           if(iv < self%gcrk) then
-             call v(iv+1)%copy(w)
-             call v(iv+1)%scale(1.0_r_def/h(iv+1,iv) )
+             call v(iv+1)%vt%copy(w)
+             call v(iv+1)%vt%scale(1.0_r_def/h(iv+1,iv) )
           end if
        end do
 
@@ -1148,7 +1183,7 @@ contains
        ! compute the increments
        do iv = 1, self%gcrk
           ! y, x : y = Px
-          call dx%axpy(u(iv), Pv(iv))
+          call dx%axpy(u(iv), Pv(iv)%vt)
        end do
 
        ! check for convergence
@@ -1170,8 +1205,8 @@ contains
        end if
 
        call s%copy(res)
-       call v(1)%set_scalar(0.0_r_def)
-       call v(1)%axpy(1.0_r_def/beta, s)
+       call v(1)%vt%set_scalar(0.0_r_def)
+       call v(1)%vt%axpy(1.0_r_def/beta, s)
 
        g(:) = 0.0_r_def
        g(1) = beta
@@ -1192,7 +1227,14 @@ contains
     call x%axpy(1.0_r_def, dx)
 
     deallocate(h, g, u)
-    deallocate(v)
+
+    do iv = 1, self%gcrk
+      deallocate(Pv(iv)%vt)
+      deallocate(v(iv)%vt)
+    end do
+
+    deallocate(v ,Pv)
+
 
   end subroutine fgmres_solve
 end submodule fgmres_smod
@@ -1255,7 +1297,9 @@ contains
     class(abstract_vector_type), allocatable :: dx
     class(abstract_vector_type), allocatable :: Ax
     class(abstract_vector_type), allocatable :: res
-    class(abstract_vector_type), allocatable, dimension(:) :: v, Pv
+
+    ! Use a special DDT to avoid a CCE bug.
+    type(array_abstract_vector_type), allocatable, dimension(:) :: v, Pv
 
     ! temporary scalars
     real(kind=r_def) :: alpha, beta
@@ -1295,30 +1339,36 @@ contains
       init_err = sc_err
     end if
 
-    allocate(v(self%gcrk), source=x)
-    allocate(Pv(self%gcrk), source=x)
+    ! Use special DDT to avoid CCE bug.
+    allocate(v(self%gcrk))
+    allocate(Pv(self%gcrk))
+
+    do iv = 1, self%gcrk
+      allocate(Pv(iv)%vt, source=x)
+      allocate(v(iv)%vt, source=x)
+    end do
 
     ! initialisation complete, lets go to work.
     do iter = 1, self%max_iter
        do iv = 1, self%gcrk
 
           ! apply the preconditioner
-          call self%prec%apply( res, Pv(iv) )
+          call self%prec%apply( res, Pv(iv)%vt )
           ! apply the operator
-          call self%lin_op%apply( Pv(iv), v(iv) )
+          call self%lin_op%apply( Pv(iv)%vt, v(iv)%vt )
 
           do ivj = 1, iv-1
-            alpha = v(iv)%dot(v(ivj))
-            call v(iv)%axpy(-alpha, v(ivj))
-            call Pv(iv)%axpy(-alpha, Pv(ivj))
+            alpha = v(iv)%vt%dot(v(ivj)%vt)
+            call v(iv)%vt%axpy(-alpha, v(ivj)%vt)
+            call Pv(iv)%vt%axpy(-alpha, Pv(ivj)%vt)
           end do
-          alpha = v(iv)%norm()
+          alpha = v(iv)%vt%norm()
           beta  = 1.0_r_def/alpha
-          call v(iv)%scale(beta)
-          call Pv(iv)%scale(beta)
-          alpha = res%dot(v(iv))
-          call dx%axpy(alpha, Pv(iv))
-          call res%axpy(-alpha, v(iv))
+          call v(iv)%vt%scale(beta)
+          call Pv(iv)%vt%scale(beta)
+          alpha = res%dot(v(iv)%vt)
+          call dx%axpy(alpha, Pv(iv)%vt)
+          call res%axpy(-alpha, v(iv)%vt)
 
           if ( self%monitor_convergence ) then
             err = res%norm()/sc_err
@@ -1349,6 +1399,11 @@ contains
     end if
 
     call x%axpy(1.0_r_def, dx)
+
+    do iv = 1, self%gcrk
+      deallocate(Pv(iv)%vt)
+      deallocate(v(iv)%vt)
+    end do
 
     deallocate(v ,Pv)
 
@@ -1415,7 +1470,9 @@ contains
     class(abstract_vector_type), allocatable :: dx
     class(abstract_vector_type), allocatable :: Ax
     class(abstract_vector_type), allocatable :: res
-    class(abstract_vector_type), allocatable, dimension(:) :: v, Pv
+
+    ! Use a special DDT to avoid a CCE bug.
+    type(array_abstract_vector_type), allocatable, dimension(:) :: v, Pv
 
     ! temporary scalars
     real(kind=r_def) :: alpha, beta
@@ -1462,8 +1519,14 @@ contains
       call log_event(log_scratch_space, LOG_LEVEL_INFO)
     end if
 
-    allocate(v(self%gcrk), source=x)
-    allocate(Pv(self%gcrk), source=x)
+    ! Use special DDT to avoid CCE bug.
+    allocate(v(self%gcrk))
+    allocate(Pv(self%gcrk))
+
+    do iv = 1, self%gcrk
+      allocate(Pv(iv)%vt, source=x)
+      allocate(v(iv)%vt, source=x)
+    end do
 
     converged(:)=.false.
     ! initialisation complete, lets go to work.
@@ -1471,22 +1534,22 @@ contains
        do iv = 1, self%gcrk
 
           ! apply the preconditioner
-          call self%prec%apply( res, Pv(iv) )
+          call self%prec%apply( res, Pv(iv)%vt )
           ! apply the operator
-          call self%lin_op%apply( Pv(iv), v(iv) )
+          call self%lin_op%apply( Pv(iv)%vt, v(iv)%vt )
 
           do ivj = 1, iv-1
-            alpha = v(iv)%dot(v(ivj))
-            call v(iv)%axpy(-alpha, v(ivj))
-            call Pv(iv)%axpy(-alpha, Pv(ivj))
+            alpha = v(iv)%vt%dot(v(ivj)%vt)
+            call v(iv)%vt%axpy(-alpha, v(ivj)%vt)
+            call Pv(iv)%vt%axpy(-alpha, Pv(ivj)%vt)
           end do
-          alpha = v(iv)%norm()
+          alpha = v(iv)%vt%norm()
           beta  = 1.0_r_def/alpha
-          call v(iv)%scale(beta)
-          call Pv(iv)%scale(beta)
-          alpha = res%dot(v(iv))
-          call dx%axpy(alpha, Pv(iv))
-          call res%axpy(-alpha, v(iv))
+          call v(iv)%vt%scale(beta)
+          call Pv(iv)%vt%scale(beta)
+          alpha = res%dot(v(iv)%vt)
+          call dx%axpy(alpha, Pv(iv)%vt)
+          call res%axpy(-alpha, v(iv)%vt)
 
           if ( self%monitor_convergence ) then
 
@@ -1549,6 +1612,11 @@ contains
     end if
 
     call x%axpy(1.0_r_def, dx)
+
+    do iv = 1, self%gcrk
+      deallocate(Pv(iv)%vt)
+      deallocate(v(iv)%vt)
+    end do
 
     deallocate(v ,Pv)
 
