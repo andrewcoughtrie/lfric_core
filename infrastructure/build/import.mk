@@ -20,7 +20,8 @@ import-infrastructure: $(WORKING_DIR)/field/field_real32_mod.f90 \
                        $(WORKING_DIR)/scalar/scalar_real32_mod.f90 \
                        $(WORKING_DIR)/scalar/scalar_real64_mod.f90 \
                        $(WORKING_DIR)/scalar/scalar_int32_mod.f90
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk SOURCE_DIR=$(LFRIC_INFRASTRUCTURE)/source
+	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
+	          SOURCE_DIR=$(LFRIC_INFRASTRUCTURE)/source
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone.mk \
 	          SOURCE_DIR=$(LFRIC_INFRASTRUCTURE)/source \
 	          OPTIMISATION_PATH=$(OPTIMISATION_PATH)
@@ -34,7 +35,7 @@ $(WORKING_DIR)/field:
 	$Qmkdir -p $@
 
 $(WORKING_DIR)/operator/operator_%_mod.f90: $(LFRIC_INFRASTRUCTURE)/source/operator/operator_mod.t90 \
-                                      | $(WORKING_DIR)/operator
+                                            | $(WORKING_DIR)/operator
 	$(call MESSAGE, Templating, $<)
 	$Q$(TEMPLATE_TOOL) $< -o $@ -s kind=$*
 

@@ -8,45 +8,12 @@ from pathlib import Path
 import pytest
 from textwrap import dedent
 
-from dependerator.analyser import (FortranAnalyser,
-                                   NamelistDescriptionAnalyser)
-from dependerator.database import (FileDependencies,
-                                   FortranDependencies,
+from dependerator.analyser import FortranAnalyser
+from dependerator.database import (FortranDependencies,
                                    SQLiteDatabase)
 
 
-class TestNamelistDescriptionAnalyser():
-    @pytest.fixture
-    def database(self, tmp_path_factory):
-        filename = tmp_path_factory.mktemp('db-', True) / 'test.db'
-        database = SQLiteDatabase(filename)
-        return FileDependencies(database)
-
-    def testAnalysis(self, database, tmp_path: Path):
-        """
-        Presents a namelist description to the analyser and ensures the correct
-        dependencies are returned.
-        """
-        test_filename = tmp_path / 'test.nld'
-        test_filename.write_text(dedent('''
-            namelist foo
-
-            bar  : string(filename) !gumph
-            baz  : enumeration[ thing1, thing2 ]
-            qux  : real
-            fred : real[ 'qux * 2' ]
-
-            end namelist foo
-            '''))
-
-        uut = NamelistDescriptionAnalyser(database)
-        uut.analyse(test_filename)
-        dependencies = list(database.getDependencies())
-        assert [(Path('foo_configuration_mod.f90'),
-                [test_filename])] == dependencies
-
-
-class TestFortranAnalyser():
+class TestFortranAnalyser:
     @pytest.fixture
     def database(self, tmp_path_factory):
         filename = tmp_path_factory.mktemp('db-', True) / 'test.db'
@@ -57,13 +24,13 @@ class TestFortranAnalyser():
         """
         Ensure continuation lines are handled correctly.
         """
-        database.addProgram(u'stock', u'oxo.f90')
-        database.addCompileDependency(u'stock', u'widgit')
-        database.addLinkDependency(u'stock', u'widgit')
-        database.addCompileDependency(u'stock', u'thingy')
-        database.addLinkDependency(u'stock', u'thingy')
-        database.addModule(u'beef', u'cow.f90')
-        database.addModule(u'pork', u'pig.f90')
+        database.add_program('stock', Path('oxo.f90'))
+        database.add_compile_dependency('stock', 'widgit')
+        database.add_link_dependency('stock', 'widgit')
+        database.add_compile_dependency('stock', 'thingy')
+        database.add_link_dependency('stock', 'thingy')
+        database.add_module('beef', Path('cow.f90'))
+        database.add_module('pork', Path('pig.f90'))
 
         test_filename = tmp_path / 'cont.f90'
         test_filename.write_text(dedent('''
@@ -90,16 +57,29 @@ class TestFortranAnalyser():
         uut = FortranAnalyser([], database)
         uut.analyse(test_filename)
 
-        dependencies = list(database.getCompileDependencies())
-        assert [(u'old_school', test_filename, u'procedure', u'pork', Path('pig.f90'), u'module'),
-                (u'stock', Path('oxo.f90'), u'program', u'thingy', test_filename, u'procedure'),
-                (u'stock', Path('oxo.f90'), u'program', u'widgit', test_filename, u'procedure'),
-                (u'widgit', test_filename, u'procedure', u'beef', Path('cow.f90'), u'module')] \
-            == sorted(dependencies)
+        assert sorted(database.get_program_units()) == \
+            [
+                ('beef', Path('cow.f90')),
+                ('old_school', test_filename),
+                ('pork', Path('pig.f90')),
+                ('stock', Path('oxo.f90')),
+                ('thingy', test_filename),
+                ('widgit', test_filename)
+            ]
 
-        dependencies = list(database.getLinkDependencies('widgit'))
+        assert sorted(database.get_compile_dependencies()) == \
+            [
+                ('stock', Path('oxo.f90'), 'program',
+                 'thingy', test_filename, 'procedure'),
+                ('stock', Path('oxo.f90'), 'program',
+                 'widgit', test_filename, 'procedure'),
+                ('widgit', test_filename, 'procedure',
+                 'beef', Path('cow.f90'), 'module')
+            ]
+
+        dependencies = list(database.get_link_dependencies('widgit'))
         assert [('widgit', test_filename,
-                 u'beef', Path('cow.f90'))] == dependencies
+                 'beef', Path('cow.f90'))] == dependencies
 
     def test_exclamation_in_string(self, database, tmp_path: Path):
         """
@@ -114,13 +94,13 @@ class TestFortranAnalyser():
         uut = FortranAnalyser([], database)
         uut.analyse(test_filename)
 
-        programs = list(database.getPrograms())
+        programs = list(database.get_programs())
         assert [] == programs
 
-        dependencies = list(database.getCompileDependencies())
+        dependencies = list(database.get_compile_dependencies())
         assert [] == dependencies
 
-    def testProcedure(self, database, tmp_path: Path):
+    def test_procedure(self, database, tmp_path: Path):
         """
         Procedure as program unit.
         """
@@ -139,17 +119,19 @@ class TestFortranAnalyser():
         uut = FortranAnalyser([], database)
         uut.analyse(test_filename)
 
-        assert [(u'cosd',      test_filename),
-                (u'empty_sub', test_filename),
-                (u'one_sub',   test_filename)] \
+        assert [('cosd',      test_filename),
+                ('empty_sub', test_filename),
+                ('one_sub',   test_filename)] \
             == sorted(database.get_program_units())
 
-    def testAnalyseProgram(self, database, tmp_path: Path):
+        assert sorted(database.get_compile_dependencies()) == []
+
+    def test_analyse_program(self, database, tmp_path: Path):
         """
         Includes disparate case to ensure case insensitivity.
         """
-        database.addModule('constants_mod', 'constants_mod.f90')
-        database.addModule('trumpton_mod', 'trumpton_mod.f90')
+        database.add_module('constants_mod', Path('constants_mod.f90'))
+        database.add_module('trumpton_mod', Path('trumpton_mod.f90'))
 
         test_filename = tmp_path / 'test.f90'
         test_filename.write_text(dedent('''
@@ -164,24 +146,24 @@ class TestFortranAnalyser():
         uut = FortranAnalyser([], database)
         uut.analyse(test_filename)
 
-        programs = list(database.getPrograms())
-        assert [u'foo'] == programs
+        programs = list(database.get_programs())
+        assert ['foo'] == programs
 
-        dependencies = list(database.getCompileDependencies())
-        assert [(u'foo', test_filename, u'program',
-                 u'constants_mod', Path('constants_mod.f90'), u'module'),
-                (u'foo', test_filename, u'program',
-                 u'trumpton_mod', Path('trumpton_mod.f90'), u'module')] \
+        dependencies = list(database.get_compile_dependencies())
+        assert [('foo', test_filename, 'program',
+                 'constants_mod', Path('constants_mod.f90'), 'module'),
+                ('foo', test_filename, 'program',
+                 'trumpton_mod', Path('trumpton_mod.f90'), 'module')] \
             == sorted(dependencies)
 
-        dependencies = list(database.getLinkDependencies('foo'))
-        assert [(u'foo', test_filename,
-                 u'constants_mod', Path('constants_mod.f90')),
-                (u'foo', test_filename,
-                 u'trumpton_mod', Path('trumpton_mod.f90'))] \
+        dependencies = list(database.get_link_dependencies('foo'))
+        assert [('foo', test_filename,
+                 'constants_mod', Path('constants_mod.f90')),
+                ('foo', test_filename,
+                 'trumpton_mod', Path('trumpton_mod.f90'))] \
             == sorted(dependencies)
 
-    def testAnalyseModule(self, database, tmp_path: Path):
+    def test_analyse_module(self, database, tmp_path: Path):
         """
         Includes disparate case to ensure case insensitivity.
         """
@@ -210,20 +192,71 @@ class TestFortranAnalyser():
             '''))
         uut.analyse(other_filename)
 
-        programs = list(database.getPrograms())
-        assert [] == programs
+        assert sorted(database.get_program_units()) == \
+            [
+                ('constants_mod', other_filename),
+                ('foo', test_filename),
+                ('trumpton_mod', test_filename)
+            ]
 
-        dependencies = list(database.getCompileDependencies())
-        assert [(u'foo', test_filename, u'module', u'constants_mod', other_filename, u'module'),
-                (u'foo', test_filename, u'module', u'trumpton_mod', test_filename, u'module')] \
+        assert sorted(database.get_compile_dependencies('foo')) == \
+            [
+                ('foo', test_filename, 'module',
+                 'constants_mod', other_filename, 'module'),
+                ('foo', test_filename, 'module',
+                 'trumpton_mod', test_filename, 'module')
+            ]
+
+        dependencies = list(database.get_link_dependencies('foo'))
+        assert [('foo', test_filename, 'constants_mod', other_filename),
+                ('foo', test_filename, 'trumpton_mod', test_filename)] \
             == sorted(dependencies)
 
-        dependencies = list(database.getLinkDependencies('foo'))
-        assert [(u'foo', test_filename, u'constants_mod', other_filename),
-                (u'foo', test_filename, u'trumpton_mod', test_filename)] \
-            == sorted(dependencies)
+    def test_intra_module(self, database: FortranDependencies, tmp_path: Path):
+        """
+        Ensures Intra-module dependencies are handled correctly.
+        """
+        external_path = tmp_path / 'external_mod.f90'
+        database.add_module('external_mod', external_path)
+        other_path = tmp_path / 'other_mod.f90'
+        database.add_module('other_mod', other_path)
 
-    def testAnalyseSubModule(self, database, tmp_path):
+        test_filename = tmp_path / 'beef.f90'
+        test_filename.write_text(
+            dedent(
+                """
+                module my_mod
+                  use external_mod, only : external_proc
+                  use library_mod
+                end module
+
+                program beef
+                  use my_mod, only: thing_proc
+                  use other_mod, only: other_thing
+                end program
+                """
+            )
+        )
+
+        test_unit = FortranAnalyser(['library_mod'], database)
+        test_unit.analyse(test_filename)
+
+        assert list(database.get_programs()) == ['beef']
+        assert sorted(list(database.get_compile_dependencies())) == \
+            [
+                ('beef', test_filename, 'program',
+                 'my_mod', test_filename, 'module'),
+                ('beef', test_filename, 'program',
+                 'other_mod', other_path, 'module'),
+                ('my_mod', test_filename, 'module',
+                 'external_mod', external_path, 'module')
+            ]
+        assert sorted(list(database.get_link_dependencies('beef'))) == \
+               [('beef', test_filename, 'my_mod', test_filename),
+                ('beef', test_filename, 'other_mod', other_path),
+                ('my_mod', test_filename, 'external_mod', external_path)]
+
+    def test_analyse_submodule(self, database, tmp_path):
         """
         This test also includes disparate case to ensure case insensitivity is
         enforced.
@@ -321,25 +354,37 @@ class TestFortranAnalyser():
             '''))
         uut.analyse(child3_filename)
 
-        programs = list(database.getPrograms())
-        assert [] == programs
+        assert sorted(database.get_program_units()) == \
+            [
+                ('child1', child1_filename),
+                ('child2', child2_filename),
+                ('child3', parent_filename),
+                ('grandchild', child3_filename),
+                ('parent', parent_filename)
+            ]
 
-        dependencies = list(database.getCompileDependencies())
-        assert [(u'child1', child1_filename, u'module', u'parent', parent_filename, u'module'),
-                (u'child2', child2_filename, u'module', u'parent', parent_filename, u'module'),
-                (u'grandchild', child3_filename, u'module', u'child1', child1_filename, u'module')] \
-            == sorted(dependencies)
+        assert sorted(database.get_compile_dependencies('parent')) == \
+            [
+                ('child1', child1_filename, 'submodule',
+                 'parent', parent_filename, 'module'),
+                ('child2', child2_filename, 'submodule',
+                 'parent', parent_filename, 'module'),
+                ('child3', parent_filename, 'submodule',
+                 'parent', parent_filename, 'module'),
+                ('grandchild', child3_filename, 'submodule',
+                 'child1', child1_filename, 'submodule')
+            ]
 
-        dependencies = list(database.getLinkDependencies('parent'))
-        assert [(u'parent', parent_filename, u'child1', child1_filename),
-                (u'parent', parent_filename, u'child2', child2_filename)] \
-            == sorted(dependencies)
+        assert sorted(list(database.get_link_dependencies('parent'))) == \
+               [('child1', child1_filename, 'grandchild', child3_filename),
+                ('parent', parent_filename, 'child1', child1_filename),
+                ('parent', parent_filename, 'child2', child2_filename),
+                ('parent', parent_filename, 'child3', parent_filename)]
 
-        dependencies = list(database.getLinkDependencies('child1'))
-        assert [(u'child1', child1_filename, u'grandchild', child3_filename)] \
-            == sorted(dependencies)
+        assert sorted(list(database.get_link_dependencies('child1'))) == \
+               [('child1', child1_filename, 'grandchild', child3_filename)]
 
-    def testFunctionInModuleName(self, database, tmp_path: Path):
+    def test_function_in_module_name(self, database, tmp_path: Path):
         """
         Ensure the analyser isn't tripped up by naked global level procedures
         as program units.
@@ -348,12 +393,12 @@ class TestFortranAnalyser():
 
         test_filename = tmp_path / 'test.f90'
         test_filename.write_text(dedent('''
-            module function_thing_mod
+            module function_mod
               use constants_mod, only : i_def
               implicit none
               private
            contains
-           end module function_thing_mod
+           end module function_mod
            '''))
         uut.analyse(test_filename)
 
@@ -364,33 +409,32 @@ class TestFortranAnalyser():
             '''))
         uut.analyse(other_filename)
 
-        depend_filename = tmp_path / 'dependson.f90'
-        depend_filename.write_text(dedent('''
-            subroutine dependson
-            end dependson
-            '''))
+        assert sorted(database.get_program_units()) \
+            == [
+            ('constants_mod', other_filename),
+            ('function_mod', test_filename)
+        ]
 
-        programs = list(database.getPrograms())
-        assert [] == programs
-
-        dependencies = list(database.getCompileDependencies())
-        assert [(u'function_thing_mod', test_filename, u'module',
-                 u'constants_mod', other_filename, u'module')] == sorted(dependencies)
+        assert sorted(database.get_compile_dependencies('function_mod')) == \
+            [
+                ('function_mod', test_filename, 'module',
+                 'constants_mod', other_filename, 'module')
+            ]
 
         dependencies = list(database
-                            .getLinkDependencies('function_thing_mod'))
-        assert [(u'function_thing_mod', test_filename,
-                 u'constants_mod', other_filename)] == sorted(dependencies)
+                            .get_link_dependencies('function_mod'))
+        assert [('function_mod', test_filename,
+                 'constants_mod', other_filename)] == sorted(dependencies)
 
-    def testDependsOn(self, database, tmp_path: Path):
-        '''
+    def test_depends_on(self, database, tmp_path: Path):
+        """
         The analyser has to be able to track dependencies using the deprecated
         "depends on:" comments of the UM.
-        '''
-        database.addProcedure(u'flibble', u'flibble.f90')
+        """
+        database.add_procedure('flibble', 'flibble.f90')
         test_filename = tmp_path / 'test.f90'
         test_filename.write_text(dedent('''
-            module function_thing_mod
+            module some_mod
 
               use constants_mod, only : i_def
 
@@ -413,7 +457,7 @@ class TestFortranAnalyser():
 
             contains
 
-            end module function_thing_mod
+            end module some_mod
             '''))
 
         other_filename = tmp_path / 'other.f90'
@@ -436,27 +480,34 @@ class TestFortranAnalyser():
         uut.analyse(other_filename)
         uut.analyse(depend_filename)
 
-        programs = list(database.getPrograms())
-        assert [] == programs
+        assert sorted(database.get_program_units()) \
+            == [('constants_mod', other_filename),
+                ('flibble', Path('flibble.f90')),
+                ('some_mod', test_filename),
+                ('wooble', depend_filename)]
+        assert database.get_compile_prerequisites('some_mod') \
+            == ['constants_mod', 'flibble', 'wooble']
 
-        dependencies = list(database.getCompileDependencies())
-        assert [(u'function_thing_mod', test_filename, u'module',
-                 u'constants_mod', other_filename, u'module'),
-                (u'function_thing_mod', test_filename, u'module',
-                 u'flibble', Path('flibble.f90'), u'procedure'),
-                (u'function_thing_mod', test_filename, u'module',
-                 u'wooble', depend_filename, u'procedure')] == sorted(dependencies)
+        assert sorted(database.get_compile_dependencies('some_mod')) == \
+            [
+                ('some_mod', test_filename, 'module',
+                 'constants_mod', other_filename, 'module'),
+                ('some_mod', test_filename, 'module',
+                 'flibble', Path('flibble.f90'), 'procedure'),
+                ('some_mod', test_filename, 'module',
+                 'wooble', depend_filename, 'procedure'),
+            ]
 
         dependencies = list(database
-                            .getLinkDependencies('function_thing_mod'))
-        assert [(u'function_thing_mod', test_filename,
-                 u'constants_mod', other_filename),
-                (u'function_thing_mod', test_filename,
-                 u'flibble', Path('flibble.f90')),
-                (u'function_thing_mod', test_filename,
-                 u'wooble', depend_filename)] == sorted(dependencies)
+                            .get_link_dependencies('some_mod'))
+        assert [('some_mod', test_filename,
+                 'constants_mod', other_filename),
+                ('some_mod', test_filename,
+                 'flibble', Path('flibble.f90')),
+                ('some_mod', test_filename,
+                 'wooble', depend_filename)] == sorted(dependencies)
 
-    def testAbstractInterface(self, database, tmp_path: Path):
+    def test_abstract_interface(self, database, tmp_path: Path):
         """
         The analyser must ignore abstract interface definitions. These are not
         program units.
@@ -503,14 +554,14 @@ class TestFortranAnalyser():
         uut.analyse(first_filename)
         uut.analyse(second_filename)
 
-    def testExternal(self, database, tmp_path):
+    def test_external(self, database, tmp_path):
         """
         Ensure "external" works as a dependency marker.
         """
-        database.addModule('wibble', 'wibble.f90')
-        database.addModule('bibble', 'bibble.f90')
-        database.addModule('ibble', 'ibble.f90')
-        database.addModule('gribble', 'gribble.f90')
+        database.add_module('wibble', Path('wibble.f90'))
+        database.add_module('bibble', Path('bibble.f90'))
+        database.add_module('ibble', Path('ibble.f90'))
+        database.add_module('gribble', Path('gribble.f90'))
         test_filename = tmp_path / 'test.f90'
         test_filename.write_text(dedent('''
            program boo
@@ -529,47 +580,55 @@ class TestFortranAnalyser():
         uut = FortranAnalyser([], database)
         uut.analyse(test_filename)
 
-        programs = list(database.getPrograms())
-        assert [u'boo'] == programs
+        programs = list(database.get_programs())
+        assert ['boo'] == programs
 
-        dependencies = list(database.getCompileDependencies())
-        assert [(u'boo', test_filename, u'program', u'bibble', Path('bibble.f90'), u'module'),
-                (u'boo', test_filename, u'program', u'gribble', Path('gribble.f90'), u'module'),
-                (u'boo', test_filename, u'program', u'ibble', Path('ibble.f90'), u'module'),
-                (u'boo', test_filename, u'program', u'wibble', Path('wibble.f90'), u'module')] \
+        dependencies = list(database.get_compile_dependencies())
+        assert [('boo', test_filename, 'program',
+                 'bibble', Path('bibble.f90'), 'module'),
+                ('boo', test_filename, 'program',
+                 'gribble', Path('gribble.f90'), 'module'),
+                ('boo', test_filename, 'program',
+                 'ibble', Path('ibble.f90'), 'module'),
+                ('boo', test_filename, 'program',
+                 'wibble', Path('wibble.f90'), 'module')] \
             == sorted(dependencies)
 
-        dependencies = list(database.getLinkDependencies('boo'))
-        assert [(u'boo', test_filename, u'bibble', Path('bibble.f90')),
-                (u'boo', test_filename, u'gribble', Path('gribble.f90')),
-                (u'boo', test_filename, u'ibble', Path('ibble.f90')),
-                (u'boo', test_filename, u'wibble', Path('wibble.f90'))] \
+        dependencies = list(database.get_link_dependencies('boo'))
+        assert [('boo', test_filename, 'bibble', Path('bibble.f90')),
+                ('boo', test_filename, 'gribble', Path('gribble.f90')),
+                ('boo', test_filename, 'ibble', Path('ibble.f90')),
+                ('boo', test_filename, 'wibble', Path('wibble.f90'))] \
             == sorted(dependencies)
 
     def test_openmp_sentinel(self, database, tmp_path):
         """
         Ensure OpenMP "sentinel" markup is handled.
         """
-        database.addModule('special_thread_sauce_mod',
-                           Path('special_thread_sauce_mod.f90'))
+        database.add_module('special_thread_sauce_mod',
+                            Path('special_thread_sauce_mod.f90'))
         test_filename = tmp_path / 'sentinel.f90'
-        test_filename.write_text(dedent('''
-            module test_mod
-              !$ use special_thread_sauce_mod, only : thread_sauce
-              implicit none
-            end module test_mod
-            '''))
+        test_filename.write_text(
+            dedent(
+                '''
+                module test_mod
+                  !$ use special_thread_sauce_mod, only : thread_sauce
+                  implicit none
+                end module test_mod
+                '''
+            )
+        )
         test_unit = FortranAnalyser([], database)
         test_unit.analyse(test_filename)
 
-        dependencies = list(database.getCompileDependencies())
-        assert [('test_mod', test_filename, 'module',
-                 'special_thread_sauce_mod',
-                 Path('special_thread_sauce_mod.f90'), 'module')] \
-            == sorted(dependencies)
+        assert database.get_compile_prerequisites('test_mod') \
+            == ['special_thread_sauce_mod']
 
-        dependencies = list(database.getLinkDependencies('test_mod'))
-        assert [('test_mod', test_filename,
-                 'special_thread_sauce_mod',
-                 Path('special_thread_sauce_mod.f90'))] \
-            == sorted(dependencies)
+        dependencies = list(database.get_link_dependencies('test_mod'))
+        assert sorted(dependencies) == [
+            (
+                'test_mod', test_filename,
+                'special_thread_sauce_mod',
+                Path('special_thread_sauce_mod.f90')
+            )
+        ]

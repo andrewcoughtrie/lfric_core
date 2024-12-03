@@ -15,46 +15,23 @@ ifdef DEBUG
     DEBUG_ARG = -vv
 endif
 
+ifeq "x$(shell which flake8)" "x"
+	TEST_PREREQ = pytest
+else
+	TEST_PREREQ = flake8
+endif
+
 .PHONY: test
-test: pytest
+test: $(TEST_PREREQ)
+
+.PHONY: flake8
+flake8: pytest
+	flake8 $(VERBOSE_ARG) $(HERE_DIR)
 
 .PHONY: pytest
 pytest: mypy
-	pytest $(VERBOSE_ARG) $(DEBUG_ARG)
+	pytest $(VERBOSE_ARG) $(DEBUG_ARG) $(HERE_DIR)
 
-STYLED_FILES = configurator fortran_template
-STYLED_APPS = GenerateFeigns GenerateLoader GenerateNamelist Templaterator
-
-# We pass the applications to mypy separately as they fight with each other to
-# declare a __main__. This means the package modules get extra tested.
-#
 .PHONY: mypy
-mypy: $(addprefix mypy/,$(STYLED_APPS))
-
-.PHONY: mypy/%
-mypy/%:
-	mypy $(VERBOSE_ARG) $(STYLED_FILES) $*
-
-.PHONY: style
-style: flake8
-
-.PHONY: flake8
-flake8: pylint
-	flake8 $(VERBOSE_ARG) $(STYLED_FILES)
-
-# We pass the applications to pylint separately as they fight with each other
-# to declare a __main__. This means the package modules get extra tested.
-#
-.PHONY: pylint
-pylint: pycodestyle $(addprefix pylint/,$(STYLED_APPS))
-	pylint $(VERBOSE_ARG) $(STYLED_FILES)
-
-
-.PHONY: pylint/%
-pylint/%:
-	pylint $(VERBOSE_ARG) $*
-
-.PHONY: pycodestyle
-pycodestyle:
-	pycodestyle $(VERBOSE_ARG) $(STYLED_APPS) $(STYLED_FILES)
-
+mypy:
+	mypy $(VERBOSE_ARG) $(HERE_DIR)

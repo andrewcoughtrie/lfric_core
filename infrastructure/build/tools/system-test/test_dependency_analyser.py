@@ -6,60 +6,116 @@
 """
 System test of Fortran Dependency Analyser
 """
-import os
-import subprocess
 from pathlib import Path
+from subprocess import run
+from typing import List
+
+from pytest import fixture
 
 
-class TestFortranDependencyAnalyser():
-
-    def test_dependencies(self, tmp_path: Path):
-
+class TestFortranDependencyAnalyser:
+    """
+    Checks functioning of the dependency analsysis process.
+    """
+    def __process_under_test(self,
+                             tmp_path: Path,
+                             tool_dir: Path,
+                             dependencies_file: Path,
+                             programs_file: Path,
+                             source_dir: Path,
+                             source_files: List[Path]):
+        """
+        Performs the analysis process including generating outputs.
+        """
         database = tmp_path / 'dependencies.db'
+
+        # Pass each source file to the DependencyAnalyser program.
+        #
+        for fobject in source_files:
+            command = ['python', str(tool_dir / 'DependencyAnalyser'),
+                       '-verbose',
+                       str(database),
+                       str(fobject)]
+            process = run(command, cwd=source_dir)
+            assert process.returncode == 0
+
+        # Build and check the dependency rules.
+        #
+        command = ['python', str(tool_dir / 'DependencyRules'),
+                   '-verbose',
+                   '-database', str(database), '-moduledir', 'modules',
+                   '-objectdir', 'objects', str(dependencies_file)]
+        process = run(command)
+        assert process.returncode == 0
+
+        # Build and check the program rules.
+        #
+        command = ['python', str(tool_dir / 'ProgramObjects'),
+                   '-database', str(database),
+                   '-objectdir', 'objects',
+                   str(programs_file)]
+        process = run(command)
+        assert process.returncode == 0
+
+    @fixture(scope='class')
+    def test_dir(self):
+        return Path(__file__).parent
+
+    @fixture(scope='class')
+    def source_dir(self, test_dir: Path):
+        return test_dir / 'source'
+
+    @fixture(scope='class')
+    def tool_dir(self, test_dir: Path):
+        return test_dir.parent
+
+    def test_dependencies(self,
+                          source_dir: Path,
+                          tool_dir: Path,
+                          test_dir: Path,
+                          tmp_path: Path):
+        """
+        Checks the dependency analysis process works.
+        """
+        # Prepare paths
+        #
         dependencies_file = tmp_path / 'dependencies.mk'
         programs_file = tmp_path / 'programs.mk'
-        test_path = Path(__file__)
-        source_dir = test_path.parent / 'source'
-        tool_dir = test_path.parent.parent
-        os.chdir(source_dir)
 
+        # Build a list of source files
+        #
+        dirs_to_explore = [source_dir]
         source_files = []
-        for root, dirs, files in os.walk(source_dir):
-            for file in files:
-                if file.endswith(".f90") or file.endswith(".F90"):
-                    rel_dir = os.path.relpath(root, source_dir)
-                    rel_file = os.path.join(rel_dir, file)
-                    source_files.append(rel_file)
+        while dirs_to_explore:
+            candidate = dirs_to_explore.pop()
+            if candidate.is_dir():
+                dirs_to_explore.extend(candidate.iterdir())
+            else:
+                source_files.append(candidate.relative_to(source_dir))
 
-        def build():
+        # Initial test
+        #
+        self.__process_under_test(tmp_path,
+                                  tool_dir,
+                                  dependencies_file,
+                                  programs_file,
+                                  source_dir,
+                                  source_files)
+        assert dependencies_file.read_text() \
+            == (test_dir / 'expected.dependencies.mk').read_text()
+        assert programs_file.read_text() \
+            == (test_dir / 'expected.programs.mk').read_text()
 
-            for file in source_files:
-                command = ['python', tool_dir / 'DependencyAnalyser',
-                           '-verbose',
-                           database,
-                           file]
-                process = subprocess.run(command)
-                assert process.returncode == 0
-
-            command = ['python', tool_dir / 'DependencyRules', '-verbose',
-                       '-database', database, '-moduledir', 'modules',
-                       '-objectdir',
-                       'objects', dependencies_file]
-            process = subprocess.run(command)
-            assert process.returncode == 0
-
-            command = ['python', tool_dir / 'ProgramObjects', '-database',
-                       database, '-objectdir', 'objects', programs_file]
-            process = subprocess.run(command)
-            assert process.returncode == 0
-
-            assert Path('../expected.dependencies.mk').read_text() == \
-                   dependencies_file.read_text()
-            assert Path('../expected.programs.mk').read_text() == \
-                   programs_file.read_text()
-
-        build()
-
-        # rebuild with one changed file
-        source_files = [source_files[0]]
-        build()
+        # One file changes but dependencies don't.
+        #
+        print(source_files[0])
+        self.__process_under_test(tmp_path,
+                                  tool_dir,
+                                  dependencies_file,
+                                  programs_file,
+                                  source_dir,
+                                  [source_files[0]])
+        assert dependencies_file.read_text() \
+            == (test_dir / 'expected.dependencies.mk').read_text()
+        assert programs_file.read_text() \
+            == (test_dir / 'expected.programs.mk').read_text()

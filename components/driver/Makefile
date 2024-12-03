@@ -35,6 +35,7 @@ export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 export CORE_ROOT_DIR    ?= ../..
 
 export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
+                               $(CORE_ROOT_DIR)/components/inventory \
                                $(CORE_ROOT_DIR)/components/lfric-xios
 
 export SUITE_GROUP ?= developer
@@ -80,6 +81,7 @@ unit-tests/%: export BIN_DIR ?= $(PROJECT_DIR)/test
 unit-tests/%: export CXX_LINK = YES
 unit-tests/%: export FFLAGS += -DUNIT_TEST
 unit-tests/%: export IMPORT_PARTS = $(CORE_ROOT_DIR)/infrastructure \
+                                    $(CORE_ROOT_DIR)/components/inventory \
                                     $(CORE_ROOT_DIR)/components/science \
                                     $(CORE_ROOT_DIR)/components/lfric-xios
 unit-tests/%: export META_FILE_DIR = rose-meta/lfric-driver/HEAD

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
+# pylint: disable=invalid-name
 ##############################################################################
 # Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 # For further details please refer to the file LICENCE.original which you
@@ -13,86 +13,100 @@ This snippet consists of a list of objects required to link an program.
 
 This snippet may then be "include"ed into other make files.
 """
-
-import argparse
+from argparse import ArgumentParser
 import logging
-import os
-import sys
+from pathlib import Path
+from sys import exit as sys_exit, stdout
 import traceback
 from time import time
 
-import dependerator.database as database
-import dependerator.process as process
-from dependerator import __version__
+from dependerator import database, process, __version__
+
+
+def program_objects_fragment(database_path: Path,
+                             objects_path: Path,
+                             output_path: Path) -> int:
+    """
+    Generates make fragment listing all objects needed to link programs.
+    """
+    dependency_backend = database.SQLiteDatabase(database_path)
+    dependency_store = database.FortranDependencies(dependency_backend)
+    processor = process.FortranProcessor(dependency_store,
+                                         objects_path,
+                                         None)
+
+    start_time = time()
+    try:
+        with output_path.open('wt') as make_file:
+            print('# Program objects', file=make_file)
+            programs = []
+            for program, _, objects in processor.determine_link_dependencies():
+                programs.append(program.with_suffix('.o'))
+                print(f'{program.name.upper()}_OBJS = '
+                      + ' '.join([str(path) for path in objects]),
+                      file=make_file)
+                print(file=make_file)
+
+            print('PROG_OBJS = '
+                  + ' '.join([str(path) for path in programs]),
+                  file=make_file)
+    except Exception:  # pylint: disable=broad-except
+        output_path.unlink()
+        traceback.print_exc(file=stdout)
+        return 1
+    finally:
+        message = f"Time to write out program objects: {time() - start_time}"
+        logger.debug(message)
+    return 0
+
 
 ###############################################################################
 # Entry point
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(add_help=False,
-                                     description=__doc__)
+    parser = ArgumentParser(add_help=False,
+                            description=__doc__)
     parser.add_argument('-help', '-h', '--help', action='help',
                         help='Show this help message and exit')
     parser.add_argument('-version', action='version',
-                        version='%(prog)s {}'.format(__version__))
+                        version=f'%(prog)s {__version__}')
     parser.add_argument('-verbose', action='store_true',
                         help='Provide a running commentary')
     parser.add_argument('-debug', action='store_true',
                         help='Illucidate the minutia of execution')
     parser.add_argument('-database', metavar='database-file',
+                        type=Path,
                         help='Database file to use')
     parser.add_argument('-objectdir', metavar='object-directory',
+                        type=Path,
                         help='Object files are here. '
                              + 'Defaults to the output directory.')
     parser.add_argument('output', metavar='output-file',
+                        type=Path,
                         help='Dependency details are put here')
-    args = parser.parse_args()
+    arguments = parser.parse_args()
 
     logger = logging.getLogger('dependerator')
     logger.addHandler(logging.StreamHandler())
-    if args.debug:
+    if arguments.debug:
         logger.setLevel(logging.DEBUG)
-    elif args.verbose:
+    elif arguments.verbose:
         logger.setLevel(logging.INFO)
     else:
         logger.setLevel(logging.WARNING)
 
-    if os.path.exists(args.output):
-        os.unlink(args.output)
+    if arguments.output.exists and arguments.output.is_file():
+        arguments.output.unlink()
 
-    outputDirectory = os.path.dirname(args.output)
-    if outputDirectory and not os.path.exists(outputDirectory):
-        os.makedirs(outputDirectory)
+    outputDirectory = arguments.output.parent
+    if outputDirectory and not outputDirectory.exists():
+        outputDirectory.mkdir()
 
-    if not args.database:
-        args.database = os.path.join(outputDirectory, 'dependencies.db')
-    if not args.objectdir:
-        args.objectdir = outputDirectory
+    if not arguments.database:
+        arguments.database = outputDirectory / 'dependencies.db'
+    if not arguments.objectdir:
+        arguments.objectdir = outputDirectory
 
-    dependencyBackend = database.SQLiteDatabase(args.database)
-    dependencyStore = database.FortranDependencies(dependencyBackend)
-    processor = process.FortranProcessor(dependencyStore, args.objectdir, None)
-
-    start_time = time()
-    try:
-        with open(args.output, 'wt') as listFile:
-            print('# Program objects', file=listFile)
-            programs = []
-            for program, _, objects in processor.determineLinkDependencies():
-                programs.append(program + ".o")
-                text = '{program}_OBJS = {objects}'
-                print(text.format(program=os.path.basename(program).upper(),
-                                  objects=' '.join(objects)),
-                      file=listFile)
-                print(file=listFile)
-
-            text = 'PROG_OBJS = {objects}'
-            print(text.format(objects=' '.join(programs)),
-                  file=listFile)
-    except:
-        os.unlink(args.output)
-        traceback.print_exc(file=sys.stdout)
-        sys.exit(1)
-    finally:
-        message = 'Time to write out program objects: {0}'
-        logger.debug(message.format(time() - start_time))
+    sys_exit(program_objects_fragment(arguments.database,
+                                      arguments.objectdir,
+                                      arguments.output))

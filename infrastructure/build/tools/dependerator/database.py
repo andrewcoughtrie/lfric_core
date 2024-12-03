@@ -9,21 +9,30 @@
 
 import logging
 import sqlite3
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
+from collections import defaultdict
 from pathlib import Path
 from time import time
+from typing import Dict, Generator, Tuple, List, Optional
+
 
 ##############################################################################
 # Databases throw this exception.
 #
 class DatabaseException(Exception):
-    pass
+    def __init__(self, message: str,
+                 cause: Optional[Exception] = None,
+                 module: Optional[str] = None,
+                 filename: Optional[Path] = None):
+        super().__init__(message, cause)
+        self.module = module
+        self.filename = filename
 
 
 ##############################################################################
 # Basic backend database functionality.
 #
-class _Database(metaclass=ABCMeta):
+class _Database(ABC):
     ##########################################################################
     # Makes sure a described table exists in the database.
     #
@@ -32,7 +41,7 @@ class _Database(metaclass=ABCMeta):
     #   columns - List of name/type/modifiers tuples.
     #
     @abstractmethod
-    def ensureTable(self, name, columns):
+    def ensure_table(self, name, columns):
         pass
 
     ##########################################################################
@@ -88,15 +97,15 @@ class SQLiteDatabase(_Database):
     #             e.g. [['foo', 'integer', 'primary key'],
     #                   ['bar', 'integer']]
     #
-    def ensureTable(self, name, columns):
-        columnDefinitions = []
+    def ensure_table(self, name, columns):
+        column_definitions = []
         for columnDetails in columns:
-            columnDefinitions.append(' '.join(columnDetails))
+            column_definitions.append(' '.join(columnDetails))
         query = 'CREATE TABLE IF NOT EXISTS {} ( {} )'
         start_time = time()
         with self._database:
-            columnList = ', '.join(columnDefinitions)
-            self._database.execute(query.format(name, columnList))
+            column_list = ', '.join(column_definitions)
+            self._database.execute(query.format(name, column_list))
         message = 'Time to ensure database table: {0} [{1}]'
         logging.getLogger(__name__).debug(message.format(time() - start_time,
                                                          name))
@@ -105,7 +114,7 @@ class SQLiteDatabase(_Database):
     # Execute an SQL query against the database.
     #
     # Arguments:
-    #   query - Either a string continaing a single SQL instruction or a list
+    #   query - Either a string containing a single SQL instruction or a list
     #           of strings, each containing a single SQL instruction.
     #
     def query(self, query):
@@ -121,7 +130,7 @@ class SQLiteDatabase(_Database):
                 cursor.execute(query)
             return cursor.fetchall()
         except sqlite3.IntegrityError as ex:
-            raise DatabaseException(ex)
+            raise DatabaseException("Database error: ", ex)
         finally:
             message = 'Time to query database: {0} [{1}]'
             logging.getLogger(__name__).debug(
@@ -141,10 +150,13 @@ class FileDependencies(object):
     #
     def __init__(self, database):
         self._database = database
-        self._database.ensureTable('file_dependency',
-                                   (('file', 'TEXT', 'NOT NULL'),
-                                    ('prerequisite', 'TEXT', 'NOT NULL'),
-                                    ))
+        self._database.ensure_table(
+            'file_dependency',
+            (
+                ('file', 'TEXT', 'NOT NULL'),
+                ('prerequisite', 'TEXT', 'NOT NULL')
+            )
+        )
 
     ###########################################################################
     # Remove a file and all its dependencies from the database.
@@ -152,14 +164,14 @@ class FileDependencies(object):
     # Arguments:
     #   filename - The filename as it appears in the database.
     #
-    def removeFile(self, filename):
+    def remove_file(self, filename):
         query = 'DELETE FROM file_dependency WHERE file="{}"'.format(filename)
         self._database.query(query)
 
     ###########################################################################
-    # Remove all files anddependencies from the database.
+    # Remove all files and dependencies from the database.
     #
-    def removeAllFileDependencies(self):
+    def remove_all_file_dependencies(self):
         query = 'DELETE FROM file_dependency'
         self._database.query(query)
 
@@ -171,7 +183,7 @@ class FileDependencies(object):
     #   prerequisite - The filename string of a file which the first depends
     #                  on.
     #
-    def addFileDependency(self, filename, prerequisite):
+    def add_file_dependency(self, filename, prerequisite):
         query = "INSERT INTO file_dependency VALUES ('{}','{}')"
         self._database.query(
             query.format(filename, prerequisite))
@@ -183,23 +195,23 @@ class FileDependencies(object):
     # Return:
     #   A generator yielding (filename, filename) tuples.
     #
-    def getDependencies(self):
+    def get_dependencies(self):
         query = 'SELECT * FROM file_dependency ORDER BY file'
         result = self._database.query(query)
 
-        lastFile = None
+        last_file = None
         prerequisites = []
         for row in result:
-            if row['file'] != lastFile:
+            if row['file'] != last_file:
                 if prerequisites:
-                    yield Path(lastFile), prerequisites
-                lastFile = row['file']
+                    yield Path(last_file), prerequisites
+                last_file = row['file']
                 prerequisites = []
 
             prerequisites.append(Path(row['prerequisite']))
 
         if prerequisites:
-            yield Path(lastFile), prerequisites
+            yield Path(last_file), prerequisites
 
 
 ###############################################################################
@@ -215,235 +227,348 @@ class FortranDependencies(object):
     def __init__(self, database):
         self._database = database
 
-        self._database.ensureTable('fortran_unit_type',
-                                   [('type', 'TEXT', 'PRIMARY KEY')])
+        self._database.ensure_table('fortran_unit_type',
+                                    [('type', 'TEXT', 'PRIMARY KEY')])
         self._database.query(
-            'INSERT OR IGNORE INTO fortran_unit_type VALUES("program")')
-        self._database.query(
-            'INSERT OR IGNORE INTO fortran_unit_type VALUES("module")')
-        self._database.query(
-            'INSERT OR IGNORE INTO fortran_unit_type VALUES("procedure")')
+            [
+                'INSERT OR IGNORE INTO fortran_unit_type VALUES("program")',
+                'INSERT OR IGNORE INTO fortran_unit_type VALUES("module")',
+                'INSERT OR IGNORE INTO fortran_unit_type VALUES("submodule")',
+                'INSERT OR IGNORE INTO fortran_unit_type VALUES("procedure")'
+            ]
+        )
 
-        self._database.ensureTable('fortran_dependency_type',
-                                   [('type', 'TEXT', 'PRIMARY KEY')])
+        self._database.ensure_table('fortran_dependency_type',
+                                    [('type', 'TEXT', 'PRIMARY KEY')])
         self._database.query(
-            'INSERT OR IGNORE INTO fortran_dependency_type VALUES("compile")')
-        self._database.query(
-            'INSERT OR IGNORE INTO fortran_dependency_type VALUES("link")')
+            [
+                'INSERT OR IGNORE INTO fortran_dependency_type '
+                'VALUES("compile")',
+                'INSERT OR IGNORE INTO fortran_dependency_type VALUES("link")'
+            ]
+        )
 
-        self._database.ensureTable('fortran_program_unit',
-                                   (('unit', 'TEXT', 'PRIMARY KEY'),
-                                    ('file', 'TEXT', 'NOT NULL'),
-                                    ('type',
-                                     'REFERENCES fortran_unit_type(type)')))
-        self._database.ensureTable('fortran_unit_dependency',
-                                   (('unit', 'TEXT', 'NOT NULL'),
-                                    ('prerequisite', 'TEXT', 'NOT NULL'),
-                                    ('type',
-                                     'REFERENCES fortran_dependency_type('
-                                     'type)')))
+        self._database.ensure_table(
+            'fortran_program_unit',
+            (
+                ('unit', 'TEXT', 'PRIMARY KEY'),
+                ('file', 'TEXT', 'NOT NULL'),
+                ('type', 'REFERENCES fortran_unit_type(type)')
+            )
+        )
+        self._database.ensure_table(
+            'fortran_unit_dependency',
+            (
+                ('unit', 'TEXT', 'NOT NULL'),
+                ('prerequisite', 'TEXT', 'NOT NULL'),
+                ('type', 'REFERENCES fortran_dependency_type(type)')
+            )
+        )
 
-    ###########################################################################
-    # Remove a Fortran source file and all its dependencies.
-    #
-    # Arguments:
-    #   filename - Filename string as it appears in the database.
-    #
-    def removeFile(self, filename):
+    def remove_file(self, filename: Path) -> None:
+        """
+        Removes a Fortran source file and all its dependencies.
+
+        @param filename: As it appears in the database.
+        """
         query = [
-            '''
+            f'''
             CREATE TEMPORARY TABLE _units AS SELECT unit
             FROM fortran_program_unit
             WHERE file="{filename}"
-            '''.format(filename=filename),
-            'DELETE FROM fortran_unit_dependency WHERE unit IN _units',
-            'DROP TABLE _units',
+            ''',
             '''
-            DELETE FROM fortran_program_unit WHERE file="{filename}"
-            '''.format(filename=filename)
+            DELETE FROM fortran_unit_dependency
+            WHERE unit IN _units
+            ''',
+            'DROP TABLE _units',
+            f'DELETE FROM fortran_program_unit WHERE file="{filename}"'
         ]
         self._database.query(query)
 
-    ###########################################################################
-    # Add a program to the database.
-    #
-    # Arguments:
-    #   name     - Name of the program's program unit.
-    #   filename - Source file in which program was found.
-    #
-    def addProgram(self, name, filename):
+    def add_program(self, name: str, filename: Path) -> None:
+        """
+        Adds a program to the database.
+
+        @param name: Program's program unit.
+        @param filename: Source file in which program was found.
+        @return:
+        """
         # Changes are transacted to ensure other processes can't find the
         # database with half a program.
         query = "INSERT INTO fortran_program_unit VALUES ( '{}', '{}', " \
                 "'program' )"
         self._database.query(query.format(name, filename))
 
-    ###########################################################################
-    # Add a module to the database.
-    #
-    # Arguments:
-    #   name     - The name of the module's program unit.
-    #   filename - The source file in which the modules was found.
-    #
-    def addModule(self, name, filename):
-        try:
-            query = "INSERT INTO fortran_program_unit VALUES ( '{}', '{}', " \
-                    "'module' )"
-            self._database.query(query.format(name, filename))
-        except DatabaseException as ex:
-            message = 'Unable to add module "{name}" from "{filename}": {ex}'
-            newException = DatabaseException(message.format(name=name,
-                                                            filename=filename,
-                                                            ex=ex))
-            newException.module = name
-            newException.filename = filename
-            raise newException
+    def add_module(self, name: str, filename: Path) -> None:
+        """
+        Adds a module to the database.
 
-    ##########################################################################
-    # Add a program-unit procedure to the database.
-    #
-    # Arguments:
-    #   name     - The name of procedure's program unit.
-    #   filename - The source file in which the procedure was found.
-    #
-    def addProcedure(self, name, filename):
+        :param name: module's program unit name.
+        :param filename: source file in which the modules is found.
+        """
+        try:
+            _ = self._database.query(
+                "INSERT INTO fortran_program_unit "
+                f"VALUES ( '{name}', '{str(filename)}', 'module' )"
+            )
+        except DatabaseException as ex:
+            raise DatabaseException(
+                f"Unable to add module '{name}' from '{filename}': {ex}",
+                module=name, filename=filename
+            )
+
+    def add_submodule(self, name: str, filename: Path) -> None:
+        """
+        Adds a sub-module to the database.
+
+        :param name: Sub-modules program unit name.
+        :param filename: Source file in which sub-module is found.
+        """
+        try:
+            _ = self._database.query(
+                "INSERT INTO fortran_program_unit "
+                f"VALUES ( '{name}', '{str(filename)}', 'submodule' )"
+            )
+        except DatabaseException as ex:
+            raise DatabaseException(
+                f"Unable to add sub-module '{name}' from '{filename}': {ex}",
+                module=name, filename=filename
+            )
+
+    def add_procedure(self, name: str, filename: Path) -> None:
+        """
+        Adds a program-unit procedure to the database.
+
+        @param name: Procedure's program unit name.
+        @param filename: Source file in which the procedure was found.
+        """
         try:
             query = "INSERT INTO fortran_program_unit VALUES ( '{name}', " \
                     "'{filename}', 'procedure' )"
             self._database.query(query.format(name=name, filename=filename))
         except DatabaseException as ex:
-            message = 'Unable to add procedure "{name}" from "{filename}": {' \
-                      'ex}'
-            newException = DatabaseException(message.format(name=name,
-                                                            filename=filename,
-                                                            ex=ex))
-            newException.module = name
-            newException.filename = filename
-            raise newException
+            new_exception = DatabaseException(
+                F"Unable to add procedure '{name}' from '{filename}': {ex}"
+            )
+            new_exception.module = name
+            new_exception.filename = filename
+            raise new_exception
 
-    ##########################################################################
-    # Returns a list of all program units in the database.
-    #
-    def get_program_units(self):
+    def get_program_units(self) -> List[Tuple[str, Path]]:
+        """
+        Gets a list of all program units in the database.
+
+        @return: Program unit name and containing file.
+        """
         query = 'SELECT * FROM fortran_program_unit'
         rows = self._database.query(query)
         return [(row['unit'], Path(row['file'])) for row in rows]
 
-    ###########################################################################
-    # Add a compile dependency to the database.
-    #
-    # Arguments:
-    #   unit
-    #   prerequisite
-    #
-    def addCompileDependency(self, unit, prerequisite):
+    def add_compile_dependency(self, unit: str, prerequisite: str) -> None:
+        """
+        Adds a compile dependency to the database.
+
+        @param unit: Depender unit name.
+        @param prerequisite: Dependee unit name.
+        """
         query = "INSERT INTO fortran_unit_dependency VALUES ( '{}', '{}', " \
                 "'compile' )"
         self._database.query(query.format(unit, prerequisite))
 
-    ###########################################################################
-    # Add a link dependency to the database.
-    #
-    # Arguments:
-    #   unit
-    #   prerequisite
-    #
-    def addLinkDependency(self, unit, prerequisite):
+    def get_compile_prerequisites(self, unit: str) -> List[str]:
+        """
+        Gets a list of prerequisites for a program unit.
+        """
+        query = 'SELECT prerequisite ' \
+                'FROM fortran_unit_dependency ' \
+                f"WHERE unit='{unit}' AND type='compile'"
+        rows = self._database.query(query)
+        return [row['prerequisite'] for row in rows]
+
+    def add_link_dependency(self, unit: str, prerequisite: str) -> None:
+        """
+        Adds a link dependency to the database.
+
+        @param unit: Depender unit name.
+        @param prerequisite: Dependee unit name.
+        """
         query = "INSERT INTO fortran_unit_dependency VALUES ( '{}', '{}', " \
                 "'link' )"
         self._database.query(query.format(unit, prerequisite))
 
-    ###########################################################################
-    # Gets all the programs from the database
-    #
-    # Arguments:
-    # Return:
-    #   List of program names.
-    #
-    def getPrograms(self):
+    def get_programs(self) -> List[str]:
+        """
+        Gets all the programs from the database.
+
+        @return: program names
+        """
         query = "SELECT unit FROM fortran_program_unit " \
                 + " WHERE type='program' ORDER BY unit DESC"
         rows = self._database.query(query)
         return [row['unit'] for row in rows]
 
-    ###########################################################################
-    # Gets all the modules from the database
-    #
-    # Arguments:
-    # Return:
-    #   List of tuples (module name, file)
-    #
-    def getModules(self):
+    def get_modules(self) -> List[Tuple[str, Path]]:
+        """
+        Gets all the modules from the database.
+
+        @return: Module name and containing file.
+        """
         query = "SELECT unit, file FROM fortran_program_unit " \
-                + " WHERE type='module'"
+                + " WHERE type='module' OR type='submodule'"
         rows = self._database.query(query)
-        return [(row['unit'], row['file']) for row in rows]
+        return [(row['unit'], Path(row['file'])) for row in rows]
 
-    ###########################################################################
-    # Gets program unit dependencies for a program unit.
-    #
-    # This could be done (and was for a while) as a single SELECT statement.
-    # The problem with that is it becomes hard to know when nothing is
-    # returned because there is nothing to return and when it happens because
-    # a dependency is missing from the database.
-    #
-    # Arguments:
-    #   programUnit - Discover prerequisites for this.
-    #
-    # Return:
-    #   Yields (unit, unit filename, prerequisite, prerequisite filename)
-    #   tuples
-    #
-    def getLinkDependencies(self, programUnit):
-        query = 'SELECT * FROM fortran_program_unit WHERE unit=\'{}\''
-        unit_rows = self._database.query(query.format(programUnit))
-        programUnitFilename = unit_rows[0]['file']
+    def get_link_dependencies(self, program_unit: str) \
+            -> Generator[Tuple[str, Path, str, Path], None, None]:
+        """
+        Gets program unit dependencies for a program unit.
 
-        query = '''
-              SELECT unit, prerequisite FROM fortran_unit_dependency
-              WHERE unit=\'{}\' and type=\'link\'
-              ORDER BY unit
-              '''.format(programUnit)
-        rows = self._database.query(query)
-        for unit, prerequisite in rows:
-            query = 'SELECT file FROM fortran_program_unit WHERE unit=\'{}\''
-            unit_rows = self._database.query(query.format(prerequisite))
-            if len(unit_rows) == 0:
-                message = 'Program unit "{}" requires "{}" but it was not ' \
-                          'found in the database'
-                raise DatabaseException(message.format(unit, prerequisite))
-            yield programUnit, Path(programUnitFilename), prerequisite, Path(
-                unit_rows[0]['file'])
+        This could be done (and was for a while) as a single SELECT statement.
+        The problem with that is it becomes hard to know when nothing is
+        returned because there is nothing to return and when it happens because
+        a dependency is missing from the database.
 
-    ###########################################################################
-    # Gets all program unit dependencies from database for compilation.
-    #
-    # Arguments:
-    #
-    # Return:
-    #   Yields (unit, unit filename, prerequisite, prerequisite filename)
-    #   tuples
-    #
-    def getCompileDependencies(self):
-        query = '''
-                SELECT d.unit,
-                       df.file AS unit_file,
-                       df.type AS unit_type,
-                       d.prerequisite,
-                       pf.file AS prerequisite_file,
-                       pf.type AS prerequisite_type
-                FROM fortran_unit_dependency AS d,
-                     fortran_program_unit AS df,
-                     fortran_program_unit as pf
-                WHERE df.unit=d.unit
-                      AND pf.unit=d.prerequisite
-                      AND d.type='compile'
-                ORDER BY d.unit
-                '''.strip()
-        rows = self._database.query(query)
+        @param program_unit: Desired link target name.
+        @return: program unit name, containing file,
+                 prerequisite unit name, containing file
+        """
+        # We cache program unit details for performance.
+        #
+        unit_cache = UnitCache(self._database)
 
-        for unit, unit_file, unit_type, prerequisite, prerequisite_file, \
-            prerequisite_type \
-                in rows:
-            yield unit, Path(unit_file), unit_type, prerequisite, Path(
-                prerequisite_file), prerequisite_type
+        processed: List[str] = []
+        candidates = [program_unit]
+        while candidates:
+            unit = candidates.pop(0)
+
+            processed.append(unit)
+            rows = self._database.query(
+                f'''
+                SELECT unit, prerequisite FROM fortran_unit_dependency
+                WHERE unit="{unit}" and type="link"
+                ORDER BY unit
+                '''
+            )
+            for unit, prerequisite in rows:
+                if prerequisite in processed:
+                    continue
+                candidates.append(prerequisite)
+
+                unit_filename, _ = unit_cache.details(unit)
+                try:
+                    prerequiste_filename, _ = unit_cache.details(prerequisite)
+                except DatabaseException:
+                    raise DatabaseException(
+                        f"Program unit '{unit}' requires '{prerequisite}' "
+                        "but it was not found in the database"
+                    )
+                yield unit, Path(unit_filename), \
+                    prerequisite, Path(prerequiste_filename)
+
+    def get_compile_dependencies(self, root: Optional[str] = None) \
+            -> Generator[Tuple[str, Path, str, str, Path, str], None, None]:
+        """
+        Gets all program unit dependencies from database for compilation.
+
+        This could be done (and was for a while) as a single SELECT statement.
+        The problem with that is it becomes hard to know when nothing is
+        returned because there is nothing to return and when it happens because
+        a dependency is missing from the database.
+
+        @param: root  Program unit to start descent with. If not specified,
+                      all programs are used.
+
+        @return: unit name, unit filename, unit type,
+                 prerequisite name, prerequisite filename, prerequisite type
+        """
+        if root is None:
+            units = self.get_programs()
+        else:
+            units = [root]
+
+        # Sub-modules are rare but need to be checked every time round the
+        # dependency loop. As such it makes sense to cache them and save a
+        # database access per iteration.
+        #
+        submodule_cache = SubmoduleCache(self._database)
+
+        # To further save database lookups we cache unit name to details
+        # mapping.
+        #
+        unit_cache = UnitCache(self._database)
+
+        units_seen: List[str] = []
+        while units:
+            unit = units.pop()
+
+            if unit in units_seen:
+                continue
+            units_seen.append(unit)
+
+            units.extend(submodule_cache.submodules(unit))
+
+            dep_rows = self._database.query(
+                "SELECT unit, prerequisite, type "
+                "FROM fortran_unit_dependency "
+                f"WHERE (type = 'compile' AND unit = '{unit}')"
+            )
+            for dep_row in dep_rows:
+                unit_file, unit_type = unit_cache.details(dep_row['unit'])
+
+                try:
+                    prerequisite_file, prerequisite_type \
+                        = unit_cache.details(dep_row['prerequisite'])
+                except DatabaseException:
+                    raise DatabaseException(
+                        "Unable to find prerequisite "
+                        f"'{dep_row['prerequiaite']}' of '{dep_row['unit']}"
+                    )
+
+                units.append(dep_row['prerequisite'])
+                yield unit, \
+                    Path(unit_file), unit_type, \
+                    dep_row['prerequisite'], \
+                    Path(prerequisite_file), prerequisite_type
+
+
+# I'm not sure either of the caches are achieving much additional performance
+# but I don't have time to investigate futher.
+#
+class SubmoduleCache:
+    def __init__(self, database: SQLiteDatabase):
+        self.__cache: Dict[str, List[str]] = defaultdict(list)
+        sub_rows = database.query(
+                "SELECT u.prerequisite AS module, u.unit AS submodule "
+                "FROM fortran_unit_dependency AS u, fortran_program_unit AS s "
+                "WHERE u.unit=s.unit "
+                "AND u.type='compile' "
+                "AND s.type='submodule'"
+        )
+        for sub_row in sub_rows:
+            self.__cache[sub_row['module']].append(sub_row['submodule'])
+
+    def submodules(self, unit: str) -> List[str]:
+        if unit in self.__cache:
+            return self.__cache[unit]
+        else:
+            return []
+
+
+class UnitCache:
+    def __init__(self, database: SQLiteDatabase):
+        self.__database = database
+        self.__cache: Dict[str, Tuple[str, str]] = {}
+
+    def details(self, unit: str):
+        if unit not in self.__cache:
+            unit_rows = self.__database.query(
+                "SELECT file, type FROM fortran_program_unit "
+                f"WHERE unit='{unit}'"
+            )
+            if not unit_rows:
+                raise DatabaseException(
+                    f"Unable to find unit '{unit}'"
+                )
+            self.__cache[unit] = unit_rows[0]
+        return self.__cache[unit]

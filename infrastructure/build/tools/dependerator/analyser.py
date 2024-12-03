@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 ##############################################################################
 # Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 # For further details please refer to the file LICENCE.original which you
@@ -18,7 +18,7 @@
 Examine Fortran source and build dependency information for use by "make".
 """
 
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 import logging
 import os
 import os.path
@@ -26,70 +26,25 @@ from pathlib import Path
 import re
 import subprocess
 from time import time
-from typing import Dict, List, Optional
+from typing import List, Dict, Generator, Tuple, Optional
 
-from dependerator.database import FileDependencies, FortranDependencies
+from dependerator.database import FortranDependencies
 
 
-###############################################################################
-# Interface for analysers
-#
-class Analyser(metaclass=ABCMeta):
-    ###########################################################################
-    # Examine a source file and store dependency information in the database.
-    #
-    # Arguments:
-    #   sourceFilename - The name of the object to scan.
-    #
+class Analyser(ABC):
+    """
+    Interface for analysers.
+    """
     @abstractmethod
-    def analyse(self, sourceFilename: Path):
-        raise NotImplementedError()
+    def analyse(self, source_filename: Path) -> None:
+        """
+        Examine a source file and store dependency information in the database.
+
+        @param source_filename: File to analyse
+        """
+        pass
 
 
-###############################################################################
-# Examine a namelist description file for dependencies.
-#
-class NamelistDescriptionAnalyser(Analyser):
-    ###########################################################################
-    # Constructor
-    # Arguments:
-    #   database - Backing store for details.
-    #
-    def __init__(self, database: FileDependencies):
-        self._database = database
-
-    ###########################################################################
-    # Scan a namelist description file and harvest dependency information.
-    #
-    # Arguments:
-    #   sourceFilename - File object to scan.
-    #
-    def analyse(self, sourceFilename: Path):
-        if not sourceFilename.suffix == '.nld':
-            raise Exception('File doesn''t look like a namelist description'
-                            + ' file: ' + sourceFilename)
-
-        logging.getLogger(__name__).info('  Scanning ' + str(sourceFilename))
-
-        self._database.removeFile(sourceFilename)
-
-        start_time = time()
-        with open(sourceFilename, 'rt') as sourceFile:
-            for line in sourceFile:
-                match = re.match(r'^\s*namelist\s+(\S+)', line,
-                                 flags=re.IGNORECASE)
-                if match is not None:
-                    fortranFilename = '{}_configuration_mod.f90' \
-                        .format(match.group(1))
-                    self._database.addFileDependency(fortranFilename,
-                                                     sourceFilename)
-        message = 'Time to analyse namelist description file: {0}'
-        logging.getLogger(__name__).debug(message.format(time() - start_time))
-
-
-###############################################################################
-# Examine Fortran source code for module dependencies.
-#
 class FortranAnalyser(Analyser):
     ###########################################################################
     # Constructor
@@ -117,10 +72,10 @@ class FortranAnalyser(Analyser):
         # The OpenMP libraries
         self._ignoreModules.extend(['omp_lib', 'omp_lib_kinds'])
 
-        self._fpp = os.getenv('FPP', None)
-        if not self._fpp:
+        fpp = os.getenv('FPP', None)
+        if fpp is None:
             raise Exception('No Fortran preprocessor provided in $FPP')
-        self._fpp = self._fpp.split()
+        self._fpp = fpp.split()
 
         # Patterns to recognise scoping units
         #
@@ -134,12 +89,12 @@ class FortranAnalyser(Analyser):
             = re.compile(r'^\s*SUBMODULE\s*\((?:([^:]+):)?([^)]+)\)\s+(\S+)',
                          flags=re.IGNORECASE)
         self._subroutinePattern \
-            = re.compile(r'^\s*(MODULE\s+)?SUBROUTINE\s+([^\(\s]+)',
+            = re.compile(r'^\s*(MODULE\s+)?SUBROUTINE\s+([^(\s]+)',
                          flags=re.IGNORECASE)
         self._functionPattern \
             = re.compile(
                 r'^\s*(?:TYPE\s*\(\s*\S+?\s*\)\s*|\S+\s*)?('
-                r'MODULE\s+)?FUNCTION\s+([^\(\s]+)',
+                r'MODULE\s+)?FUNCTION\s+([^(\s]+)',
                 flags=re.IGNORECASE)
         self._endPattern = re.compile(r'^\s*END(?:\s+(\S+)(?:\s+(\S+))?)?',
                                       flags=re.IGNORECASE)
@@ -160,86 +115,97 @@ class FortranAnalyser(Analyser):
                                           flags=re.IGNORECASE)
 
     ###########################################################################
-    # Scan a Fortran source file and harvest dependency information.
-    #
-    # Arguments:
-    #   sourceFilename(str) - The name of the object to scan.
-    #
-    def analyse(self, sourceFilename: Path):
+    def analyse(self, source_filename: Path):
+        """
+        Scans a Fortran source file and harvest dependency information.
+
+        @param source_filename: Fortran source file to be scanned.
+        """
         logger = logging.getLogger(__name__)
+
         # Perform any necessary preprocessing
         #
-        if sourceFilename.suffix == '.F90':
+        if source_filename.suffix in ['.F90', '.X90']:
             logging.getLogger(__name__).info('  Preprocessing '
-                                             + str(sourceFilename))
-            preprocessCommand = self._fpp
+                                             + str(source_filename))
+            preprocess_command = self._fpp
             for path in self.__preprocess_include_paths:
-                preprocessCommand.append('-I' + str(path))
+                preprocess_command.append('-I' + str(path))
             for name, macro in self.__preprocess_macros.items():
                 if macro:
-                    preprocessCommand.append(f'-D{name}={macro}')
+                    preprocess_command.append(f'-D{name}={macro}')
                 else:
-                    preprocessCommand.append('-D' + name)
-            preprocessCommand.append(str(sourceFilename))
+                    preprocess_command.append('-D' + name)
+            preprocess_command.append(str(source_filename))
 
             start_time = time()
-            preprocessor = subprocess.Popen(preprocessCommand,
+            preprocessor = subprocess.Popen(preprocess_command,
                                             stdout=subprocess.PIPE,
                                             stderr=subprocess.PIPE,
                                             encoding="utf-8")
             processed_source, errors = preprocessor.communicate()
-            message = 'Time to preprocess Fortran source: {0}'
-            logging.getLogger(__name__).debug(
-                message.format(time() - start_time))
+
+            logger.debug("Time to preprocess Fortran source: "
+                         + str(time() - start_time))
             if preprocessor.returncode:
                 logger.error(errors)
                 raise subprocess.CalledProcessError(preprocessor.returncode,
                                                     " ".join(
-                                                        preprocessCommand))
-        elif sourceFilename.suffix == '.f90':
+                                                        preprocess_command))
+        elif source_filename.suffix == '.f90':
             start_time = time()
-            with sourceFilename.open('rt') as sourceFile:
+            with source_filename.open('rt') as sourceFile:
                 processed_source = sourceFile.read()
-            message = 'Time to read Fortran source: {0}'
-            logging.getLogger(__name__).debug(
-                message.format(time() - start_time))
+            logger.debug("Time to read Fortran source: "
+                         + str(time() - start_time))
         else:
-            message = 'File doesn''t look like a Fortran file: {}'
-            raise Exception(message.format(sourceFilename))
+            raise Exception("File doesn't look like a Fortran file: "
+                            + str(source_filename))
 
-        # A local function to hide the mesiness of adding a dependency to the
-        # database.
-        #
-        def add_dependency(program_unit, prerequisite_unit, reverseLink=False):
+        def add_dependency(program_unit: str,
+                           prerequisite_unit: str,
+                           reverse_link=False) -> None:
+            """
+            Hides the messiness of adding a dependency to the database.
+
+            @param program_unit: Name of depender unit.
+            @param prerequisite_unit: Name of dependee unit.
+            @param reverse_link: Should the relationship be flipped?
+                                 Used by submodules.
+            """
             logger = logging.getLogger(__name__)
             prerequisite_unit = prerequisite_unit.lower()
             if prerequisite_unit in self._ignoreModules:
                 logger.info('      - Ignored 3rd party prerequisite')
-            elif prerequisite_unit in modules:
-                logger.info('      - Ignored self')
-            elif prerequisite_unit in dependencies:
+                return
+            if prerequisite_unit in dependencies:
                 logger.info('      - Ignore duplicate prerequisite')
-            else:
-                dependencies.append(prerequisite_unit)
-                self._database.addCompileDependency(program_unit,
-                                                    prerequisite_unit)
-                if reverseLink:
-                    self._database.addLinkDependency(prerequisite_unit,
-                                                     program_unit)
-                else:
-                    self._database.addLinkDependency(program_unit,
-                                                     prerequisite_unit)
+                return
 
-        # Read lines from the file, concatenate at continuation markers and
-        # split comments off.
-        #
-        # TODO: This is complex. That complexity comes from the need
-        #       to preserve comments. This is needed to support "depends on"
-        #       comments. Ergo, once "depends on" is gone we can ignore
-        #       comments
-        #       and this becomes a lot simpler.
-        #
-        def lines_of_code(source):
+            dependencies.append(prerequisite_unit)
+            self._database.add_compile_dependency(program_unit,
+                                                  prerequisite_unit)
+            if reverse_link:
+                self._database.add_link_dependency(prerequisite_unit,
+                                                   program_unit)
+            else:  # Normal link
+                self._database.add_link_dependency(program_unit,
+                                                   prerequisite_unit)
+
+        def lines_of_code(source: str) \
+                -> Generator[Tuple[str, str, int], None, None]:
+            """
+            Reads lines from the file, concatenate at continuation markers and
+            split comments off.
+
+            TODO: This is complex. That complexity comes from the need
+                  to preserve comments. This is needed to support "depends on"
+                  comments. Ergo, once "depends on" is gone we can ignore
+                  comments and this becomes a lot simpler.
+
+            @param source: Fortran source code.
+            @return:
+            """
             line_number = 0
             code = ''
             comment = ''
@@ -261,11 +227,6 @@ class FortranAnalyser(Analyser):
                             if not continuing:
                                 message = 'Found continuation marker at ' \
                                           'start of line when there was none '\
-                                          '' \
-                                          '' \
-                                          '' \
-                                          '' \
-                                          '' \
                                           'ending previous line'
                                 raise Exception(message)
                         elif character == '!':  # Line contains only a comment
@@ -331,20 +292,20 @@ class FortranAnalyser(Analyser):
 
         # Scan file for dependencies.
         #
-        logger.info('  Scanning ' + str(sourceFilename))
-        self._database.removeFile(sourceFilename)
+        logger.info('  Scanning ' + str(source_filename))
+        self._database.remove_file(source_filename)
 
         program_unit = None
         modules = []
-        dependencies = []
+        dependencies: List[str] = []
         scope_stack = []
-        pFUnitDriver = False
+        pfunit_driver = False
         for code, comment, line_number in lines_of_code(processed_source):
             match = self._programPattern.match(code)
             if match:
                 program_unit = match.group(1).lower()
                 logger.info('    Contains program: ' + program_unit)
-                self._database.addProgram(program_unit, sourceFilename)
+                self._database.add_program(program_unit, source_filename)
                 scope_stack.append(('program', program_unit))
                 continue
 
@@ -353,29 +314,27 @@ class FortranAnalyser(Analyser):
                 program_unit = match.group(1).lower()
                 logger.info('    Contains module ' + program_unit)
                 modules.append(program_unit)
-                self._database.addModule(program_unit, sourceFilename)
+                self._database.add_module(program_unit, source_filename)
                 scope_stack.append(('module', program_unit))
                 continue
 
             match = self._submodulePattern.match(code)
             if match:
-                ancestorUnit = match.group(1)
-                if ancestorUnit:
-                    ancestorUnit = ancestorUnit.lower()
-                parentUnit = match.group(2).lower()
+                ancestor_unit = match.group(1)
+                if ancestor_unit:
+                    ancestor_unit = ancestor_unit.lower()
+                parent_unit = match.group(2).lower()
                 program_unit = match.group(3).lower()
 
                 message = '{}Contains submodule {} of {}'.format(' ' * 4,
                                                                  program_unit,
-                                                                 parentUnit)
-                if ancestorUnit:
-                    message = message + '({})'.format(ancestorUnit)
+                                                                 parent_unit)
+                if ancestor_unit:
+                    message = message + '({})'.format(ancestor_unit)
                 logger.info(message)
 
-                self._database.addModule(program_unit, sourceFilename)
-                # I don't think it's necessary to append this to "modules".
-                # It's really just a dependency.
-                add_dependency(program_unit, parentUnit, True)
+                self._database.add_submodule(program_unit, source_filename)
+                add_dependency(program_unit, parent_unit, True)
                 scope_stack.append(('submodule', program_unit))
                 continue
 
@@ -385,7 +344,7 @@ class FortranAnalyser(Analyser):
                 program_unit = match.group(2).lower()
                 logger.info('    Contains subroutine ' + program_unit)
                 modules.append(program_unit)
-                self._database.addProcedure(program_unit, sourceFilename)
+                self._database.add_procedure(program_unit, source_filename)
                 scope_stack.append(('subroutine', program_unit))
                 continue
 
@@ -395,7 +354,7 @@ class FortranAnalyser(Analyser):
                 program_unit = match.group(2).lower()
                 logger.info('    Contains function ' + program_unit)
                 modules.append(program_unit)
-                self._database.addProcedure(program_unit, sourceFilename)
+                self._database.add_procedure(program_unit, source_filename)
                 scope_stack.append(('function', program_unit))
                 continue
 
@@ -411,19 +370,16 @@ class FortranAnalyser(Analyser):
                         scope_stack.pop()
                 except IndexError:
                     message = 'Mismatched begin/end. Found "{end}" but stack '\
-                              '' \
-                              '' \
-                              '' \
-                              '' \
-                              '' \
                               'empty'
                     raise Exception(message.format(end=end_scope))
 
             match = self._usePattern.match(code)
             if match is not None:
-                moduleName = match.group(1).lower()
-                logger.info('    Depends on module ' + moduleName)
-                add_dependency(program_unit, moduleName)
+                if program_unit is None:
+                    raise Exception("Usage found before program unit.")
+                module_name = match.group(1).lower()
+                logger.info('    Depends on module ' + module_name)
+                add_dependency(program_unit, module_name)
                 continue
 
             match = self.__openmp_use_pattern.match(comment)
@@ -433,6 +389,8 @@ class FortranAnalyser(Analyser):
                 or not. This means that the dependency will always exist even
                 if it shouldn't when OpenMP is off.
                 """
+                if program_unit is None:
+                    raise Exception("OpenMP found before program unit.")
                 module_name = match.group(1).lower()
                 logger.info(f'    Depends on module {module_name} with OpenMP')
                 add_dependency(program_unit, module_name)
@@ -440,43 +398,48 @@ class FortranAnalyser(Analyser):
 
             match = self._externalPattern.match(code)
             if match is not None:
-                moduleNames = [moduleName.strip()
-                               for moduleName in match.group(1).split(',')]
-                for moduleName in moduleNames:
-                    if moduleName is not None:
-                        logger.info('    Depends on external ' + moduleName)
-                        add_dependency(program_unit, moduleName)
+                if program_unit is None:
+                    raise Exception("External found before program unit.")
+                module_names = [moduleName.strip()
+                                for moduleName in match.group(1).split(',')]
+                for module_name in module_names:
+                    if module_name is not None:
+                        logger.info('    Depends on external ' + module_name)
+                        add_dependency(program_unit, module_name)
                 continue
 
             match = self._pFUnitPattern.match(code)
-            if not pFUnitDriver and match is not None:
+            if not pfunit_driver and match is not None:
+                if program_unit is None:
+                    raise Exception("pFUnit driver found before program unit.")
                 logger.info('    Is driver')
-                pFUnitDriver = True
+                pfunit_driver = True
 
                 start_time = time()
-                includeFilename = sourceFilename.parent / 'testSuites.inc'
-                with includeFilename.open('rt') as includeFile:
+                include_filename = source_filename.parent / 'testSuites.inc'
+                with include_filename.open('rt') as includeFile:
                     for line in includeFile:
                         match = self._suitePattern.match(line)
                         if match is not None:
-                            testGeneratorFunction = match.group(1)
-                            testModule = testGeneratorFunction.replace(
+                            test_generator_function = match.group(1)
+                            test_module = test_generator_function.replace(
                                 '_suite', '')
                             logger.info(
-                                '      Depends on module ' + testModule)
-                            self._database.addCompileDependency(
-                                program_unit, testModule)
-                            self._database.addLinkDependency(
-                                program_unit, testModule)
+                                '      Depends on module ' + test_module)
+                            self._database.add_compile_dependency(
+                                program_unit, test_module)
+                            self._database.add_link_dependency(
+                                program_unit, test_module)
                 message = 'Time to read pFUnit driver include file: {0}'
                 logging.getLogger(__name__).debug(
                     message.format(time() - start_time))
                 continue
 
             for match in self._dependsPattern.finditer(comment):
+                if program_unit is None:
+                    raise Exception("Dependency found before program unit.")
                 name = match.group(1).lower()
-                if name is not None:
-                    logger.info(
-                        '    %s depends on call to %s ' % (program_unit, name))
+                logger.info(
+                    '    %s depends on call to %s ' % (program_unit, name)
+                )
                 add_dependency(program_unit, name)
-                continue

@@ -19,7 +19,7 @@ import logging
 from pathlib import Path
 
 from dependerator import __version__
-import dependerator.analyser as analyser
+from dependerator.analyser import FortranAnalyser
 import dependerator.database as database
 
 ###############################################################################
@@ -71,13 +71,11 @@ if __name__ == '__main__':
             macroDictionary[macroString] = None
 
     backend = database.SQLiteDatabase(args.database)
-    namelistStore = database.FileDependencies(backend)
-    namelistAnalyser = analyser.NamelistDescriptionAnalyser(namelistStore)
     fortranStore = database.FortranDependencies(backend)
-    fortranAnalyser = analyser.FortranAnalyser(args.ignore,
-                                               fortranStore,
-                                               macroDictionary,
-                                               args.include)
+    fortranAnalyser = FortranAnalyser(args.ignore,
+                                      fortranStore,
+                                      macroDictionary,
+                                      args.include)
     if args.source.endswith('.nld'):
         namelistAnalyser.analyse(args.source)
     else:

@@ -7,6 +7,8 @@
 ##############################################################################
 
 from pathlib import Path
+from typing import Tuple
+
 import pytest
 
 from dependerator.database import (FileDependencies,
@@ -15,72 +17,116 @@ from dependerator.database import (FileDependencies,
 from dependerator.process import FortranProcessor
 
 
-class TestFortranProcessor():
+class TestFortranProcessor:
     @pytest.fixture
-    def databases(self, tmp_path_factory):
-        filename = tmp_path_factory.mktemp('db-', True) / 'fortran.db'
+    def databases(self, tmp_path: Path) \
+            -> Tuple[FortranDependencies, FileDependencies]:
+        """
+        Creates an example dependencies database.
+        """
+        filename = tmp_path / 'fortran.db'
         database = SQLiteDatabase(filename)
-        return FortranDependencies(database), FileDependencies(database)
+        fortran_db = FortranDependencies(database)
+
+        fortran_db.add_program('foo', Path('foo.f90'))
+        fortran_db.add_module('bar', Path('bits/bar.f90'))
+        fortran_db.add_module('baz', Path('bits/baz.f90'))
+        fortran_db.add_module('qux', Path('bobs/qux.f90'))
+        fortran_db.add_module('corge', Path('bobs/grault.f90'))
+        fortran_db.add_procedure('quux', Path('quux.f90'))
+        fortran_db.add_program('fred', Path('fred.f90'))
+
+        fortran_db.add_compile_dependency('foo', 'bar')
+        fortran_db.add_compile_dependency('bar', 'baz')
+        fortran_db.add_compile_dependency('qux', 'baz')
+        fortran_db.add_compile_dependency('corge', 'bar')
+        fortran_db.add_compile_dependency('foo', 'quux')
+        fortran_db.add_compile_dependency('fred', 'quux')
+
+        fortran_db.add_link_dependency('foo', 'bar')
+        fortran_db.add_link_dependency('bar', 'baz')
+        fortran_db.add_link_dependency('baz', 'qux')
+        fortran_db.add_link_dependency('corge', 'bar')
+        fortran_db.add_link_dependency('foo', 'quux')
+        fortran_db.add_link_dependency('fred', 'quux')
+
+        return fortran_db, FileDependencies(database)
 
     def test_compile_dependencies(self, databases):
-        self._populate_database(databases[0])
+        """
+        Ensures a full list of compile-time dependencies can be generated.
+        """
+        uut = FortranProcessor(databases[0], Path("objects"), Path("modules"))
+        uut.determine_compile_file_dependencies(databases[1])
 
-        uut = FortranProcessor(databases[0], "objects", "modules")
-        uut.determineCompileFileDependencies(databases[1])
-
-        assert [(Path('modules/bits/bar.mod'), [Path('objects/bits/bar.o')]),
-                 (Path('modules/bits/baz.mod'), [Path('objects/bits/baz.o')]),
-                 (Path('modules/bobs/corge.mod'), [Path('objects/bobs/grault.o')]),
-                 (Path('modules/bobs/qux.mod'), [Path('objects/bobs/qux.o')]),
-                 (Path('objects/bits/bar.o'), [Path('modules/bits/baz.mod')]),
-                 (Path('objects/bobs/grault.o'),[Path('modules/bits/bar.mod')]),
-                 (Path('objects/bobs/qux.o'), [Path('modules/bits/baz.mod')]),
-                 (Path('objects/foo.o'), [Path('modules/bits/bar.mod'), Path('objects/quux.o')])] \
-        == list(databases[1].getDependencies())
+        assert list(databases[1].get_dependencies()) == \
+            [
+                (Path('modules/bits/bar.mod'), [Path('objects/bits/bar.o')]),
+                (Path('modules/bits/baz.mod'), [Path('objects/bits/baz.o')]),
+                (Path('modules/bobs/corge.mod'),
+                 [Path('objects/bobs/grault.o')]),
+                (Path('modules/bobs/qux.mod'), [Path('objects/bobs/qux.o')]),
+                (Path('objects/bits/bar.o'), [Path('modules/bits/baz.mod')]),
+                (Path('objects/foo.o'),
+                 [Path('modules/bits/bar.mod'), Path('objects/quux.o')]),
+                (Path('objects/fred.o'), [Path('objects/quux.o')])
+            ]
 
     def test_compile_dependencies_module_objects(self, databases):
-        self._populate_database(databases[0])
+        """
+        Ensures that module information in object files is supported.
+        """
+        uut = FortranProcessor(databases[0], Path("objects"), Path("modules"))
+        uut.determine_compile_file_dependencies(databases[1],
+                                                object_modules=True)
 
-        uut = FortranProcessor(databases[0], "objects", "modules")
-        uut.determineCompileFileDependencies(databases[1], moduleObjects=True)
+        assert list(databases[1].get_dependencies()) == \
+            [
+                (Path('objects/bits/bar.o'), [Path('objects/bits/baz.o')]),
+                (Path('objects/foo.o'),
+                 [Path('objects/bits/bar.o'), Path('objects/quux.o')]),
+                (Path('objects/fred.o'), [Path('objects/quux.o')])
+            ]
 
-        assert [(Path('objects/bits/bar.o'), [Path('objects/bits/baz.o')]),
-                (Path('objects/bobs/grault.o'), [Path('objects/bits/bar.o')]),
-                (Path('objects/bobs/qux.o'), [Path('objects/bits/baz.o')]),
-                (Path('objects/foo.o'), [Path('objects/bits/bar.o'), Path('objects/quux.o')])] \
-               == list(databases[1].getDependencies())
+    def test_link_dependencies_programs(self, databases):
+        """
+        Ensures a list of all objects per program can be fetched.
+        """
+        uut = FortranProcessor(databases[0], Path("objects"), Path("modules"))
+        result = list(uut.determine_link_dependencies())
 
-    def test_link_dependencies(self, databases):
-        self._populate_database(databases[0])
+        assert result == [
+            (
+                Path('objects/fred'),
+                Path('objects/fred.o'),
+                [Path('objects/quux.o')]
+            ),
+            (
+                Path('objects/foo'),
+                Path('objects/foo.o'),
+                [
+                    Path('objects/bits/bar.o'),
+                    Path('objects/bits/baz.o'),
+                    Path('objects/bobs/qux.o'),
+                    Path('objects/quux.o')
+                ]
+            )
+        ]
 
-        import sys
-        uut = FortranProcessor(databases[0], "objects", "modules")
-        result = list(uut.determineLinkDependencies())
-
-        assert [(u'objects/foo', 'objects/foo.o', ['objects/bits/bar.o',
-                                                   'objects/bits/baz.o',
-                                                   'objects/bobs/qux.o',
-                                                   'objects/quux.o'])] == result
-
-    def _populate_database( self, database: FortranDependencies ):
-        database.addProgram( 'foo', 'foo.f90' )
-        database.addModule( 'bar', 'bits/bar.f90' )
-        database.addModule( 'baz', 'bits/baz.f90' )
-        database.addModule( 'qux', 'bobs/qux.f90' )
-        database.addModule( 'corge', 'bobs/grault.f90')
-        database.addProcedure( 'quux', 'quux.f90')
-
-        database.addCompileDependency( 'foo', 'bar' )
-        database.addCompileDependency( 'bar', 'baz' )
-        database.addCompileDependency( 'qux', 'baz' )
-        database.addCompileDependency( 'corge', 'bar')
-        database.addCompileDependency( 'foo', 'quux')
-
-        database.addLinkDependency( 'foo', 'bar' )
-        database.addLinkDependency( 'bar', 'baz' )
-        database.addLinkDependency( 'baz', 'qux' )
-        database.addLinkDependency('corge', 'bar')
-        database.addLinkDependency('foo', 'quux')
-
-if __name__ == '__main__':
-    unittest.main()
+    def test_link_dependencies_sub_tree(self, databases):
+        """
+        Tests getting a link set for a subtree (or library).
+        """
+        test_unit = FortranProcessor(databases[0], Path('obj'), Path('mod'))
+        assert list(test_unit.determine_link_dependencies('corge')) == \
+            [
+                (
+                    Path('obj/corge'),
+                    Path('obj/bobs/grault.o'),
+                    [
+                        Path('obj/bits/bar.o'),
+                        Path('obj/bits/baz.o'),
+                        Path('obj/bobs/qux.o')
+                    ]
+                )
+            ]
