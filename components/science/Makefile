@@ -34,8 +34,7 @@ PROFILE ?= fast-debug
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 export CORE_ROOT_DIR    ?= ../..
 
-export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
-                               $(CORE_ROOT_DIR)/components/inventory
+export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure
 
 export SUITE_GROUP ?= developer
 export SUITE_GROUP_NAME ?= $(notdir $(realpath $(shell pwd)/$(CORE_ROOT_DIR)))-$(PROJECT_NAME)-.*
