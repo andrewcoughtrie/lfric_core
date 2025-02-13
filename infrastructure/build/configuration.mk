@@ -21,12 +21,12 @@ $(CONFIG_DIR)/rose-meta.json $(CONFIG_DIR)/config_namelists.txt: $(META_FILE_DIR
 ifdef APPS_ROOT_DIR
 	$(Q)rose_picker $(META_FILE_DIR)/rose-meta.conf    \
 	                -directory $(CONFIG_DIR)           \
-	                -include_dirs $(APPS_ROOT_DIR)/rose-meta     \
-	                -include_dirs $(CORE_ROOT_DIR)/rose-meta
+	                -include_dirs $(APPS_ROOT_DIR)     \
+	                -include_dirs $(CORE_ROOT_DIR)
 else
 	$(Q)rose_picker $(META_FILE_DIR)/rose-meta.conf    \
 	                -directory $(CONFIG_DIR)           \
-	                -include_dirs $(CORE_ROOT_DIR)/rose-meta
+	                -include_dirs $(CORE_ROOT_DIR)
 endif
 	# It's not clear why this is needed but as of 5/2/20 the diagnostic
 	# application test suite fails without it.
