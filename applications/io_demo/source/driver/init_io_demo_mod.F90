@@ -21,13 +21,16 @@ module init_io_demo_mod
                                                      element_order_v
   use function_space_collection_mod,          only : function_space_collection
   use fs_continuity_mod,                      only : Wtheta
-  use log_mod,                                only : log_event,      &
-                                                     LOG_LEVEL_TRACE
+  use key_value_mod,                          only : abstract_value_type
+  use log_mod,                                only : log_event,       &
+                                                     LOG_LEVEL_TRACE, &
+                                                     LOG_LEVEL_ERROR
   use mesh_mod,                               only : mesh_type
   use io_config_mod,                          only : write_diag, &
                                                      use_xios_io
   use lfric_xios_write_mod,                   only : write_field_generic
   use io_demo_constants_mod,                  only : create_io_demo_constants
+  use random_number_generator_mod,            only : random_number_generator_type
 
   implicit none
 
@@ -42,19 +45,35 @@ module init_io_demo_mod
 
     implicit none
 
-    type(mesh_type), intent(in), pointer     :: mesh
+    type(mesh_type), intent(in), pointer        :: mesh
 
     ! Coordinate field
-    type( field_type ), intent(inout)        :: chi(:)
-    type( field_type ), intent(inout)        :: panel_id
-    type(modeldb_type), intent(inout)        :: modeldb
-    type( field_type )                       :: diffusion_field
-    type( field_collection_type ), pointer   :: depository
-    procedure(write_interface), pointer      :: tmp_ptr
-    real(kind=r_def), parameter              :: min_val = 280.0_r_def
-    real(kind=r_def), parameter              :: max_val = 330.0_r_def
+    type(field_type), intent(inout)             :: chi(:)
+    type(field_type), intent(inout)             :: panel_id
+    type(modeldb_type), intent(inout)           :: modeldb
+    class(abstract_value_type), pointer         :: abstract_value
+    type(random_number_generator_type), pointer :: rng
+    type(field_type)                            :: diffusion_field
+    type(field_collection_type), pointer        :: depository
+    procedure(write_interface), pointer         :: tmp_ptr
+    real(kind=r_def), parameter                 :: min_val = 280.0_r_def
+    real(kind=r_def), parameter                 :: max_val = 330.0_r_def
 
     call log_event( 'io_demo: Initialising miniapp ...', LOG_LEVEL_TRACE )
+
+    ! seed the random number generator
+    call modeldb%values%get_value("rng", abstract_value)
+    select type(abstract_value)
+      type is (random_number_generator_type)
+        rng => abstract_value
+      class default
+        call log_event( &
+          "Error: the value called 'rng' is not a random_number_generator", &
+          LOG_LEVEL_ERROR &
+        )
+    end select
+    call rng%check_seed()
+
     ! Create prognostic fields
     ! Creates a field in the Wtheta function space
     call diffusion_field%initialise( vector_space = &

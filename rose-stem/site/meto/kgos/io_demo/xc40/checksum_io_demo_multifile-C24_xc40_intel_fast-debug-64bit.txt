@@ -1,2 +1,2 @@
-Inner product checksum diffusion_field = 41EA65BF8DB0F702
+Inner product checksum diffusion_field = 41EA6615B8E8B6B6
 Inner product checksum multifile_field = 4114E20000000000

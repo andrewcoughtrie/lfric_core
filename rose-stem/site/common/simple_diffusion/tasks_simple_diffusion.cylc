@@ -42,11 +42,6 @@
     {% if "kgo_checks" not in task_dict %}
         {% do task_dict.update({"kgo_checks": ["checksum"]}) %}
     {% endif %}
-    {% if task_ns.compiler == 'gnu' %}
-        {# Don't check checksums for GNU as there is a bug in the random #}
-        {# number generation for the initial conditions, to be fixed in #4472 #}
-        {% do task_dict.update({"kgo_checks": []}) %}
-    {% endif %}
 {% endif %}
 
 {% do LOG.debug("Finished in site/common/simple_diffusion/tasks_simple_diffusion.cylc") %}

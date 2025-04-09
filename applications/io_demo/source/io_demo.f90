@@ -20,16 +20,20 @@ program io_demo
                                           log_level_trace, &
                                           log_scratch_space
   use mpi_mod,                     only : global_mpi
+  use random_number_generator_mod, only : random_number_generator_type
   use io_demo_mod,        only : io_demo_required_namelists
   use io_demo_driver_mod, only : initialise, step, finalise
 
   implicit none
 
   ! The technical and scientific state
-  type(modeldb_type) :: modeldb
+  type(modeldb_type)        :: modeldb
   character(*), parameter   :: program_name = "io_demo"
   character(:), allocatable :: filename
+  integer, parameter        :: default_seed = 123456789
+  type(random_number_generator_type), pointer :: rng
 
+  call modeldb%values%initialise()
   call modeldb%configuration%initialise( program_name, table_len=10 )
 
   write(log_scratch_space,&
@@ -47,6 +51,9 @@ program io_demo
   call init_logger( modeldb%mpi%get_comm(), program_name )
   call init_collections()
   call init_time(modeldb)
+
+  allocate(rng, source=random_number_generator_type(default_seed))
+  call modeldb%values%add_key_value("rng", rng)
 
   ! Create the depository field collection and place it in modeldb
   call modeldb%fields%add_empty_field_collection("depository")
