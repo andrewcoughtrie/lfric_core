@@ -52,6 +52,7 @@ module lfric_xios_write_mod
   private
   public :: checkpoint_write_xios,    &
             write_field_generic,      &
+            write_empty_field,        &
             checkpoint_write_value,   &
             write_value_generic,      &
             write_state,              &
@@ -88,7 +89,7 @@ subroutine write_field_generic(field_name, field_proxy)
   use lfric_xios_diag_mod,        only:  get_field_domain_ref
   implicit none
 
-  character(len=*), optional,     intent(in) :: field_name
+  character(len=*), intent(in) :: field_name
   class(field_parent_proxy_type), intent(in) :: field_proxy
 
   integer(i_def) :: undf
@@ -127,6 +128,26 @@ subroutine write_field_generic(field_name, field_proxy)
   deallocate(xios_data)
 
 end subroutine write_field_generic
+
+!>  @brief  Graceful failure if an empty field is attempted to be written
+!>
+!>  @param[in]     field_name       Field name
+!>  @param[in]     field_proxy      A field proxy to be written
+!>
+subroutine write_empty_field(field_name, field_proxy)
+  implicit none
+
+  character(len=*), intent(in) :: field_name
+  class(field_parent_proxy_type), intent(in) :: field_proxy
+
+  ! Note that this routine simply outputs an informative warning.
+  ! Future versions may force an error by logging to LOG_LEVEL_ERROR.
+  write(log_scratch_space,'(2A)') &
+        "Attempt to write an empty field: ", field_name
+  call log_event(log_scratch_space, LOG_LEVEL_WARNING)
+
+
+end subroutine write_empty_field
 
 !> @brief Checkpoint an io_value with XIOS
 !> @details This routine assumes there is an XIOS field
