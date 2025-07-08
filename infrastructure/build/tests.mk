@@ -3,6 +3,8 @@
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
 ##############################################################################
+.SECONDEXPANSION:
+
 # Unit tests
 ##############################################################################
 UNIT_TEST_EXE = $(BIN_DIR)/$(firstword $(PROGRAMS))
@@ -86,34 +88,56 @@ ALL_INTEGRATION_TESTS = $(patsubst $(TEST_DIR)/%,%,$(basename                 \
 .PHONY: do-integration-tests/%
 do-integration-tests/%: export PYTHONPATH    := $(PYTHONPATH):$(LFRIC_BUILD)
 do-integration-tests/%: export PROGRAMS       = $(ALL_INTEGRATION_TESTS)
-do-integration-tests/%: export TEST_RUN_DIR   = $(BIN_DIR)/test_files
-do-integration-tests/%: export FFLAG_GROUPS   = OPENMP
-do-integration-tests/%: export LDFLAGS_GROUPS = OPENMP
 
 do-integration-tests/run: $(foreach test,$(ALL_INTEGRATION_TESTS),do-integration-tests/run/$(test))
 
-do-integration-tests/run/%: do-integration-tests/build
+do-integration-tests/run/%: $$(BIN_DIR)/$$*.py \
+$$(if $$(realpath $$(TEST_DIR)/$$(dir $$*)/iodef.xml), $$(BIN_DIR)/$$(dir $$*)/iodef.xml) \
+| do-integration-tests/build do-integration-tests/resources/$$*
 	$(call MESSAGE,Running,$*)
-	$Qcd $(TEST_RUN_DIR)/$(dir $*); \
-	    ./$(notdir $(addsuffix .py,$*)) $(addprefix $(BIN_DIR)/,$*)
+	$Qcd $(dir $<); python3 ./$(notdir $<) $(BIN_DIR)/$*
 
 # The addition of this target is a bit messy but it allows us to guarantee that
 # no build will happen when running from a test suite.
 do-integration-tests/rerun: $(foreach test,$(ALL_INTEGRATION_TESTS),do-integration-tests/rerun/$(test))
 
-do-integration-tests/rerun/%:
+do-integration-tests/rerun/%: $$(BIN_DIR)/$$*.py \
+$$(if $$(realpath $$(TEST_DIR)/$$(dir $$*)/iodef.xml), $$(BIN_DIR)/$$(dir $$*)/iodef.xml) \
+| do-integration-tests/resources/$$*
 	$(call MESSAGE,Rerunning,$*)
-	$Qcd $(TEST_RUN_DIR)/$(dir $*); \
-	    ./$(notdir $(addsuffix .py,$*)) $(addprefix $(BIN_DIR)/,$*)
+	$Qcd $(dir $<); python3 ./$(notdir $<) $(BIN_DIR)/$*
+
+do-integration-tests/resources/%: \
+| $$(if $$(realpath $$(TEST_DIR)/support/resources), do-integration-tests/resources/support/$$*)
+	$(call MESSAGE, Harvesting, $*)
+	$Qif [ -e $(TEST_DIR)/$(dir $*)resources ]; then rsync -a $(TEST_DIR)/$(dir $*)resources $(BIN_DIR)/$(dir $*); fi
+
+do-integration-tests/resources/support/%: $(BIN_DIR)/resources
+	$(call MESSAGE, Symlinking to, support/resources)
+	$Qmkdir -p $(BIN_DIR)/$(dir $*)
+	$Qln -sf $(BIN_DIR)/resources $(BIN_DIR)/$(dir $*)shared-resources
+
+$(BIN_DIR)/resources:
+	$(call MESSAGE, Harvesting, support/resources)
+	$Qrsync -a $(TEST_DIR)/support/resources $(BIN_DIR)/
+
+$(BIN_DIR)/%.py: $(TEST_DIR)/%.py
+	$(call MESSAGE,Copying,$<)
+	$Qmkdir -p $(dir $@)
+	$Qcp $< $@
+
+$(BIN_DIR)%iodef.xml: $(TEST_DIR)%iodef.xml
+	$(call MESSAGE, Copying, $<)
+	$Qmkdir -p $(dir $@)
+	$Qcp $< $@
 
 do-integration-tests/build: do-integration-tests/generate \
-                           $(addsuffix /extract, $(TEST_DIR))
+                            $(addsuffix /extract, $(TEST_DIR))
 	$Qmkdir -p $(WORKING_DIR)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/lfric.mk \
 	          $(addsuffix /psyclone, $(TEST_DIR))
 	$Q$(MAKE) $(QUIET_ARG) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/analyse.mk
 	$Q$(MAKE) $(QUIET_ARG) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/compile.mk
-	$Qrsync -a $(TEST_DIR)/ $(TEST_RUN_DIR)
 
 do-integration-tests/generate: do-integration-test/get-source \
                                $(if $(META_FILE_DIR), configuration)

@@ -24,7 +24,7 @@ class configuration_test(MpiTest):
 
     # pylint: disable=invalid-name
 
-    _INJECT = "configuration_test.nml"
+    _INJECT = "resources/configuration_test.nml"
 
     def __init__(self):
         super().__init__(

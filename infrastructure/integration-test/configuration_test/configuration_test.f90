@@ -35,7 +35,7 @@ program configuration_test
   implicit none
 
   integer,      parameter :: file_unit = 13
-  character(*), parameter :: filename = 'configuration_test.nml'
+  character(*), parameter :: filename = 'resources/configuration_test.nml'
 
   type(lfric_comm_type) :: comm
   integer       :: rank

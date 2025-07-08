@@ -86,7 +86,7 @@ contains
     call initialise_logging(self%comm%get_comm_mpi_val(), 'lfric_xios_context_test')
 
     call self%config%initialise( "lfric_xios_integration_tests", table_len=10 )
-    call read_configuration( "configuration.nml", self%config )
+    call read_configuration( "resources/configuration.nml", self%config )
 
     ! Create top level mesh collection, function spaces & routing tables
     local_mesh_collection = local_mesh_collection_type()

@@ -23,6 +23,7 @@ module coupler_exchange_2d_mod
   use constants_mod,            only: i_def, r_def, l_def, str_def, imdi
   use field_mod,                only: field_type, field_proxy_type
   use field_collection_mod,     only: field_collection_type
+  use field_parent_mod,         only: field_parent_type
   use function_space_collection_mod,  &
                                 only: function_space_collection
   use function_space_mod,       only: function_space_type
@@ -99,7 +100,7 @@ end type  coupler_exchange_2d_type
 
 #ifdef MCT
   ! Field from which the data will be sent - maybe a multi-data field
-  type(field_type), pointer                 :: field
+  class(field_parent_type), pointer         :: field
   ! Proxy of the multidata field
   type( field_proxy_type )                  :: field_proxy
   ! Number of multi-data levels in field
@@ -120,9 +121,14 @@ end type  coupler_exchange_2d_type
   integer(i_def)                            :: nmulti
 
   field       => self%get_lfric_field_ptr()
-  name        =  trim(adjustl(field%get_name()))
-  field_proxy =  field%get_proxy()
+  select type (field)
+  class is (field_type)
+    name        =  trim(adjustl(field%get_name()))
+    field_proxy =  field%get_proxy()
   ndata       =  field_proxy%vspace%get_ndata()
+  class default
+    call log_event("Unexpected field type", log_level_error)
+  end select
 
   ierror = 0
 
@@ -176,7 +182,7 @@ end type  coupler_exchange_2d_type
 
 #ifdef MCT
   ! Field into which the data will be received - maybe a multi-data field
-  type(field_type), pointer                 :: field
+  class(field_parent_type), pointer         :: field
   ! Proxy of the receiving field
   type(field_proxy_type)                    :: field_proxy
   ! Number of multi-data levels in field
@@ -198,9 +204,14 @@ end type  coupler_exchange_2d_type
 
 
   field       => self%get_lfric_field_ptr()
-  name        =  trim(adjustl(field%get_name()))
-  field_proxy =  field%get_proxy()
-  ndata       =  field_proxy%vspace%get_ndata()
+  select type (field)
+  class is (field_type)
+    name        =  trim(adjustl(field%get_name()))
+    field_proxy =  field%get_proxy()
+    ndata       =  field_proxy%vspace%get_ndata()
+  class default
+    call log_event("Unexpected field type", log_level_error)
+  end select
 
   ierror = 0
 
@@ -269,17 +280,22 @@ end type  coupler_exchange_2d_type
   implicit none
   class(coupler_exchange_2d_type), intent(inout) :: self
 
-  logical(l_def)            :: is_coupling
+  logical(l_def)                    :: is_coupling
 #ifdef MCT
   ! Field from which the data will be sent
-  type(field_type), pointer :: field
+  class(field_parent_type), pointer :: field
   ! Oasis id for variable or data level being sent
-  integer(i_def)            :: var_id
+  integer(i_def)                    :: var_id
   ! Oasis error code
-  integer(i_def)            :: kinfo
+  integer(i_def)                    :: kinfo
 
   field => self%get_lfric_field_ptr()
-  var_id = field%get_cpl_id(1)
+  select type (field)
+  class is (field_type)
+    var_id = field%get_cpl_id(1)
+  class default
+    call log_event("Unexpected field type", log_level_error)
+  end select
 
   is_coupling = .false.
   call oasis_put_inquire(var_id, self%coupling_time, kinfo)

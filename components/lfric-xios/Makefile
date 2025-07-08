@@ -97,9 +97,9 @@ integration-tests/%: export BIN_DIR      ?= $(PROJECT_DIR)/test
 integration-tests/%: export CXX_LINK = TRUE
 integration-tests/%: export IMPORT_PARTS  = $(CORE_ROOT_DIR)/infrastructure \
                                             $(CORE_ROOT_DIR)/components/science
-integration-tests/%: export PYTHONPATH  := $(PYTHONPATH):$(PROJECT_DIR)/build/testframework
 integration-tests/%: export ADDITIONAL_EXTRACTION = \
                         $(CORE_ROOT_DIR)/components/science/unit-test/support
+integration-tests/%: export PYTHONPATH  := $(PYTHONPATH):$(PROJECT_DIR)/build/testframework
 integration-tests/%: export META_FILE_DIR = rose-meta/lfric-xios/HEAD
 integration-tests/%: export PROJECT       = lfric_xios
 integration-tests/%: export SOURCE_DIR    = source

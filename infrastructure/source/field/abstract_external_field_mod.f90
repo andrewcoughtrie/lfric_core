@@ -13,7 +13,7 @@
 !
 module abstract_external_field_mod
   use constants_mod,        only: i_def
-  use field_mod,            only: field_type
+  use field_parent_mod,     only: field_parent_type
   use linked_list_data_mod, only: linked_list_data_type
   implicit none
   private
@@ -22,7 +22,7 @@ type, extends(linked_list_data_type), public, abstract :: &
                                                abstract_external_field_type
   private
   !> The lfric field that the external data will be associated with
-  type(field_type), pointer      :: lfric_field
+  class(field_parent_type), pointer :: lfric_field
 contains
   !> Initialises data held in the abstract
   procedure, public :: abstract_external_field_initialiser
@@ -62,7 +62,7 @@ subroutine abstract_external_field_initialiser( self, &
   implicit none
 
   class(abstract_external_field_type), intent(inout) :: self
-  type(field_type), pointer, intent(in)              :: lfric_field_ptr
+  class(field_parent_type),   pointer, intent(in)    :: lfric_field_ptr
 
   self%lfric_field => lfric_field_ptr
 
@@ -75,7 +75,7 @@ function get_lfric_field_ptr( self ) result( lfric_field_ptr )
   implicit none
 
   class(abstract_external_field_type), intent(in) :: self
-  type(field_type), pointer                       :: lfric_field_ptr
+  class(field_parent_type), pointer               :: lfric_field_ptr
 
   lfric_field_ptr => self%lfric_field
 
