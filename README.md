@@ -1,6 +1,14 @@
 # LFRic Core
 
-[![ci](https://github.com/MetOffice/lfric_core/actions/workflows/ci.yml/badge.svg)](https://github.com/MetOffice/lfric_core/actions/workflows/ci.yml)
+Welcome to LFRic Core!
+
+LFRic Core provides the underlying infrastructure for the Momentum:tm: Atmosphere model and associated applications.
+
+|           |                                                                                                                                                             |
+|-----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|:repeat: CI|[![Doc Deploy](https://github.com/MetOffice/lfric_core/actions/workflows/ci.yml/badge.svg)](https://github.com/MetOffice/lfric_core/actions/workflows/ci.yml)|
+|           |
+|           |                                                                                                                                                             |  
 
 Location for LFRic infrastructure source code and documentation
 
