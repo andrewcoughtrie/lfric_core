@@ -7,8 +7,8 @@ LFRic Core provides the underlying infrastructure for the Momentum&trade; Atmosp
 |           |                                                                                                                                                             |
 |-----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
 |:repeat: CI|[![Doc Deploy](https://github.com/MetOffice/lfric_core/actions/workflows/ci.yml/badge.svg)](https://github.com/MetOffice/lfric_core/actions/workflows/ci.yml)|
-|:speech_balloon: Community|![Discussions link](https://img.shields.io/badge/github-discussions-yellow?logo=github&link=https%3A%2F%2Fgithub.com%2FMetOffice%2Fsimulation-systems%2Fdiscussions)|
-|:package: Repo |![GitHub License](https://img.shields.io/github/license/metoffice/lfric_core) ![GitHub Release](https://img.shields.io/github/v/release/metoffice/lfric_core?color=purple) ![GitHub commits since latest release](https://img.shields.io/github/commits-since/metoffice/lfric_core/latest)  |
+|:speech_balloon: Community|[![Static Badge](https://img.shields.io/badge/GitHub-discussions-gold)](https://github.com/MetOffice/simulation-systems/discussions/categories/lfric)|
+|:package: Repo |[![GitHub License](https://img.shields.io/github/license/metoffice/lfric_core)](https://github.com/MetOffice/lfric_core?tab=BSD-3-Clause-1-ov-file#readme) [![GitHub Release](https://img.shields.io/github/v/release/metoffice/lfric_core?color=purple)](https://github.com/MetOffice/lfric_core/releases) ![GitHub commits since latest release](https://img.shields.io/github/commits-since/metoffice/lfric_core/latest)  |
 |           |                                                                                                                                                             |
 
 ## Getting Started
