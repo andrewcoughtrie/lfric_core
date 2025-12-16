@@ -2,7 +2,7 @@
 
 Welcome to LFRic Core!
 
-LFRic Core provides the underlying infrastructure for the Momentum:tm: Atmosphere model and associated applications.
+LFRic Core provides the underlying infrastructure for the Momentum :tm: Atmosphere model and associated applications.
 
 |           |                                                                                                                                                             |
 |-----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
