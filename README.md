@@ -10,18 +10,14 @@ LFRic Core provides the underlying infrastructure for the Momentum:tm: Atmospher
 |           |
 |           |                                                                                                                                                             |  
 
-Location for LFRic infrastructure source code and documentation
+## Getting Started
 
-On the Met Office Azure Spice machine the main LFRic module environment
-contains all the required packages to build the documentation. To build use
-`make html` in the documentation directory. `make help` will give you the other
-options available. Additionally, `make deploy` will build a copy of the
-documentation and deploy it to a directory in `$(HOME)/public_html` named after
-the git branch.
+Please find information on getting started using the LFRic Core infrastructure 
+in the (documentation)[https://metoffice.github.io/lfric_core/]. If you are 
+looking for the LFRic Atmosphere model this can be found in the
+(LFRic Apps)[https://github.com/MetOffice/lfric_apps] repository.
 
 ## Contributing Guidelines
-
-Welcome!
 
 The following links are here to help set clear expectations for everyone
 contributing to this project. By working together under a shared understanding,
