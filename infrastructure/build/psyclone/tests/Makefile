@@ -6,7 +6,19 @@ test: no-optimisation/confirm \
       override/confirm \
       override-global-opt/confirm \
       override-local-opt/confirm \
-      override-both-opt/confirm
+      override-both-opt/confirm \
+      batch
+
+# Confirms the batch PSyclone driver produces output identical to a direct
+# invocation, isolates files from one another, rebuilds only what is stale and
+# never fails the build.
+#
+.PHONY: batch
+batch:
+	$(info *** PSyclone batch driver test)
+	$(PYTHON) batch_test.py
+
+PYTHON ?= python3
 
 # Tests operation without transformation scripts. Both preprocessed and
 # non-preprocessed algorithms are present.
