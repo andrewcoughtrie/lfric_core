@@ -7,15 +7,16 @@ test: no-optimisation/confirm \
       override-global-opt/confirm \
       override-local-opt/confirm \
       override-both-opt/confirm \
-      server-smoke
+      batch
 
-# Confirms the persistent PSyclone server produces output identical to a
-# direct invocation and that consecutive jobs remain isolated.
+# Confirms the batch PSyclone driver produces output identical to a direct
+# invocation, isolates files from one another, rebuilds only what is stale and
+# never fails the build.
 #
-.PHONY: server-smoke
-server-smoke:
-	$(info *** PSyclone server smoke test)
-	$(PYTHON) server_smoke_test.py
+.PHONY: batch
+batch:
+	$(info *** PSyclone batch driver test)
+	$(PYTHON) batch_test.py
 
 PYTHON ?= python3
 
