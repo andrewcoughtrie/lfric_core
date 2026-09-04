@@ -6,28 +6,42 @@
 """
 Persistent PSyclone server for the LFRic build system.
 
-The server imports PSyclone once and pre-forks a pool of worker processes
-(sized to the build parallelism, ``-j``). Each worker keeps PSyclone resident
-in memory and executes transformation jobs *in process* by calling
-:func:`psyclone.generator.main`, avoiding the repeated cost of loading the
-Python interpreter and PSyclone libraries from disk for every algorithm file.
+The server imports PSyclone *once*, in the dispatcher process, and then forks a
+fresh child per job. Each child inherits the fully-imported interpreter through
+copy-on-write, so a job starts in a few milliseconds instead of paying the
+several-second cost of loading Python, PSyclone, fparser and sympy from disk.
 
-Jobs are submitted by :mod:`psyclone_client` over a shared POSIX FIFO. To keep
-submission atomic (a write of no more than ``PIPE_BUF`` bytes is guaranteed not
-to be interleaved) the FIFO only ever carries a *tiny enqueue message*: the
-path of a per-job directory. The full request payload (argv, cwd, environment)
-is written to a regular file in that directory and the result is returned to
-the client through a per-job response FIFO.
+Why fork-per-job rather than a reusable worker pool
+---------------------------------------------------
+PSyclone keeps a good deal of process-global state: ``Config._instance``,
+``LFRicConstants.HAS_BEEN_INITIALISED``, ``LFRicTypes._name_to_class``,
+``SymbolicMaths._instance``, ``ModuleManager._instance``,
+``LFRicBuiltinFunctorFactory._instance`` and fparser's ``SYMBOL_TABLES``, to
+name only those that exist today. A long-lived worker would have to reset all
+of it between jobs, and *any* omission silently produces wrong Fortran rather
+than an error. That list would also have to be maintained against PSyclone's
+internals in perpetuity.
+
+Forking per job side-steps the problem completely: the child starts from a
+pristine copy of the parent's address space, and the parent is careful never to
+run PSyclone itself - it only imports it. Isolation is therefore exactly as
+strong as running a separate ``psyclone`` process, while the fork costs a few
+tens of milliseconds against roughly nine seconds for a cold interpreter, so
+essentially all of the saving is retained.
 
 Protocol (per job)
 ------------------
-* client writes ``<job-dir>\\n`` to the shared request FIFO (atomic);
-* dispatcher reads the line and places the job on a shared work queue;
-* a worker reads ``<job-dir>/request.json``, runs PSyclone and writes the
-  result to the ``<job-dir>/response`` FIFO as ``result.json`` content;
-* client reads the response FIFO, replays the captured output and exits with
-  the returned code.
+* client writes ``<job-dir>\\n`` to the shared request FIFO. The message is a
+  single short line, comfortably inside ``PIPE_BUF``, so concurrent writes from
+  many clients cannot interleave;
+* the dispatcher reads the line and forks a child once a slot is free;
+* the child reads ``<job-dir>/request.json``, runs PSyclone and writes the
+  result to the ``<job-dir>/response`` FIFO;
+* the client reads the response FIFO, replays the captured output and exits
+  with the returned code.
 
+Lifetime
+--------
 The server shuts itself down after ``PSYCLONE_SERVER_IDLE_TIMEOUT`` seconds
 without work, so no explicit stop step is required from the build. More
 importantly its lifetime is *pinned to the owning make process*
@@ -36,31 +50,17 @@ dispatch loop polls that process once a second and exits as soon as it goes
 away. A build that finishes normally therefore takes its server with it, and
 one that is killed manually - with SIGINT, SIGTERM or SIGKILL, at any level of
 recursive make - never leaves an orphaned server behind.
-
-State isolation
----------------
-Between jobs a worker resets the PSyclone global state that would otherwise
-leak from one algorithm file to the next:
-
-* ``Config._instance`` so that a per-job ``--config`` file is honoured;
-* ``LFRicConstants.HAS_BEEN_INITIALISED`` so the constants are rebuilt against
-  the fresh configuration;
-* any modules imported from *user* locations (optimisation recipes loaded via
-  ``-s`` and their ``psyclone_tools`` helpers) are purged from
-  :data:`sys.modules`, because PSyclone imports recipes by bare basename and
-  different components ship different ``global.py``/``<alg>.py`` files that
-  would otherwise collide in the module cache.
 """
 
+import errno
 import json
 import os
+import select
 import shutil
 import signal
 import sys
 import time
 import traceback
-from multiprocessing import Process, Queue
-from queue import Empty
 
 try:
     import psyclone_procs
@@ -69,178 +69,139 @@ except ImportError:  # pragma: no cover - executed from an unusual sys.path
     import psyclone_procs
 
 
-# Sentinel placed on the work queue to ask a worker to exit.
-_SHUTDOWN = None
-
 # Number of seconds of inactivity after which the server exits.
 DEFAULT_IDLE_TIMEOUT = 300.0
 
+# How long a child will wait for its client to start reading the response
+# FIFO before abandoning the result. Opening a FIFO for writing blocks until a
+# reader appears, so without this a client that was killed mid-job - which is
+# what happens to every job in flight when a build is interrupted - would leave
+# the child wedged for ever.
+RESPONSE_TIMEOUT = float(os.environ.get("PSYCLONE_RESPONSE_TIMEOUT") or 60.0)
 
-def _installed_prefixes():
+# Interval between attempts to open the response FIFO.
+RESPONSE_POLL_INTERVAL = 0.05
+
+
+def _open_response_fifo(path, timeout=RESPONSE_TIMEOUT):
     """
-    Return the set of realpath prefixes that are considered "installed", i.e.
-    modules imported from these locations are safe to cache across jobs.
+    Open a response FIFO for writing without blocking indefinitely.
 
-    :returns: realpath prefixes for the standard library and site-packages.
-    :rtype: tuple[str, ...]
+    ``O_WRONLY`` on its own blocks until a reader appears and can therefore
+    hang for ever if the client has gone. Adding ``O_NONBLOCK`` makes the open
+    fail with ``ENXIO`` while there is no reader, which lets us poll until the
+    deadline expires and then give up.
+
+    :param str path: the response FIFO.
+    :param float timeout: seconds to keep trying for.
+    :returns: a writable file descriptor, or None if no reader ever appeared.
+    :rtype: int or None
     """
-    import psyclone
-
-    prefixes = {
-        os.path.realpath(sys.prefix),
-        os.path.realpath(sys.base_prefix),
-        # site-packages directory containing the psyclone package.
-        os.path.realpath(os.path.dirname(os.path.dirname(psyclone.__file__))),
-    }
-    return tuple(prefixes)
-
-
-class _Worker:
-    """
-    A single pre-forked worker. Holds PSyclone resident and executes jobs
-    pulled from the shared queue, resetting global state between them.
-
-    :param queue: shared queue delivering job-directory paths.
-    :type queue: multiprocessing.Queue
-    """
-
-    def __init__(self, queue):
-        self._queue = queue
-        # Import PSyclone up front so the cost is paid once per worker.
-        import psyclone.generator  # noqa: F401  (imported for side effects)
-
-        self._installed_prefixes = _installed_prefixes()
-        # Snapshot the module cache once PSyclone is fully imported so we can
-        # detect (and purge) anything imported by individual jobs.
-        self._baseline_modules = frozenset(sys.modules)
-
-    # -- state isolation ----------------------------------------------------
-    def _reset_state(self):
-        """Reset PSyclone global state so the next job starts clean."""
-        # Reset the configuration singleton so a per-job --config is re-read.
+    deadline = time.monotonic() + timeout
+    while True:
         try:
-            from psyclone.configuration import Config
-            Config._instance = None
-        except Exception:  # pylint: disable=broad-except
-            pass
+            return os.open(path, os.O_WRONLY | os.O_NONBLOCK)
+        except OSError as error:
+            if error.errno != errno.ENXIO:
+                # The FIFO has gone, or something else is wrong. Either way the
+                # client is no longer interested.
+                return None
+            if time.monotonic() >= deadline:
+                return None
+            time.sleep(RESPONSE_POLL_INTERVAL)
 
-        # Force the LFRic constants to be rebuilt against the fresh config.
-        try:
-            from psyclone.domain.lfric import LFRicConstants
-            LFRicConstants.HAS_BEEN_INITIALISED = False
-        except Exception:  # pylint: disable=broad-except
-            pass
 
-        # Purge modules imported from user locations (optimisation recipes and
-        # their same-directory helpers). PSyclone loads recipes by bare
-        # basename, so different components would otherwise collide here.
-        for name in list(set(sys.modules) - self._baseline_modules):
-            module = sys.modules.get(name)
-            filename = getattr(module, "__file__", None)
-            if filename is None:
-                # Namespace or builtin module - safe to leave in place.
+def _write_response(job_dir, returncode, stdout, stderr):
+    """
+    Write a job result to the per-job response FIFO.
+
+    :param str job_dir: the job directory.
+    :param int returncode: PSyclone's exit code.
+    :param str stdout: captured standard output.
+    :param str stderr: captured standard error.
+    """
+    payload = json.dumps(
+        {"returncode": returncode, "stdout": stdout, "stderr": stderr})
+    handle = _open_response_fifo(os.path.join(job_dir, "response"))
+    if handle is None:
+        # The client gave up - it may have fallen back to a direct invocation,
+        # or the whole build may have been interrupted. Nothing left to do.
+        return
+    try:
+        data = payload.encode("utf8")
+        # The reader drains in chunks, so keep writing until it has all gone.
+        while data:
+            try:
+                written = os.write(handle, data)
+            except BlockingIOError:
+                select.select([], [handle], [], 1.0)
                 continue
-            realname = os.path.realpath(filename)
-            if not realname.startswith(self._installed_prefixes):
-                del sys.modules[name]
+            except OSError:
+                # Reader vanished part way through; the client will time out
+                # and fall back to a direct invocation.
+                return
+            data = data[written:]
+    finally:
+        os.close(handle)
 
-    # -- job execution ------------------------------------------------------
-    def _run_job(self, job_dir):
-        """
-        Execute a single PSyclone job described by ``job_dir``.
 
-        :param str job_dir: directory containing ``request.json`` and the
-            ``response`` FIFO.
-        """
-        from io import StringIO
+def run_job(job_dir):
+    """
+    Execute a single PSyclone job. Only ever called in a freshly forked child.
 
+    Because the child exits as soon as the job is done there is no need to save
+    and restore the working directory, ``sys.argv``, ``sys.path`` or any of
+    PSyclone's global state - the next job gets a brand new copy of the parent.
+
+    :param str job_dir: directory containing ``request.json`` and the
+        ``response`` FIFO.
+    :returns: the exit code PSyclone produced.
+    :rtype: int
+    """
+    from io import StringIO
+
+    out, err = StringIO(), StringIO()
+    returncode = 0
+    try:
         with open(os.path.join(job_dir, "request.json"),
                   encoding="utf8") as handle:
             request = json.load(handle)
 
+        os.chdir(request["cwd"])
+        # Make the recipe search locations importable - PYTHONPATH from the
+        # client, e.g. LFRIC_BUILD/psyclone for psyclone_tools.
+        for path in reversed(request.get("sys_path", [])):
+            if path and path not in sys.path:
+                sys.path.insert(0, path)
+
         argv = request["argv"]
-        cwd = request["cwd"]
-        extra_paths = request.get("sys_path", [])
+        sys.argv = ["psyclone"] + argv
+        sys.stdout, sys.stderr = out, err
 
-        # Preserve state that the job is allowed to mutate.
-        saved_cwd = os.getcwd()
-        saved_argv = sys.argv
-        saved_stdout, saved_stderr = sys.stdout, sys.stderr
-        saved_sys_path = list(sys.path)
-
-        out, err = StringIO(), StringIO()
-        returncode = 0
+        from psyclone.generator import main as psyclone_main
         try:
-            os.chdir(cwd)
-            # Make the recipe search locations (PYTHONPATH from the client,
-            # e.g. LFRIC_BUILD/psyclone for psyclone_tools) importable.
-            for path in reversed(extra_paths):
-                if path and path not in sys.path:
-                    sys.path.insert(0, path)
-            sys.argv = ["psyclone"] + argv
-            sys.stdout, sys.stderr = out, err
-            from psyclone.generator import main as psyclone_main
-            try:
-                psyclone_main(argv)
-            except SystemExit as exit_error:
-                code = exit_error.code
-                returncode = 0 if code is None else (
-                    code if isinstance(code, int) else 1)
-        except Exception:  # pylint: disable=broad-except
-            traceback.print_exc(file=err)
-            returncode = 1
-        finally:
-            sys.stdout, sys.stderr = saved_stdout, saved_stderr
-            sys.argv = saved_argv
-            sys.path[:] = saved_sys_path
-            os.chdir(saved_cwd)
-            self._reset_state()
+            psyclone_main(argv)
+        except SystemExit as exit_error:
+            code = exit_error.code
+            returncode = 0 if code is None else (
+                code if isinstance(code, int) else 1)
+    except Exception:  # pylint: disable=broad-except
+        traceback.print_exc(file=err)
+        returncode = 1
+    finally:
+        sys.stdout, sys.stderr = sys.__stdout__, sys.__stderr__
 
-        self._respond(job_dir, returncode, out.getvalue(), err.getvalue())
-
-    @staticmethod
-    def _respond(job_dir, returncode, stdout, stderr):
-        """Write the job result to the per-job response FIFO."""
-        payload = json.dumps(
-            {"returncode": returncode, "stdout": stdout, "stderr": stderr})
-        response_fifo = os.path.join(job_dir, "response")
-        try:
-            # Opening for write blocks until the client opens for read.
-            with open(response_fifo, "w", encoding="utf8") as handle:
-                handle.write(payload)
-        except OSError:
-            # Client gave up (e.g. fell back to a direct invocation); nothing
-            # more we can usefully do.
-            pass
-
-    # -- main loop ----------------------------------------------------------
-    def serve(self):
-        """Pull jobs from the queue until asked to shut down."""
-        # Workers should ignore SIGINT; the parent handles shutdown.
-        signal.signal(signal.SIGINT, signal.SIG_IGN)
-        while True:
-            job_dir = self._queue.get()
-            if job_dir is _SHUTDOWN:
-                break
-            try:
-                self._run_job(job_dir)
-            except Exception:  # pylint: disable=broad-except
-                # A failure here must never take the worker down.
-                traceback.print_exc(file=sys.stderr)
-
-
-def _worker_entry(queue):
-    """Entry point for a worker process."""
-    _Worker(queue).serve()
+    _write_response(job_dir, returncode, out.getvalue(), err.getvalue())
+    return returncode
 
 
 class PsycloneServer:
     """
-    The dispatcher process: owns the request FIFO, the worker pool and the
-    idle-timeout based shutdown.
+    The dispatcher process: owns the request FIFO, forks a child per job and
+    handles idle-timeout based shutdown.
 
     :param str server_dir: directory holding the request FIFO and job dirs.
-    :param int workers: number of worker processes to pre-fork.
+    :param int workers: maximum number of jobs to run concurrently.
     :param float idle_timeout: seconds of inactivity before shutting down.
     :param owner_pid: pid of the owning make process. When it disappears the
         server shuts down promptly, so that a finished build - or one killed
@@ -265,17 +226,22 @@ class PsycloneServer:
         self._request_fifo = os.path.join(server_dir, "request.fifo")
         self._pid_file = os.path.join(server_dir, "server.pid")
         self._ready_file = os.path.join(server_dir, "server.ready")
-        self._queue = Queue()
-        self._pool = []
+        self._pending = []
+        self._active = set()
         self._stopping = False
+        self._fifo_fds = ()
 
-    def _prefork(self):
-        """Start the worker pool."""
-        for _ in range(self._workers):
-            process = Process(target=_worker_entry, args=(self._queue,))
-            process.daemon = True
-            process.start()
-            self._pool.append(process)
+    # -- start up -----------------------------------------------------------
+    @staticmethod
+    def _preload():
+        """
+        Import PSyclone into the dispatcher so that every child inherits it.
+
+        This is the whole point of the server: the import costs several seconds
+        and many thousands of filesystem operations, and doing it here means it
+        is paid exactly once per build rather than once per algorithm file.
+        """
+        import psyclone.generator  # noqa: F401  (imported for side effects)
 
     def _create_request_fifo(self):
         """Create the shared request FIFO if it does not already exist."""
@@ -285,9 +251,24 @@ class PsycloneServer:
             pass
 
     def _signal_ready(self):
-        """Announce that the server is accepting work."""
+        """
+        Announce that the server is accepting work.
+
+        Called only once PSyclone is resident and the FIFO is open, so a client
+        which sees this file can genuinely be served straight away.
+        """
         with open(self._ready_file, "w", encoding="utf8") as handle:
             handle.write(str(os.getpid()))
+
+    def _install_signal_handlers(self):
+        """Break the dispatch loop cleanly on termination signals."""
+        def _handler(_signum, _frame):
+            self._stopping = True
+
+        for signal_name in ("SIGTERM", "SIGINT", "SIGHUP"):
+            signal_number = getattr(signal, signal_name, None)
+            if signal_number is not None:
+                signal.signal(signal_number, _handler)
 
     def _owner_alive(self):
         """
@@ -303,55 +284,105 @@ class PsycloneServer:
         """
         return psyclone_procs.owner_alive(self._owner_pid, self._owner_start)
 
-    def _install_signal_handlers(self):
-        """Break the dispatch loop cleanly on termination signals."""
-        def _handler(_signum, _frame):
-            self._stopping = True
+    # -- job handling -------------------------------------------------------
+    def _spawn(self, job_dir):
+        """
+        Fork a child to run one job.
 
-        for signal_name in ("SIGTERM", "SIGINT", "SIGHUP"):
-            signal_number = getattr(signal, signal_name, None)
-            if signal_number is not None:
-                signal.signal(signal_number, _handler)
+        :param str job_dir: the job directory to hand to the child.
+        """
+        pid = os.fork()
+        if pid == 0:
+            # -- child ------------------------------------------------------
+            code = 1
+            try:
+                # Restore default signal handling; the parent's handlers only
+                # make sense for the dispatch loop.
+                for name in ("SIGTERM", "SIGINT", "SIGHUP"):
+                    number = getattr(signal, name, None)
+                    if number is not None:
+                        signal.signal(number, signal.SIG_DFL)
+                # Do not keep the shared request FIFO open in the child.
+                for descriptor in self._fifo_fds:
+                    try:
+                        os.close(descriptor)
+                    except OSError:
+                        pass
+                code = run_job(job_dir)
+            except BaseException:  # pylint: disable=broad-except
+                try:
+                    traceback.print_exc(file=sys.__stderr__)
+                except Exception:  # pylint: disable=broad-except
+                    pass
+            finally:
+                # _exit, not sys.exit: the child must not run the parent's
+                # atexit handlers nor flush its buffers.
+                os._exit(0 if code == 0 else 1)  # pylint: disable=W0212
+        self._active.add(pid)
 
+    def _reap(self):
+        """Collect any children which have finished."""
+        for pid in list(self._active):
+            try:
+                done, _status = os.waitpid(pid, os.WNOHANG)
+            except ChildProcessError:
+                self._active.discard(pid)
+                continue
+            if done:
+                self._active.discard(pid)
+
+    def _start_pending(self):
+        """Fork children for queued jobs while there is spare capacity."""
+        while self._pending and len(self._active) < self._workers:
+            self._spawn(self._pending.pop(0))
+
+    # -- shutdown -----------------------------------------------------------
     def _shutdown(self):
-        """Stop all workers promptly and clean up server files."""
+        """Stop all children promptly and clean up the server files."""
         # Remove the coordination files first so that clients immediately see
-        # the server as gone (and a new build can start a fresh one) even if
-        # reaping the workers takes a moment.
+        # the server as gone - and a new build can start a fresh one - even if
+        # reaping the children takes a moment.
         for path in (self._ready_file, self._pid_file, self._request_fifo):
             try:
                 os.remove(path)
             except OSError:
                 pass
 
-        # Ask workers to stop, but do not rely on them draining the queue -
-        # terminate them directly so shutdown is bounded and cannot hang if a
-        # worker is busy inside PSyclone.
-        for process in self._pool:
-            if process.is_alive():
-                process.terminate()
-        for process in self._pool:
-            process.join(timeout=2)
-            if process.is_alive():
-                process.kill()
+        # Terminate any running jobs directly so that shutdown is bounded and
+        # cannot hang if a child is busy inside PSyclone.
+        for pid in list(self._active):
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except OSError:
+                self._active.discard(pid)
 
-        # Prevent the queue's background feeder thread from blocking process
-        # exit if it still holds buffered data.
-        try:
-            self._queue.cancel_join_thread()
-        except Exception:  # pylint: disable=broad-except
-            pass
+        deadline = time.monotonic() + 2.0
+        while self._active and time.monotonic() < deadline:
+            self._reap()
+            if self._active:
+                time.sleep(0.05)
+
+        for pid in list(self._active):
+            try:
+                os.kill(pid, signal.SIGKILL)
+                os.waitpid(pid, 0)
+            except OSError:
+                pass
+            self._active.discard(pid)
 
         # A directory created for this build alone goes with it, leaving no
         # trace of the server once make has finished.
         if self._remove_dir:
             shutil.rmtree(self._server_dir, ignore_errors=True)
 
+    # -- main loop ----------------------------------------------------------
     def serve(self):
-        """Run the dispatch loop until the idle timeout expires."""
+        """Run the dispatch loop until the build ends or the server idles."""
         self._create_request_fifo()
-        self._prefork()
         self._install_signal_handlers()
+
+        # Pay the expensive import once, before anything can ask for work.
+        self._preload()
 
         # Open the read end first (non-blocking) so that opening the write end
         # does not deadlock waiting for a reader. The write handle is then kept
@@ -359,20 +390,27 @@ class PsycloneServer:
         # between clients; reads block (with a timeout) rather than spinning.
         reader_fd = os.open(self._request_fifo, os.O_RDONLY | os.O_NONBLOCK)
         writer_fd = os.open(self._request_fifo, os.O_WRONLY)
+        self._fifo_fds = (reader_fd, writer_fd)
 
         # Only advertise readiness once we can actually accept work.
         self._signal_ready()
         try:
             self._dispatch_loop(reader_fd)
         finally:
-            os.close(reader_fd)
-            os.close(writer_fd)
+            for descriptor in self._fifo_fds:
+                try:
+                    os.close(descriptor)
+                except OSError:
+                    pass
+            self._fifo_fds = ()
             self._shutdown()
 
     def _dispatch_loop(self, reader_fd):
-        """Read enqueue messages and hand jobs to workers."""
-        import select
+        """
+        Read enqueue messages and fork a child for each job.
 
+        :param int reader_fd: the read end of the shared request FIFO.
+        """
         buffer = b""
         last_activity = time.monotonic()
         while not self._stopping:
@@ -391,8 +429,16 @@ class PsycloneServer:
                         if job_dir == "__STOP__":
                             return
                         if job_dir:
-                            self._queue.put(job_dir)
-                            last_activity = time.monotonic()
+                            self._pending.append(job_dir)
+
+            self._reap()
+            self._start_pending()
+
+            if self._pending or self._active:
+                # Work in progress counts as activity, so a long build never
+                # trips the idle timeout.
+                last_activity = time.monotonic()
+
             # Shut down promptly if the owning build has gone away, otherwise
             # fall back to the inactivity timeout.
             if not self._owner_alive():
@@ -417,4 +463,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 

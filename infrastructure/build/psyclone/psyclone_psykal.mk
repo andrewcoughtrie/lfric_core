@@ -16,11 +16,12 @@ DSL = psykal
 PSYCLONE_PSYKAL_EXTRAS ?= -l all
 #
 # The command used to invoke PSyclone. By default this is the persistent
-# server client (psyclone_client.py) which keeps a single PSyclone instance
-# resident and dispatches jobs to a pool of pre-forked workers, avoiding the
-# repeated cost of loading the Python libraries from disk. It is a drop-in
-# replacement for the "psyclone" binary and falls back to it automatically if
-# the server is unavailable. Override PSYCLONE=psyclone to bypass the server.
+# server client (psyclone_client.py). The server imports PSyclone once and
+# then forks a fresh child per algorithm file, avoiding the repeated cost of
+# loading the Python libraries from disk while keeping each job as isolated as
+# a separate process. It is a drop-in replacement for the "psyclone" binary
+# and falls back to it automatically if the server is unavailable. Override
+# PSYCLONE=psyclone to bypass the server, or set PSYCLONE_SERVER_DISABLE=1.
 #
 # The server's lifetime is pinned to the owning make process: lfric.mk exports
 # PSYCLONE_OWNER_PID (the pid of the top-level make) and the server exits as
@@ -29,10 +30,24 @@ PSYCLONE_PSYKAL_EXTRAS ?= -l all
 # finding the outermost make process in its own ancestry.
 PSYCLONE ?= $(LFRIC_BUILD)/psyclone/psyclone_client.py
 #
-# Number of pre-forked PSyclone worker processes. Sized to the build
-# parallelism where known (MAKE_THREADS), otherwise to the number of
-# available processors.
-export PSYCLONE_WORKERS ?= $(if $(MAKE_THREADS),$(MAKE_THREADS),$(shell nproc))
+# Maximum number of PSyclone jobs the server will run at once. Sized to the
+# build parallelism where known (MAKE_THREADS), otherwise to the number of
+# available processors, and capped so that a build on a many-core node cannot
+# run away with memory - each concurrent job needs roughly 100MB.
+#
+# Note the use of ":=" rather than "?=". A recursively expanded variable would
+# re-run "nproc" every time it was expanded, which for an exported variable
+# means once per PSyclone recipe - hundreds of needless forks per build.
+PSYCLONE_MAX_WORKERS ?= 8
+ifdef MAKE_THREADS
+  PSYCLONE_WORKERS_WANTED := $(MAKE_THREADS)
+else
+  PSYCLONE_WORKERS_WANTED := $(shell nproc 2>/dev/null || echo 4)
+endif
+export PSYCLONE_WORKERS := $(shell \
+    if [ $(PSYCLONE_WORKERS_WANTED) -gt $(PSYCLONE_MAX_WORKERS) ]; \
+    then echo $(PSYCLONE_MAX_WORKERS); \
+    else echo $(PSYCLONE_WORKERS_WANTED); fi)
 #
 
 ALGORITHM_F_FILES := $(patsubst $(SOURCE_DIR)/%.X90, \

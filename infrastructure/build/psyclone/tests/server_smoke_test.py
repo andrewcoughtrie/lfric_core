@@ -23,6 +23,7 @@ It verifies the properties that the in-process, state-reset design depends on:
 The test can be run directly (``python server_smoke_test.py``) or under pytest.
 """
 
+import json
 import os
 import shutil
 import signal
@@ -90,20 +91,23 @@ def trans(psyir):
 '''
 
 
-def _run(command, workspace, use_server):
+def _run(command, workspace, use_server, server_dir=None):
     """
     Run PSyclone either directly or through the server client.
 
     :param list command: PSyclone arguments (after the program name).
     :param str workspace: directory to run in.
     :param bool use_server: True to use the client, False for direct psyclone.
+    :param server_dir: an already-running server to use, if any.
+    :type server_dir: str or None
     :returns: CompletedProcess.
     """
     env = dict(os.environ)
     env["PYTHONPATH"] = os.pathsep.join(
         [PSYCLONE_DIR, env.get("PYTHONPATH", "")])
     if use_server:
-        env["PSYCLONE_SERVER_DIR"] = os.path.join(workspace, ".server")
+        env["PSYCLONE_SERVER_DIR"] = server_dir or os.path.join(
+            workspace, ".server")
         program = [sys.executable, CLIENT]
     else:
         env["PSYCLONE_SERVER_DISABLE"] = "1"
@@ -112,7 +116,7 @@ def _run(command, workspace, use_server):
                           capture_output=True, text=True, check=False)
 
 
-def _generate(workspace, recipe_text, tag, use_server):
+def _generate(workspace, recipe_text, tag, use_server, server_dir=None):
     """
     Generate a PSy layer for the shared algorithm using ``recipe_text``.
 
@@ -139,7 +143,7 @@ def _generate(workspace, recipe_text, tag, use_server):
         ["-api", "lfric", "-l", "all", "--config", CONFIG,
          "-s", recipe, "-okern", kern_dir,
          "-oalg", alg_out, "-opsy", psy_out, alg_in],
-        workspace, use_server)
+        workspace, use_server, server_dir)
     assert result.returncode == 0, (
         f"PSyclone failed ({'server' if use_server else 'direct'}):\n"
         f"{result.stdout}\n{result.stderr}")
@@ -391,11 +395,160 @@ def test_server_lifetime_is_pinned_to_the_make_process():
         shutil.rmtree(workspace, ignore_errors=True)
 
 
+def _start_server(workspace, **env_overrides):
+    """
+    Start a server directly (as the client would) and wait for readiness.
+
+    :param str workspace: directory to use for coordination files.
+    :returns: (Popen, server_dir).
+    """
+    server_module = os.path.join(PSYCLONE_DIR, "psyclone_server.py")
+    server_dir = os.path.join(workspace, ".server")
+    os.makedirs(server_dir, exist_ok=True)
+    env = dict(os.environ,
+               PSYCLONE_SERVER_DIR=server_dir,
+               PSYCLONE_SERVER_IDLE_TIMEOUT="300",
+               **env_overrides)
+    env.pop("PSYCLONE_OWNER_PID", None)
+    server = subprocess.Popen([sys.executable, server_module], env=env)
+    ready = os.path.join(server_dir, "server.ready")
+    assert _wait_for(ready, timeout=120.0), "server never became ready"
+    return server, server_dir
+
+
+def test_server_holds_no_idle_workers():
+    """Fork-per-job means PSyclone is resident in exactly one process while
+    the server is idle, rather than in a pool of pre-forked workers each of
+    which had to import it separately."""
+    workspace = tempfile.mkdtemp(prefix="psyclone-idle-")
+    server = None
+    try:
+        server, _ = _start_server(workspace, PSYCLONE_WORKERS="4")
+        # Readiness is only signalled once PSyclone is resident, so by now the
+        # single import is complete. No children should exist: children are
+        # created per job and reaped when it finishes.
+        time.sleep(1.0)
+        children = subprocess.run(
+            ["ps", "-o", "pid=", "--ppid", str(server.pid)],
+            capture_output=True, text=True, check=False).stdout.split()
+        assert not children, (
+            f"expected no idle worker processes, found {len(children)}; "
+            "each one would have paid the PSyclone import cost separately")
+    finally:
+        if server is not None and server.poll() is None:
+            server.terminate()
+            server.wait(timeout=30)
+        shutil.rmtree(workspace, ignore_errors=True)
+
+
+def test_abandoned_client_does_not_wedge_the_server():
+    """A client killed after submitting must not cost a job slot for ever.
+
+    Opening a FIFO for writing blocks until a reader appears, so a child
+    responding to a client that has gone would hang indefinitely. With a single
+    job slot that would stall the rest of the build.
+    """
+    workspace = tempfile.mkdtemp(prefix="psyclone-wedge-")
+    server = None
+    try:
+        server, server_dir = _start_server(
+            workspace, PSYCLONE_WORKERS="1", PSYCLONE_RESPONSE_TIMEOUT="3")
+
+        # Submit a job by hand and deliberately never read the response: this
+        # is exactly the state a SIGKILLed client leaves behind.
+        job_dir = tempfile.mkdtemp(prefix="job-", dir=server_dir)
+        os.mkfifo(os.path.join(job_dir, "response"))
+        with open(os.path.join(job_dir, "request.json"), "w",
+                  encoding="utf8") as handle:
+            json.dump({"argv": ["--version"], "cwd": workspace,
+                       "sys_path": []}, handle)
+        fifo = os.open(os.path.join(server_dir, "request.fifo"), os.O_WRONLY)
+        os.write(fifo, (job_dir + "\n").encode("utf8"))
+        os.close(fifo)
+
+        # The only job slot must come back, so a subsequent job still runs.
+        time.sleep(1.0)
+        alg, _psy = _generate(workspace, RECIPE_DUPLICATE_ONCE, "after",
+                              use_server=True, server_dir=server_dir)
+        assert "smoke_alg" in alg, "server did not recover the job slot"
+    finally:
+        if server is not None and server.poll() is None:
+            server.terminate()
+            server.wait(timeout=30)
+        shutil.rmtree(workspace, ignore_errors=True)
+
+
+def test_concurrent_clients_are_all_served():
+    """The build runs PSyclone under 'make -j', so several clients hit one
+    server at once. Every one must get its own correct result back."""
+    workspace = tempfile.mkdtemp(prefix="psyclone-conc-")
+    server = None
+    jobs = 6
+    try:
+        server, server_dir = _start_server(workspace, PSYCLONE_WORKERS="3")
+
+        env = dict(os.environ)
+        env["PYTHONPATH"] = os.pathsep.join(
+            [PSYCLONE_DIR, env.get("PYTHONPATH", "")])
+        env["PSYCLONE_SERVER_DIR"] = server_dir
+
+        # Alternate between two recipes sharing the basename "global": if any
+        # state leaked between concurrently running jobs the outputs would be
+        # cross-contaminated.
+        recipes = (RECIPE_DUPLICATE_ONCE, RECIPE_DUPLICATE_TWICE)
+        running = []
+        for index in range(jobs):
+            tag = f"conc{index}"
+            recipe_dir = os.path.join(workspace, tag)
+            os.makedirs(recipe_dir, exist_ok=True)
+            recipe = os.path.join(recipe_dir, "global.py")
+            with open(recipe, "w", encoding="utf8") as handle:
+                handle.write(recipes[index % 2])
+            alg_in = os.path.join(workspace, f"{tag}.x90")
+            with open(alg_in, "w", encoding="utf8") as handle:
+                handle.write(ALGORITHM)
+            command = [
+                sys.executable, CLIENT, "-api", "lfric", "-l", "all",
+                "--config", CONFIG, "-s", recipe,
+                "-okern", os.path.join(workspace, "kernel"),
+                "-oalg", os.path.join(workspace, f"{tag}_alg.f90"),
+                "-opsy", os.path.join(workspace, f"{tag}_psy.f90"), alg_in]
+            os.makedirs(os.path.join(workspace, "kernel"), exist_ok=True)
+            running.append((tag, index, subprocess.Popen(
+                command, cwd=workspace, env=env,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)))
+
+        results = {}
+        for tag, index, process in running:
+            out, err = process.communicate(timeout=600)
+            assert process.returncode == 0, (
+                f"concurrent job {tag} failed:\n{out}\n{err}")
+            with open(os.path.join(workspace, f"{tag}_psy.f90"),
+                      encoding="utf8") as handle:
+                results[index] = handle.read()
+
+        # Jobs using the same recipe must agree; jobs using different recipes
+        # must differ. Both halves catch cross-job contamination.
+        odd = {text for index, text in results.items() if index % 2}
+        even = {text for index, text in results.items() if not index % 2}
+        assert len(even) == 1, "concurrent jobs sharing a recipe disagreed"
+        assert len(odd) == 1, "concurrent jobs sharing a recipe disagreed"
+        assert even != odd, "different recipes produced identical output"
+    finally:
+        if server is not None and server.poll() is None:
+            server.terminate()
+            server.wait(timeout=30)
+        shutil.rmtree(workspace, ignore_errors=True)
+
+
 if __name__ == "__main__":
     test_owner_is_the_outermost_make_process()
     test_owner_alive_detects_death_zombies_and_pid_reuse()
     test_server_lifetime_is_pinned_to_the_make_process()
     test_server_matches_direct_and_isolates_state()
     test_server_shuts_down_when_owner_dies()
+    test_server_holds_no_idle_workers()
+    test_abandoned_client_does_not_wedge_the_server()
+    test_concurrent_clients_are_all_served()
     print("PSyclone server smoke test passed")
 

@@ -30,6 +30,7 @@ real ``psyclone`` binary directly so that a build is never broken by the
 optimisation.
 """
 
+import errno
 import json
 import os
 import shutil
@@ -53,13 +54,35 @@ ENV_DISABLE = "PSYCLONE_SERVER_DISABLE"
 ENV_OWNER_PID = "PSYCLONE_OWNER_PID"
 ENV_OWNER_START = "PSYCLONE_OWNER_START"
 ENV_TRANSIENT = "PSYCLONE_SERVER_DIR_TRANSIENT"
+ENV_VERBOSE = "PSYCLONE_SERVER_VERBOSE"
 
 # Prefix of the auto-created (per build) server directories.
 SERVER_DIR_PREFIX = "psyclone-server"
 
 # How long to wait for the server to become ready, and for a job result.
 SERVER_START_TIMEOUT = 60.0
-JOB_TIMEOUT = 900.0
+JOB_TIMEOUT = float(os.environ.get("PSYCLONE_JOB_TIMEOUT") or 900.0)
+
+# How long to wait for the server to accept an enqueue message. The server
+# holds the read end of the request FIFO open for its whole life, so this only
+# expires if it died between us checking it was ready and us writing.
+SUBMIT_TIMEOUT = 30.0
+
+
+def _warn(message):
+    """
+    Report that the fast path was not taken.
+
+    A silent fallback would leave a broken server quietly costing the build
+    several seconds per file with nothing to show why, so say something once
+    per invocation. Set PSYCLONE_SERVER_VERBOSE=0 to suppress.
+
+    :param str message: explanation to show.
+    """
+    if os.environ.get(ENV_VERBOSE, "1") == "0":
+        return
+    sys.stderr.write(f"psyclone_client: {message}; "
+                     f"falling back to a direct PSyclone invocation\n")
 
 
 def _resolve_owner():
@@ -311,6 +334,35 @@ def _start_server(server_dir, owner, transient):
         return False
 
 
+def _open_request_fifo(path, timeout=SUBMIT_TIMEOUT):
+    """
+    Open the shared request FIFO for writing without blocking for ever.
+
+    A plain ``O_WRONLY`` open blocks until a reader appears. The server holds
+    the read end open for its whole life so that is normally instant, but if it
+    has just exited we must not hang the build waiting for a reader that will
+    never arrive.
+
+    :param str path: the request FIFO.
+    :param float timeout: seconds to keep trying for.
+    :returns: a writable file descriptor.
+    :rtype: int
+    :raises RuntimeError: if the server did not accept the connection in time.
+    """
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            return os.open(path, os.O_WRONLY | os.O_NONBLOCK)
+        except OSError as error:
+            if error.errno != errno.ENXIO:
+                raise
+            if time.monotonic() >= deadline:
+                raise RuntimeError(
+                    "PSyclone server is not reading its request FIFO") \
+                    from error
+            time.sleep(0.05)
+
+
 def _submit(server_dir, argv):
     """
     Submit a job to the running server and return its result.
@@ -322,35 +374,41 @@ def _submit(server_dir, argv):
     :raises RuntimeError: if the job cannot be completed by the server.
     """
     job_dir = tempfile.mkdtemp(prefix="job-", dir=server_dir)
-    response_fifo = os.path.join(job_dir, "response")
-    os.mkfifo(response_fifo)
-
-    request = {
-        "argv": argv,
-        "cwd": os.getcwd(),
-        # PYTHONPATH entries are needed so the server can import optimisation
-        # recipes and their psyclone_tools helper (mirrors the makefile's
-        # PYTHONPATH=$(LFRIC_BUILD)/psyclone:$$PYTHONPATH).
-        "sys_path": [p for p in
-                     os.environ.get("PYTHONPATH", "").split(os.pathsep) if p],
-    }
-    with open(os.path.join(job_dir, "request.json"), "w",
-              encoding="utf8") as handle:
-        json.dump(request, handle)
-
-    # Tiny, atomic enqueue message: just the job directory path.
-    message = (job_dir + "\n").encode("utf8")
-    request_fifo = os.path.join(server_dir, "request.fifo")
-    fifo_fd = os.open(request_fifo, os.O_WRONLY)
     try:
-        os.write(fifo_fd, message)
-    finally:
-        os.close(fifo_fd)
+        response_fifo = os.path.join(job_dir, "response")
+        os.mkfifo(response_fifo)
 
-    # Block until a worker opens the response FIFO and writes the result.
-    result = _read_response(response_fifo)
-    _cleanup(job_dir)
-    return result["returncode"], result["stdout"], result["stderr"]
+        request = {
+            "argv": argv,
+            "cwd": os.getcwd(),
+            # PYTHONPATH entries are needed so the server can import
+            # optimisation recipes and their psyclone_tools helper (mirrors
+            # the makefile's PYTHONPATH=$(LFRIC_BUILD)/psyclone:$$PYTHONPATH).
+            "sys_path": [p for p in
+                         os.environ.get("PYTHONPATH", "").split(os.pathsep)
+                         if p],
+        }
+        with open(os.path.join(job_dir, "request.json"), "w",
+                  encoding="utf8") as handle:
+            json.dump(request, handle)
+
+        # Tiny, atomic enqueue message: just the job directory path. It is far
+        # shorter than PIPE_BUF, so concurrent writes cannot interleave.
+        message = (job_dir + "\n").encode("utf8")
+        fifo_fd = _open_request_fifo(os.path.join(server_dir, "request.fifo"))
+        try:
+            os.write(fifo_fd, message)
+        finally:
+            os.close(fifo_fd)
+
+        # Block until a child opens the response FIFO and writes the result.
+        result = _read_response(response_fifo)
+        return result["returncode"], result["stdout"], result["stderr"]
+    finally:
+        # Always tidy up, including when the job timed out or the protocol was
+        # violated, so an interrupted build does not litter the server
+        # directory with abandoned jobs.
+        _cleanup(job_dir)
 
 
 def _read_response(response_fifo):
@@ -412,10 +470,14 @@ def main(argv=None):
         owner = _resolve_owner()
         server_dir, transient = _server_dir(owner[0])
         if not _start_server(server_dir, owner, transient):
+            _warn("the PSyclone server could not be started")
             return _fallback(argv)
         returncode, out, err = _submit(server_dir, argv)
-    except Exception:  # pylint: disable=broad-except
-        # Any failure in the fast path must not break the build.
+    except Exception as error:  # pylint: disable=broad-except
+        # Any failure in the fast path must not break the build, but it must
+        # not be silent either: a persistently broken server would otherwise
+        # cost several seconds per algorithm file with nothing to explain it.
+        _warn(f"{type(error).__name__}: {error}")
         return _fallback(argv)
 
     if out:
