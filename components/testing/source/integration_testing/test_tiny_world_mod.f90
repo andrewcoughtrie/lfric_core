@@ -41,7 +41,6 @@ contains
                                               create_comm
     use mesh_collection_mod,           only : mesh_collection_type, &
                                               mesh_collection
-    use runtime_tools_mod,             only : init_hierarchical_mesh_id_list
 
     implicit none
 
@@ -64,10 +63,6 @@ contains
                                     last=3_i_timestep,             &
                                     seconds_per_step=1.0_r_second, &
                                     spinup_period=0.0_r_second )
-
-    ! Gung Ho finite element bits
-    !
-    call init_hierarchical_mesh_id_list( (/mesh_id/) )
 
   end subroutine initialise_tiny_world
 
@@ -94,7 +89,7 @@ contains
     type(custom_decomposition_type), allocatable :: decomposition
     type(partition_type)                         :: partitioner
 
-    call ugrid_data%read_from_file('shared-resources/tiny_world.nc', 'tiny')
+    call ugrid_data%read_from_file('./tiny_world.nc', 'tiny')
     allocate( global_mesh, source=global_mesh_type( ugrid_data ) )
     decomposition = custom_decomposition_type( num_xprocs=1_i_def, num_yprocs=1_i_def )
     partitioner_proc => partitioner_cubedsphere
@@ -275,13 +270,9 @@ contains
 
     use halo_comms_mod,        only : finalise_halo_comms
     use lfric_mpi_mod,         only : destroy_comm
-    use runtime_tools_mod,     only : final_hierarchical_mesh_id_list
-    use sci_fem_constants_mod, only : final_fem_constants
 
     implicit none
 
-    call final_fem_constants()
-    call final_hierarchical_mesh_id_list
     call finalise_halo_comms()
     if (associated(mesh)) deallocate( mesh )
     if (associated(local_mesh)) deallocate( local_mesh )
